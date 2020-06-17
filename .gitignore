@@ -1,0 +1,8 @@
+output*
+test*
+*.pyc
+*.o
+*.d
+lofar_udp_extractor
+*pcap*
+*.pcap

@@ -1,0 +1,9 @@
+TODO:
+
+Better approach to out of order packets?
+Overall cleanup + documentation
+calloc -> memalign, figoure the cause of the segfaults
+Fix the debug python script
+Async data reader/decompression?
+Add support for copying a header in the events file
+Python library -- CFFI looks good if I can get rid of header defines autmatically
