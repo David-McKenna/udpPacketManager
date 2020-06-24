@@ -10,10 +10,6 @@
 #include "lofar_udp_reader.h"
 #include "lofar_udp_misc.h"
 
-#ifdef __SLOWDOWN
-#include <unistd.h>
-#endif
-
 // Local prototypes
 long getStartingPacket(char inputTime[], const int clock200MHz);
 long getSecondsToPacket(float seconds, const int clock200MHz);
@@ -32,16 +28,15 @@ const char exitReasons[4][1024] = {"", "",
 
 void helpMessages() {
 	printf("LOFAR UDP Data extractor (v%.1f)\n\n", VERSIONCLI);
-	printf("Usage: ./lofar_cli_extractor -i <prefix> -o <prefix> -m <packets> -u <ports> -t <time> -p <mode> -r -c");
+	printf("Usage: ./lofar_cli_extractor <flags>");
 
-	VERBOSE(printf("-v"));
 	printf("\n\n");
 
 	printf("-i: <format>	Input file name format (default: './%%d')\n");
 	printf("-o: <format>	Output file name format (provide %%d, %%s and %%ld to fill in output ID, date/time string and the starting packet number) (default: './output%%d_%%s_%%ld')\n");
 	printf("-m: <numPack>	Number of packets to process in each read request (default: 65536)\n");
 	printf("-u: <numPort>	Number of ports to combine (default: 4)\n");
-	printf("-t: <timeStr>	String of the time of the first requested packet, format YYYY-MM-DDTHH:MM:SS (default: '')\n");
+	printf("-t: <timeStr>	String of the time of the first requested packet, format YYYY-MM-DDTHH:mm:ss (default: '')\n");
 	printf("-s: <numSec>	Maximum number of seconds to process (default: all)\n");
 	printf("-e: <fileName>	Specify a file of events to extract; newline separated start time and durations in seconds. Events must not overlap.\n");
 	printf("-p: <mode>		Processing mode, options listed below (default: 0)\n");
@@ -65,12 +60,12 @@ void helpMessages() {
 	printf("20: Raw UDP to Beamlet Major, Frequency Reversed Output: Reverse the major order and beamlet order in the output\n");
 	printf("21: Raw UDP to Beamlet Major, Frequency Reversed, Split Pols Output: combine (2) and (20).\n\n");
 
-	printf("100: Raw UDP to Stokes I: Form stokes I for the input.\n");
-	printf("101: Raw UDP to Stokes V: Form stokes V for the input.\n");
-	printf("110: Raw UDP to Stokes I: Form stokes I for the input with 8x time decimation.\n");
-	printf("111: Raw UDP to Stokes V: Form stokes V for the input with 8x time decimation.\n");
-	printf("120: Raw UDP to Stokes I: Form stokes I for the input with 16x time decimation.\n");
-	printf("121: Raw UDP to Stokes V: Form stokes V for the input with 16x time decimation.\n\n");
+	printf("100: Raw UDP to Stokes I: Form a 32-bit float Stokes I for the input.\n");
+	printf("101: Raw UDP to Stokes V: Form a 32-bit float Stokes V for the input.\n");
+	//printf("110: Raw UDP to Stokes I: Form stokes I for the input with 8x time decimation.\n");
+	//printf("111: Raw UDP to Stokes V: Form stokes V for the input with 8x time decimation.\n");
+	//printf("120: Raw UDP to Stokes I: Form stokes I for the input with 16x time decimation.\n");
+	//printf("121: Raw UDP to Stokes V: Form stokes V for the input with 16x time decimation.\n\n");
 
 }
 
@@ -78,7 +73,7 @@ void helpMessages() {
 int main(int argc, char  *argv[]) {
 
 	// Set up input local variables
-	int inputOpt, outputFilesCount;
+	int inputOpt, outputFilesCount, input = 0;
 	float seconds = 0.0;
 	char inputFormat[256] = "./%d", outputFormat[256] = "./output%d_%s_%ld", inputTime[256] = "", eventsFile[256] = "", stringBuff[128], mockHdrArg[2048] = "", mockHdrCmd[4096] = "";
 	int ports = 4, processingMode = 0, replayDroppedPackets = 0, verbose = 0, silent = 0, appendMode = 0, compressedReader = 0, eventCount = 0, returnCounter = 0, callMockHdr = 0;
@@ -103,6 +98,7 @@ int main(int argc, char  *argv[]) {
 
 	// Standard ugly input flags parser
 	while((inputOpt = getopt(argc, argv, "rcqfvi:o:m:u:t:s:e:p:a:")) != -1) {
+		input = 1;
 		switch(inputOpt) {
 			
 			case 'i':
@@ -188,6 +184,11 @@ int main(int argc, char  *argv[]) {
 				return 1;
 
 		}
+	}
+
+	if (input == 0) {
+		helpMessages();
+		return 1;
 	}
 
 	char workingString[1024];
@@ -446,7 +447,7 @@ int main(int argc, char  *argv[]) {
 		for (int out = 0; out < outputFilesCount; out++) {
 			sprintf(workingString, outputFormat, out, dateStr[eventLoop], startingPacket);
 			
-			if (access(workingString, F_OK) != -1) {
+			if (appendMode != 1 && access(workingString, F_OK) != -1) {
 				fprintf(stderr, "Output file at %s already exists; exiting.\n", workingString);
 				return 1;
 			}

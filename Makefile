@@ -6,15 +6,26 @@ LFLAGS 	= -I./ -I /usr/include/ -lzstd -fopenmp
 
 OBJECTS = lofar_cli_extractor.o lofar_udp_reader.o lofar_udp_misc.o
 
+PREFIX = /usr/local
 
 %.o: %.c
 	$(CC) -c $(LFLAGS) -o ./$@ $< $(CFLAGS)
 
-# Added a clean in here as -MD wasn't working for regenering objects based on new headers
-all: clean $(OBJECTS)
+all: $(OBJECTS)
 	$(CC) $(LFLAGS) $(OBJECTS) -o ./lofar_udp_extractor $(LFLAGS)
 
-newlinepad:	printf "\n\n\n\n"
+# TODO: install libraries as well...
+install:
+	mkdir -p $(PREFIX)/bin/ && mkdir -p $(PREFIX)/include/
+	cp ./lofar_udp_extractor $(PREFIX)/bin/
+	cp ./*.h $(PREFIX)/include/
+	cp ./mockHeader/mockHeader $(PREFIX)/bin/; exit 0;
+
+install-local:
+	mkdir -p ~/.local/bin/ && mkdir -p ~/.local/include/
+	cp ./lofar_udp_extractor ~/.local/bin/
+	cp ./*.h ~/.local/include/
+	cp ./mockHeader/mockHeader ~/.local/bin/; exit 0;
 
 clean:
 	rm ./*.o; exit 0;
@@ -23,4 +34,9 @@ clean:
 	rm ./lofar_udp_extractor; exit 0;
 
 
--include $(OBJECTS:.o=.d)
+
+mockHeader:
+	git clone https://github.com/David-McKenna/mockHeader && \
+	cd mockHeader && \
+	make
+
