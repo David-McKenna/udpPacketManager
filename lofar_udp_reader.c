@@ -196,7 +196,7 @@ int lofar_udp_skip_to_packet(lofar_udp_reader *reader) {
 
 		// If noo packets are dropped, just shift across to the data
 		if (guessPacket == reader->meta->lastPacket) {
-			packetShift[port] = reader->meta->lastPacket - currentPacket;
+			packetShift[port] = reader->meta->packetsPerIteration - (reader->meta->lastPacket - currentPacket);
 			
 		// The packet at the index is too high/low, we've had packet loss. Perform a binary-style search until we find the packet
 		} else {
@@ -251,7 +251,7 @@ int lofar_udp_skip_to_packet(lofar_udp_reader *reader) {
 
 			}
 			// Set the offset to the final nextOff iteration (or first if we guessed right the first tiem)
-			packetShift[port] = nextOff;
+			packetShift[port] = reader->meta->packetsPerIteration - nextOff;
 		}
 
 		VERBOSE(printf("lofar_udp_skip_to_packet: exited loop, shifting data...\n"););
@@ -854,6 +854,7 @@ int lofar_udp_reader_read_step(lofar_udp_reader *reader) {
 
 	// Ensure we aren't passed the read length cap
 	if (reader->meta->packetsRead >= (reader->meta->packetsReadMax - reader->meta->packetsPerIteration)) {
+		reader->meta->packetsPerIteration = reader->meta->packetsReadMax - reader->meta->packetsRead;
 		VERBOSE(if(reader->meta->VERBOSE) printf("Processing final read (%ld packets) before reaching maximum packet cap.\n", reader->meta->packetsPerIteration));
 		returnVal = -2;
 	}

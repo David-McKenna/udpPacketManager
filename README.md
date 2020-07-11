@@ -21,6 +21,7 @@ Future work should not break the exiting load/process iteration loop, and may co
 - Creating a wrapper python library to allow for easer interfacing within python scripts rather than requiring a C program (CFFI if I can strip out ifdefs?)
 - While the current processing method is performant, it should be possible to reduce code dupication signfiicantly by an inner loop switch/check alongside the -funswitch-loops compiler flag
 - Add some 'defaults' into the mockHeader input, such as a "-mode5" string converted to implement the default sampling time and frequencies used
+- Converting the inner elements of the processing loops to OpenMP tasks shows proomising results in some testing (Stokes I -> 20+% speedup)
 
 Requirements
 ------------
