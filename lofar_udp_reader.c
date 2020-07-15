@@ -17,7 +17,7 @@ int lofar_udp_parse_headers(lofar_udp_meta *meta, const char header[MAX_NUM_PORT
 
 	int bitMul;
 	int baseLength;
-	int bitModeMax= 4;
+	int bitModeMax = 4;
 
 	// Process each input port
 	for (int port = 0; port < meta->numPorts; port++) {
