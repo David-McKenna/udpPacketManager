@@ -2243,7 +2243,7 @@ int lofar_udp_raw_udp_reversed(lofar_udp_meta *meta) {
 			#pragma GCC unroll 61
 			for (int beamlet = 0; beamlet < portBeamlets; beamlet++) {
 				tsInOffset = lastInputPacketOffset + beamlet * UDPNTIMESLICE * UDPNPOL;
-				tsOutOffset = outputPacketOffset + (totalBeamlets - (beamlet + cumulativeBeamlets)) * UDPNPOL;
+				tsOutOffset = outputPacketOffset + (totalBeamlets - 1 - (beamlet + cumulativeBeamlets)) * UDPNPOL;
 
 				#pragma GCC unroll 16 //UDPNTIMESLICE not defined at compile?
 				for (int ts = 0; ts < UDPNTIMESLICE; ts++) {
@@ -2417,7 +2417,7 @@ int lofar_udp_raw_udp_reversed_split_pols(lofar_udp_meta *meta) {
 			#pragma GCC unroll 61
 			for (int beamlet = 0; beamlet < portBeamlets; beamlet++) {
 				tsInOffset = lastInputPacketOffset + beamlet * UDPNTIMESLICE * UDPNPOL;
-				tsOutOffset = outputPacketOffset + (totalBeamlets - beamlet - cumulativeBeamlets);
+				tsOutOffset = outputPacketOffset + (totalBeamlets - 1 - beamlet - cumulativeBeamlets);
 				#pragma GCC unroll 16 //UDPNTIMESLICE not defined at compile?
 				for (int ts = 0; ts < UDPNTIMESLICE; ts++) {
 					outputData[0][tsOutOffset] = inputPortData[tsInOffset]; // Xr
@@ -2605,7 +2605,7 @@ int lofar_udp_raw_udp_stokesI(lofar_udp_meta *meta) {
 			#pragma GCC unroll 61
 			for (int beamlet = 0; beamlet < portBeamlets; beamlet++) {
 				tsInOffset = lastInputPacketOffset + beamlet * UDPNTIMESLICE * UDPNPOL;
-				tsOutOffset = outputPacketOffset + (totalBeamlets - beamlet - cumulativeBeamlets);
+				tsOutOffset = outputPacketOffset + (totalBeamlets - 1 - beamlet - cumulativeBeamlets);
 
 				//#pragma omp simd 
 				#pragma GCC unroll 16 //UDPNTIMESLICE not defined at compile?
@@ -2779,7 +2779,7 @@ int lofar_udp_raw_udp_stokesI_sum16(lofar_udp_meta *meta) {
 			#pragma GCC unroll 61
 			for (int beamlet = 0; beamlet < portBeamlets; beamlet++) {
 				tsInOffset = lastInputPacketOffset + beamlet * UDPNTIMESLICE * UDPNPOL;
-				tsOutOffset = outputPacketOffset + (totalBeamlets - beamlet - cumulativeBeamlets);
+				tsOutOffset = outputPacketOffset + (totalBeamlets - 1 - beamlet - cumulativeBeamlets);
 				tempVal = 0.0;
 
 				//#pragma omp simd 
@@ -2970,7 +2970,7 @@ int lofar_udp_raw_udp_stokesV(lofar_udp_meta *meta) {
 			#pragma GCC unroll 61
 			for (int beamlet = 0; beamlet < portBeamlets; beamlet++) {
 				tsInOffset = lastInputPacketOffset + beamlet * UDPNTIMESLICE * UDPNPOL;
-				tsOutOffset = outputPacketOffset + (totalBeamlets - beamlet - cumulativeBeamlets);
+				tsOutOffset = outputPacketOffset + (totalBeamlets - 1 - beamlet - cumulativeBeamlets);
 
 				//#pragma omp simd
 				#pragma GCC unroll 16 //UDPNTIMESLICE not defined at compile?
