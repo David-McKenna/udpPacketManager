@@ -49,3 +49,5 @@ When finished, the cleanup function will free any malloc'd components of the rea
 ```
 lofar_udp_reader_cleanup(reader);
 ```
+
+Reuse: should only be on the same file, for future time steps. Hitting EOF resizes arrays and a new reader must be generated for a given file afterwards.

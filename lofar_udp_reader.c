@@ -1,5 +1,6 @@
 #include "lofar_udp_misc.h"
 #include "lofar_udp_reader.h"
+#include "lofar_udp_backends.hpp"
 
 
 /**
@@ -17,7 +18,7 @@ int lofar_udp_parse_headers(lofar_udp_meta *meta, const char header[MAX_NUM_PORT
 
 	int bitMul;
 	int baseLength;
-	int bitModeMax = 4;
+	int cacheBitMode = 0;
 
 	// Process each input port
 	for (int port = 0; port < meta->numPorts; port++) {
@@ -73,18 +74,15 @@ int lofar_udp_parse_headers(lofar_udp_meta *meta, const char header[MAX_NUM_PORT
 		meta->totalBeamlets += (int) header[port][6];
 		switch (((lofar_source_bytes*) &source)->bitMode) {
 			case 0:
-				meta->inputBitMode[port] = 16;
-				bitModeMax = 16;
+				meta->inputBitMode = 16;
 				break;
 
 			case 1:
-				meta->inputBitMode[port] = 8;
-				if (bitModeMax == 4) bitModeMax = 8;
+				meta->inputBitMode = 8;
 				break;
 
 			case 2:
-				meta->inputBitMode[port] = 4;
-				// default bitModeMax
+				meta->inputBitMode = 4;
 				break;
 
 			default:
@@ -92,10 +90,20 @@ int lofar_udp_parse_headers(lofar_udp_meta *meta, const char header[MAX_NUM_PORT
 				return 1;
 		}
 
+		if (port == 0) {
+			cacheBitMode = meta->inputBitMode;
+		} else {
+			if (cacheBitMode != meta->inputBitMode) {
+				fprintf(stderr, "Multiple input bit sizes detected; please parse these ports separately (port 0: %d, port %d: %d). Exiting.\n", cacheBitMode, port, meta->inputBitMode);
+				return 1;
+			}
+		}
+
+
 		// Determine the size of the input array
 		// 4-bit: half the size per sample
 		// 16-bit: 2x the size per sample
-		bitMul = 1 - 0.5 * (meta->inputBitMode[port] == 4) + 1 * (meta->inputBitMode[port] == 16); // 4bit = 0.5x, 16bit = 2x
+		bitMul = 1 - 0.5 * (meta->inputBitMode == 4) + 1 * (meta->inputBitMode == 16); // 4bit = 0.5x, 16bit = 2x
 
 		baseLength = (int) (meta->portBeamlets[port] * bitMul * UDPNTIMESLICE * UDPNPOL);
 		meta->portPacketLength[port] = (int) ((UDPHDRLEN) + baseLength);
@@ -257,12 +265,12 @@ int lofar_udp_skip_to_packet(lofar_udp_reader *reader) {
 		VERBOSE(printf("lofar_udp_skip_to_packet: exited loop, shifting data...\n"););
 
 		// Shift the data on the port as needed
-		returnVal = lofar_udp_shift_remainder_packets(reader->meta, packetShift, 0);
+		returnVal = lofar_udp_shift_remainder_packets(reader, packetShift, 0);
 		if (returnVal > 0) return 1;
 
 		// Find the amount of data needed, and read in new data to fill the gap left at the end of the array after the shift
 		nchars = (reader->meta->packetsPerIteration - packetShift[port]) * reader->meta->portPacketLength[port];
-		returnLen = lofar_udp_reader_nchars(reader, port, &(reader->meta->inputData[port][reader->meta->inputDataOffset[port]]), nchars);
+		returnLen = lofar_udp_reader_nchars(reader, port, &(reader->meta->inputData[port][reader->meta->inputDataOffset[port]]), nchars, reader->meta->inputDataOffset[port]);
 
 		if (nchars != returnLen) {
 			fprintf(stderr, "Unable to read enough data to fill first buffer, exiting.\n");
@@ -291,7 +299,7 @@ int lofar_udp_skip_to_packet(lofar_udp_reader *reader) {
  * @return     lofar_udp_reader ptr, or NULL on error
  */
 lofar_udp_reader* lofar_udp_file_reader_setup(FILE **inputFiles, lofar_udp_meta *meta, const int compressedReader) {
-	int returnVal;
+	int returnVal, bufferSize;
 	static lofar_udp_reader reader;
 
 	// Initialise the reader struct as needed
@@ -314,13 +322,11 @@ lofar_udp_reader* lofar_udp_file_reader_setup(FILE **inputFiles, lofar_udp_meta 
 			reader.readingTracker[port].src = reader.inBuffer[port];
 
 			// Setup the decompressed data buffer/struct
-			reader.decompressionTracker[port].size = ZSTD_DStreamOutSize() * ZSTD_BUFFERMUL;
-			reader.decompressionTracker[port].pos = reader.decompressionTracker[port].size; // Initialisation for our step-by-step reader
-			reader.outBuffer[port] = calloc(reader.decompressionTracker[port].size, sizeof(char));
-			reader.decompressionTracker[port].dst = reader.outBuffer[port];
-
-			// Change the offset to the end of the array so we can read in a new block after initialisation
-			reader.outPtrOffset[port] = reader.decompressionTracker[port].size;
+			bufferSize = meta->packetsPerIteration * meta->portPacketLength[port];
+			bufferSize += bufferSize % ZSTD_DStreamOutSize();
+			reader.decompressionTracker[port].size = bufferSize;
+			reader.decompressionTracker[port].pos = 0; // Initialisation for our step-by-step reader
+			reader.decompressionTracker[port].dst = reader.meta->inputData[port];
 		}
 	}
 
@@ -473,72 +479,174 @@ int lofar_udp_setup_processing(lofar_udp_meta *meta) {
 	float mulFactor = 1.0; // Scale packet length linearly
 	int workingData = 0;
 
-	// Mass switch statement for each of the different processing modes
-	// TODO: will need heavy update after funswitch_loops change
-	// TODO: try isolate 8x/16x decimation issue
-	// TODO: Account for bit level inputs (4x / 16x)
+	// TODO: 4-bit mode not yet implemented
+
+
+	// Define the processing function
 	switch (meta->processingMode) {
 		case 0:
 			meta->processFunc = &lofar_udp_raw_udp_copy;
-			meta->numOutputs = meta->numPorts;
-			hdrOffset = 0; // include header
-			equalIO = 1;
 			break;
 		case 1:
 			meta->processFunc = &lofar_udp_raw_udp_copy_nohdr;
-			meta->numOutputs = meta->numPorts;
-			equalIO = 1;
 			break;
 
 		case 2:
 			meta->processFunc = &lofar_udp_raw_udp_copy_split_pols;
-			meta->numOutputs = UDPNPOL;
+			break;
 
+		case 10:
+			meta->processFunc = &lofar_udp_raw_udp_reorder;
+			break;
+		case 11:
+			meta->processFunc = &lofar_udp_raw_udp_reorder_split_pols;
+			break;
+
+		case 20:
+			meta->processFunc = &lofar_udp_raw_udp_reversed;
+			break;
+		case 21:
+			meta->processFunc = &lofar_udp_raw_udp_reversed_split_pols;
+			break;
+
+		// Base Stokes Methods
+		case 100:
+			meta->processFunc = &lofar_udp_raw_udp_stokesI;
+			break;
+		case 110:
+			meta->processFunc = &lofar_udp_raw_udp_stokesQ;
+			break;
+		case 120:
+			meta->processFunc = &lofar_udp_raw_udp_stokesU;
+			break;
+		case 130:
+			meta->processFunc = &lofar_udp_raw_udp_stokesV;
+			break;
+
+		// 2x decimation
+		case 101:
+			meta->processFunc = &lofar_udp_raw_udp_stokesI_sum2;
+			break;
+		case 111:
+			meta->processFunc = &lofar_udp_raw_udp_stokesQ_sum2;
+			break;
+		case 121:
+			meta->processFunc = &lofar_udp_raw_udp_stokesU_sum2;
+			break;
+		case 131:
+			meta->processFunc = &lofar_udp_raw_udp_stokesV_sum2;
+			break;
+
+		// 4x decimation
+		case 102:
+			meta->processFunc = &lofar_udp_raw_udp_stokesI_sum4;
+			break;
+		case 112:
+			meta->processFunc = &lofar_udp_raw_udp_stokesQ_sum4;
+			break;
+		case 122:
+			meta->processFunc = &lofar_udp_raw_udp_stokesU_sum4;
+			break;
+		case 132:
+			meta->processFunc = &lofar_udp_raw_udp_stokesV_sum4;
+			break;
+		// 8x decimation
+		case 103:
+			meta->processFunc = &lofar_udp_raw_udp_stokesI_sum8;
+			break;
+		case 113:
+			meta->processFunc = &lofar_udp_raw_udp_stokesQ_sum8;
+			break;
+		case 123:
+			meta->processFunc = &lofar_udp_raw_udp_stokesU_sum8;
+			break;
+		case 133:
+			meta->processFunc = &lofar_udp_raw_udp_stokesV_sum8;
+			break;
+
+		// 16x decimation
+		case 104:
+			meta->processFunc = &lofar_udp_raw_udp_stokesI_sum16;
+			break;
+		case 114:
+			meta->processFunc = &lofar_udp_raw_udp_stokesQ_sum16;
+			break;
+		case 124:
+			meta->processFunc = &lofar_udp_raw_udp_stokesU_sum16;
+			break;
+		case 134:
+			meta->processFunc = &lofar_udp_raw_udp_stokesV_sum16;
+			break;
+		default:
+			fprintf(stderr, "Unknown processing mode %d, exiting...\n", meta->processingMode);
+			return 1;
+	}
+
+	// Define the output size per packet
+	switch (meta->processingMode) {
+		#pragma GCC diagnostic push
+		#pragma GCC diagnostic ignored "-Wimplicit-fallthrough"
+		#pragma GCC diagnostic push
+		case 0:
+			hdrOffset = 0; // include header
+		#pragma GCC diagnostic pop
+		case 1:
+			meta->numOutputs = meta->numPorts;
+			meta->outputBitMode = meta->inputBitMode;
+			equalIO = 1;
+			break;
+
+		case 2:
+		case 11:
+		case 21:
+			meta->numOutputs = UDPNPOL;
+			meta->outputBitMode = meta->inputBitMode;
 			break;
 
 
 		case 10:
-			meta->processFunc = &lofar_udp_raw_udp_reorder;
-			meta->numOutputs = 1;
-			break;
-		case 11:
-			meta->processFunc = &lofar_udp_raw_udp_reorder_split_pols;
-			meta->numOutputs = UDPNPOL;
-			break;
-
-
 		case 20:
-			meta->processFunc = &lofar_udp_raw_udp_reversed;
 			meta->numOutputs = 1;
-			break;
-		case 21:
-			meta->processFunc = &lofar_udp_raw_udp_reversed_split_pols;
-			meta->numOutputs = UDPNPOL;
+			meta->outputBitMode = meta->inputBitMode;
 			break;
 
+		// Base Stokes Methods
 		case 100:
-			meta->processFunc = &lofar_udp_raw_udp_stokesI;
-			meta->numOutputs = 1;
-			mulFactor = sizeof(float) / (4 * sizeof(char));
-			break;
-		case 101:
-			meta->processFunc = &lofar_udp_raw_udp_stokesV;
-			meta->numOutputs = 1;
-			mulFactor = sizeof(float) / (4 * sizeof(char));
-			break;
-
-
+		case 110:
 		case 120:
-			meta->processFunc = &lofar_udp_raw_udp_stokesI_sum16;
+		case 130:
 			meta->numOutputs = 1;
-			mulFactor = (float) (sizeof(float) / (4 * sizeof(char))) / 16.0;
+			// 4 input words -> 1 larger word
+			mulFactor = 1.0 / 4.0;
+			meta->outputBitMode = 32;
+			break;
+
+
+		case 101:
+		case 111:
+		case 121:
+		case 131:
+		case 102:
+		case 112:
+		case 122:
+		case 132:
+		case 103:
+		case 113:
+		case 123:
+		case 133:
+		case 104:
+		case 114:
+		case 124:
+		case 134:
+			meta->numOutputs = 1;
+			// Bit shift based on processing mode, 2^(mode % 10) * 4
+			mulFactor = 1.0 / (float)  (1 << ((meta->processingMode % 10) + 2));
+			meta->outputBitMode = 32;
 			break;
 
 		default:
 			fprintf(stderr, "Unknown processing mode %d, exiting...\n", meta->processingMode);
 			return 1;
-
-
 	}
 
 	if (equalIO) {
@@ -547,7 +655,7 @@ int lofar_udp_setup_processing(lofar_udp_meta *meta) {
 		}
 	} else {
 		for (int port = 0; port < meta->numPorts; port++) workingData += hdrOffset + meta->portPacketLength[port];
-		workingData =  (int) workingData * mulFactor;
+		workingData =  (int) (workingData * ((float) meta->outputBitMode / (float) meta->inputBitMode) * mulFactor);
 		workingData /= meta->numOutputs;
 
 		for (int out = 0; out < meta->numOutputs; out++ ) { 
@@ -589,7 +697,7 @@ lofar_udp_reader* lofar_udp_meta_file_reader_setup(FILE **inputFiles, const int 
 	// Setup the metadata struct and a few variables we'll need
 	static lofar_udp_meta meta = { .processingMode = 0, .packetsRead = 0, .inputDataReady = 0, .outputDataReady = 0 }; // .outputBitMode
 	char inputHeaders[MAX_NUM_PORTS][UDPHDRLEN];
-	int readlen;
+	int readlen, bufferSize;
 	long localMaxPackets = packetsReadMax;
 
 	// Reset the maximum packets to LONG_MAX if set to an unreasonable value
@@ -642,7 +750,10 @@ lofar_udp_reader* lofar_udp_meta_file_reader_setup(FILE **inputFiles, const int 
 	// Allocate the memory needed to store the raw / reprocessed data, initlaise the variables that are stored on a per-port basis.
 	for (int port = 0; port < meta.numPorts; port++) {
 		// Ofset input by 2 for a zero/buffer packet on boundary
-		meta.inputData[port] = calloc(meta.portPacketLength[port] * (meta.packetsPerIteration + 2), sizeof(char)) + (meta.portPacketLength[port] * 2);
+		// If we have a compressed reader, align the length with the ZSTD buffer sizes
+		bufferSize = (meta.portPacketLength[port] * (meta.packetsPerIteration)) % ZSTD_DStreamOutSize();
+		meta.inputData[port] = calloc(meta.portPacketLength[port] * (meta.packetsPerIteration + 2) + bufferSize * compressedReader, sizeof(char)) + (meta.portPacketLength[port] * 2);
+		VERBOSE(if(meta.VERBOSE) printf("calloc at %p for %ld +(%d) bytes\n", meta.inputData[port] - (meta.portPacketLength[port] * 2), meta.portPacketLength[port] * (meta.packetsPerIteration + 2) + bufferSize * compressedReader - meta.portPacketLength[port] * 2, meta.portPacketLength[port] * 2););
 
 		// Initalise these arrays while we're looping
 		meta.inputDataOffset[port] = 0;
@@ -662,7 +773,7 @@ lofar_udp_reader* lofar_udp_meta_file_reader_setup(FILE **inputFiles, const int 
 
 		for (int i = 0; i < meta.numPorts; i++) {
 			printf("Port %d: inputDataOffset %ld, portBeamlets %d, inputBitMode %d, portPacketLength %d, packetOutputLength %d, portLastDroppedPackets %d, portTotalDroppedPackets %d\n", i, 
-				meta.inputDataOffset[i], meta.portBeamlets[i], meta.inputBitMode[i], meta.portPacketLength[i], meta.packetOutputLength[i], meta.portLastDroppedPackets[i], meta.portTotalDroppedPackets[i]);
+				meta.inputDataOffset[i], meta.portBeamlets[i], meta.inputBitMode, meta.portPacketLength[i], meta.packetOutputLength[i], meta.portLastDroppedPackets[i], meta.portTotalDroppedPackets[i]);
 
 		for (int i = 0; i < meta.numOutputs; i++) printf("Output %d, packetLength %d, numOut %d", i, meta.packetOutputLength[i], meta.numOutputs);
 	}});
@@ -684,25 +795,24 @@ lofar_udp_reader* lofar_udp_meta_file_reader_setup(FILE **inputFiles, const int 
 int lofar_udp_reader_cleanup(const lofar_udp_reader *reader) {
 
 	// Cleanup the malloc/calloc'd memory addresses, close the input files.
-	// TODO: detach output files into it's own loop
 	for (int i = 0; i < reader->meta->numOutputs; i++) free(reader->meta->outputData[i]);
 
 	for (int i = 0; i < reader->meta->numPorts; i++) {
 		// Free input data pointer (from the correct offset)
-		VERBOSE(if(reader->meta->VERBOSE) printf("Freeing inputData, outputData, closing file on port %d\n", i););
+		VERBOSE(if(reader->meta->VERBOSE) printf("On port: %d freeing inputData at %p\n", i, reader->meta->inputData[i] - 2 * reader->meta->portPacketLength[i]););
 		free(reader->meta->inputData[i] - 2 * reader->meta->portPacketLength[i]);
+
 		// Close the input file
+		VERBOSE(if(reader->meta->VERBOSE) printf("On port: %d closing file\n", i))
 		fclose(reader->fileRef[i]);
 
 		if (reader->compressedReader) {
 			// Free the decomression stream
 			VERBOSE(if(reader->meta->VERBOSE) printf("Freeing decompression buffers and ZSTD stream on port %d\n", i););
 			ZSTD_freeDStream(reader->dstream[i]);
-			// Free the decompression input/output buffers
+			// Free the decompression input buffer
 			free(reader->inBuffer[i]);
-			free(reader->outBuffer[i]);
 		}
-
 	}
 
 	return 0;
@@ -721,7 +831,7 @@ int lofar_udp_reader_cleanup(const lofar_udp_reader *reader) {
  *
  * @return     long: bytes read
  */
-long lofar_udp_reader_nchars(lofar_udp_reader *reader, const int port, char *targetArray, const long nchars) {
+long lofar_udp_reader_nchars(lofar_udp_reader *reader, const int port, char *targetArray, const long nchars, const long knownOffset) {
 	// Return if we have nothing to do
 	if (nchars < 0) return -1;
 
@@ -729,44 +839,54 @@ long lofar_udp_reader_nchars(lofar_udp_reader *reader, const int port, char *tar
 		// Compressed file: Perform streaming decompression on a zstandard compressed file
 		VERBOSE(if (reader->meta->VERBOSE) printf("reader_nchars: Entering read request (compressed): %d, %ld\n", port, nchars));
 
-		long dataRead = 0;
+		long dataRead = 0, portOutputLength = reader->packetsPerIteration * reader->meta->portPacketLength[port];
+		size_t previousDecompressionPos = 0;
 		int compDataRead = 0, byteDelta = 0, returnVal = 0;
 		// ZSTD decompress + pass along data to normal input channel
 
-		// Loop until we hit an exit criteria (EOF / zstd error / nchars)
-		while(1) {
+		// Check decompression buffer for remanants of the last read operation
+		if ((signed long int) reader->decompressionTracker[port].pos > portOutputLength) {
+			VERBOSE(if (reader->meta->VERBOSE) printf("reader_nchars: Compressed data in cache: %d, %ld\n", port, reader->decompressionTracker[port].pos));
+			VERBOSE(if (reader->meta->VERBOSE) printf("reader_nchars: Compressed %d %ld/%ld: %ld %ld %ld %ld %ld\n", port, dataRead, nchars, reader->decompressionTracker[port].pos, reader->decompressionTracker[port].size, reader->readingTracker[port].pos, reader->readingTracker[port].size, portOutputLength));
 
-			// Check decompression buffer for remanants of the last read operation
-			if (reader->decompressionTracker[port].pos != 0) {
-				VERBOSE(if (reader->meta->VERBOSE) printf("reader_nchars: Compressed data in cache: %d, %ld\n", port, reader->decompressionTracker[port].pos));
-				VERBOSE(if (reader->meta->VERBOSE) printf("reader_nchars: Compressed %d %ld/%ld: %ld %ld %ld %ld %ld\n", port, dataRead, nchars, reader->decompressionTracker[port].pos, reader->decompressionTracker[port].size, reader->readingTracker[port].pos, reader->readingTracker[port].size, reader->outPtrOffset[port]));
+			// If the amount of requested data is greater than the amount of data in the buffer
+			if (nchars > ((long int) reader->decompressionTracker[port].pos - (long int) portOutputLength)) {
+				// Read the remainder of the buffer, update the new offset location to be after this block of data
+				byteDelta = (long int) reader->decompressionTracker[port].pos - (long int) portOutputLength;
+				reader->decompressionTracker[port].pos = byteDelta + knownOffset;
+			} else {
+				// Read only what we need, update the new offset to it's new position
+				byteDelta = nchars;
+				reader->decompressionTracker[port].pos += nchars;
+				//fprintf(stderr, "Unreachable target; something has gone wrong with decompression cache reuse (excessively small read) (%d: %ld, %ld, %ld, %ld, %ld). Exiting.\n", port, nchars, knownOffset, dataRead, reader->decompressionTracker[port].pos, reader->decompressionTracker[port].size);
 
-				// If the amount of requested data is greater than the amount of data in the buffer
-				if ((unsigned int) nchars > (reader->decompressionTracker[port].pos - reader->outPtrOffset[port])) {
-					// Read the remainder of the buffer
-					byteDelta = reader->decompressionTracker[port].pos - reader->outPtrOffset[port];
-				} else {
-					// Read only what we need
-					byteDelta = nchars;
-				}
-
-				// Copy over the required data, update our progress and offsets
-				VERBOSE(if (reader->meta->VERBOSE) printf("reader_nchars: Cache copy: %d, %ld->%ld\n", port, dataRead, reader->decompressionTracker[port].pos));
-				memcpy(&(targetArray[dataRead]), &(reader->outBuffer[port][reader->outPtrOffset[port]]), byteDelta);
-				dataRead += byteDelta;
-				reader->outPtrOffset[port] += byteDelta;
-				if (reader->outPtrOffset[port] == reader->decompressionTracker[port].pos) reader->outPtrOffset[port] = reader->decompressionTracker[port].pos = 0;
-				VERBOSE(if (reader->meta->VERBOSE) printf("reader_nchars: Compressed data cache ptrs: %d, %ld, %ld\n", port, reader->decompressionTracker[port].pos, reader->outPtrOffset[port]));
-				
-				// Return if we have all the data we need
-				if (dataRead == nchars) return dataRead;
 			}
+
+			// Copy over the required data, update our progress and offsets
+			VERBOSE(if (reader->meta->VERBOSE) printf("reader_nchars: Cache copy: %d, %ld->%ld\n", port, dataRead, reader->decompressionTracker[port].pos));
+
+			memmove(&(targetArray[dataRead]), &(reader->meta->inputData[port][portOutputLength]), byteDelta);
+			dataRead += byteDelta;
+
+			VERBOSE(if (reader->meta->VERBOSE) printf("reader_nchars: Compressed data cache ptrs: %d, %ld, %ld\n", port, reader->decompressionTracker[port].pos, portOutputLength));
+			
+			// Return if we have all the data we need
+			if (dataRead == nchars) return dataRead;
+		} else {
+			VERBOSE(if (reader->meta->VERBOSE) printf("reader_nchars: cache copy not needed, %ld, %ld\n", reader->decompressionTracker[port].pos, portOutputLength););
+			reader->decompressionTracker[port].pos = knownOffset;
+		}
+
+		// Loop until we hit an exit criteria (EOF / zstd error / nchars)
+		// Suspicion after buffer changes: this might enter an infinite loop if the buffer isn't large enough to hold the data
+		while(1) {
+			VERBOSE(if (reader->meta->VERBOSE) printf("reader_nchars: start of read loop, %ld, %ld, %ld, %ld\n", reader->readingTracker[port].pos, reader->readingTracker[port].size, reader->decompressionTracker[port].pos, dataRead););
 
 			// Check the decompression stream for compressed data
 			if (reader->readingTracker[port].pos != reader->readingTracker[port].size) {
 				// Loop across while decompressing the data (zstd decompressed in frame iterations, so it may take a few iterations)
 				while (reader->readingTracker[port].pos < reader->readingTracker[port].size) {
-
+					previousDecompressionPos = reader->decompressionTracker[port].pos;
 					// zstd streaming decompression + check for errors
 					returnVal = ZSTD_decompressStream(reader->dstream[port], &(reader->decompressionTracker[port]), &(reader->readingTracker[port]));
 					if (ZSTD_isError(returnVal)) {
@@ -775,16 +895,14 @@ long lofar_udp_reader_nchars(lofar_udp_reader *reader, const int port, char *tar
 					}
 
 					// Determine how much data we need to copy from the buffer
-					if ((dataRead + reader->decompressionTracker[port].pos) > (unsigned int) nchars) byteDelta = nchars - dataRead;
-					else {
-						byteDelta = reader->decompressionTracker[port].pos;
-						// Update the decompression tracker to signify that we have used all the data
-						reader->decompressionTracker[port].pos = 0;
+					byteDelta = ((long) reader->decompressionTracker[port].pos - (long) previousDecompressionPos);
+					if ((long) (dataRead + byteDelta) >= nchars) byteDelta = nchars - dataRead;
+					
+					/*else {
+						dataRead += byteDelta;
+						//fprintf(stderr, "Unreachable target; something has gone wrong with decompression (%d: %ld, %ld, %ld, %ld, %ld). Exiting.\n", port, nchars, knownOffset, dataRead, reader->decompressionTracker[port].pos, reader->decompressionTracker[port].size);
 					}
-
-					// Copy the data to the output array, update the decompressed buffer pointer and pos pointer
-					memcpy(&(targetArray[dataRead]), reader->outBuffer[port], byteDelta);
-					reader->outPtrOffset[port] = byteDelta;
+					*/
 
 					// Update the total data read + check if we have reached our goal
 					dataRead += byteDelta;
@@ -793,6 +911,8 @@ long lofar_udp_reader_nchars(lofar_udp_reader *reader, const int port, char *tar
 
 				}
 			}
+
+			VERBOSE(if (reader->meta->VERBOSE) printf("reader>nchars: mdddle of read loop, %ld, %ld, %ld, %ld\n", reader->readingTracker[port].pos, reader->readingTracker[port].size, reader->decompressionTracker[port].pos, dataRead););
 
 			// Check if the input buffer has been fully used
 			if (reader->readingTracker[port].pos == reader->readingTracker[port].size) {
@@ -860,7 +980,7 @@ int lofar_udp_reader_read_step(lofar_udp_reader *reader) {
 	}
 
 	// If packets were dropped, shift the remaining packets back to the start of the array
-	if ((checkReturnValue = lofar_udp_shift_remainder_packets(reader->meta, reader->meta->portLastDroppedPackets, 1)) > 0) return 1;
+	if ((checkReturnValue = lofar_udp_shift_remainder_packets(reader, reader->meta->portLastDroppedPackets, 1)) > 0) return 1;
 	//else if (checkReturnValue < 0) if(lofar_udp_realign_data(reader) > 0) return 1;
 	
 	// Read in the required new data
@@ -871,7 +991,7 @@ int lofar_udp_reader_read_step(lofar_udp_reader *reader) {
 		
 		// Determine how much data is needed and read-in to the offset after any leftover packets
 		charsToRead = (reader->meta->packetsPerIteration - reader->meta->portLastDroppedPackets[port]) * reader->meta->portPacketLength[port];
-		charsRead = lofar_udp_reader_nchars(reader, port, &(reader->meta->inputData[port][reader->meta->inputDataOffset[port]]), charsToRead);
+		charsRead = lofar_udp_reader_nchars(reader, port, &(reader->meta->inputData[port][reader->meta->inputDataOffset[port]]), charsToRead, reader->meta->inputDataOffset[port]);
 
 		// Raise a warning if we received less data than requested (EOF/file error)
 		if (charsRead < charsToRead) {
@@ -999,7 +1119,7 @@ int lofar_udp_get_first_packet_alignment(lofar_udp_reader *reader) {
 		for (int port = 0; port < reader->meta->numPorts; port++) shiftPackets[port] = reader->meta->packetsPerIteration - reader->meta->portLastDroppedPackets[port];
 
 		// Perform the shift operation, return if no shift occured
-		returnVal = lofar_udp_shift_remainder_packets(reader->meta, shiftPackets, 0);
+		returnVal = lofar_udp_shift_remainder_packets(reader, shiftPackets, 0);
 		VERBOSE(if (reader->meta->VERBOSE) printf("Packets shifted, returnVal %d\n", returnVal));
 		if (returnVal > 0) return returnVal;
 
@@ -1011,7 +1131,7 @@ int lofar_udp_get_first_packet_alignment(lofar_udp_reader *reader) {
 			if (reader->meta->portLastDroppedPackets[port] > 0) {
 				// Determine how much data is needed and read it in
 				nchars = reader->meta->portLastDroppedPackets[port] * reader->meta->portPacketLength[port];
-				returnLen = lofar_udp_reader_nchars(reader, port, &(reader->meta->inputData[port][reader->meta->inputDataOffset[port]]), nchars);
+				returnLen = lofar_udp_reader_nchars(reader, port, &(reader->meta->inputData[port][reader->meta->inputDataOffset[port]]), nchars, reader->meta->inputDataOffset[port]);
 				
 				// Make sure we got the right amount of data back
 				if (returnLen != nchars) {
@@ -1234,7 +1354,7 @@ int lofar_udp_realign_data(lofar_udp_reader *reader) {
  * @return     int: 0: Success, -1: Negative shift requested, out
  *             of order data on last gulp,
  */
-int lofar_udp_shift_remainder_packets(lofar_udp_meta *meta, const int shiftPackets[], const int handlePadding) {
+int lofar_udp_shift_remainder_packets(lofar_udp_reader *reader, const int shiftPackets[], const int handlePadding) {
 
 	int returnVal = 0;
 	int packetShift, destOffset, portPacketLength;
@@ -1242,6 +1362,8 @@ int lofar_udp_shift_remainder_packets(lofar_udp_meta *meta, const int shiftPacke
 
 	char *inputData;
 	int totalShift = 0;
+
+	lofar_udp_meta *meta = reader->meta;
 	
 
 	// Check if we have any work to do, reset offsets, exit if no work requested
@@ -1282,6 +1404,13 @@ int lofar_udp_shift_remainder_packets(lofar_udp_meta *meta, const int shiftPacke
 			destOffset = -1 * portPacketLength * handlePadding;
 			byteShift = sizeof(char) * (packetShift + handlePadding) * portPacketLength;
 
+			if (reader->compressedReader) {
+				if ((long) reader->decompressionTracker[port].pos > meta->portPacketLength[port] * meta->packetsPerIteration) {
+					byteShift += reader->decompressionTracker[port].pos - meta->portPacketLength[port] * meta->packetsPerIteration;
+					reader->decompressionTracker[port].pos = destOffset + byteShift;
+				}
+			}
+
 			VERBOSE(if (meta->VERBOSE) printf("SO: %ld, DO: %d, BS: %ld IDO: %ld\n", sourceOffset, destOffset, byteShift, destOffset + byteShift));
 
 			// Mmemove the data as needed (memcpy can't act on the same array)
@@ -1301,1722 +1430,6 @@ int lofar_udp_shift_remainder_packets(lofar_udp_meta *meta, const int shiftPacke
 	}
 
 	return returnVal;
-}
-
-
-// The next N lines are an abomination; it should be possible to use -funswitch-loops to reduce this to 3/4 copies of the same function rather than 10+
-
-
-
-
-/*
- * @brief      Keep the same UDP hdrd/data/port structure, but pad for missing
- *             packets.
- *
- * @param      meta  The input lofar_udp_meta struct to process
- *
- * @return     int: 0: Success, 1: Large amount of out-of-ordered data, -1: Some
- *             packet loss
- */
-int lofar_udp_raw_udp_copy(lofar_udp_meta *meta) {
-	// Setup return variable
-	int packetLoss = 0;
-	// Setup working variables
-	
-	VERBOSE(const int verbose = meta->VERBOSE);
-	
-	const int packetsPerIteration = meta->packetsPerIteration;
-	const int replayDroppedPackets = meta->replayDroppedPackets;
-
-	// For each port of data provided,
-	omp_set_num_threads(OMP_THREADS);
-	#pragma omp parallel for 
-	for (int port = 0; port < meta->numPorts; port++) {
-		VERBOSE(if (verbose) printf("Port: %d on thread %d\n", port, omp_get_thread_num()));
-
-		int nextSequence;
-		long lastPortPacket, currentPortPacket, inputPacketOffset, outputPacketOffset, lastInputPacketOffset, iWork, iLoop;
-		// Reset the dropped packets counter
-		meta->portLastDroppedPackets[port] = 0;
-		int currentPacketsDropped = 0;
-
-		// Reset last packet, reference data on the current port
-		lastPortPacket = meta->lastPacket;
-		char  *inputPortData = meta->inputData[port];
-		char  *outputData = meta->outputData[port];
-
-		// Get the length of packets on the current port and reset the last packet variable encase
-		// 	there is packet loss on the first packet
-		const int portPacketLength = meta->portPacketLength[port];
-		lastInputPacketOffset = (-2 + meta->replayDroppedPackets) * portPacketLength; 	// We request at least 2 packets are malloc'd before the array head pointer, so no SEGFAULTs here
-														// -2 * PPL = 0s -1 * PPL = last processed packet -- used for calcuating offset in dropped case if 
-														// 	we have packet loss on the boundary.
-		VERBOSE(if (verbose) printf("LPP: %ld, PPL: %d, LIPO: %ld\n", lastPortPacket, portPacketLength, lastInputPacketOffset));
-		// iWork -- input data offset calculations (account for dropped packets)
-		// iLoop -- output data offsets
-		// These are the same if there is no packet loss.
-		// 
-		// Reset iWork, inputPacketOffset, read in the first packet's number.
-		iWork = 0, inputPacketOffset = 0;
-		currentPortPacket = lofar_get_packet_number(&(inputPortData[inputPacketOffset]));
-		VERBOSE(if (verbose) printf("Packet 0, port %d: %ld\n", port, currentPortPacket));
-		
-		for (iLoop = 0; iLoop < packetsPerIteration; iLoop++) {
-			//VERBOSE(if (verbose) printf("Loop %ld, Work %ld, packet %ld, target %ld\n", iLoop, iWork, currentPortPacket, lastPortPacket + 1));
-
-			// Check for packet loss by ensuring we have sequential packet numbers
-			if (currentPortPacket != (lastPortPacket + 1)) {
-				// Check if a packet is out of order; if so, drop the packet
-				// TODO: Better future option: check if the packet is in this block, copy and overwrite padded packed instead
-				VERBOSE(if (verbose) printf("Packet %ld is not the expected packet, %ld.\n", currentPortPacket, lastPortPacket + 1));
-				if (currentPortPacket < lastPortPacket) {
-					
-					VERBOSE(if (verbose) printf("Packet %ld on port %d is out of order; dropping.\n", currentPortPacket, port));
-					// Dropped packet -> index not processed -> effectively an 'added' packet, decrement the dropped packet count
-					// 	so that we don't include an extra packet in shift operations
-					currentPacketsDropped -= 1;
-
-					iWork++;
-					inputPacketOffset = iWork * portPacketLength;
-					currentPortPacket = lofar_get_packet_number(&(inputPortData[inputPacketOffset]));
-					continue;
-
-				}
-
-				// Packet dropped:
-				//  Trip the return int
-				//	Increment the port counter for this operation
-				//	Increment the last packet offset so it can be used again next time, including the new offset
-				packetLoss = -1;
-				currentPacketsDropped += 1;
-				lastPortPacket += 1;
-
-				if (replayDroppedPackets) {
-					// If we are replaying the last packet, change the array index to the last good packet index
-					inputPacketOffset = lastInputPacketOffset;
-				} else {
-					// Array should be 0 padded at the start; copy data from there.
-					inputPacketOffset = -2 * portPacketLength;
-					memcpy(&(inputPortData[inputPacketOffset + 8]), &(inputPortData[lastInputPacketOffset + 8]), 8);
-				}
-
-				// Increment the 'sequence' component of the header so that the packet number appears right in future packet reads
-				nextSequence = lofar_get_next_packet_sequence(&(inputPortData[lastInputPacketOffset]));
-				memcpy(&(inputPortData[inputPacketOffset + 12]), &nextSequence, 4);
-				// The last bit of the 'source' short isn't used; leave a signature that this packet was modified
-				// Mask off the rest of the byte before adding encase we've used this packet before
-				inputPortData[inputPacketOffset + 2] = (inputPortData[inputPacketOffset + 2] & 127) + 128;
-				
-				//VERBOSE(if (verbose) printf("Packet %ld on port %d is missing; padding.\n", lastPortPacket, port));
-
-			} else {
-				//VERBOSE(if (verbose) printf("Packet %ld is the expected packet.\n", currentPortPacket));
-
-				// We have a sequential packet, therefore:
-				//		Update the last legitimate packet number and array offset index
-				//		Increment iWork (input data packet index) and determine the new input offset
-				//		Get the next packet number for the next loop
-				lastInputPacketOffset = inputPacketOffset;
-				lastPortPacket = currentPortPacket;
-
-				iWork++;
-				inputPacketOffset = iWork * portPacketLength;
-
-				currentPortPacket = lofar_get_packet_number(&(inputPortData[inputPacketOffset]));
-
-			}
-
-			// Move the packet (or substitute) to the output data
-			outputPacketOffset = iLoop * portPacketLength;
-			//VERBOSE(if (verbose) printf("Copying %d data from %ld to %ld\n", portPacketLength, lastInputPacketOffset, outputPacketOffset));
-			memcpy(&(outputData[outputPacketOffset]), &(inputPortData[lastInputPacketOffset]), portPacketLength);
-			
-
-
-		}
-		// Update the overall dropped packet count for this port
-		meta->portLastDroppedPackets[port] = currentPacketsDropped;
-		meta->portTotalDroppedPackets[port] += currentPacketsDropped;
-		VERBOSE(if (verbose) printf("Current dropped packet count on port %d: %d\n", port, meta->portLastDroppedPackets[port]));
-	}
-
-	for (int port = 0; port < meta->numPorts; port++) {
-		if (meta->portLastDroppedPackets[port] < (-0.001 * (float) packetsPerIteration)) {
-			fprintf(stderr, "A large number of packets were out of order on port %d; this normally indicates a data integrity issue, exiting...", port);
-			return 1;
-		}
-	}
-	// Update the last packet variable
-	meta->lastPacket += packetsPerIteration;
-	VERBOSE(if (verbose) printf("Exiting operation, last packet was %ld\n", meta->lastPacket));
-
-	// Update the input/output states
-	meta->inputDataReady = 0;
-	meta->outputDataReady = 1;
-	return packetLoss;
-}
-
-
-/**
- * @brief      { function_description }
- *
- * @param      meta  The meta
- *
- * @return     { description_of_the_return_value }
- */
-int lofar_udp_raw_udp_copy_nohdr(lofar_udp_meta *meta) {
-	// Setup return variable
-	int packetLoss = 0;
-
-	// Setup working variables
-	
-	VERBOSE(const int verbose = meta->VERBOSE);
-	
-
-	const int packetsPerIteration = meta->packetsPerIteration;
-	const int replayDroppedPackets = meta->replayDroppedPackets;
-
-	// For each port of data provided,
-	omp_set_num_threads(OMP_THREADS);
-	#pragma omp parallel for 
-	for (int port = 0; port < meta->numPorts; port++) {
-		VERBOSE(if (verbose) printf("Port: %d on thread %d\n", port, omp_get_thread_num()));
-
-		long lastPortPacket, currentPortPacket, inputPacketOffset, outputPacketOffset, lastInputPacketOffset, iWork, iLoop;
-		// Reset the dropped packets counter
-		meta->portLastDroppedPackets[port] = 0;
-		int currentPacketsDropped = 0;
-
-		// Reset last packet, reference data on the current port
-		lastPortPacket = meta->lastPacket;
-		char  *inputPortData = meta->inputData[port];
-		char  *outputData = meta->outputData[port];
-
-		// Get the length of packets on the current port and reset the last packet variable encase
-		// 	there is packet loss on the first packet
-		const int portPacketLength = meta->portPacketLength[port];
-		const int headerlessPortPacketLength = meta->portPacketLength[port] - UDPHDRLEN;
-		lastInputPacketOffset = (-2 + meta->replayDroppedPackets) * headerlessPortPacketLength; 	// We request at least 2 packets are malloc'd before the array head pointer, so no SEGFAULTs here
-														// -2 * PPL = 0s -1 * PPL = last processed packet -- used for calcuating offset in dropped case if 
-														// 	we have packet loss on the boundary.
-		VERBOSE(if (verbose) printf("LPP: %ld, PPL: %d, LIPO: %ld\n", lastPortPacket, portPacketLength, lastInputPacketOffset));
-		// iWork -- input data offset calculations (account for dropped packets)
-		// iLoop -- output data offsets
-		// These are the same if there is no packet loss.
-		// 
-		// Reset iWork, inputPacketOffset, read in the first packet's number.
-		iWork = 0, inputPacketOffset = 0;
-		currentPortPacket = lofar_get_packet_number(&(inputPortData[inputPacketOffset]));
-		VERBOSE(if (verbose) printf("Packet 0: %ld\n", currentPortPacket));
-		
-		for (iLoop = 0; iLoop < packetsPerIteration; iLoop++) {
-			VERBOSE(if (verbose) printf("Loop %ld, Work %ld, packet %ld, target %ld\n", iLoop, iWork, currentPortPacket, lastPortPacket + 1));
-
-			// Check for packet loss by ensuring we have sequential packet numbers
-			if (currentPortPacket != (lastPortPacket + 1)) {
-				// Check if a packet is out of order; if so, drop the packet
-				// TODO: Better future option: check if the packet is in this block, copy and overwrite padded packed instead
-				VERBOSE(if (verbose) printf("Packet %ld is not the expected packet, %ld.\n", currentPortPacket, lastPortPacket + 1));
-				if (currentPortPacket < lastPortPacket) {
-					
-					VERBOSE(if (verbose) printf("Packet %ld on port %d is out of order; dropping.\n", currentPortPacket, port));
-					// Dropped packet -> index not processed -> effectively an 'added' packet, decrement the dropped packet count
-					// 	so that we don't include an extra packet in shift operations
-					currentPacketsDropped -= 1;
-
-					iWork++;
-					inputPacketOffset = iWork * portPacketLength;
-					currentPortPacket = lofar_get_packet_number(&(inputPortData[inputPacketOffset]));
-					continue;
-
-				}
-
-				// Packet dropped:
-				//  Trip the return int
-				//	Increment the port counter for this operation
-				//	Increment the last packet offset so it can be used again next time, including the new offset
-				packetLoss = -1;
-				currentPacketsDropped += 1;
-				lastPortPacket += 1;
-
-				if (replayDroppedPackets) {
-					// If we are replaying the last packet, change the array index to the last good packet index
-					inputPacketOffset = lastInputPacketOffset;
-				} else {
-					// Array should be 0 padded at the start; copy data from there.
-					inputPacketOffset = -2 * portPacketLength;
-				}
-
-						
-				VERBOSE(if (verbose) printf("Packet %ld on port %d is missing; padding.\n", lastPortPacket + 1, port));
-
-			} else {
-				VERBOSE(if (verbose) printf("Packet %ld is the expected packet.\n", currentPortPacket));
-
-				// We have a sequential packet, therefore:
-				//		Update the last legitimate packet number and array offset index
-				//		Increment iWork (input data packet index) and determine the new input offset
-				//		Get the next packet number for the next loop
-				lastInputPacketOffset = inputPacketOffset + UDPHDRLEN;
-				lastPortPacket = currentPortPacket;
-
-				iWork++;
-				inputPacketOffset = iWork * portPacketLength;
-
-				currentPortPacket  = lofar_get_packet_number(&(inputPortData[inputPacketOffset]));
-
-			}
-
-
-			outputPacketOffset = iLoop * headerlessPortPacketLength;
-			VERBOSE(if (verbose) printf("Copying %d data from %ld to %ld\n", portPacketLength, lastInputPacketOffset, outputPacketOffset));
-			memcpy(&(outputData[outputPacketOffset]), &(inputPortData[lastInputPacketOffset]), headerlessPortPacketLength);
-
-
-
-		}
-		// Update the overall dropped packet count for this port
-		meta->portLastDroppedPackets[port] = currentPacketsDropped;
-		meta->portTotalDroppedPackets[port] += currentPacketsDropped;
-		VERBOSE(if (verbose) printf("Current dropped packet count on port %d: %d\n", port, meta->portLastDroppedPackets[port]));
-	}
-
-	for (int port = 0; port < meta->numPorts; port++) {
-		if (meta->portLastDroppedPackets[port] < (-0.001 * (float) packetsPerIteration)) {
-			fprintf(stderr, "A large number of packets were out of order on port %d; this normally indicates a data integrity issue, exiting...", port);
-			return 1;
-		}
-	}
-
-	// Update the last packet variable
-	meta->lastPacket += packetsPerIteration;
-	VERBOSE(if (verbose) printf("Exiting operation, last packet was %ld\n", meta->lastPacket));
-
-	// Update the input/output states
-	meta->inputDataReady = 0;
-	meta->outputDataReady = 1;
-	return packetLoss;
-}
-
-/**
- * @brief      { function_description }
- *
- * @param      meta  The meta
- *
- * @return     { description_of_the_return_value }
- */
-int lofar_udp_raw_udp_copy_split_pols(lofar_udp_meta *meta) {
-	// Setup return variable
-
-	// Setup working variables
-	
-	VERBOSE(const int verbose = meta->VERBOSE);
-	
-	const int packetsPerIteration = meta->packetsPerIteration;
-	const int replayDroppedPackets = meta->replayDroppedPackets;
-
-	int packetLoss = 0;
-
-	// For each port of data provided,
-	omp_set_num_threads(OMP_THREADS);
-	#pragma omp parallel for 
-	for (int port = 0; port < meta->numPorts; port++) {
-		VERBOSE(if (verbose) printf("Port: %d on thread %d\n", port, omp_get_thread_num()));
-
-		long lastPortPacket, currentPortPacket, inputPacketOffset, outputPacketOffset, lastInputPacketOffset, iWork, iLoop, tsInOffset, tsOutOffset;
-		// Reset the dropped packets counter
-		meta->portLastDroppedPackets[port] = 0;
-		int currentPacketsDropped = 0;
-
-		// Reset last packet, reference data on the current port
-		lastPortPacket = meta->lastPacket;
-		char  *inputPortData = meta->inputData[port];
-		char  **outputData = meta->outputData;
-
-		const int portBeamlets = meta->portBeamlets[port];
-		const int cumulativeBeamlets = meta->portCumulativeBeamlets[port];
-
-		// Get the length of packets on the current port and reset the last packet variable encase
-		// 	there is packet loss on the first packet
-		const int portPacketLength = meta->portPacketLength[port];
-		const int packetOutputLength = meta->packetOutputLength[0];
-		lastInputPacketOffset = (-2 + meta->replayDroppedPackets) * portPacketLength; 	// We request at least 2 packets are malloc'd before the array head pointer, so no SEGFAULTs here
-														// -2 * PPL = 0s -1 * PPL = last processed packet -- used for calcuating offset in dropped case if 
-														// 	we have packet loss on the boundary.
-		VERBOSE(if (verbose) printf("LPP: %ld, PPL: %d, LIPO: %ld\n", lastPortPacket, portPacketLength, lastInputPacketOffset));
-		// iWork -- input data offset calculations (account for dropped packets)
-		// iLoop -- output data offsets
-		// These are the same if there is no packet loss.
-		// 
-		// Reset iWork, inputPacketOffset, read in the first packet's number.
-		iWork = 0, inputPacketOffset = 0;
-		currentPortPacket = lofar_get_packet_number(&(inputPortData[inputPacketOffset]));
-		VERBOSE(if (verbose) printf("Packet 0: %ld\n", currentPortPacket));
-		
-		for (iLoop = 0; iLoop < packetsPerIteration; iLoop++) {
-			VERBOSE(if (verbose) printf("Loop %ld, Work %ld, packet %ld, target %ld\n", iLoop, iWork, currentPortPacket, lastPortPacket + 1));
-
-			// Check for packet loss by ensuring we have sequential packet numbers
-			if (currentPortPacket != (lastPortPacket + 1)) {
-				// Check if a packet is out of order; if so, drop the packet
-				// TODO: Better future option: check if the packet is in this block, copy and overwrite padded packed instead
-				VERBOSE(if (verbose) printf("Packet %ld is not the expected packet, %ld.\n", currentPortPacket, lastPortPacket + 1));
-				if (currentPortPacket < lastPortPacket) {
-					
-					VERBOSE(if(verbose) printf("Packet %ld on port %d is out of order (expected %ld); dropping.\n", currentPortPacket, port, lastPortPacket + 1));
-					// Dropped packet -> index not processed -> effectively an 'added' packet, decrement the dropped packet count
-					// 	so that we don't include an extra packet in shift operations
-					currentPacketsDropped -= 1;
-
-					iWork++;
-					inputPacketOffset = iWork * portPacketLength;
-					currentPortPacket = lofar_get_packet_number(&(inputPortData[inputPacketOffset]));
-					continue;
-
-				}
-
-				// Packet dropped:
-				//  Trip the return int
-				//	Increment the port counter for this operation
-				//	Increment the last packet offset so it can be used again next time, including the new offset
-				packetLoss = -1;
-				currentPacketsDropped += 1;
-				lastPortPacket += 1;
-
-				if (replayDroppedPackets) {
-					// If we are replaying the last packet, change the array index to the last good packet index
-					inputPacketOffset = lastInputPacketOffset;
-				} else {
-					// Array should be 0 padded at the start; copy data from there.
-					inputPacketOffset = -2 * portPacketLength;
-				}
-
-				VERBOSE(if (verbose) printf("Packet %ld on port %d is missing; padding.\n", lastPortPacket + 1, port));
-
-			} else {
-				VERBOSE(if (verbose) printf("Packet %ld is the expected packet.\n", currentPortPacket));
-
-				// We have a sequential packet, therefore:
-				//		Update the last legitimate packet number and array offset index
-				//		Increment iWork (input data packet index) and determine the new input offset
-				//		Get the next packet number for the next loop
-				lastInputPacketOffset = inputPacketOffset + UDPHDRLEN;
-				lastPortPacket = currentPortPacket;
-
-				iWork++;
-				inputPacketOffset = iWork * portPacketLength;
-
-
-				// Speedup: add 4 to the sequence, check if accurate. Doesn't work at rollover.
-				if  (((char_unsigned_int*) &(inputPortData[inputPacketOffset + 12]))->ui  == (((char_unsigned_int*) &(inputPortData[lastInputPacketOffset -4])))->ui + 16)  {
-					currentPortPacket += 1;
-				} else currentPortPacket = lofar_get_packet_number(&(inputPortData[inputPacketOffset]));
-
-			}
-
-			outputPacketOffset = iLoop * packetOutputLength;
-
-			//#pragma omp parallel for schedule(dynamic, 31) // Expected sizes: 61, 122, 244
-			#pragma GCC unroll 61
-			for (int beamlet = 0; beamlet < portBeamlets; beamlet++) {
-				tsInOffset = lastInputPacketOffset + beamlet * UDPNTIMESLICE * UDPNPOL;
-				tsOutOffset = outputPacketOffset + (beamlet + cumulativeBeamlets) * UDPNTIMESLICE;
-
-				#pragma GCC unroll 16 //UDPNTIMESLICE not defined at compile?
-				for (int ts = 0; ts < UDPNTIMESLICE; ts++) {
-					outputData[0][tsOutOffset] = inputPortData[tsInOffset]; // Xr
-					outputData[1][tsOutOffset] = inputPortData[tsInOffset + 1]; // Xi
-					outputData[2][tsOutOffset] = inputPortData[tsInOffset + 2]; // Yr
-					outputData[3][tsOutOffset] = inputPortData[tsInOffset + 3]; // Yi
-
-					tsInOffset += 4;
-					tsOutOffset += 1;
-				}
-
-
-			}
-
-
-		}
-		// Update the overall dropped packet count for this port
-
-		meta->portLastDroppedPackets[port] = currentPacketsDropped;
-		meta->portTotalDroppedPackets[port] += currentPacketsDropped;
-		VERBOSE(if (verbose) printf("Current dropped packet count on port %d: %d\n", port, meta->portLastDroppedPackets[port]));
-	}
-
-	for (int port = 0; port < meta->numPorts; port++) {
-		if (meta->portLastDroppedPackets[port] < (-0.001 * (float) packetsPerIteration)) {
-			fprintf(stderr, "A large number of packets were out of order on port %d; this normally indicates a data integrity issue, exiting...", port);
-			return 1;
-		}
-	}
-
-	for (int port =0; port < meta->numPorts; port++) {
-		if (meta->portLastDroppedPackets[port] < 0 && meta->replayDroppedPackets) {
-			// TODO: pad the end of the arrays if the data doesn't fill it.
-			// Or just re-loop with fresh data and report less data back?
-			// Maybe rearchitect a bit, overread the amount of data needed, only return what's needed.
-		}
-	}
-
-	// Update the last packet variable
-	meta->lastPacket += packetsPerIteration;
-	VERBOSE(if (verbose) printf("Exiting operation, last packet was %ld\n", meta->lastPacket));
-
-	// Update the input/output states
-	meta->inputDataReady = 0;
-	meta->outputDataReady = 1;
-	return packetLoss;
-}
-
-
-/**
- * @brief      { function_description }
- *
- * @param      meta  The meta
- *
- * @return     { description_of_the_return_value }
- */
-int lofar_udp_raw_udp_reorder(lofar_udp_meta *meta) {
-	// Setup return variable
-
-	// Setup working variables
-	
-	VERBOSE(const int verbose = meta->VERBOSE);
-	
-	const int packetsPerIteration = meta->packetsPerIteration;
-	const int replayDroppedPackets = meta->replayDroppedPackets;
-
-	int packetLoss = 0;
-
-	// For each port of data provided,
-	omp_set_num_threads(OMP_THREADS);
-	#pragma omp parallel for 
-	for (int port = 0; port < meta->numPorts; port++) {
-		VERBOSE(if (verbose) printf("Port: %d on thread %d\n", port, omp_get_thread_num()));
-
-		long lastPortPacket, currentPortPacket, inputPacketOffset, outputPacketOffset, lastInputPacketOffset, iWork, iLoop, tsInOffset, tsOutOffset;
-		// Reset the dropped packets counter
-		meta->portLastDroppedPackets[port] = 0;
-		int currentPacketsDropped = 0;
-
-		// Reset last packet, reference data on the current port
-		lastPortPacket = meta->lastPacket;
-		char  *inputPortData = meta->inputData[port];
-		char  *outputData = meta->outputData[0];
-
-		const int portBeamlets = meta->portBeamlets[port];
-		const int cumulativeBeamlets = meta->portCumulativeBeamlets[port];
-		const int totalBeamlets = meta->totalBeamlets;
-
-		// Get the length of packets on the current port and reset the last packet variable encase
-		// 	there is packet loss on the first packet
-		const int portPacketLength = meta->portPacketLength[port];
-		const int packetOutputLength = meta->packetOutputLength[0];
-		lastInputPacketOffset = (-2 + meta->replayDroppedPackets) * portPacketLength; 	// We request at least 2 packets are malloc'd before the array head pointer, so no SEGFAULTs here
-														// -2 * PPL = 0s -1 * PPL = last processed packet -- used for calcuating offset in dropped case if 
-														// 	we have packet loss on the boundary.
-		VERBOSE(if (verbose) printf("LPP: %ld, PPL: %d, LIPO: %ld\n", lastPortPacket, portPacketLength, lastInputPacketOffset));
-		// iWork -- input data offset calculations (account for dropped packets)
-		// iLoop -- output data offsets
-		// These are the same if there is no packet loss.
-		// 
-		// Reset iWork, inputPacketOffset, read in the first packet's number.
-		iWork = 0, inputPacketOffset = 0;
-		currentPortPacket = lofar_get_packet_number(&(inputPortData[inputPacketOffset]));
-		VERBOSE(if (verbose) printf("Packet 0: %ld\n", currentPortPacket));
-		
-		for (iLoop = 0; iLoop < packetsPerIteration; iLoop++) {
-			VERBOSE(if (verbose) printf("Loop %ld, Work %ld, packet %ld, target %ld\n", iLoop, iWork, currentPortPacket, lastPortPacket + 1));
-
-			// Check for packet loss by ensuring we have sequential packet numbers
-			if (currentPortPacket != (lastPortPacket + 1)) {
-				// Check if a packet is out of order; if so, drop the packet
-				// TODO: Better future option: check if the packet is in this block, copy and overwrite padded packed instead
-				VERBOSE(if (verbose) printf("Packet %ld is not the expected packet, %ld.\n", currentPortPacket, lastPortPacket + 1));
-				if (currentPortPacket < lastPortPacket) {
-					
-					VERBOSE(if(verbose) printf("Packet %ld on port %d is out of order (expected %ld); dropping.\n", currentPortPacket, port, lastPortPacket + 1));
-					// Dropped packet -> index not processed -> effectively an 'added' packet, decrement the dropped packet count
-					// 	so that we don't include an extra packet in shift operations
-					currentPacketsDropped -= 1;
-
-					iWork++;
-					inputPacketOffset = iWork * portPacketLength;
-					currentPortPacket = lofar_get_packet_number(&(inputPortData[inputPacketOffset]));
-					continue;
-
-				}
-
-				// Packet dropped:
-				//  Trip the return int
-				//	Increment the port counter for this operation
-				//	Increment the last packet offset so it can be used again next time, including the new offset
-				packetLoss = -1;
-				currentPacketsDropped += 1;
-				lastPortPacket += 1;
-
-				if (replayDroppedPackets) {
-					// If we are replaying the last packet, change the array index to the last good packet index
-					inputPacketOffset = lastInputPacketOffset;
-				} else {
-					// Array should be 0 padded at the start; copy data from there.
-					inputPacketOffset = -2 * portPacketLength;
-				}
-
-				VERBOSE(if (verbose) printf("Packet %ld on port %d is missing; padding.\n", lastPortPacket + 1, port));
-
-			} else {
-				VERBOSE(if (verbose) printf("Packet %ld is the expected packet.\n", currentPortPacket));
-
-				// We have a sequential packet, therefore:
-				//		Update the last legitimate packet number and array offset index
-				//		Increment iWork (input data packet index) and determine the new input offset
-				//		Get the next packet number for the next loop
-				lastInputPacketOffset = inputPacketOffset + UDPHDRLEN;
-				lastPortPacket = currentPortPacket;
-
-				iWork++;
-				inputPacketOffset = iWork * portPacketLength;
-
-
-				// Speedup: add 4 to the sequence, check if accurate. Doesn't work at rollover.
-				if  (((char_unsigned_int*) &(inputPortData[inputPacketOffset + 12]))->ui  == (((char_unsigned_int*) &(inputPortData[lastInputPacketOffset -4])))->ui + 16)  {
-					currentPortPacket += 1;
-				} else currentPortPacket = lofar_get_packet_number(&(inputPortData[inputPacketOffset]));
-
-			}
-
-
-			outputPacketOffset = iLoop * packetOutputLength;
-
-			//#pragma omp parallel for schedule(dynamic, 31) // Expected sizes: 61, 122, 244
-			#pragma GCC unroll 61
-			for (int beamlet = 0; beamlet < portBeamlets; beamlet++) {
-				tsInOffset = lastInputPacketOffset + beamlet * UDPNTIMESLICE * UDPNPOL;
-				tsOutOffset = outputPacketOffset + (beamlet + cumulativeBeamlets) * UDPNPOL;
-
-				#pragma GCC unroll 16 //UDPNTIMESLICE not defined at compile?
-				for (int ts = 0; ts < UDPNTIMESLICE; ts++) {
-					outputData[tsOutOffset] = inputPortData[tsInOffset]; // Xr
-					outputData[tsOutOffset + 1] = inputPortData[tsInOffset + 1]; // Xi
-					outputData[tsOutOffset + 2] = inputPortData[tsInOffset + 2]; // Yr
-					outputData[tsOutOffset + 3] = inputPortData[tsInOffset + 3]; // Yi
-
-					tsInOffset += 4;
-					tsOutOffset += totalBeamlets * UDPNPOL;
-				}
-
-			}
-
-
-		}
-		// Update the overall dropped packet count for this port
-
-		meta->portLastDroppedPackets[port] = currentPacketsDropped;
-		meta->portTotalDroppedPackets[port] += currentPacketsDropped;
-		VERBOSE(if (verbose) printf("Current dropped packet count on port %d: %d\n", port, meta->portLastDroppedPackets[port]));
-	}
-
-	for (int port = 0; port < meta->numPorts; port++) {
-		if (meta->portLastDroppedPackets[port] < (-0.001 * (float) packetsPerIteration)) {
-			fprintf(stderr, "A large number of packets were out of order on port %d; this normally indicates a data integrity issue, exiting...", port);
-			return 1;
-		}
-	}
-
-	for (int port =0; port < meta->numPorts; port++) {
-		if (meta->portLastDroppedPackets[port] < 0 && meta->replayDroppedPackets) {
-			// TODO: pad the end of the arrays if the data doesn't fill it.
-			// Or just re-loop with fresh data and report less data back?
-			// Maybe rearchitect a bit, overread the amount of data needed, only return what's needed.
-		}
-	}
-
-	// Update the last packet variable
-	meta->lastPacket += packetsPerIteration;
-	VERBOSE(if (verbose) printf("Exiting operation, last packet was %ld\n", meta->lastPacket));
-
-	// Update the input/output states
-	meta->inputDataReady = 0;
-	meta->outputDataReady = 1;
-
-	return packetLoss;
-}
-
-
-/**
- * @brief      { function_description }
- *
- * @param      meta  The meta
- *
- * @return     { description_of_the_return_value }
- */
-int lofar_udp_raw_udp_reorder_split_pols(lofar_udp_meta *meta) {
-	// Setup return variable
-
-	// Setup working variables
-	
-	VERBOSE(const int verbose = meta->VERBOSE);
-	
-	const int packetsPerIteration = meta->packetsPerIteration;
-	const int replayDroppedPackets = meta->replayDroppedPackets;
-
-	int packetLoss = 0;
-
-	// For each port of data provided,
-	omp_set_num_threads(OMP_THREADS);
-	#pragma omp parallel for 
-	for (int port = 0; port < meta->numPorts; port++) {
-		VERBOSE(if (verbose) printf("Port: %d on thread %d\n", port, omp_get_thread_num()));
-
-		long lastPortPacket, currentPortPacket, inputPacketOffset, outputPacketOffset, lastInputPacketOffset, iWork, iLoop, tsInOffset, tsOutOffset;
-		// Reset the dropped packets counter
-		meta->portLastDroppedPackets[port] = 0;
-		int currentPacketsDropped = 0;
-
-		// Reset last packet, reference data on the current port
-		lastPortPacket = meta->lastPacket;
-		char  *inputPortData = meta->inputData[port];
-		char  **outputData = meta->outputData;
-
-		const int portBeamlets = meta->portBeamlets[port];
-		const int cumulativeBeamlets = meta->portCumulativeBeamlets[port];
-		const int totalBeamlets = meta->totalBeamlets;
-
-		// Get the length of packets on the current port and reset the last packet variable encase
-		// 	there is packet loss on the first packet
-		const int portPacketLength = meta->portPacketLength[port];
-		const int packetOutputLength = meta->packetOutputLength[0];
-		lastInputPacketOffset = (-2 + meta->replayDroppedPackets) * portPacketLength; 	// We request at least 2 packets are malloc'd before the array head pointer, so no SEGFAULTs here
-														// -2 * PPL = 0s -1 * PPL = last processed packet -- used for calcuating offset in dropped case if 
-														// 	we have packet loss on the boundary.
-		VERBOSE(if (verbose) printf("LPP: %ld, PPL: %d, LIPO: %ld\n", lastPortPacket, portPacketLength, lastInputPacketOffset));
-		// iWork -- input data offset calculations (account for dropped packets)
-		// iLoop -- output data offsets
-		// These are the same if there is no packet loss.
-		// 
-		// Reset iWork, inputPacketOffset, read in the first packet's number.
-		iWork = 0, inputPacketOffset = 0;
-		currentPortPacket = lofar_get_packet_number(&(inputPortData[inputPacketOffset]));
-		VERBOSE(if (verbose) printf("Packet 0: %ld\n", currentPortPacket));
-		
-		for (iLoop = 0; iLoop < packetsPerIteration; iLoop++) {
-			VERBOSE(if (verbose) printf("Loop %ld, Work %ld, packet %ld, target %ld\n", iLoop, iWork, currentPortPacket, lastPortPacket + 1));
-
-			// Check for packet loss by ensuring we have sequential packet numbers
-			if (currentPortPacket != (lastPortPacket + 1)) {
-				// Check if a packet is out of order; if so, drop the packet
-				// TODO: Better future option: check if the packet is in this block, copy and overwrite padded packed instead
-				VERBOSE(if (verbose) printf("Packet %ld is not the expected packet, %ld.\n", currentPortPacket, lastPortPacket + 1));
-				if (currentPortPacket < lastPortPacket) {
-					
-					VERBOSE(if(verbose) printf("Packet %ld on port %d is out of order (expected %ld); dropping.\n", currentPortPacket, port, lastPortPacket + 1));
-					// Dropped packet -> index not processed -> effectively an 'added' packet, decrement the dropped packet count
-					// 	so that we don't include an extra packet in shift operations
-					currentPacketsDropped -= 1;
-
-					iWork++;
-					inputPacketOffset = iWork * portPacketLength;
-					currentPortPacket = lofar_get_packet_number(&(inputPortData[inputPacketOffset]));
-					continue;
-
-				}
-
-				// Packet dropped:
-				//  Trip the return int
-				//	Increment the port counter for this operation
-				//	Increment the last packet offset so it can be used again next time, including the new offset
-				packetLoss = -1;
-				currentPacketsDropped += 1;
-				lastPortPacket += 1;
-
-				if (replayDroppedPackets) {
-					// If we are replaying the last packet, change the array index to the last good packet index
-					inputPacketOffset = lastInputPacketOffset;
-				} else {
-					// Array should be 0 padded at the start; copy data from there.
-					inputPacketOffset = -2 * portPacketLength;
-				}
-
-				VERBOSE(if (verbose) printf("Packet %ld on port %d is missing; padding.\n", lastPortPacket + 1, port));
-
-			} else {
-				VERBOSE(if (verbose) printf("Packet %ld is the expected packet.\n", currentPortPacket));
-
-				// We have a sequential packet, therefore:
-				//		Update the last legitimate packet number and array offset index
-				//		Increment iWork (input data packet index) and determine the new input offset
-				//		Get the next packet number for the next loop
-				lastInputPacketOffset = inputPacketOffset + UDPHDRLEN;
-				lastPortPacket = currentPortPacket;
-
-				iWork++;
-				inputPacketOffset = iWork * portPacketLength;
-
-
-				// Speedup: add 4 to the sequence, check if accurate. Doesn't work at rollover.
-				if  (((char_unsigned_int*) &(inputPortData[inputPacketOffset + 12]))->ui  == (((char_unsigned_int*) &(inputPortData[lastInputPacketOffset -4])))->ui + 16)  {
-					currentPortPacket += 1;
-				} else currentPortPacket = lofar_get_packet_number(&(inputPortData[inputPacketOffset]));
-
-			}
-
-			outputPacketOffset = iLoop * packetOutputLength;
-
-			//#pragma omp parallel for schedule(dynamic, 31) // Expected sizes: 61, 122, 244
-			#pragma GCC unroll 61
-			for (int beamlet = 0; beamlet < portBeamlets; beamlet++) {
-				tsInOffset = lastInputPacketOffset + beamlet * UDPNTIMESLICE * UDPNPOL;
-				tsOutOffset = outputPacketOffset + beamlet + cumulativeBeamlets;
-
-				#pragma GCC unroll 16 //UDPNTIMESLICE not defined at compile?
-				for (int ts = 0; ts < UDPNTIMESLICE; ts++) {
-					outputData[0][tsOutOffset] = inputPortData[tsInOffset]; // Xr
-					outputData[1][tsOutOffset] = inputPortData[tsInOffset + 1]; // Xi
-					outputData[2][tsOutOffset] = inputPortData[tsInOffset + 2]; // Yr
-					outputData[3][tsOutOffset] = inputPortData[tsInOffset + 3]; // Yi
-
-					tsInOffset += 4;
-					tsOutOffset += totalBeamlets;
-				}
-
-
-			}
-
-
-		}
-		// Update the overall dropped packet count for this port
-
-		meta->portLastDroppedPackets[port] = currentPacketsDropped;
-		meta->portTotalDroppedPackets[port] += currentPacketsDropped;
-		VERBOSE(if (verbose) printf("Current dropped packet count on port %d: %d\n", port, meta->portLastDroppedPackets[port]));
-	}
-
-	for (int port = 0; port < meta->numPorts; port++) {
-		if (meta->portLastDroppedPackets[port] < (-0.001 * (float) packetsPerIteration)) {
-			fprintf(stderr, "A large number of packets were out of order on port %d; this normally indicates a data integrity issue, exiting...", port);
-			return 1;
-		}
-	}
-
-	for (int port =0; port < meta->numPorts; port++) {
-		if (meta->portLastDroppedPackets[port] < 0 && meta->replayDroppedPackets) {
-			// TODO: pad the end of the arrays if the data doesn't fill it.
-			// Or just re-loop with fresh data and report less data back?
-			// Maybe rearchitect a bit, overread the amount of data needed, only return what's needed.
-		}
-	}
-
-	// Update the last packet variable
-	meta->lastPacket += packetsPerIteration;
-	VERBOSE(if (verbose) printf("Exiting operation, last packet was %ld\n", meta->lastPacket));
-
-	// Update the input/output states
-	meta->inputDataReady = 0;
-	meta->outputDataReady = 1;
-	return packetLoss;
-}
-
-
-/**
- * @brief      { function_description }
- *
- * @param      meta  The meta
- *
- * @return     { description_of_the_return_value }
- */
-int lofar_udp_raw_udp_reversed(lofar_udp_meta *meta) {
-	// Setup return variable
-
-	// Setup working variables
-	
-	VERBOSE(const int verbose = meta->VERBOSE);
-	
-	const int packetsPerIteration = meta->packetsPerIteration;
-	const int replayDroppedPackets = meta->replayDroppedPackets;
-
-	int packetLoss = 0;
-
-	// For each port of data provided,
-	omp_set_num_threads(OMP_THREADS);
-	#pragma omp parallel for 
-	for (int port = 0; port < meta->numPorts; port++) {
-		VERBOSE(if (verbose) printf("Port: %d on thread %d\n", port, omp_get_thread_num()));
-
-		long lastPortPacket, currentPortPacket, inputPacketOffset, outputPacketOffset, lastInputPacketOffset, iWork, iLoop, tsInOffset, tsOutOffset;
-		// Reset the dropped packets counter
-		meta->portLastDroppedPackets[port] = 0;
-		int currentPacketsDropped = 0;
-
-		// Reset last packet, reference data on the current port
-		lastPortPacket = meta->lastPacket;
-		char  *inputPortData = meta->inputData[port];
-		char  *outputData = meta->outputData[0];
-
-		const int portBeamlets = meta->portBeamlets[port];
-		const int cumulativeBeamlets = meta->portCumulativeBeamlets[port];
-		const int totalBeamlets = meta->totalBeamlets;
-
-		// Get the length of packets on the current port and reset the last packet variable encase
-		// 	there is packet loss on the first packet
-		const int portPacketLength = meta->portPacketLength[port];
-		const int packetOutputLength = meta->packetOutputLength[0];
-		lastInputPacketOffset = (-2 + meta->replayDroppedPackets) * portPacketLength; 	// We request at least 2 packets are malloc'd before the array head pointer, so no SEGFAULTs here
-														// -2 * PPL = 0s -1 * PPL = last processed packet -- used for calcuating offset in dropped case if 
-														// 	we have packet loss on the boundary.
-		VERBOSE(if (verbose) printf("LPP: %ld, PPL: %d, LIPO: %ld\n", lastPortPacket, portPacketLength, lastInputPacketOffset));
-		// iWork -- input data offset calculations (account for dropped packets)
-		// iLoop -- output data offsets
-		// These are the same if there is no packet loss.
-		// 
-		// Reset iWork, inputPacketOffset, read in the first packet's number.
-		iWork = 0, inputPacketOffset = 0;
-		currentPortPacket = lofar_get_packet_number(&(inputPortData[inputPacketOffset]));
-		VERBOSE(if (verbose) printf("Packet 0: %ld\n", currentPortPacket));
-		
-		for (iLoop = 0; iLoop < packetsPerIteration; iLoop++) {
-			VERBOSE(if (verbose) printf("Loop %ld, Work %ld, packet %ld, target %ld\n", iLoop, iWork, currentPortPacket, lastPortPacket + 1));
-
-			// Check for packet loss by ensuring we have sequential packet numbers
-			if (currentPortPacket != (lastPortPacket + 1)) {
-				// Check if a packet is out of order; if so, drop the packet
-				// TODO: Better future option: check if the packet is in this block, copy and overwrite padded packed instead
-				VERBOSE(if (verbose) printf("Packet %ld is not the expected packet, %ld.\n", currentPortPacket, lastPortPacket + 1));
-				if (currentPortPacket < lastPortPacket) {
-					
-					VERBOSE(if(verbose) printf("Packet %ld on port %d is out of order (expected %ld); dropping.\n", currentPortPacket, port, lastPortPacket + 1));
-					// Dropped packet -> index not processed -> effectively an 'added' packet, decrement the dropped packet count
-					// 	so that we don't include an extra packet in shift operations
-					currentPacketsDropped -= 1;
-
-					iWork++;
-					inputPacketOffset = iWork * portPacketLength;
-					currentPortPacket = lofar_get_packet_number(&(inputPortData[inputPacketOffset]));
-					continue;
-
-				}
-
-				// Packet dropped:
-				//  Trip the return int
-				//	Increment the port counter for this operation
-				//	Increment the last packet offset so it can be used again next time, including the new offset
-				packetLoss = -1;
-				currentPacketsDropped += 1;
-				lastPortPacket += 1;
-
-				if (replayDroppedPackets) {
-					// If we are replaying the last packet, change the array index to the last good packet index
-					inputPacketOffset = lastInputPacketOffset;
-				} else {
-					// Array should be 0 padded at the start; copy data from there.
-					inputPacketOffset = -2 * portPacketLength;
-				}
-
-				VERBOSE(if (verbose) printf("Packet %ld on port %d is missing; padding.\n", lastPortPacket + 1, port));
-
-			} else {
-				VERBOSE(if (verbose) printf("Packet %ld is the expected packet.\n", currentPortPacket));
-
-				// We have a sequential packet, therefore:
-				//		Update the last legitimate packet number and array offset index
-				//		Increment iWork (input data packet index) and determine the new input offset
-				//		Get the next packet number for the next loop
-				lastInputPacketOffset = inputPacketOffset + UDPHDRLEN;
-				lastPortPacket = currentPortPacket;
-
-				iWork++;
-				inputPacketOffset = iWork * portPacketLength;
-
-
-				// Speedup: add 4 to the sequence, check if accurate. Doesn't work at rollover.
-				if  (((char_unsigned_int*) &(inputPortData[inputPacketOffset + 12]))->ui  == (((char_unsigned_int*) &(inputPortData[lastInputPacketOffset -4])))->ui + 16)  {
-					currentPortPacket += 1;
-				} else currentPortPacket = lofar_get_packet_number(&(inputPortData[inputPacketOffset]));
-
-			}
-
-			outputPacketOffset = iLoop * packetOutputLength;
-
-			//#pragma omp parallel for schedule(dynamic, 31) // Expected sizes: 61, 122, 244
-			#pragma GCC unroll 61
-			for (int beamlet = 0; beamlet < portBeamlets; beamlet++) {
-				tsInOffset = lastInputPacketOffset + beamlet * UDPNTIMESLICE * UDPNPOL;
-				tsOutOffset = outputPacketOffset + (totalBeamlets - 1 - (beamlet + cumulativeBeamlets)) * UDPNPOL;
-
-				#pragma GCC unroll 16 //UDPNTIMESLICE not defined at compile?
-				for (int ts = 0; ts < UDPNTIMESLICE; ts++) {
-					outputData[tsOutOffset] = inputPortData[tsInOffset]; // Xr
-					outputData[tsOutOffset + 1] = inputPortData[tsInOffset + 1]; // Xi
-					outputData[tsOutOffset + 2] = inputPortData[tsInOffset + 2]; // Yr
-					outputData[tsOutOffset + 3] = inputPortData[tsInOffset + 3]; // Yi
-
-					tsInOffset += 4;
-					tsOutOffset += totalBeamlets * UDPNPOL;
-				}
-
-
-			}
-
-
-		}
-		// Update the overall dropped packet count for this port
-
-		meta->portLastDroppedPackets[port] = currentPacketsDropped;
-		meta->portTotalDroppedPackets[port] += currentPacketsDropped;
-		VERBOSE(if (verbose) printf("Current dropped packet count on port %d: %d\n", port, meta->portLastDroppedPackets[port]));
-	}
-
-	for (int port = 0; port < meta->numPorts; port++) {
-		if (meta->portLastDroppedPackets[port] < (-0.001 * (float) packetsPerIteration)) {
-			fprintf(stderr, "A large number of packets were out of order on port %d; this normally indicates a data integrity issue, exiting...", port);
-			return 1;
-		}
-	}
-
-	for (int port =0; port < meta->numPorts; port++) {
-		if (meta->portLastDroppedPackets[port] < 0 && meta->replayDroppedPackets) {
-			// TODO: pad the end of the arrays if the data doesn't fill it.
-			// Or just re-loop with fresh data and report less data back?
-			// Maybe rearchitect a bit, overread the amount of data needed, only return what's needed.
-		}
-	}
-
-	// Update the last packet variable
-	meta->lastPacket += packetsPerIteration;
-	VERBOSE(if (verbose) printf("Exiting operation, last packet was %ld\n", meta->lastPacket));
-
-	// Update the input/output states
-	meta->inputDataReady = 0;
-	meta->outputDataReady = 1;
-	return packetLoss;
-}
-
-
-/**
- * @brief      { function_description }
- *
- * @param      meta  The meta
- *
- * @return     { description_of_the_return_value }
- */
-int lofar_udp_raw_udp_reversed_split_pols(lofar_udp_meta *meta) {
-	// Setup return variable
-
-	// Setup working variables
-	
-	VERBOSE(const int verbose = meta->VERBOSE);
-	
-	const int packetsPerIteration = meta->packetsPerIteration;
-	const int replayDroppedPackets = meta->replayDroppedPackets;
-
-	int packetLoss = 0;
-
-	// For each port of data provided,
-	omp_set_num_threads(OMP_THREADS);
-	#pragma omp parallel for 
-	for (int port = 0; port < meta->numPorts; port++) {
-		VERBOSE(if (verbose) printf("Port: %d on thread %d\n", port, omp_get_thread_num()));
-
-		long lastPortPacket, currentPortPacket, inputPacketOffset, outputPacketOffset, lastInputPacketOffset, iWork, iLoop, tsInOffset, tsOutOffset;
-		// Reset the dropped packets counter
-		meta->portLastDroppedPackets[port] = 0;
-		int currentPacketsDropped = 0;
-
-		// Reset last packet, reference data on the current port
-		lastPortPacket = meta->lastPacket;
-		char  *inputPortData = meta->inputData[port];
-		char  **outputData = meta->outputData;
-
-		const int portBeamlets = meta->portBeamlets[port];
-		const int cumulativeBeamlets = meta->portCumulativeBeamlets[port];
-		const int totalBeamlets = meta->totalBeamlets;
-
-		// Get the length of packets on the current port and reset the last packet variable encase
-		// 	there is packet loss on the first packet
-		const int portPacketLength = meta->portPacketLength[port];
-		const int packetOutputLength = meta->packetOutputLength[0];
-		lastInputPacketOffset = (-2 + meta->replayDroppedPackets) * portPacketLength; 	// We request at least 2 packets are malloc'd before the array head pointer, so no SEGFAULTs here
-														// -2 * PPL = 0s -1 * PPL = last processed packet -- used for calcuating offset in dropped case if 
-														// 	we have packet loss on the boundary.
-		VERBOSE(if (verbose) printf("LPP: %ld, PPL: %d, LIPO: %ld\n", lastPortPacket, portPacketLength, lastInputPacketOffset));
-		// iWork -- input data offset calculations (account for dropped packets)
-		// iLoop -- output data offsets
-		// These are the same if there is no packet loss.
-		// 
-		// Reset iWork, inputPacketOffset, read in the first packet's number.
-		iWork = 0, inputPacketOffset = 0;
-		currentPortPacket = lofar_get_packet_number(&(inputPortData[inputPacketOffset]));
-		VERBOSE(if (verbose) printf("Packet 0: %ld\n", currentPortPacket));
-		
-		for (iLoop = 0; iLoop < packetsPerIteration; iLoop++) {
-			VERBOSE(if (verbose) printf("Loop %ld, Work %ld, packet %ld, target %ld\n", iLoop, iWork, currentPortPacket, lastPortPacket + 1));
-
-			// Check for packet loss by ensuring we have sequential packet numbers
-			if (currentPortPacket != (lastPortPacket + 1)) {
-				// Check if a packet is out of order; if so, drop the packet
-				// TODO: Better future option: check if the packet is in this block, copy and overwrite padded packed instead
-				VERBOSE(if (verbose) printf("Packet %ld is not the expected packet, %ld.\n", currentPortPacket, lastPortPacket + 1));
-				if (currentPortPacket < lastPortPacket) {
-					
-					VERBOSE(if(verbose) printf("Packet %ld on port %d is out of order (expected %ld); dropping.\n", currentPortPacket, port, lastPortPacket + 1));
-					// Dropped packet -> index not processed -> effectively an 'added' packet, decrement the dropped packet count
-					// 	so that we don't include an extra packet in shift operations
-					currentPacketsDropped -= 1;
-
-					iWork++;
-					inputPacketOffset = iWork * portPacketLength;
-					currentPortPacket = lofar_get_packet_number(&(inputPortData[inputPacketOffset]));
-					continue;
-
-				}
-
-				// Packet dropped:
-				//  Trip the return int
-				//	Increment the port counter for this operation
-				//	Increment the last packet offset so it can be used again next time, including the new offset
-				packetLoss = -1;
-				currentPacketsDropped += 1;
-				lastPortPacket += 1;
-
-				if (replayDroppedPackets) {
-					// If we are replaying the last packet, change the array index to the last good packet index
-					inputPacketOffset = lastInputPacketOffset;
-				} else {
-					// Array should be 0 padded at the start; copy data from there.
-					inputPacketOffset = -2 * portPacketLength;
-				}
-
-				VERBOSE(if (verbose) printf("Packet %ld on port %d is missing; padding.\n", lastPortPacket + 1, port));
-
-			} else {
-				VERBOSE(if (verbose) printf("Packet %ld is the expected packet.\n", currentPortPacket));
-
-				// We have a sequential packet, therefore:
-				//		Update the last legitimate packet number and array offset index
-				//		Increment iWork (input data packet index) and determine the new input offset
-				//		Get the next packet number for the next loop
-				lastInputPacketOffset = inputPacketOffset + UDPHDRLEN;
-				lastPortPacket = currentPortPacket;
-
-				iWork++;
-				inputPacketOffset = iWork * portPacketLength;
-
-
-				// Speedup: add 4 to the sequence, check if accurate. Doesn't work at rollover.
-				if  (((char_unsigned_int*) &(inputPortData[inputPacketOffset + 12]))->ui  == (((char_unsigned_int*) &(inputPortData[lastInputPacketOffset -4])))->ui + 16)  {
-					currentPortPacket += 1;
-				} else currentPortPacket = lofar_get_packet_number(&(inputPortData[inputPacketOffset]));
-
-			}
-
-			outputPacketOffset = iLoop * packetOutputLength;
-
-			//#pragma omp parallel for schedule(dynamic, 31) // Expected sizes: 61, 122, 244
-			#pragma GCC unroll 61
-			for (int beamlet = 0; beamlet < portBeamlets; beamlet++) {
-				tsInOffset = lastInputPacketOffset + beamlet * UDPNTIMESLICE * UDPNPOL;
-				tsOutOffset = outputPacketOffset + (totalBeamlets - 1 - beamlet - cumulativeBeamlets);
-				#pragma GCC unroll 16 //UDPNTIMESLICE not defined at compile?
-				for (int ts = 0; ts < UDPNTIMESLICE; ts++) {
-					outputData[0][tsOutOffset] = inputPortData[tsInOffset]; // Xr
-					outputData[1][tsOutOffset] = inputPortData[tsInOffset + 1]; // Xi
-					outputData[2][tsOutOffset] = inputPortData[tsInOffset + 2]; // Yr
-					outputData[3][tsOutOffset] = inputPortData[tsInOffset + 3]; // Yi
-
-					tsInOffset += 4;
-					tsOutOffset += totalBeamlets;
-				}
-
-
-			}
-
-
-		}
-		// Update the overall dropped packet count for this port
-
-		meta->portLastDroppedPackets[port] = currentPacketsDropped;
-		meta->portTotalDroppedPackets[port] += currentPacketsDropped;
-		VERBOSE(if (verbose) printf("Current dropped packet count on port %d: %d\n", port, meta->portLastDroppedPackets[port]));
-	}
-
-	for (int port = 0; port < meta->numPorts; port++) {
-		if (meta->portLastDroppedPackets[port] < (-0.001 * (float) packetsPerIteration)) {
-			fprintf(stderr, "A large number of packets were out of order on port %d; this normally indicates a data integrity issue, exiting...", port);
-			return 1;
-		}
-	}
-
-	for (int port =0; port < meta->numPorts; port++) {
-		if (meta->portLastDroppedPackets[port] < 0 && meta->replayDroppedPackets) {
-			// TODO: pad the end of the arrays if the data doesn't fill it.
-			// Or just re-loop with fresh data and report less data back?
-			// Maybe rearchitect a bit, overread the amount of data needed, only return what's needed.
-		}
-	}
-
-	// Update the last packet variable
-	meta->lastPacket += packetsPerIteration;
-	VERBOSE(if (verbose) printf("Exiting operation, last packet was %ld\n", meta->lastPacket));
-
-	// Update the input/output states
-	meta->inputDataReady = 0;
-	meta->outputDataReady = 1;
-
-	return packetLoss;
-}
-
-/**
- * @brief      { function_description }
- *
- * @param[in]  Xr    { parameter_description }
- * @param[in]  Xi    { parameter_description }
- * @param[in]  Yr    { parameter_description }
- * @param[in]  Yi    { parameter_description }
- *
- * @return     { description_of_the_return_value }
- */
-#pragma omp declare simd
-float stokesI(float Xr, float Xi, float Yr, float Yi) {
-	return  (1.0 * (Xr * Xr) + 1.0 * (Xi * Xi) + 1.0 * (Yr * Yr) + 1.0 * (Yi * Yi));
-}
-
-/**
- * @brief      { function_description }
- *
- * @param      meta  The meta
- *
- * @return     { description_of_the_return_value }
- */
-int lofar_udp_raw_udp_stokesI(lofar_udp_meta *meta) {
-	// Setup return variable
-
-	// Setup working variables
-	
-	VERBOSE(const int verbose = meta->VERBOSE);
-	
-	const int packetsPerIteration = meta->packetsPerIteration;
-	const int replayDroppedPackets = meta->replayDroppedPackets;
-
-	int packetLoss = 0;
-
-	// For each port of data provided,
-	omp_set_num_threads(OMP_THREADS);
-	#pragma omp parallel for 
-	for (int port = 0; port < meta->numPorts; port++) {
-		VERBOSE(if (verbose) printf("Port: %d on thread %d\n", port, omp_get_thread_num()));
-
-		long lastPortPacket, currentPortPacket, inputPacketOffset, outputPacketOffset, lastInputPacketOffset, iWork, iLoop, tsInOffset, tsOutOffset;
-		// Reset the dropped packets counter
-		meta->portLastDroppedPackets[port] = 0;
-		int currentPacketsDropped = 0;
-
-		// Reset last packet, reference data on the current port
-		lastPortPacket = meta->lastPacket;
-		char  *inputPortData = meta->inputData[port];
-		float  *outputData = (float*) meta->outputData[0];
-
-		const int portBeamlets = meta->portBeamlets[port];
-		const int cumulativeBeamlets = meta->portCumulativeBeamlets[port];
-		const int totalBeamlets = meta->totalBeamlets;
-
-		// Get the length of packets on the current port and reset the last packet variable encase
-		// 	there is packet loss on the first packet
-		const int portPacketLength = meta->portPacketLength[port];
-		const int packetOutputLength = meta->packetOutputLength[0];
-		lastInputPacketOffset = (-2 + meta->replayDroppedPackets) * portPacketLength; 	// We request at least 2 packets are malloc'd before the array head pointer, so no SEGFAULTs here
-														// -2 * PPL = 0s -1 * PPL = last processed packet -- used for calcuating offset in dropped case if 
-														// 	we have packet loss on the boundary.
-		VERBOSE(if (verbose) printf("LPP: %ld, PPL: %d, LIPO: %ld\n", lastPortPacket, portPacketLength, lastInputPacketOffset));
-		// iWork -- input data offset calculations (account for dropped packets)
-		// iLoop -- output data offsets
-		// These are the same if there is no packet loss.
-		// 
-		// Reset iWork, inputPacketOffset, read in the first packet's number.
-		iWork = 0, inputPacketOffset = 0;
-		currentPortPacket = lofar_get_packet_number(&(inputPortData[inputPacketOffset]));
-		VERBOSE(if (verbose) printf("Packet 0: %ld\n", currentPortPacket));
-		
-		for (iLoop = 0; iLoop < packetsPerIteration; iLoop++) {
-			VERBOSE(if (verbose) printf("Loop %ld, Work %ld, packet %ld, target %ld\n", iLoop, iWork, currentPortPacket, lastPortPacket + 1));
-
-			// Check for packet loss by ensuring we have sequential packet numbers
-			if (currentPortPacket != (lastPortPacket + 1)) {
-				// Check if a packet is out of order; if so, drop the packet
-				// TODO: Better future option: check if the packet is in this block, copy and overwrite padded packed instead
-				VERBOSE(if (verbose) printf("Packet %ld is not the expected packet, %ld.\n", currentPortPacket, lastPortPacket + 1));
-				if (currentPortPacket < lastPortPacket) {
-					
-					VERBOSE(if(verbose) printf("Packet %ld on port %d is out of order (expected %ld); dropping.\n", currentPortPacket, port, lastPortPacket + 1));
-					// Dropped packet -> index not processed -> effectively an 'added' packet, decrement the dropped packet count
-					// 	so that we don't include an extra packet in shift operations
-					currentPacketsDropped -= 1;
-
-					iWork++;
-					inputPacketOffset = iWork * portPacketLength;
-					currentPortPacket = lofar_get_packet_number(&(inputPortData[inputPacketOffset]));
-					continue;
-
-				}
-
-				// Packet dropped:
-				//  Trip the return int
-				//	Increment the port counter for this operation
-				//	Increment the last packet offset so it can be used again next time, including the new offset
-				packetLoss = -1;
-				currentPacketsDropped += 1;
-				lastPortPacket += 1;
-
-				if (replayDroppedPackets) {
-					// If we are replaying the last packet, change the array index to the last good packet index
-					inputPacketOffset = lastInputPacketOffset;
-				} else {
-					// Array should be 0 padded at the start; copy data from there.
-					inputPacketOffset = -2 * portPacketLength;
-				}
-
-				VERBOSE(if (verbose) printf("Packet %ld on port %d is missing; padding.\n", lastPortPacket + 1, port));
-
-			} else {
-				VERBOSE(if (verbose) printf("Packet %ld is the expected packet.\n", currentPortPacket));
-
-				// We have a sequential packet, therefore:
-				//		Update the last legitimate packet number and array offset index
-				//		Increment iWork (input data packet index) and determine the new input offset
-				//		Get the next packet number for the next loop
-				lastInputPacketOffset = inputPacketOffset + UDPHDRLEN;
-				lastPortPacket = currentPortPacket;
-
-				iWork++;
-				inputPacketOffset = iWork * portPacketLength;
-
-
-				// Speedup: add 4 to the sequence, check if accurate. Doesn't work at rollover.
-				if  (((char_unsigned_int*) &(inputPortData[inputPacketOffset + 12]))->ui  == (((char_unsigned_int*) &(inputPortData[lastInputPacketOffset -4])))->ui + 16)  {
-					currentPortPacket += 1;
-				} else currentPortPacket = lofar_get_packet_number(&(inputPortData[inputPacketOffset]));
-
-			}
-
-			outputPacketOffset = iLoop * packetOutputLength / (sizeof(float) / sizeof(char));
-
-			//#pragma omp parallel for schedule(dynamic, 31) // Expected sizes: 61, 122, 244
-			#pragma GCC unroll 61
-			for (int beamlet = 0; beamlet < portBeamlets; beamlet++) {
-				tsInOffset = lastInputPacketOffset + beamlet * UDPNTIMESLICE * UDPNPOL;
-				tsOutOffset = outputPacketOffset + (totalBeamlets - 1 - beamlet - cumulativeBeamlets);
-
-				//#pragma omp simd 
-				#pragma GCC unroll 16 //UDPNTIMESLICE not defined at compile?
-				for (int ts = 0; ts < UDPNTIMESLICE; ts++) {
-					outputData[tsOutOffset] = stokesI((signed char) inputPortData[tsInOffset], (signed char) inputPortData[tsInOffset + 1], (signed char) inputPortData[tsInOffset + 2], (signed char) inputPortData[tsInOffset + 3]);
-
-					tsInOffset += 4;
-					tsOutOffset += totalBeamlets;
-				}
-
-
-			}
-
-
-		}
-		// Update the overall dropped packet count for this port
-
-		meta->portLastDroppedPackets[port] = currentPacketsDropped;
-		meta->portTotalDroppedPackets[port] += currentPacketsDropped;
-		VERBOSE(if (verbose) printf("Current dropped packet count on port %d: %d\n", port, meta->portLastDroppedPackets[port]));
-	}
-
-	for (int port = 0; port < meta->numPorts; port++) {
-		if (meta->portLastDroppedPackets[port] < (-0.001 * (float) packetsPerIteration)) {
-			fprintf(stderr, "A large number of packets were out of order on port %d; this normally indicates a data integrity issue, exiting...", port);
-			return 1;
-		}
-	}
-
-	for (int port =0; port < meta->numPorts; port++) {
-		if (meta->portLastDroppedPackets[port] < 0 && meta->replayDroppedPackets) {
-			// TODO: pad the end of the arrays if the data doesn't fill it.
-			// Or just re-loop with fresh data and report less data back?
-			// Maybe rearchitect a bit, overread the amount of data needed, only return what's needed.
-		}
-	}
-
-	// Update the last packet variable
-	meta->lastPacket += packetsPerIteration;
-	VERBOSE(if (verbose) printf("Exiting operation, last packet was %ld\n", meta->lastPacket));
-
-	// Update the input/output states
-	meta->inputDataReady = 0;
-	meta->outputDataReady = 1;
-
-	return packetLoss;
-}
-
-
-/**
- * @brief      { function_description }
- *
- * @param      meta  The meta
- *
- * @return     { description_of_the_return_value }
- */
-int lofar_udp_raw_udp_stokesI_sum16(lofar_udp_meta *meta) {
-	// Setup return variable
-
-	// Setup working variables
-	
-	VERBOSE(const int verbose = meta->VERBOSE);
-	
-	const int packetsPerIteration = meta->packetsPerIteration;
-	const int replayDroppedPackets = meta->replayDroppedPackets;
-
-	int packetLoss = 0;
-
-	// For each port of data provided,
-	omp_set_num_threads(OMP_THREADS);
-	#pragma omp parallel for 
-	for (int port = 0; port < meta->numPorts; port++) {
-		VERBOSE(if (verbose) printf("Port: %d on thread %d\n", port, omp_get_thread_num()));
-
-		long lastPortPacket, currentPortPacket, inputPacketOffset, outputPacketOffset, lastInputPacketOffset, iWork, iLoop, tsInOffset, tsOutOffset;
-		// Reset the dropped packets counter
-		meta->portLastDroppedPackets[port] = 0;
-		int currentPacketsDropped = 0;
-
-		// Reset last packet, reference data on the current port
-		lastPortPacket = meta->lastPacket;
-		char  *inputPortData = meta->inputData[port];
-		float  *outputData = (float*) meta->outputData[0];
-		float tempVal;
-
-		const int portBeamlets = meta->portBeamlets[port];
-		const int cumulativeBeamlets = meta->portCumulativeBeamlets[port];
-		const int totalBeamlets = meta->totalBeamlets;
-
-		// Get the length of packets on the current port and reset the last packet variable encase
-		// 	there is packet loss on the first packet
-		const int portPacketLength = meta->portPacketLength[port];
-		const int packetOutputLength = meta->packetOutputLength[0];
-		lastInputPacketOffset = (-2 + meta->replayDroppedPackets) * portPacketLength; 	// We request at least 2 packets are malloc'd before the array head pointer, so no SEGFAULTs here
-														// -2 * PPL = 0s -1 * PPL = last processed packet -- used for calcuating offset in dropped case if 
-														// 	we have packet loss on the boundary.
-		VERBOSE(if (verbose) printf("LPP: %ld, PPL: %d, LIPO: %ld\n", lastPortPacket, portPacketLength, lastInputPacketOffset));
-		// iWork -- input data offset calculations (account for dropped packets)
-		// iLoop -- output data offsets
-		// These are the same if there is no packet loss.
-		// 
-		// Reset iWork, inputPacketOffset, read in the first packet's number.
-		iWork = 0, inputPacketOffset = 0;
-		currentPortPacket = lofar_get_packet_number(&(inputPortData[inputPacketOffset]));
-		VERBOSE(if (verbose) printf("Packet 0: %ld\n", currentPortPacket));
-		
-		for (iLoop = 0; iLoop < packetsPerIteration; iLoop++) {
-			VERBOSE(if (verbose) printf("Loop %ld, Work %ld, packet %ld, target %ld\n", iLoop, iWork, currentPortPacket, lastPortPacket + 1));
-
-			// Check for packet loss by ensuring we have sequential packet numbers
-			if (currentPortPacket != (lastPortPacket + 1)) {
-				// Check if a packet is out of order; if so, drop the packet
-				// TODO: Better future option: check if the packet is in this block, copy and overwrite padded packed instead
-				VERBOSE(if (verbose) printf("Packet %ld is not the expected packet, %ld.\n", currentPortPacket, lastPortPacket + 1));
-				if (currentPortPacket < lastPortPacket) {
-					
-					VERBOSE(if(verbose) printf("Packet %ld on port %d is out of order (expected %ld); dropping.\n", currentPortPacket, port, lastPortPacket + 1));
-					// Dropped packet -> index not processed -> effectively an 'added' packet, decrement the dropped packet count
-					// 	so that we don't include an extra packet in shift operations
-					currentPacketsDropped -= 1;
-
-					iWork++;
-					inputPacketOffset = iWork * portPacketLength;
-					currentPortPacket = lofar_get_packet_number(&(inputPortData[inputPacketOffset]));
-					continue;
-
-				}
-
-				// Packet dropped:
-				//  Trip the return int
-				//	Increment the port counter for this operation
-				//	Increment the last packet offset so it can be used again next time, including the new offset
-				packetLoss = -1;
-				currentPacketsDropped += 1;
-				lastPortPacket += 1;
-
-				if (replayDroppedPackets) {
-					// If we are replaying the last packet, change the array index to the last good packet index
-					inputPacketOffset = lastInputPacketOffset;
-				} else {
-					// Array should be 0 padded at the start; copy data from there.
-					inputPacketOffset = -2 * portPacketLength;
-				}
-
-				VERBOSE(if (verbose) printf("Packet %ld on port %d is missing; padding.\n", lastPortPacket + 1, port));
-
-			} else {
-				VERBOSE(if (verbose) printf("Packet %ld is the expected packet.\n", currentPortPacket));
-
-				// We have a sequential packet, therefore:
-				//		Update the last legitimate packet number and array offset index
-				//		Increment iWork (input data packet index) and determine the new input offset
-				//		Get the next packet number for the next loop
-				lastInputPacketOffset = inputPacketOffset + UDPHDRLEN;
-				lastPortPacket = currentPortPacket;
-
-				iWork++;
-				inputPacketOffset = iWork * portPacketLength;
-
-
-				// Speedup: add 4 to the sequence, check if accurate. Doesn't work at rollover.
-				if  (((char_unsigned_int*) &(inputPortData[inputPacketOffset + 12]))->ui  == (((char_unsigned_int*) &(inputPortData[lastInputPacketOffset -4])))->ui + 16)  {
-					currentPortPacket += 1;
-				} else currentPortPacket = lofar_get_packet_number(&(inputPortData[inputPacketOffset]));
-
-			}
-
-			outputPacketOffset = iLoop * packetOutputLength / (sizeof(float) / sizeof(char));
-
-			//#pragma omp parallel for schedule(dynamic, 31) // Expected sizes: 61, 122, 244
-			#pragma GCC unroll 61
-			for (int beamlet = 0; beamlet < portBeamlets; beamlet++) {
-				tsInOffset = lastInputPacketOffset + beamlet * UDPNTIMESLICE * UDPNPOL;
-				tsOutOffset = outputPacketOffset + (totalBeamlets - 1 - beamlet - cumulativeBeamlets);
-				tempVal = 0.0;
-
-				//#pragma omp simd 
-				#pragma GCC unroll 16 //UDPNTIMESLICE not defined at compile?
-				for (int ts = 0; ts < UDPNTIMESLICE; ts++) {
-					tempVal += stokesI((signed char) inputPortData[tsInOffset], (signed char) inputPortData[tsInOffset + 1], (signed char) inputPortData[tsInOffset + 2], (signed char) inputPortData[tsInOffset + 3]);
-
-					tsInOffset += 4;
-				}
-
-				outputData[tsOutOffset] = tempVal;
-
-
-			}
-
-
-		}
-		// Update the overall dropped packet count for this port
-
-		meta->portLastDroppedPackets[port] = currentPacketsDropped;
-		meta->portTotalDroppedPackets[port] += currentPacketsDropped;
-		VERBOSE(if (verbose) printf("Current dropped packet count on port %d: %d\n", port, meta->portLastDroppedPackets[port]));
-	}
-
-	for (int port = 0; port < meta->numPorts; port++) {
-		if (meta->portLastDroppedPackets[port] < (-0.001 * (float) packetsPerIteration)) {
-			fprintf(stderr, "A large number of packets were out of order on port %d; this normally indicates a data integrity issue, exiting...", port);
-			return 1;
-		}
-	}
-
-	for (int port =0; port < meta->numPorts; port++) {
-		if (meta->portLastDroppedPackets[port] < 0 && meta->replayDroppedPackets) {
-			// TODO: pad the end of the arrays if the data doesn't fill it.
-			// Or just re-loop with fresh data and report less data back?
-			// Maybe rearchitect a bit, overread the amount of data needed, only return what's needed.
-		}
-	}
-
-	// Update the last packet variable
-	meta->lastPacket += packetsPerIteration;
-	VERBOSE(if (verbose) printf("Exiting operation, last packet was %ld\n", meta->lastPacket));
-
-	// Update the input/output states
-	meta->inputDataReady = 0;
-	meta->outputDataReady = 1;
-
-	return packetLoss;
-}
-
-
-
-/**
- * @brief      { function_description }
- *
- * @param[in]  Xr    { parameter_description }
- * @param[in]  Xi    { parameter_description }
- * @param[in]  Yr    { parameter_description }
- * @param[in]  Yi    { parameter_description }
- *
- * @return     { description_of_the_return_value }
- */
-#pragma omp declare simd
-float stokesV(float Xr, float Xi, float Yr, float Yi) {
-	return 2.0 * ((Xr * Yi) + (-1.0 * Xi * Yr));
-}
-
-/**
- * @brief      { function_description }
- *
- * @param      meta  The meta
- *
- * @return     { description_of_the_return_value }
- */
-int lofar_udp_raw_udp_stokesV(lofar_udp_meta *meta) {
-	// Setup return variable
-
-	// Setup working variables
-	
-	VERBOSE(const int verbose = meta->VERBOSE);
-	
-	const int packetsPerIteration = meta->packetsPerIteration;
-	const int replayDroppedPackets = meta->replayDroppedPackets;
-
-	int packetLoss = 0;
-
-	// For each port of data provided,
-	omp_set_num_threads(OMP_THREADS);
-	#pragma omp parallel for 
-	for (int port = 0; port < meta->numPorts; port++) {
-		VERBOSE(if (verbose) printf("Port: %d on thread %d\n", port, omp_get_thread_num()));
-
-		long lastPortPacket, currentPortPacket, inputPacketOffset, outputPacketOffset, lastInputPacketOffset, iWork, iLoop, tsInOffset, tsOutOffset;
-		// Reset the dropped packets counter
-		meta->portLastDroppedPackets[port] = 0;
-		int currentPacketsDropped = 0;
-
-		// Reset last packet, reference data on the current port
-		lastPortPacket = meta->lastPacket;
-		char  *inputPortData = meta->inputData[port];
-		float *outputData = (float*) (meta->outputData[0]);
-
-		const int portBeamlets = meta->portBeamlets[port];
-		const int cumulativeBeamlets = meta->portCumulativeBeamlets[port];
-		const int totalBeamlets = meta->totalBeamlets;
-
-		// Get the length of packets on the current port and reset the last packet variable encase
-		// 	there is packet loss on the first packet
-		const int portPacketLength = meta->portPacketLength[port];
-		const int packetOutputLength = meta->packetOutputLength[0];
-		lastInputPacketOffset = (-2 + meta->replayDroppedPackets) * portPacketLength; 	// We request at least 2 packets are malloc'd before the array head pointer, so no SEGFAULTs here
-														// -2 * PPL = 0s -1 * PPL = last processed packet -- used for calcuating offset in dropped case if 
-														// 	we have packet loss on the boundary.
-		VERBOSE(if (verbose) printf("LPP: %ld, PPL: %d, LIPO: %ld\n", lastPortPacket, portPacketLength, lastInputPacketOffset));
-		// iWork -- input data offset calculations (account for dropped packets)
-		// iLoop -- output data offsets
-		// These are the same if there is no packet loss.
-		// 
-		// Reset iWork, inputPacketOffset, read in the first packet's number.
-		iWork = 0, inputPacketOffset = 0;
-		currentPortPacket = lofar_get_packet_number(&(inputPortData[inputPacketOffset]));
-		VERBOSE(if (verbose) printf("Packet 0: %ld\n", currentPortPacket));
-		
-		for (iLoop = 0; iLoop < packetsPerIteration; iLoop++) {
-			VERBOSE(if (verbose) printf("Loop %ld, Work %ld, packet %ld, target %ld\n", iLoop, iWork, currentPortPacket, lastPortPacket + 1));
-
-			// Check for packet loss by ensuring we have sequential packet numbers
-			if (currentPortPacket != (lastPortPacket + 1)) {
-				// Check if a packet is out of order; if so, drop the packet
-				// TODO: Better future option: check if the packet is in this block, copy and overwrite padded packed instead
-				VERBOSE(if (verbose) printf("Packet %ld is not the expected packet, %ld.\n", currentPortPacket, lastPortPacket + 1));
-				if (currentPortPacket < lastPortPacket) {
-					
-					VERBOSE(if(verbose) printf("Packet %ld on port %d is out of order (expected %ld); dropping.\n", currentPortPacket, port, lastPortPacket + 1));
-					// Dropped packet -> index not processed -> effectively an 'added' packet, decrement the dropped packet count
-					// 	so that we don't include an extra packet in shift operations
-					currentPacketsDropped -= 1;
-
-					iWork++;
-					inputPacketOffset = iWork * portPacketLength;
-					currentPortPacket = lofar_get_packet_number(&(inputPortData[inputPacketOffset]));
-					continue;
-
-				}
-
-				// Packet dropped:
-				//  Trip the return int
-				//	Increment the port counter for this operation
-				//	Increment the last packet offset so it can be used again next time, including the new offset
-				packetLoss = -1;
-				currentPacketsDropped += 1;
-				lastPortPacket += 1;
-
-				if (replayDroppedPackets) {
-					// If we are replaying the last packet, change the array index to the last good packet index
-					inputPacketOffset = lastInputPacketOffset;
-				} else {
-					// Array should be 0 padded at the start; copy data from there.
-					inputPacketOffset = -2 * portPacketLength;
-				}
-
-				VERBOSE(if (verbose) printf("Packet %ld on port %d is missing; padding.\n", lastPortPacket + 1, port));
-
-			} else {
-				VERBOSE(if (verbose) printf("Packet %ld is the expected packet.\n", currentPortPacket));
-
-				// We have a sequential packet, therefore:
-				//		Update the last legitimate packet number and array offset index
-				//		Increment iWork (input data packet index) and determine the new input offset
-				//		Get the next packet number for the next loop
-				lastInputPacketOffset = inputPacketOffset + UDPHDRLEN;
-				lastPortPacket = currentPortPacket;
-
-				iWork++;
-				inputPacketOffset = iWork * portPacketLength;
-
-
-				// Speedup: add 4 to the sequence, check if accurate. Doesn't work at rollover.
-				if  (((char_unsigned_int*) &(inputPortData[inputPacketOffset + 12]))->ui  == (((char_unsigned_int*) &(inputPortData[lastInputPacketOffset -4])))->ui + 16)  {
-					currentPortPacket += 1;
-				} else currentPortPacket = lofar_get_packet_number(&(inputPortData[inputPacketOffset]));
-
-			}
-
-			outputPacketOffset = iLoop * packetOutputLength / (sizeof(float) / sizeof(char));
-
-			//#pragma omp parallel for schedule(dynamic, 31) // Expected sizes: 61, 122, 244
-			#pragma GCC unroll 61
-			for (int beamlet = 0; beamlet < portBeamlets; beamlet++) {
-				tsInOffset = lastInputPacketOffset + beamlet * UDPNTIMESLICE * UDPNPOL;
-				tsOutOffset = outputPacketOffset + (totalBeamlets - 1 - beamlet - cumulativeBeamlets);
-
-				//#pragma omp simd
-				#pragma GCC unroll 16 //UDPNTIMESLICE not defined at compile?
-				for (int ts = 0; ts < UDPNTIMESLICE; ts++) {
-					outputData[tsOutOffset] = stokesV((signed char) inputPortData[tsInOffset], (signed char) inputPortData[tsInOffset + 1], (signed char) inputPortData[tsInOffset + 2], (signed char) inputPortData[tsInOffset + 3]);
-
-					tsInOffset += 4;
-					tsOutOffset += totalBeamlets;
-				}
-
-
-			}
-
-
-		}
-		// Update the overall dropped packet count for this port
-
-		meta->portLastDroppedPackets[port] = currentPacketsDropped;
-		meta->portTotalDroppedPackets[port] += currentPacketsDropped;
-		VERBOSE(if (verbose) printf("Current dropped packet count on port %d: %d\n", port, meta->portLastDroppedPackets[port]));
-	}
-
-	for (int port = 0; port < meta->numPorts; port++) {
-		if (meta->portLastDroppedPackets[port] < (-0.001 * (float) packetsPerIteration)) {
-			fprintf(stderr, "A large number of packets were out of order on port %d; this normally indicates a data integrity issue, exiting...", port);
-			return 1;
-		}
-	}
-
-	for (int port =0; port < meta->numPorts; port++) {
-		if (meta->portLastDroppedPackets[port] < 0 && meta->replayDroppedPackets) {
-			// TODO: pad the end of the arrays if the data doesn't fill it.
-			// Or just re-loop with fresh data and report less data back?
-			// Maybe rearchitect a bit, overread the amount of data needed, only return what's needed.
-		}
-	}
-
-	// Update the last packet variable
-	meta->lastPacket += packetsPerIteration;
-	VERBOSE(if (verbose) printf("Exiting operation, last packet was %ld\n", meta->lastPacket));
-
-	// Update the input/output states
-	meta->inputDataReady = 0;
-	meta->outputDataReady = 1;
-
-	return packetLoss;
 }
 
 /* LUT for 4-bit data */

@@ -2,6 +2,7 @@ output*
 test*
 *.pyc
 *.o
+*.a
 *.d
 lofar_udp_extractor
 *pcap*

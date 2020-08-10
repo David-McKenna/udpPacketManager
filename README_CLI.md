@@ -1,6 +1,6 @@
 lofar_udp_extractor
 ===================
-The *lofar_udp_extractor* utility can be used to extract and process LOFAR beamformed observations from international stations.
+The [*lofar_udp_extractor*](lofar_cli_extractor.c) utility can be used to extract and process LOFAR beamformed observations from international stations.
 
 
 Expected Input Formats
@@ -118,14 +118,45 @@ Processing Modes
 
 
 ### Processing Operations
+#### Base Modes
+By default, we define a number of base Stokes parameter outputs each at a multiple of 10 from 100.
+
 #### 100: "Stokes I"
 - Take the input data, apply (20) and then combine the polarizations to form a 32-bit floating point Stokes I for each frequency sample
 - N input files -> 1 output file
 
-#### 101: "Stokes V"
+#### 110: "Stokes Q"
+- Take the input data, apply (20) and then combine the polarizations to form a 32-bit floating point Stokes Q for each frequency sample
+- N input files -> 1 output file
+
+#### 110: "Stokes U"
+- Take the input data, apply (20) and then combine the polarizations to form a 32-bit floating point Stokes U for each frequency sample
+- N input files -> 1 output file
+
+#### 110: "Stokes V"
 - Take the input data, apply (20) and then combine the polarizations to form a 32-bit floating point Stokes V for each frequency sample
 - N input files -> 1 output file
 
+#### Time decimation
+We also offer up to a 16x decimation during execution (the number of time samples per packet). To select this, choose a Stokes parameter and add a log 2 of the factor to the mode.
+
+So in order to get a Stokes U output, with 8x decimation we will pass `120 + log_2(8) = 123` as our processing mode.
+
+#### 1\*1: "Stokes with 2x decimation"
+- Take the input data, apply (20) and (1\*0) to form a Stokes \* sample, and sum it with the next sample
+- N input files -> 1 output file (2x less output samples)
+
+#### 1\*2: "Stokes with 4x decimation"
+- Take the input data, apply (20) and (1\*0) to form a Stokes \* sample, and sum it with the next sample
+- N input files -> 1 output file (4x less output samples)
+
+#### 1\*3: "Stokes with 8x decimation"
+- Take the input data, apply (20) and (1\*0) to form a Stokes \* sample, and sum it with the next sample
+- N input files -> 1 output file (8x less output samples)
+
+#### 1\*4: "Stokes with 16x decimation"
+- Take the input data, apply (20) and (1\*0) to form a Stokes \* sample, and sum it with the next sample
+- N input files -> 1 output file (16x less output samples)
 
 
 Event Files

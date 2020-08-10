@@ -21,6 +21,10 @@ extern const float clock200MHzSteps;
 extern const float clock160MHzSteps;
 extern const float clockStepsDelta;
 
+const double clock200MHzSample = 1.0 / CLOCK200MHZ;
+const double clock160MHzSample = 1.0 / CLOCK160MHZ;
+
+
 // Exit reasons, 0, 1 aren't handled, only defined up to 3
 const char exitReasons[4][1024] = {"", "",
 							 "Reached the packet limit set at start-up",
@@ -41,7 +45,7 @@ void helpMessages() {
 	printf("-e: <fileName>	Specify a file of events to extract; newline separated start time and durations in seconds. Events must not overlap.\n");
 	printf("-p: <mode>		Processing mode, options listed below (default: 0)\n");
 	printf("-r:		Replay the previous packet when a dropped packet is detected (default: 0 pad)\n");
-	printf("-c:		Used in combination with '-t' if the recorded data is mode 4/6 (160MHz clock) (default: False)\n");
+	printf("-c:		Change to the alternative clock used for modes 4/6 (160MHz clock) (default: False)\n");
 	printf("-q:		Enable silent mode for the CLI, don't print any information outside of library error messes (default: False)\n");
 	printf("-a: <args>		Call mockHeader with the specific flags to prefix output files with a header (default: False)\n");
 	printf("-f:		Append files if they already exist (default: False, exit if exists)\n");
@@ -61,11 +65,12 @@ void helpMessages() {
 	printf("21: Raw UDP to Beamlet Major, Frequency Reversed, Split Pols Output: combine (2) and (20).\n\n");
 
 	printf("100: Raw UDP to Stokes I: Form a 32-bit float Stokes I for the input.\n");
-	printf("101: Raw UDP to Stokes V: Form a 32-bit float Stokes V for the input.\n");
-	//printf("110: Raw UDP to Stokes I: Form stokes I for the input with 8x time decimation.\n");
-	//printf("111: Raw UDP to Stokes V: Form stokes V for the input with 8x time decimation.\n");
-	//printf("120: Raw UDP to Stokes I: Form stokes I for the input with 16x time decimation.\n");
-	//printf("121: Raw UDP to Stokes V: Form stokes V for the input with 16x time decimation.\n\n");
+	printf("110: Raw UDP to Stokes Q: Form a 32-bit float Stokes Q for the input.\n");
+	printf("120: Raw UDP to Stokes U: Form a 32-bit float Stokes U for the input.\n");
+	printf("130: Raw UDP to Stokes V: Form a 32-bit float Stokes V for the input.\n\n");
+
+	printf("Stokes outputs can be decimated in orders of 2, up to 16x by adjusting the last digit of their processing mode.\n");
+	printf("This is handled in orders of two, so 101 will give a Stokes I with 2x decimation, 102, will give 4x, 103 will give 8x and 104 will give 16x.\n");
 
 }
 
@@ -75,6 +80,7 @@ int main(int argc, char  *argv[]) {
 	// Set up input local variables
 	int inputOpt, outputFilesCount, input = 0;
 	float seconds = 0.0;
+	double sampleTime = 0.0;
 	char inputFormat[256] = "./%d", outputFormat[256] = "./output%d_%s_%ld", inputTime[256] = "", eventsFile[256] = "", stringBuff[128], mockHdrArg[2048] = "", mockHdrCmd[4096] = "";
 	int ports = 4, processingMode = 0, replayDroppedPackets = 0, verbose = 0, silent = 0, appendMode = 0, compressedReader = 0, eventCount = 0, returnCounter = 0, callMockHdr = 0;
 	long packetsPerIteration = 65536, maxPackets = -1, startingPacket = -1;
@@ -213,11 +219,16 @@ int main(int argc, char  *argv[]) {
 	// Make sure mockHeader is on the path if we want to use it.
 	if (callMockHdr) {
 		printf("Checking for mockHeader on system path... ");
-		callMockHdr += system("which mockHeader"); // Add the return code (multiplied by 256 from bash return) to the execution variable, ensure it doesn't change
+		callMockHdr += system("which mockHeader > /tmp/udp_reader_mockheader.log 2>&1"); // Add the return code (multiplied by 256 from bash return) to the execution variable, ensure it doesn't change
 		printf("\n");
 		if (callMockHdr != 1) {
 			fprintf(stderr, "Error occured while attempting to find mockHeader, exiting.\n");
 			return 1;
+		}
+
+		sampleTime = clock160MHzSample * (1 - clock200MHz) + clock200MHzSample * clock200MHz;
+		if (processingMode > 100) {
+			sampleTime *= 1 << ((processingMode % 10));
 		}
 	}
 
@@ -395,11 +406,11 @@ int main(int argc, char  *argv[]) {
 	if (silent == 0) {
 		getStartTimeString(reader, stringBuff);
 		printf("\n\n=========== Reader  Information ===========\n");
-		printf("Total Beamlets:\t%d\t\tFirst Packet:\t%ld\n", reader->meta->totalBeamlets, reader->meta->lastPacket);
+		printf("Total Beamlets:\t%d\t\t\t\t\tFirst Packet:\t%ld\n", reader->meta->totalBeamlets, reader->meta->lastPacket);
 		printf("Start time:\t%s\t\tMJD Time:\t%lf\n", stringBuff, lofar_get_packet_time_mjd(reader->meta->inputData[0]));
 		for (int port = 0; port < reader->meta->numPorts; port++) {
 			printf("------------------ Port %d -----------------\n", port);
-			printf("Port Beamlets:\t%d\t\tPort Bitmode:\t%d\t\tInput Pkt Len:\t%d\n", reader->meta->portBeamlets[port], reader->meta->inputBitMode[port], reader->meta->portPacketLength[port]);
+			printf("Port Beamlets:\t%d\t\tPort Bitmode:\t%d\t\tInput Pkt Len:\t%d\n", reader->meta->portBeamlets[port], reader->meta->inputBitMode, reader->meta->portPacketLength[port]);
 		}
 		for (int out = 0; out < reader->meta->numOutputs; out++) printf("Output Pkt Len (%d):\t%d\t\t", out, reader->meta->packetOutputLength[out]);
 		printf("\n"); 
@@ -446,6 +457,7 @@ int main(int argc, char  *argv[]) {
 		// Open the output files for this event
 		for (int out = 0; out < outputFilesCount; out++) {
 			sprintf(workingString, outputFormat, out, dateStr[eventLoop], startingPacket);
+			VERBOSE(if (verbose) printf("Testing output file for output %d @ %s\n", out, workingString));
 			
 			if (appendMode != 1 && access(workingString, F_OK) != -1) {
 				fprintf(stderr, "Output file at %s already exists; exiting.\n", workingString);
@@ -453,12 +465,13 @@ int main(int argc, char  *argv[]) {
 			}
 			
 			if (callMockHdr) {
-				if (processingMode == 2 || processingMode == 11 || processingMode == 21 || processingMode > 99) sprintf(mockHdrCmd, "mockHeader -tstart %lf -nchans %d %s %s", lofar_get_packet_time_mjd(reader->meta->inputData[0]), reader->meta->totalBeamlets, mockHdrArg, workingString);
-				else sprintf(mockHdrCmd, "mockHeader -tstart %lf -nchans %d %s %s", lofar_get_packet_time_mjd(reader->meta->inputData[0]), reader->meta->portBeamlets[out], mockHdrArg, workingString);
+				if (processingMode == 2 || processingMode == 11 || processingMode == 21 || processingMode > 99) sprintf(mockHdrCmd, "mockHeader -tstart %lf -nchans %d -nbits %d -tsamp %lf %s %s > /tmp/udp_reader_mockheader.log 2>&1", lofar_get_packet_time_mjd(reader->meta->inputData[0]), reader->meta->totalBeamlets, reader->meta->outputBitMode, sampleTime, mockHdrArg, workingString);
+				else sprintf(mockHdrCmd, "mockHeader -tstart %lf -nchans %d -nbits %d -tsamp %lf %s %s > /tmp/udp_reader_mockheader.log 2>&1", lofar_get_packet_time_mjd(reader->meta->inputData[0]), reader->meta->portBeamlets[out], reader->meta->outputBitMode, sampleTime, mockHdrArg, workingString);
 				dummy = system(mockHdrCmd);
 
 				if (dummy != 0) fprintf(stderr, "Encountered error while calling mockHeader (%s), continuing with caution.\n", mockHdrCmd);
 			}
+
 			VERBOSE(if (verbose) printf("Opening file at %s\n", workingString));
 
 			outputFiles[out] = fopen(workingString, "a");
@@ -468,13 +481,13 @@ int main(int argc, char  *argv[]) {
 			}
 		}
 
-
+		VERBOSE(if (verbose) printf("Begining data extraction loop for event %d\n", eventLoop));
 		// While we receive new data for the current event,
 		while ((returnVal = lofar_udp_reader_step_timed(reader, timing)) < 1) {
 
 			CLICK(tock0);
 			if (localLoops == 0) timing[0] = TICKTOCK(tick0, tock0) - timing[1]; // _file_reader_step or _reader_reuse does first I/O operation; approximate the time here
-			if (silent == 0) printf("Read complete for operation %d after %f seconds (I/O: %lf, MemOps: %lf), return value: %d\nWriting to disk... ", loops, TICKTOCK(tick0, tock0), timing[0], timing[1], returnVal);
+			if (silent == 0) printf("Read complete for operation %d after %f seconds (I/O: %lf, MemOps: %lf), return value: %d\n", loops, TICKTOCK(tick0, tock0), timing[0], timing[1], returnVal);
 			
 			totalReadTime += timing[0];
 			totalOpsTime += timing[1];
@@ -484,10 +497,13 @@ int main(int argc, char  *argv[]) {
 			if (multiMaxPackets[eventLoop] < packetsToWrite) packetsToWrite = multiMaxPackets[eventLoop];
 
 			CLICK(tick0);
+			
+			#ifndef BENCHMARKING
 			for (int out = 0; out < reader->meta->numOutputs; out++) {
 				VERBOSE(printf("Writing %ld bytes (%ld packets) to disk for output %d...\n", packetsToWrite * reader->meta->packetOutputLength[out], packetsToWrite, out));
 				fwrite(reader->meta->outputData[out], sizeof(char), packetsToWrite * reader->meta->packetOutputLength[out], outputFiles[out]);
 			}
+			#endif
 
 			packetsWritten += packetsToWrite;
 			packetsProcessed += reader->meta->packetsPerIteration;
@@ -497,7 +513,7 @@ int main(int argc, char  *argv[]) {
 			if (silent == 0) {
 				timing[0] = 9.;
 				timing[1] = 0.;
-				printf("completed for operation %d after %f seconds.\n", loops, TICKTOCK(tick0, tock0));
+				printf("Disk writes completed for operation %d after %f seconds.\n", loops, TICKTOCK(tick0, tock0));
 				if (returnVal < 0) 
 					for(int port = 0; port < reader->meta->numPorts; port++)
 						if (reader->meta->portLastDroppedPackets[port] != 0)

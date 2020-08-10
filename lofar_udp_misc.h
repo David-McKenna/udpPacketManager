@@ -19,10 +19,9 @@
 #define CLOCK160MHZ 156250.0
 
 // Execution values
-#define OMP_THREADS 5 // 1 extra as a master
 #define OMP_NUM_THREADS OMP_THREADS
 #define OMP_NESTED TRUE
-#define ZSTD_BUFFERMUL 16
+#define ZSTD_BUFFERMUL 4096
 #define ALIGNMENT_LENGTH 1024
 #endif
 

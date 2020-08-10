@@ -2,7 +2,7 @@
 
 const float clock200MHzSteps = CLOCK200MHZ;
 const float clock160MHzSteps = CLOCK160MHZ;
-const float clockStepsDelta = clock200MHzSteps - clock160MHzSteps;
+const float clockStepsDelta = CLOCK200MHZ - CLOCK160MHZ;
 
 // Taken from Olaf Wucknitz' VBLI recorder, with modifiedcations for aribtrary input data
 long beamformed_packno(unsigned int timestamp, unsigned int sequence, unsigned int clock200MHz) {
