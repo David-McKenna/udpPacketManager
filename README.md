@@ -1,9 +1,9 @@
 udpPacketManager
 ================
 
-udpPacketManager is a C library developed to handle reading and processing packet streams from interational LOFAR stations. It is used at the Irish LOFAR station (I-LOFAR) in conjunction with Olaf Wucknitz's (MPIfRA) VLBI recording software, but in principle can be used with any packet capture that keep the last 16 bytes of the UDP header attached to CEP packets.
+udpPacketManager is a C library developed to handle reading and processing packet streams from international LOFAR stations. It is used at the Irish LOFAR station (I-LOFAR) in conjunction with Olaf Wucknitz's (MPIfRA) VLBI recording software, but in principle can be used with any packet capture that keep the last 16 bytes of the UDP header attached to CEP packets.
 
-This library allows for the entire or partial extraction and processing of LOFAR CEP packet streams, re-aligning data to account for packet loss or misalignment on the first packet, to produce one of several data products, ranging from raw votlages (reordered or not) to stokes vector outputs.
+This library allows for the entire or partial extraction and processing of LOFAR CEP packet streams, re-aligning data to account for packet loss or misalignment on the first packet, to produce one of several data products, ranging from raw voltages (reordered or not) to stokes vector outputs.
 
 A guide on how to integrate the software in your project is provided in the [**README_INTEGRATION.md**](README_INTEGRATION.md) file, and example implementations can be found in the provided [**lofar_cli_extractor.c**](lofar_cli_extractor.c) program and my fork of Cees Bassa's GPU coherent dedispersion software [CDMT](https://github.com/David-McKenna/cdmt) for use with raw data captures.
 
@@ -39,10 +39,11 @@ gcc-9, mode 100:	 	Total Read Time:        144.49          Total CPU Ops Time:  
 ```
 
 #### Using ICC build objects with GCC/NVCC
-While ICC offers significant performance improvements, if downstream objects cannot be compiled with ICC/ICPC, you will need to include extra flags to link in the Intel libraries as they cannot be statically included. As a result, these flagss need to be included. In the case of NVCC these need to be passed with "-Xlinker" so that the non-CUDA compiler is aware of them.
+While ICC offers significant performance improvements, if downstream objects cannot be compiled with ICC/ICPC, you will need to include extra flags to link in the Intel libraries as they cannot be statically included. As a result, these flagss need to be included. In the case of NVCC these need to be passed with "-Xlinker" so that the non-CUDA compiler is aware of them, or change the base compiler to the Intel C++ compiler.
 ```
 gcc: -L$(ONEAPI_ROOT)/compiler/latest/linux/compiler/lib/intel64_lin/ -liomp5 -lirc
 nvcc: -Xlinker "-L$(ONEAPI_ROOT)/compiler/latest/linux/compiler/lib/intel64_lin/ -liomp5 -lirc"
+nvcc (alt): -ccbin=icpc
 ```
 ### Building / Using the Example CLI
 As well as the requirements for building the library, the CLI (optionally) depends on
@@ -53,7 +54,7 @@ As well as the requirements for building the library, the CLI (optionally) depen
 
 Installing
 ----------
-Once the pre-requists are met, a simple `make all` should suffice to build the library, while `make install` and `make install-local` will copy the CLI and headers to the /usr/local or \~/.local/ folders. 
+Once the pre-requisites are met, a simple `make all` should suffice to build the library, while `make install` and `make install-local` will copy the CLI and headers to the /usr/local or \~/.local/ folders. 
 
 
 Usage
