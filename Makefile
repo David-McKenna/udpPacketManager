@@ -9,7 +9,9 @@ CC		= gcc
 CXX		= g++
 endif
 
-LIB_VER = 0.2
+LIB_MAJ = 0
+LIB_MIN = 2
+LIB_VER = $(LIB_MAJ).$(LIB_MIN)
 CLI_VER = 0.1
 
 # Detemrine the max threads per socket to speed up execution via OpenMP with ICC (GCC falls over if we set too many)
@@ -48,7 +50,8 @@ all: $(CLI_OBJECTS) library
 
 library: $(OBJECTS)
 	$(AR) rc $(LIBRARY_TARGET).$(LIB_VER) $(OBJECTS)
-	cp ./$(LIBRARY_TARGET).$(LIB_VER) ./$(LIBRARY_TARGET) 
+	ln -s ./$(LIBRARY_TARGET).$(LIB_VER) ./$(LIBRARY_TARGET) 
+	ln -s ./$(LIBRARY_TARGET).$(LIB_VAR) ./$(LIBRARY_TARGET).$(LIB_MAJ)
 
 install: all
 	mkdir -p $(PREFIX)/bin/ && mkdir -p $(PREFIX)/include/

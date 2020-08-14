@@ -11,7 +11,7 @@
  *
  * @return     0: Success, 1: Fatal error
  */
-int lofar_udp_parse_headers(lofar_udp_meta *meta, const char header[MAX_NUM_PORTS][UDPHDRLEN]) {
+int lofar_udp_parse_headers(lofar_udp_meta *meta, const char header[MAX_NUM_PORTS][UDPHDRLEN + UDPHDROFFSET]) {
 
 	union char_unsigned_int tsseq;
 	union char_short source;
@@ -23,34 +23,34 @@ int lofar_udp_parse_headers(lofar_udp_meta *meta, const char header[MAX_NUM_PORT
 	// Process each input port
 	for (int port = 0; port < meta->numPorts; port++) {
 		// Data integrity checks
-		if ((unsigned char) header[port][0] < UDPCURVER) {
+		if ((unsigned char) header[port][UDPHDROFFSET + 0] < UDPCURVER) {
 			fprintf(stderr, "Input header on port %d appears malformed (RSP Version less than 3), exiting.\n", port);
 			return 1;
 		}
 
-		tsseq.c[0] = header[port][8]; tsseq.c[1] = header[port][9]; tsseq.c[2] = header[port][10];  tsseq.c[3] = header[port][11];
+		tsseq.c[0] = header[port][UDPHDROFFSET + 8]; tsseq.c[1] = header[port][UDPHDROFFSET + 9]; tsseq.c[2] = header[port][UDPHDROFFSET + 10];  tsseq.c[3] = header[port][UDPHDROFFSET + 11];
 		if (tsseq.ui <  LFREPOCH) {
 			fprintf(stderr, "Input header on port %d appears malformed (data timestamp before 2008), exiting.\n", port);
 			return 1;
 		}
 
-		tsseq .c[0] = header[port][12]; tsseq.c[1] = header[port][13]; tsseq.c[2] = header[port][14]; tsseq.c[3] = header[port][15];
+		tsseq .c[0] = header[port][UDPHDROFFSET + 12]; tsseq.c[1] = header[port][UDPHDROFFSET + 13]; tsseq.c[2] = header[port][UDPHDROFFSET + 14]; tsseq.c[3] = header[port][UDPHDROFFSET + 15];
 		if (tsseq.ui > RSPMAXSEQ) {
 			fprintf(stderr, "Input header on port %d appears malformed (sequence higher than 200MHz clock maximum, %d), exiting.\n", port, tsseq.ui);
 			return 1;
 		}
 
-		if ((unsigned char) header[port][6] > UDPMAXBEAM) {
-			fprintf(stderr, "Input header on port %d appears malformed (more than %d beamlets on a port, %d), exiting.\n", port, UDPMAXBEAM, header[port][6]);
+		if ((unsigned char) header[port][UDPHDROFFSET + 6] > UDPMAXBEAM) {
+			fprintf(stderr, "Input header on port %d appears malformed (more than %d beamlets on a port, %d), exiting.\n", port, UDPMAXBEAM, header[port][UDPHDROFFSET + 6]);
 			return 1;
 		}
 
-		if ((unsigned char) header[port][7] != 16) {
-			fprintf(stderr, "Input header on port %d appears malformed (time slices are %d, not 16), exiting.\n", port, header[port][7]);
+		if ((unsigned char) header[port][UDPHDROFFSET + 7] != 16) {
+			fprintf(stderr, "Input header on port %d appears malformed (time slices are %d, not 16), exiting.\n", port, header[port][UDPHDROFFSET + 7]);
 			return 1;
 		}
 
-		source.c[0] = header[port][1]; source.c[1] = header[port][2];
+		source.c[0] = header[port][UDPHDROFFSET + 1]; source.c[1] = header[port][UDPHDROFFSET + 2];
 		if (((lofar_source_bytes*) &source)->padding0 != 0) {
 			fprintf(stderr, "Input header on port %d appears malformed (padding bit (0) is set), exiting.\n", port);
 			return 1;
@@ -69,9 +69,9 @@ int lofar_udp_parse_headers(lofar_udp_meta *meta, const char header[MAX_NUM_PORT
 
 
 		// Determine the number of beamlets and bitmode on the port
-		meta->portBeamlets[port] = (int) header[port][6];
+		meta->portBeamlets[port] = (int) header[port][UDPHDROFFSET + 6];
 		meta->portCumulativeBeamlets[port] = meta->totalBeamlets;
-		meta->totalBeamlets += (int) header[port][6];
+		meta->totalBeamlets += (int) header[port][UDPHDROFFSET + 6];
 		switch (((lofar_source_bytes*) &source)->bitMode) {
 			case 0:
 				meta->inputBitMode = 16;
@@ -106,7 +106,7 @@ int lofar_udp_parse_headers(lofar_udp_meta *meta, const char header[MAX_NUM_PORT
 		bitMul = 1 - 0.5 * (meta->inputBitMode == 4) + 1 * (meta->inputBitMode == 16); // 4bit = 0.5x, 16bit = 2x
 
 		baseLength = (int) (meta->portBeamlets[port] * bitMul * UDPNTIMESLICE * UDPNPOL);
-		meta->portPacketLength[port] = (int) ((UDPHDRLEN) + baseLength);
+		meta->portPacketLength[port] = (int) ((UDPHDROFFSET + UDPHDRLEN) + baseLength);
 		
 	}
 
@@ -474,7 +474,7 @@ int fread_temp_ZSTD(void *outbuf, const size_t size, int num, FILE* inputFile, c
  * @return     0: Success, 1: Unknown processing mode supplied
  */
 int lofar_udp_setup_processing(lofar_udp_meta *meta) {
-	int hdrOffset = -1 * UDPHDRLEN; // Default: no header, offset by -16
+	int hdrOffset = -1 * (UDPHDRLEN + UDPHDROFFSET); // Default: no header, offset by -16
 	int equalIO = 0; // If packet length in + out should match
 	float mulFactor = 1.0; // Scale packet length linearly
 	int workingData = 0;
@@ -651,7 +651,7 @@ int lofar_udp_setup_processing(lofar_udp_meta *meta) {
 
 	if (equalIO) {
 		for (int port = 0; port < meta->numPorts; port++) {
-			meta->packetOutputLength[port] = hdrOffset + meta->portPacketLength[port];
+			meta->packetOutputLength[port] = (hdrOffset + UDPHDROFFSET) + meta->portPacketLength[port];
 		}
 	} else {
 		for (int port = 0; port < meta->numPorts; port++) workingData += hdrOffset + meta->portPacketLength[port];
@@ -696,7 +696,7 @@ lofar_udp_reader* lofar_udp_meta_file_reader_setup(FILE **inputFiles, const int 
 
 	// Setup the metadata struct and a few variables we'll need
 	static lofar_udp_meta meta = { .processingMode = 0, .packetsRead = 0, .inputDataReady = 0, .outputDataReady = 0 }; // .outputBitMode
-	char inputHeaders[MAX_NUM_PORTS][UDPHDRLEN];
+	char inputHeaders[MAX_NUM_PORTS][UDPHDRLEN + UDPHDROFFSET];
 	int readlen, bufferSize;
 	long localMaxPackets = packetsReadMax;
 

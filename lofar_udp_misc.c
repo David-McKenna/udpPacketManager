@@ -24,11 +24,11 @@ long lofar_get_packet_number(char *inputData) {
 	union char_unsigned_int ts;
 	union char_unsigned_int seq;
 
-	ts.c[0] = inputData[8]; ts.c[1] = inputData[9]; ts.c[2] = inputData[10]; ts.c[3] = inputData[11];
-	seq.c[0] = inputData[12]; seq.c[1] = inputData[13]; seq.c[2] = inputData[14]; seq.c[3] = inputData[15];
+	ts.c[0] = inputData[UDPHDROFFSET + 8]; ts.c[1] = inputData[UDPHDROFFSET + 9]; ts.c[2] = inputData[UDPHDROFFSET + 10]; ts.c[3] = inputData[UDPHDROFFSET + 11];
+	seq.c[0] = inputData[UDPHDROFFSET + 12]; seq.c[1] = inputData[UDPHDROFFSET + 13]; seq.c[2] = inputData[UDPHDROFFSET + 14]; seq.c[3] = inputData[UDPHDROFFSET + 15];
 
 	//VERBOSE(printf("Packet search: %d %d %d\n", ts.ui, seq.ui, ((lofar_source_bytes*) &(inputData[1]))->clockBit));
-	return beamformed_packno(ts.ui, seq.ui, ((lofar_source_bytes*) &(inputData[1]))->clockBit);
+	return beamformed_packno(ts.ui, seq.ui, ((lofar_source_bytes*) &(inputData[UDPHDROFFSET + 1]))->clockBit);
 }
 
 /**
@@ -44,10 +44,10 @@ unsigned int lofar_get_next_packet_sequence(char *inputData) {
 	union char_unsigned_int ts;
 	union char_unsigned_int seq;
 
-	ts.c[0] = inputData[8]; ts.c[1] = inputData[9]; ts.c[2] = inputData[10]; ts.c[3] = inputData[11];
-	seq.c[0] = inputData[12]; seq.c[1] = inputData[13]; seq.c[2] = inputData[14]; seq.c[3] = inputData[15];
+	ts.c[0] = inputData[UDPHDROFFSET + 8]; ts.c[1] = inputData[UDPHDROFFSET + 9]; ts.c[2] = inputData[UDPHDROFFSET + 10]; ts.c[3] = inputData[UDPHDROFFSET + 11];
+	seq.c[0] = inputData[UDPHDROFFSET + 12]; seq.c[1] = inputData[UDPHDROFFSET + 13]; seq.c[2] = inputData[UDPHDROFFSET + 14]; seq.c[3] = inputData[UDPHDROFFSET + 15];
 
-	return (unsigned int) ((16 * (beamformed_packno(ts.ui, seq.ui, ((lofar_source_bytes*) &(inputData[1]))->clockBit) + 1)) - (ts.ui*1000000l*200+512)/1024);
+	return (unsigned int) ((16 * (beamformed_packno(ts.ui, seq.ui, ((lofar_source_bytes*) &(inputData[UDPHDROFFSET + 1]))->clockBit) + 1)) - (ts.ui*1000000l*200+512)/1024);
 }
 
 /**
@@ -77,11 +77,11 @@ double lofar_get_packet_time(char *inputData) {
 	union char_unsigned_int ts;
 	union char_unsigned_int seq;
 
-	ts.c[0] = inputData[8]; ts.c[1] = inputData[9]; ts.c[2] = inputData[10]; ts.c[3] = inputData[11];
-	seq.c[0] = inputData[12]; seq.c[1] = inputData[13]; seq.c[2] = inputData[14]; seq.c[3] = inputData[15];
+	ts.c[0] = inputData[UDPHDROFFSET + 8]; ts.c[1] = inputData[UDPHDROFFSET + 9]; ts.c[2] = inputData[UDPHDROFFSET + 10]; ts.c[3] = inputData[UDPHDROFFSET + 11];
+	seq.c[0] = inputData[UDPHDROFFSET + 12]; seq.c[1] = inputData[UDPHDROFFSET + 13]; seq.c[2] = inputData[UDPHDROFFSET + 14]; seq.c[3] = inputData[UDPHDROFFSET + 15];
 
 
-	return (double) ts.ui + ((double) seq.ui / (clock160MHzSteps + clockStepsDelta * ((lofar_source_bytes*) &(inputData[1]))->clockBit));
+	return (double) ts.ui + ((double) seq.ui / (clock160MHzSteps + clockStepsDelta * ((lofar_source_bytes*) &(inputData[UDPHDROFFSET + 1]))->clockBit));
 }
 
 /**

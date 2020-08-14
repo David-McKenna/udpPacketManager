@@ -432,7 +432,7 @@ int lofar_udp_raw_loop(lofar_udp_meta *meta) {
 				if constexpr (state == 0) {
 					lastInputPacketOffset = inputPacketOffset;
 				} else {
-					lastInputPacketOffset = inputPacketOffset + UDPHDRLEN;
+					lastInputPacketOffset = inputPacketOffset + UDPHDRLEN + UDPHDROFFSET;
 				}
 
 				iWork++;
