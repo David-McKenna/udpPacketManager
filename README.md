@@ -1,5 +1,6 @@
 udpPacketManager
 ================
+![DOI](https://zenodo.org/badge/doi/10.5281/zenodo.3997632.svg)
 
 udpPacketManager is a C library developed to handle reading and processing packet streams from international LOFAR stations. It is used at the Irish LOFAR station (I-LOFAR) in conjunction with Olaf Wucknitz's (MPIfRA) VLBI recording software, but in principle can be used with any packet capture that keep the last 16 bytes of the UDP header attached to CEP packets.
 
@@ -21,6 +22,7 @@ Future work should not break the exiting load/process iteration loop, and may co
 - Creating a wrapper python library to allow for easer interfacing within python scripts rather than requiring a C program (CFFI if I can strip out ifdefs?)
 - Add some 'defaults' into the mockHeader input, such as a "-mode5" string converted to implement the default sampling time and frequencies used
 - Investigating [blosc](https://github.com/Blosc/) [(examples link)](https://github.com/Blosc/c-blosc2/tree/master/examples) as an option to speed up some processing modes
+- Specifying specific beamlets to process rather than entire ports
 
 Requirements
 ------------
@@ -60,3 +62,7 @@ Once the pre-requisites are met, a simple `make all` should suffice to build the
 Usage
 -----
 Please see the [*README_INTEGRATION.md*](README_INTEGRATION.md) file for a guide to implementing the library in your software, and the [*README_CLI.md*](README_CLI.md) file for the usage guide for the provided CLI.
+
+Funding
+-------
+This project was written while the author was receiving funding from the Irish Research Council's Government of Ireland Postgraduate Scholarship Program.
