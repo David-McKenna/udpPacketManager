@@ -111,7 +111,7 @@ void inline udp_copySplitPols(long iLoop, char *inputPortData, O **outputData, l
 
 
 template <typename I, typename O>
-void inline udp_reorder(long iLoop, char *inputPortData, O **outputData, int port, long lastInputPacketOffset, long packetOutputLength, int timeStepSize, int totalBeamlets, int portBeamlets, int cumulativeBeamlets) {
+void inline udp_reorder(long iLoop, char *inputPortData, O **outputData, long lastInputPacketOffset, long packetOutputLength, int timeStepSize, int totalBeamlets, int portBeamlets, int cumulativeBeamlets) {
 	long outputPacketOffset = iLoop * packetOutputLength / sizeof(O);
 	long tsInOffset, tsOutOffset;
 
@@ -131,10 +131,10 @@ void inline udp_reorder(long iLoop, char *inputPortData, O **outputData, int por
 		#pragma GCC unroll 16
 		#endif
 		for (int ts = 0; ts < UDPNTIMESLICE; ts++) {
-			outputData[port][tsOutOffset] = *((I*) &(inputPortData[tsInOffset])); // Xr
-			outputData[port][tsOutOffset + 1] = *((I*) &(inputPortData[tsInOffset + 1 * timeStepSize])); // Xi
-			outputData[port][tsOutOffset + 2] = *((I*) &(inputPortData[tsInOffset + 2 * timeStepSize])); // Yr
-			outputData[port][tsOutOffset + 3] = *((I*) &(inputPortData[tsInOffset + 3 * timeStepSize])); // Yi
+			outputData[0][tsOutOffset] = *((I*) &(inputPortData[tsInOffset])); // Xr
+			outputData[0][tsOutOffset + 1] = *((I*) &(inputPortData[tsInOffset + 1 * timeStepSize])); // Xi
+			outputData[0][tsOutOffset + 2] = *((I*) &(inputPortData[tsInOffset + 2 * timeStepSize])); // Yr
+			outputData[0][tsOutOffset + 3] = *((I*) &(inputPortData[tsInOffset + 3 * timeStepSize])); // Yi
 
 			tsInOffset += 4 * timeStepSize;
 			tsOutOffset += totalBeamlets * UDPNPOL;
@@ -175,7 +175,7 @@ void inline udp_reorderSplitPols(long iLoop, char *inputPortData, O **outputData
 }
 
 template <typename I, typename O>
-void inline udp_reversed(long iLoop, char *inputPortData, O **outputData, int port, long lastInputPacketOffset, long packetOutputLength, int timeStepSize, int totalBeamlets, int portBeamlets, int cumulativeBeamlets) {
+void inline udp_reversed(long iLoop, char *inputPortData, O **outputData, long lastInputPacketOffset, long packetOutputLength, int timeStepSize, int totalBeamlets, int portBeamlets, int cumulativeBeamlets) {
 	long outputPacketOffset = iLoop * packetOutputLength / sizeof(O);
 	long tsInOffset, tsOutOffset;
 
@@ -195,10 +195,10 @@ void inline udp_reversed(long iLoop, char *inputPortData, O **outputData, int po
 		#pragma GCC unroll 16
 		#endif
 		for (int ts = 0; ts < UDPNTIMESLICE; ts++) {
-			outputData[port][tsOutOffset] = *((I*) &(inputPortData[tsInOffset])); // Xr
-			outputData[port][tsOutOffset + 1] = *((I*) &(inputPortData[tsInOffset + 1 * timeStepSize])); // Xi
-			outputData[port][tsOutOffset + 2] = *((I*) &(inputPortData[tsInOffset + 2 * timeStepSize])); // Yr
-			outputData[port][tsOutOffset + 3] = *((I*) &(inputPortData[tsInOffset + 3 * timeStepSize])); // Yi
+			outputData[0][tsOutOffset] = *((I*) &(inputPortData[tsInOffset])); // Xr
+			outputData[0][tsOutOffset + 1] = *((I*) &(inputPortData[tsInOffset + 1 * timeStepSize])); // Xi
+			outputData[0][tsOutOffset + 2] = *((I*) &(inputPortData[tsInOffset + 2 * timeStepSize])); // Yr
+			outputData[0][tsOutOffset + 3] = *((I*) &(inputPortData[tsInOffset + 3 * timeStepSize])); // Yi
 
 			tsInOffset += 4 * timeStepSize;
 			tsOutOffset += totalBeamlets * UDPNPOL;
@@ -473,9 +473,9 @@ int lofar_udp_raw_loop(lofar_udp_meta *meta) {
 
 				case 10:
 					#ifdef __INTEL_COMPILER
-					#pragma omp task firstprivate(iLoop, port, lastInputPacketOffset)
+					#pragma omp task firstprivate(iLoop, lastInputPacketOffset)
 					#endif
-					udp_reorder<I, O>(iLoop, inputPortData, outputData, port, lastInputPacketOffset, packetOutputLength, timeStepSize, totalBeamlets, portBeamlets, cumulativeBeamlets);
+					udp_reorder<I, O>(iLoop, inputPortData, outputData, lastInputPacketOffset, packetOutputLength, timeStepSize, totalBeamlets, portBeamlets, cumulativeBeamlets);
 					break;
 				case 11:
 					#ifdef __INTEL_COMPILER
@@ -487,9 +487,9 @@ int lofar_udp_raw_loop(lofar_udp_meta *meta) {
 
 				case 20:
 					#ifdef __INTEL_COMPILER
-					#pragma omp task firstprivate(iLoop, port, lastInputPacketOffset)
+					#pragma omp task firstprivate(iLoop, lastInputPacketOffset)
 					#endif
-					udp_reversed<I, O>(iLoop, inputPortData, outputData, port, lastInputPacketOffset, packetOutputLength, timeStepSize, totalBeamlets, portBeamlets, cumulativeBeamlets);
+					udp_reversed<I, O>(iLoop, inputPortData, outputData, lastInputPacketOffset, packetOutputLength, timeStepSize, totalBeamlets, portBeamlets, cumulativeBeamlets);
 					break;
 				case 21:
 					#ifdef __INTEL_COMPILER
