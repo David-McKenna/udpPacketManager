@@ -465,8 +465,8 @@ int main(int argc, char  *argv[]) {
 			}
 			
 			if (callMockHdr) {
-				if (processingMode == 2 || processingMode == 11 || processingMode == 21 || processingMode > 99) sprintf(mockHdrCmd, "mockHeader -tstart %lf -nchans %d -nbits %d -tsamp %lf %s %s > /tmp/udp_reader_mockheader.log 2>&1", lofar_get_packet_time_mjd(reader->meta->inputData[0]), reader->meta->totalBeamlets, reader->meta->outputBitMode, sampleTime, mockHdrArg, workingString);
-				else sprintf(mockHdrCmd, "mockHeader -tstart %lf -nchans %d -nbits %d -tsamp %lf %s %s > /tmp/udp_reader_mockheader.log 2>&1", lofar_get_packet_time_mjd(reader->meta->inputData[0]), reader->meta->portBeamlets[out], reader->meta->outputBitMode, sampleTime, mockHdrArg, workingString);
+				if (processingMode == 2 || processingMode == 11 || processingMode == 21 || processingMode > 99) sprintf(mockHdrCmd, "mockHeader -tstart %.9lf -nchans %d -nbits %d -tsamp %.9lf %s %s > /tmp/udp_reader_mockheader.log 2>&1", lofar_get_packet_time_mjd(reader->meta->inputData[0]), reader->meta->totalBeamlets, reader->meta->outputBitMode, sampleTime, mockHdrArg, workingString);
+				else sprintf(mockHdrCmd, "mockHeader -tstart %.9lf -nchans %d -nbits %d -tsamp %.9lf %s %s > /tmp/udp_reader_mockheader.log 2>&1", lofar_get_packet_time_mjd(reader->meta->inputData[0]), reader->meta->portBeamlets[out], reader->meta->outputBitMode, sampleTime, mockHdrArg, workingString);
 				dummy = system(mockHdrCmd);
 
 				if (dummy != 0) fprintf(stderr, "Encountered error while calling mockHeader (%s), continuing with caution.\n", mockHdrCmd);
