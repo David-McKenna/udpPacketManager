@@ -365,16 +365,16 @@ int lofar_udp_raw_loop(lofar_udp_meta *meta) {
 		VERBOSE(if (verbose) printf("Packet 0: %ld\n", currentPortPacket));
 		
 		for (iLoop = 0; iLoop < packetsPerIteration; iLoop++) {
-			VERBOSE(if (verbose) printf("Loop %ld, Work %ld, packet %ld, target %ld\n", iLoop, iWork, currentPortPacket, lastPortPacket + 1));
+			VERBOSE(if (verbose == 2) printf("Loop %ld, Work %ld, packet %ld, target %ld\n", iLoop, iWork, currentPortPacket, lastPortPacket + 1));
 
 			// Check for packet loss by ensuring we have sequential packet numbers
 			if (currentPortPacket != (lastPortPacket + 1)) {
 				// Check if a packet is out of order; if so, drop the packet
 				// TODO: Better future option: check if the packet is in this block, copy and overwrite padded packed instead
-				VERBOSE(if (verbose) printf("Packet %ld is not the expected packet, %ld.\n", currentPortPacket, lastPortPacket + 1));
+				VERBOSE(if (verbose == 2) printf("Packet %ld is not the expected packet, %ld.\n", currentPortPacket, lastPortPacket + 1));
 				if (currentPortPacket < lastPortPacket) {
 					
-					VERBOSE(if (verbose) printf("Packet %ld on port %d is out of order; dropping.\n", currentPortPacket, port));
+					VERBOSE(if (verbose == 2) printf("Packet %ld on port %d is out of order; dropping.\n", currentPortPacket, port));
 					// Dropped packet -> index not processed -> effectively an 'added' packet, decrement the dropped packet count
 					// 	so that we don't include an extra packet in shift operations
 					currentPacketsDropped -= 1;
@@ -417,10 +417,10 @@ int lofar_udp_raw_loop(lofar_udp_meta *meta) {
 					inputPortData[inputPacketOffset + 2] = (inputPortData[inputPacketOffset + 2] & 127) + 128;
 				}
 
-				VERBOSE(if (verbose) printf("Packet %ld on port %d is missing; padding.\n", lastPortPacket + 1, port));
+				VERBOSE(if (verbose == 2) printf("Packet %ld on port %d is missing; padding.\n", lastPortPacket + 1, port));
 
 			} else {
-				VERBOSE(if (verbose) printf("Packet %ld is the expected packet.\n", currentPortPacket));
+				VERBOSE(if (verbose == 2) printf("Packet %ld is the expected packet.\n", currentPortPacket));
 
 				// We have a sequential packet, therefore:
 				//		Update the last legitimate packet number and array offset index

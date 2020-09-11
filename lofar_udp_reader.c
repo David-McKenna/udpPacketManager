@@ -181,11 +181,16 @@ int lofar_udp_skip_to_packet(lofar_udp_reader *reader) {
 			returnVal = lofar_udp_reader_read_step(reader);
 			if (returnVal > 0) return returnVal;
 
+			// Account for packet ddsync between ports
+			for (int portInner = 0; portInner < reader->meta->numPorts; portInner++) {
+				reader->meta->portLastDroppedPackets[portInner] = (currentPacket + reader->meta->packetsPerIteration) - lofar_get_packet_number(&(reader->meta->inputData[portInner][lastPacketOffset]));
+			}
+
 			// Get the new last packet
 			currentPacket = lofar_get_packet_number(&(reader->meta->inputData[port][lastPacketOffset]));
 
 			// Print a status update to the CLI
-			printf("\rScanning to packet %ld (~%.02f%% complete, currently at packet %ld, %ld to go)", reader->meta->lastPacket, (float) 100.0 -  (float) (reader->meta->lastPacket - currentPacket) / (packetDelta) * 100.0, currentPacket, reader->meta->lastPacket - currentPacket);
+			printf("\rScanning to packet %ld (~%.02f%% complete, currently at packet %ld on port %d, %ld to go)", reader->meta->lastPacket, (float) 100.0 -  (float) (reader->meta->lastPacket - currentPacket) / (packetDelta) * 100.0, currentPacket, port, reader->meta->lastPacket - currentPacket);
 			fflush(stdout);
 		}
 		if (scanning) printf("\33[2K\rReached target packet %ld on port %d.\n", reader->meta->lastPacket, port);
@@ -323,6 +328,7 @@ lofar_udp_reader* lofar_udp_file_reader_setup(FILE **inputFiles, lofar_udp_meta 
 
 			// Setup the decompressed data buffer/struct
 			bufferSize = meta->packetsPerIteration * meta->portPacketLength[port];
+			VERBOSE(if (meta->VERBOSE) printf("reader_setup: expending decompression buffer by %ld bytes\n", bufferSize % ZSTD_DStreamOutSize()));
 			bufferSize += bufferSize % ZSTD_DStreamOutSize();
 			reader.decompressionTracker[port].size = bufferSize;
 			reader.decompressionTracker[port].pos = 0; // Initialisation for our step-by-step reader
@@ -373,10 +379,18 @@ int lofar_udp_file_reader_reuse(lofar_udp_reader *reader, const long startingPac
 	long localMaxPackets = packetsReadMax;
 	if (packetsReadMax < 0) localMaxPackets = LONG_MAX;
 
+	// If we only had a partial read during the last iteration, finish filling the buffer
+	if (reader->packetsPerIteration != reader->meta->packetsPerIteration) {
+		#pragma omp parallel for
+		for (int port = 0; port < reader->meta->numPorts; port++) {
+			lofar_udp_reader_nchars(reader, port, &(reader->meta->inputData[port][reader->decompressionTracker[port].pos]), reader->packetsPerIteration * reader->meta->portPacketLength[port] - reader->decompressionTracker[port].pos, reader->decompressionTracker[port].pos);
+		}
+	}
+
 	// Reset old variables
 	reader->meta->packetsPerIteration = reader->packetsPerIteration;
 	reader->meta->packetsRead = 0;
-	reader->meta->packetsReadMax = localMaxPackets;
+	reader->meta->packetsReadMax = startingPacket - reader->meta->lastPacket + 2 * reader->packetsPerIteration;
 	reader->meta->lastPacket = startingPacket;
 
 	for (int port = 0; port < reader->meta->numPorts; port++) {
@@ -399,6 +413,7 @@ int lofar_udp_file_reader_reuse(lofar_udp_reader *reader, const long startingPac
 	if (returnVal > 0) return returnVal;
 
 	// Set the reader status as ready to process, but not read in, on next step
+	reader->meta->packetsReadMax = localMaxPackets;
 	reader->meta->inputDataReady = 1;
 	reader->meta->outputDataReady = 0;
 	return returnVal;
@@ -837,45 +852,15 @@ long lofar_udp_reader_nchars(lofar_udp_reader *reader, const int port, char *tar
 
 	if (reader->compressedReader) {
 		// Compressed file: Perform streaming decompression on a zstandard compressed file
-		VERBOSE(if (reader->meta->VERBOSE) printf("reader_nchars: Entering read request (compressed): %d, %ld\n", port, nchars));
+		VERBOSE(if (reader->meta->VERBOSE) printf("reader_nchars: Entering read request (compressed): %d, %ld, %ld\n", port, nchars, knownOffset));
 
-		long dataRead = 0, portOutputLength = reader->packetsPerIteration * reader->meta->portPacketLength[port];
+		long dataRead = 0;
 		size_t previousDecompressionPos = 0;
 		int compDataRead = 0, byteDelta = 0, returnVal = 0;
-		// ZSTD decompress + pass along data to normal input channel
 
-		// Check decompression buffer for remanants of the last read operation
-		if ((signed long int) reader->decompressionTracker[port].pos > portOutputLength) {
-			VERBOSE(if (reader->meta->VERBOSE) printf("reader_nchars: Compressed data in cache: %d, %ld\n", port, reader->decompressionTracker[port].pos));
-			VERBOSE(if (reader->meta->VERBOSE) printf("reader_nchars: Compressed %d %ld/%ld: %ld %ld %ld %ld %ld\n", port, dataRead, nchars, reader->decompressionTracker[port].pos, reader->decompressionTracker[port].size, reader->readingTracker[port].pos, reader->readingTracker[port].size, portOutputLength));
+		// Ensure the decompression buffer has been updated
+		reader->decompressionTracker[port].pos = knownOffset;
 
-			// If the amount of requested data is greater than the amount of data in the buffer
-			if (nchars > ((long int) reader->decompressionTracker[port].pos - (long int) portOutputLength)) {
-				// Read the remainder of the buffer, update the new offset location to be after this block of data
-				byteDelta = (long int) reader->decompressionTracker[port].pos - (long int) portOutputLength;
-				reader->decompressionTracker[port].pos = byteDelta + knownOffset;
-			} else {
-				// Read only what we need, update the new offset to it's new position
-				byteDelta = nchars;
-				reader->decompressionTracker[port].pos += nchars;
-				//fprintf(stderr, "Unreachable target; something has gone wrong with decompression cache reuse (excessively small read) (%d: %ld, %ld, %ld, %ld, %ld). Exiting.\n", port, nchars, knownOffset, dataRead, reader->decompressionTracker[port].pos, reader->decompressionTracker[port].size);
-
-			}
-
-			// Copy over the required data, update our progress and offsets
-			VERBOSE(if (reader->meta->VERBOSE) printf("reader_nchars: Cache copy: %d, %ld->%ld\n", port, dataRead, reader->decompressionTracker[port].pos));
-
-			memmove(&(targetArray[dataRead]), &(reader->meta->inputData[port][portOutputLength]), byteDelta);
-			dataRead += byteDelta;
-
-			VERBOSE(if (reader->meta->VERBOSE) printf("reader_nchars: Compressed data cache ptrs: %d, %ld, %ld\n", port, reader->decompressionTracker[port].pos, portOutputLength));
-			
-			// Return if we have all the data we need
-			if (dataRead == nchars) return dataRead;
-		} else {
-			VERBOSE(if (reader->meta->VERBOSE) printf("reader_nchars: cache copy not needed, %ld, %ld\n", reader->decompressionTracker[port].pos, portOutputLength););
-			reader->decompressionTracker[port].pos = knownOffset;
-		}
 
 		// Loop until we hit an exit criteria (EOF / zstd error / nchars)
 		// Suspicion after buffer changes: this might enter an infinite loop if the buffer isn't large enough to hold the data
@@ -894,21 +879,20 @@ long lofar_udp_reader_nchars(lofar_udp_reader *reader, const int port, char *tar
 						return dataRead;
 					}
 
-					// Determine how much data we need to copy from the buffer
+					// Determine how much data we just added to the buffer
 					byteDelta = ((long) reader->decompressionTracker[port].pos - (long) previousDecompressionPos);
-					if ((long) (dataRead + byteDelta) >= nchars) byteDelta = nchars - dataRead;
-					
-					/*else {
-						dataRead += byteDelta;
-						//fprintf(stderr, "Unreachable target; something has gone wrong with decompression (%d: %ld, %ld, %ld, %ld, %ld). Exiting.\n", port, nchars, knownOffset, dataRead, reader->decompressionTracker[port].pos, reader->decompressionTracker[port].size);
-					}
-					*/
 
 					// Update the total data read + check if we have reached our goal
 					dataRead += byteDelta;
-					if (dataRead == nchars) return dataRead;
+					VERBOSE(if (dataRead >= nchars) {
+						if (reader->meta->VERBOSE) printf("Reader terminating: %ld read, %ld requested, %ld\n", dataRead, nchars, nchars - dataRead);
+					});
+					if (dataRead >= nchars) return dataRead;
 
-
+					if (reader->decompressionTracker[port].pos == reader->decompressionTracker[port].size) {
+						fprintf(stderr, "Failed to read %ld chars on port %d before filling the buffer. Attempting to continue...\n", nchars, port);
+						return dataRead;
+					}
 				}
 			}
 
@@ -972,6 +956,9 @@ int lofar_udp_reader_read_step(lofar_udp_reader *reader) {
 	// Reset the packets per iteration to the intended length (can be lowered due to out of order packets)
 	reader->meta->packetsPerIteration = reader->packetsPerIteration;
 
+	// If packets were dropped, shift the remaining packets back to the start of the array
+	if ((checkReturnValue = lofar_udp_shift_remainder_packets(reader, reader->meta->portLastDroppedPackets, 1)) > 0) return 1;
+
 	// Ensure we aren't passed the read length cap
 	if (reader->meta->packetsRead >= (reader->meta->packetsReadMax - reader->meta->packetsPerIteration)) {
 		reader->meta->packetsPerIteration = reader->meta->packetsReadMax - reader->meta->packetsRead;
@@ -979,8 +966,6 @@ int lofar_udp_reader_read_step(lofar_udp_reader *reader) {
 		returnVal = -2;
 	}
 
-	// If packets were dropped, shift the remaining packets back to the start of the array
-	if ((checkReturnValue = lofar_udp_shift_remainder_packets(reader, reader->meta->portLastDroppedPackets, 1)) > 0) return 1;
 	//else if (checkReturnValue < 0) if(lofar_udp_realign_data(reader) > 0) return 1;
 	
 	// Read in the required new data
@@ -1404,14 +1389,18 @@ int lofar_udp_shift_remainder_packets(lofar_udp_reader *reader, const int shiftP
 			destOffset = -1 * portPacketLength * handlePadding;
 			byteShift = sizeof(char) * (packetShift + handlePadding) * portPacketLength;
 
+			VERBOSE(if (meta->VERBOSE) printf("P: %d, SO: %ld, DO: %d, BS: %ld IDO: %ld\n", port, sourceOffset, destOffset, byteShift, destOffset + byteShift));
+
 			if (reader->compressedReader) {
 				if ((long) reader->decompressionTracker[port].pos > meta->portPacketLength[port] * meta->packetsPerIteration) {
 					byteShift += reader->decompressionTracker[port].pos - meta->portPacketLength[port] * meta->packetsPerIteration;
 					reader->decompressionTracker[port].pos = destOffset + byteShift;
 				}
+				VERBOSE(if (meta->VERBOSE) printf("Compressed offset: P: %d, SO: %ld, DO: %d, BS: %ld IDO: %ld\n", port, sourceOffset, destOffset, byteShift, destOffset + byteShift));
+
 			}
 
-			VERBOSE(if (meta->VERBOSE) printf("SO: %ld, DO: %d, BS: %ld IDO: %ld\n", sourceOffset, destOffset, byteShift, destOffset + byteShift));
+			VERBOSE(if (meta->VERBOSE) printf("P: %d, SO: %ld, DO: %d, BS: %ld IDO: %ld\n", port, sourceOffset, destOffset, byteShift, destOffset + byteShift));
 
 			// Mmemove the data as needed (memcpy can't act on the same array)
 			memmove(&(inputData[destOffset]), &(inputData[sourceOffset]), byteShift);
