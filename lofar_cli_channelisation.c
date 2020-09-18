@@ -1,4 +1,12 @@
 #include "lofar_cli_meta.h"
+#include <fftw3.h>
+#include <math.h>
+
+// Local prototypes
+void reorderSpectrum(fftwf_complex **workingArr, int nbin, int nruns);
+void detect(int nbin, int processingFactor, int nfft, int nsubbands, fftwf_complex **output, float *stokesOutput);
+void fftwAndDetect(lofar_udp_reader *reader, fftwf_plan *forward, fftwf_plan *backward, fftwf_complex **intermediate, fftwf_complex **output, float *stokesOutput, int nbin, int nfft, int nsub, int processingFactor);
+void chirpKernel(float *taperArray, int totalBeamlets, int chanFactor, float fch1, float foff, int nbin);
 
 
 void helpMessages() {
@@ -14,7 +22,7 @@ void helpMessages() {
 	printf("-t: <timeStr>	String of the time of the first requested packet, format YYYY-MM-DDTHH:mm:ss (default: '')\n");
 	printf("-s: <numSec>	Maximum number of seconds to process (default: all)\n");
 	printf("-e: <fileName>	Specify a file of events to extract; newline separated start time and durations in seconds. Events must not overlap.\n");
-	printf("-p: <mode>		Processing mode, options listed below (default: 0)\n");
+	printf("-p: <chans>		Channelisation factor, must be a multiple of the ingested number of samples (default : 16)\n");
 	printf("-r:		Replay the previous packet when a dropped packet is detected (default: 0 pad)\n");
 	printf("-c:		Change to the alternative clock used for modes 4/6 (160MHz clock) (default: False)\n");
 	printf("-q:		Enable silent mode for the CLI, don't print any information outside of library error messes (default: False)\n");
@@ -25,7 +33,6 @@ void helpMessages() {
 			printf("-V:		Enable highly verbose output (default: False)\n"));
 
 	processingModes();
-
 }
 
 
@@ -36,7 +43,7 @@ int main(int argc, char  *argv[]) {
 	float seconds = 0.0;
 	double sampleTime = 0.0;
 	char inputFormat[256] = "./%d", outputFormat[256] = "./output%d_%s_%ld", inputTime[256] = "", eventsFile[256] = "", stringBuff[128], mockHdrArg[2048] = "", mockHdrCmd[4096] = "";
-	int ports = 4, processingMode = 0, replayDroppedPackets = 0, verbose = 0, silent = 0, appendMode = 0, compressedReader = 0, eventCount = 0, returnCounter = 0, callMockHdr = 0;
+	int ports = 4, processingFactor = 0, replayDroppedPackets = 0, verbose = 0, silent = 0, appendMode = 0, compressedReader = 0, eventCount = 0, returnCounter = 0, callMockHdr = 0;
 	long packetsPerIteration = 65536, maxPackets = -1, startingPacket = -1;
 	unsigned int clock200MHz = 1;
 	FILE *eventsFilePtr;
@@ -50,6 +57,10 @@ int main(int argc, char  *argv[]) {
 	// I/O variables
 	FILE *inputFiles[MAX_NUM_PORTS];
 	FILE *outputFiles[MAX_OUTPUT_DIMS];
+
+	// FFTW variables
+	fftwf_plan forward[2], backward[2];
+	fftwf_complex *intermediate[2], *output[2];
 	
 	// Malloc'd variables: need to be free'd later.
 	long *startingPackets, *multiMaxPackets;
@@ -90,7 +101,7 @@ int main(int argc, char  *argv[]) {
 				break;
 
 			case 'p':
-				processingMode = atoi(optarg);
+				processingFactor = atoi(optarg);
 				break;
 
 			case 'a':
@@ -156,14 +167,16 @@ int main(int argc, char  *argv[]) {
 	}
 
 	char workingString[1024];
+	outputFilesCount = 1;
 	
-	// processingMode -> N output-files 
-	outputFilesCount = ports;
-	if (processingMode == 2 || processingMode == 11 || processingMode == 21) outputFilesCount = UDPNPOL;
-	else if (processingMode == 10 || processingMode == 20 || processingMode > 99) outputFilesCount = 1;
+
+	if (!(packetsPerIteration * UDPNTIMESLICE % processingFactor)) {
+		fprintf(stderr, "Channelisation factor (%d) is not a multiple of the number of input samples (%ld), exiting.\n", processingFactor, packetsPerIteration * UDPNTIMESLICE);
+		return 1;
+	}
 
 	// Sanity check a few inputs
-	if ( (strcmp(inputFormat, "") == 0) || (ports == 0) || (packetsPerIteration < 2)  || (replayDroppedPackets > 1 || replayDroppedPackets < 0) || (processingMode > 1000 || processingMode < 0) || (seconds < 0)) {
+	if ( (strcmp(inputFormat, "") == 0) || (ports == 0) || (packetsPerIteration < 2)  || (replayDroppedPackets > 1 || replayDroppedPackets < 0) || (seconds < 0)) {
 		fprintf(stderr, "One or more inputs invalid or not fully initialised, exiting.\n");
 		helpMessages();
 		return 1;
@@ -185,9 +198,6 @@ int main(int argc, char  *argv[]) {
 		}
 
 		sampleTime = clock160MHzSample * (1 - clock200MHz) + clock200MHzSample * clock200MHz;
-		if (processingMode > 100) {
-			sampleTime *= 1 << ((processingMode % 10));
-		}
 	}
 
 	if (silent == 0) {
@@ -196,7 +206,7 @@ int main(int argc, char  *argv[]) {
 		printf("Input File:\t%s\nOutput File: %s\n\n", inputFormat, outputFormat);
 		printf("Packets/Gulp:\t%ld\t\t\tPorts:\t%d\n\n", packetsPerIteration, ports);
 		VERBOSE(printf("Verbose:\t%d\n", verbose););
-		printf("Proc Mode:\t%03d\t\t\tCompressed:\t%d\n\n", processingMode, compressedReader);
+		printf("Proc Fac:\t%03d\t\t\tCompressed:\t%d\n\n", processingFactor, compressedReader);
 	}
 
 
@@ -352,7 +362,7 @@ int main(int argc, char  *argv[]) {
 	CLICK(tick0);
 
 	// Generate the lofar_udp_reader, this also does I/O for the first input or seeks to the required packet
-	lofar_udp_reader *reader =  lofar_udp_meta_file_reader_setup(&(inputFiles[0]), ports, replayDroppedPackets, processingMode, verbose, packetsPerIteration, startingPackets[0], multiMaxPackets[0], compressedReader);
+	lofar_udp_reader *reader =  lofar_udp_meta_file_reader_setup(&(inputFiles[0]), ports, 1, 200, verbose, packetsPerIteration, startingPackets[0], multiMaxPackets[0], compressedReader);
 
 	// Returns null on error, check
 	if (reader == NULL) {
@@ -360,6 +370,25 @@ int main(int argc, char  *argv[]) {
 		return 1;
 
 	}
+
+
+	// Inialise the FFTW variables
+	for (int i = 0; i < 2; i++) {
+		free(reader->meta->outputData[i]);
+		reader->meta->outputData[i] = fftwf_malloc(sizeof(fftwf_complex) * packetsPerIteration * UDPNTIMESLICE * reader->meta->totalBeamlets);
+		intermediate[i] = (fftwf_complex*) fftwf_malloc(sizeof(fftwf_complex) * packetsPerIteration * UDPNTIMESLICE * reader->meta->totalBeamlets);
+		output[i] = (fftwf_complex*) fftwf_malloc(sizeof(fftwf_complex) * packetsPerIteration * UDPNTIMESLICE * reader->meta->totalBeamlets);
+	}
+
+	float *stokesIOutput = calloc(reader->meta->totalBeamlets * packetsPerIteration * UDPNTIMESLICE, sizeof(float));
+
+	const int nbin = packetsPerIteration;
+	int nbin_int = (int) packetsPerIteration;
+	forward[0] = fftwf_plan_many_dft(1, &nbin, UDPNTIMESLICE * reader->meta->totalBeamlets, (fftwf_complex*) reader->meta->outputData[0], &nbin, 1, nbin_int, intermediate[0], &nbin, 1, nbin_int, -1, FFTW_MEASURE);
+	forward[1] = fftwf_plan_many_dft(1, &nbin, UDPNTIMESLICE * reader->meta->totalBeamlets, (fftwf_complex*) reader->meta->outputData[1], &nbin, 1, nbin_int, intermediate[1], &nbin, 1, nbin_int, -1, FFTW_MEASURE);
+	backward[0] = fftwf_plan_many_dft(1, &nbin, UDPNTIMESLICE * reader->meta->totalBeamlets, intermediate[0], &nbin, 1, nbin_int, output[0], &nbin, 1, nbin_int, 1, FFTW_MEASURE);
+	backward[1] = fftwf_plan_many_dft(1, &nbin, UDPNTIMESLICE * reader->meta->totalBeamlets, intermediate[1], &nbin, 1, nbin_int, output[1], &nbin, 1, nbin_int, 1, FFTW_MEASURE);
+
 
 	if (silent == 0) {
 		getStartTimeString(reader, stringBuff);
@@ -424,8 +453,7 @@ int main(int argc, char  *argv[]) {
 			}
 			
 			if (callMockHdr) {
-				if (processingMode == 2 || processingMode == 11 || processingMode == 21 || processingMode > 99) sprintf(mockHdrCmd, "mockHeader -tstart %.9lf -nchans %d -nbits %d -tsamp %.9lf %s %s > /tmp/udp_reader_mockheader.log 2>&1", lofar_get_packet_time_mjd(reader->meta->inputData[0]), reader->meta->totalBeamlets, reader->meta->outputBitMode, sampleTime, mockHdrArg, workingString);
-				else sprintf(mockHdrCmd, "mockHeader -tstart %.9lf -nchans %d -nbits %d -tsamp %.9lf %s %s > /tmp/udp_reader_mockheader.log 2>&1", lofar_get_packet_time_mjd(reader->meta->inputData[0]), reader->meta->portBeamlets[out], reader->meta->outputBitMode, sampleTime, mockHdrArg, workingString);
+				sprintf(mockHdrCmd, "mockHeader -tstart %.9lf -nchans %d -nbits %d -tsamp %.9lf %s %s > /tmp/udp_reader_mockheader.log 2>&1", lofar_get_packet_time_mjd(reader->meta->inputData[0]), reader->meta->totalBeamlets, reader->meta->outputBitMode, sampleTime, mockHdrArg, workingString);
 				dummy = system(mockHdrCmd);
 
 				if (dummy != 0) fprintf(stderr, "Encountered error while calling mockHeader (%s), continuing with caution.\n", mockHdrCmd);
@@ -457,10 +485,11 @@ int main(int argc, char  *argv[]) {
 
 			CLICK(tick0);
 			
+			fftwAndDetect(reader, forward, backward, intermediate, output, stokesIOutput, packetsPerIteration, UDPNTIMESLICE, reader->meta->totalBeamlets, processingFactor);
 			#ifndef BENCHMARKING
 			for (int out = 0; out < reader->meta->numOutputs; out++) {
 				VERBOSE(printf("Writing %ld bytes (%ld packets) to disk for output %d...\n", packetsToWrite * reader->meta->packetOutputLength[out], packetsToWrite, out));
-				fwrite(reader->meta->outputData[out], sizeof(char), packetsToWrite * reader->meta->packetOutputLength[out], outputFiles[out]);
+				fwrite(stokesIOutput, sizeof(float), reader->meta->totalBeamlets * packetsToWrite * UDPNTIMESLICE, outputFiles[out]);
 			}
 			#endif
 
@@ -523,6 +552,11 @@ int main(int argc, char  *argv[]) {
 
 
 	// Clean-up the reader object, also closes the input files for us
+	for (int i = 0; i < 2; i++) {
+		fftwf_free(reader->meta->outputData[i]);
+		reader->meta->outputData[i] = calloc(1, sizeof(char));
+	}
+
 	lofar_udp_reader_cleanup(reader);
 	if (silent == 0) printf("Reader cleanup performed successfully.\n");
 
@@ -531,7 +565,96 @@ int main(int argc, char  *argv[]) {
 	free(dateStr);
 	free(multiMaxPackets);
 	free(startingPackets);
+	fftwf_destroy_plan(forward[0]);
+	fftwf_destroy_plan(forward[1]);
+	fftwf_destroy_plan(backward[0]);
+	fftwf_destroy_plan(backward[1]);
 
 	if (silent == 0) printf("CLI memory cleaned up successfully. Exiting.\n");
 	return 0;
+}
+
+
+void chirpKernel(float *taperArray, int totalBeamlets, int chanFactor, float fch1, float foff, int nbin) {
+	// doi:10.1088/1009-9271/6/S2/11
+	float chanbw = foff / chanFactor;
+	float freq;
+	for (int beamlet = 0; beamlet < totalBeamlets * chanFactor; beamlet++) {
+		freq = fch1 + beamlet * chanbw;
+		taperArray[beamlet] = 1.0 / sqrt( 1.0 + pow(freq / (0.47 * chanbw), 80)) / nbin;
+	}
+}
+
+// Heavily based on transpose_unpadd_and_detect from CDMT, Bassa et al.
+void fftwAndDetect(lofar_udp_reader *reader, fftwf_plan *forward, fftwf_plan *backward, fftwf_complex **intermediate, fftwf_complex **output, float *stokesOutput, int nbin, int nfft, int nsub, int processingFactor) {
+
+	// Forward FFT
+	for (int i = 0; i < 2; i++)
+		fftwf_execute(forward[i]);
+
+	// Reorder
+	reorderSpectrum(intermediate, nbin, nfft * nsub);
+
+
+	// Chirp
+
+
+	// Reorder
+	reorderSpectrum(intermediate, nbin / processingFactor, processingFactor * nfft * nsub);
+
+	// Backward FFT
+	for (int i = 0; i < 2; i++)
+		fftwf_execute(backward[i]);
+
+	// Detect
+	detect(nbin / processingFactor, processingFactor, nfft, reader->meta->totalBeamlets, output, stokesOutput);
+}
+
+
+void detect(int nbin, int processingFactor, int nfft, int nsubbands, fftwf_complex **output, float *stokesOutput) {
+	for (int ibin = 0; ibin < nbin / processingFactor; ibin++) {
+		for (int ichan = 0; ichan < processingFactor; ichan++) {
+			for (int ifft = 0; ifft < nfft; ifft++) {
+				for (int isub = 0; isub < nsubbands; isub++) {
+					int voltIdx = ibin+ichan*nbin+(nsubbands-isub-1)*nbin*processingFactor+ifft*nbin*processingFactor*nsubbands;
+					int stokesIdx = (processingFactor-ichan-1)+isub*processingFactor+nsubbands*processingFactor*(ibin+nbin*ifft);
+
+					stokesOutput[stokesIdx] = output[0][voltIdx][0] * output[0][voltIdx][0] + output[0][voltIdx][1] * output[0][voltIdx][1]  + \
+									output[1][voltIdx][0] * output[1][voltIdx][0] + output[1][voltIdx][1] * output[1][voltIdx][1];
+				}
+			}
+		}
+	}
+}
+
+
+void reorderSpectrum(fftwf_complex **workingArr, int nbin, int nruns) {
+	fftwf_complex tempVal[2];
+	int halfBin = nbin / 2, k;
+	for (int i = 0; i < nbin; i++) {
+		
+		if (i < 0.5 * nbin) {
+			k = i + halfBin;
+		} else{
+			k = i - halfBin;
+		}
+		
+		for (int j = 0; j < nruns; j++) {
+			int l = i + nbin * j;
+			int m = k + nbin * j;
+
+			for (int pol = 0; pol < 2; pol++) {
+				for (int ax = 0; ax < 2; ax++) {
+					tempVal[pol][ax] = workingArr[pol][l][ax];
+				}
+			}
+
+			for (int pol = 0; pol < 2; pol++) {
+				for (int ax = 0; ax < 2; ax++) {
+					workingArr[pol][l][ax] = workingArr[pol][m][ax];
+					workingArr[pol][m][ax] = tempVal[pol][ax];
+				}
+			}
+		}
+	}
 }

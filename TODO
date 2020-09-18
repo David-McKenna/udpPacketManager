@@ -2,3 +2,4 @@ TODO:
 
 Better approach to out of order packets?
 4-bit decoding + processing
+CLIs -> Get the clock bit from raw data rather than requiring a flag

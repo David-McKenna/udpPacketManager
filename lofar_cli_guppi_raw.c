@@ -1,5 +1,8 @@
 #include "lofar_cli_meta.h"
+#include "ascii_hdr_manager.h"
 
+
+void getStartTimeStringDAQ(lofar_udp_reader *reader, char stringBuff[]);
 
 void helpMessages() {
 	printf("LOFAR UDP Data extractor (v%.1f)\n\n", VERSIONCLI);
@@ -18,7 +21,7 @@ void helpMessages() {
 	printf("-r:		Replay the previous packet when a dropped packet is detected (default: 0 pad)\n");
 	printf("-c:		Change to the alternative clock used for modes 4/6 (160MHz clock) (default: False)\n");
 	printf("-q:		Enable silent mode for the CLI, don't print any information outside of library error messes (default: False)\n");
-	printf("-a: <args>		Call mockHeader with the specific flags to prefix output files with a header (default: False)\n");
+	printf("-a: <file>		File to open with parameters for the ASCII headers\n");
 	printf("-f:		Append files if they already exist (default: False, exit if exists)\n");
 	
 	VERBOSE(printf("-v:		Enable verbose output (default: False)\n");
@@ -35,14 +38,15 @@ int main(int argc, char  *argv[]) {
 	int inputOpt, outputFilesCount, input = 0;
 	float seconds = 0.0;
 	double sampleTime = 0.0;
-	char inputFormat[256] = "./%d", outputFormat[256] = "./output%d_%s_%ld", inputTime[256] = "", eventsFile[256] = "", stringBuff[128], mockHdrArg[2048] = "", mockHdrCmd[4096] = "";
-	int ports = 4, processingMode = 0, replayDroppedPackets = 0, verbose = 0, silent = 0, appendMode = 0, compressedReader = 0, eventCount = 0, returnCounter = 0, callMockHdr = 0;
+	char inputFormat[256] = "./%d", outputFormat[256] = "./output%d_%s_%ld", inputTime[256] = "", eventsFile[256] = "", stringBuff[128], hdrFile[2048] = "", timeStr[24] = "";
+	int ports = 4, processingMode = 0, replayDroppedPackets = 0, verbose = 0, silent = 0, appendMode = 0, compressedReader = 0, eventCount = 0, returnCounter = 0;
 	long packetsPerIteration = 65536, maxPackets = -1, startingPacket = -1;
 	unsigned int clock200MHz = 1;
+	ascii_hdr header = ascii_hdr_default;
 	FILE *eventsFilePtr;
 
 	// Set up reader loop variables
-	int loops = 0, localLoops = 0, returnVal, dummy;
+	int loops = 0, localLoops = 0, returnVal;
 	long packetsProcessed = 0, packetsWritten = 0, eventPacketsLost[MAX_NUM_PORTS], packetsToWrite;
 	double timing[2] = {0., 0.}, totalReadTime = 0, totalOpsTime = 0, totalWriteTime = 0;
 	struct timespec tick, tick0, tock, tock0;
@@ -94,8 +98,7 @@ int main(int argc, char  *argv[]) {
 				break;
 
 			case 'a':
-				strcpy(mockHdrArg, optarg);
-				callMockHdr = 1;
+				strcpy(hdrFile, optarg);
 				break;
 
 
@@ -169,26 +172,23 @@ int main(int argc, char  *argv[]) {
 		return 1;
 	}
 
+	if (strcmp(hdrFile, "") == 0) {
+		fprintf(stderr, "WARNING: A header file was not provided; we are using the default values for the output file.\n");
+	}
+
 	// Check if we have a compressed input file
 	if (strstr(inputFormat, "zst") != NULL) {
 		compressedReader = 1;
 	}
 
-	// Make sure mockHeader is on the path if we want to use it.
-	if (callMockHdr) {
-		printf("Checking for mockHeader on system path... ");
-		callMockHdr += system("which mockHeader > /tmp/udp_reader_mockheader.log 2>&1"); // Add the return code (multiplied by 256 from bash return) to the execution variable, ensure it doesn't change
-		printf("\n");
-		if (callMockHdr != 1) {
-			fprintf(stderr, "Error occured while attempting to find mockHeader, exiting.\n");
-			return 1;
-		}
+	// Determine the clock time
+	sampleTime = clock160MHzSample * (1 - clock200MHz) + clock200MHzSample * clock200MHz;
 
-		sampleTime = clock160MHzSample * (1 - clock200MHz) + clock200MHzSample * clock200MHz;
-		if (processingMode > 100) {
-			sampleTime *= 1 << ((processingMode % 10));
-		}
+	// Updae the sample time if we are doing some time averaging
+	if (processingMode > 100) {
+		sampleTime *= 1 << ((processingMode % 10));
 	}
+
 
 	if (silent == 0) {
 		printf("LOFAR UDP Data extractor (CLI v%.1f, Backend V%.1f)\n\n", VERSIONCLI, VERSION);
@@ -354,6 +354,17 @@ int main(int argc, char  *argv[]) {
 	// Generate the lofar_udp_reader, this also does I/O for the first input or seeks to the required packet
 	lofar_udp_reader *reader =  lofar_udp_meta_file_reader_setup(&(inputFiles[0]), ports, replayDroppedPackets, processingMode, verbose, packetsPerIteration, startingPackets[0], multiMaxPackets[0], compressedReader);
 
+	if (parseHdrFile(hdrFile, &header) > 0) {
+		fprintf(stderr, "Error initialising ASCII header struct, exiting.");
+	}
+
+
+	// Pull the reader parameters into the ASCII header
+	header.obsnchan = reader->meta->totalBeamlets;
+	header.nbits = reader->meta->inputBitMode;
+	header.tbin = sampleTime;
+
+
 	// Returns null on error, check
 	if (reader == NULL) {
 		fprintf(stderr, "Failed to generate reader. Exiting.\n");
@@ -423,14 +434,6 @@ int main(int argc, char  *argv[]) {
 				return 1;
 			}
 			
-			if (callMockHdr) {
-				if (processingMode == 2 || processingMode == 11 || processingMode == 21 || processingMode > 99) sprintf(mockHdrCmd, "mockHeader -tstart %.9lf -nchans %d -nbits %d -tsamp %.9lf %s %s > /tmp/udp_reader_mockheader.log 2>&1", lofar_get_packet_time_mjd(reader->meta->inputData[0]), reader->meta->totalBeamlets, reader->meta->outputBitMode, sampleTime, mockHdrArg, workingString);
-				else sprintf(mockHdrCmd, "mockHeader -tstart %.9lf -nchans %d -nbits %d -tsamp %.9lf %s %s > /tmp/udp_reader_mockheader.log 2>&1", lofar_get_packet_time_mjd(reader->meta->inputData[0]), reader->meta->portBeamlets[out], reader->meta->outputBitMode, sampleTime, mockHdrArg, workingString);
-				dummy = system(mockHdrCmd);
-
-				if (dummy != 0) fprintf(stderr, "Encountered error while calling mockHeader (%s), continuing with caution.\n", mockHdrCmd);
-			}
-
 			VERBOSE(if (verbose) printf("Opening file at %s\n", workingString));
 
 			outputFiles[out] = fopen(workingString, "a");
@@ -459,6 +462,13 @@ int main(int argc, char  *argv[]) {
 			
 			#ifndef BENCHMARKING
 			for (int out = 0; out < reader->meta->numOutputs; out++) {
+				header.blocsize = packetsToWrite * reader->meta->packetOutputLength[out];
+				
+				getStartTimeStringDAQ(reader, timeStr);
+				strcpy(header.daqpulse, timeStr);
+
+				writeHdr(outputFiles[out], &header);
+				
 				VERBOSE(printf("Writing %ld bytes (%ld packets) to disk for output %d...\n", packetsToWrite * reader->meta->packetOutputLength[out], packetsToWrite, out));
 				fwrite(reader->meta->outputData[out], sizeof(char), packetsToWrite * reader->meta->packetOutputLength[out], outputFiles[out]);
 			}
@@ -534,4 +544,17 @@ int main(int argc, char  *argv[]) {
 
 	if (silent == 0) printf("CLI memory cleaned up successfully. Exiting.\n");
 	return 0;
+}
+
+
+void getStartTimeStringDAQ(lofar_udp_reader *reader, char stringBuff[24]) {
+	double startTime;
+	time_t startTimeUnix;
+	struct tm *startTimeStruct;
+
+	startTime = lofar_get_packet_time(reader->meta->inputData[0]);
+	startTimeUnix = (unsigned int) startTime;
+	startTimeStruct = gmtime(&startTimeUnix);
+
+	strftime(stringBuff, 24, "%c", startTimeStruct);
 }
