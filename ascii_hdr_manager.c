@@ -67,14 +67,22 @@ int parseHdrFile(char inputFile[], ascii_hdr *header) {
 	printf("%d: %s\n", fargc, fargv[fargc]);
 
 	while (fargc < HEADER_ARGS && fargv[fargc] != 0) {
-		while (fargc < 2) {
-			fargv[fargc] = strtok(0, " \n\r");
-			printf("%d: %s\n", fargc, fargv[fargc]);
+		fargc++;
+		fargv[fargc] = strtok(0, " \n\r");
+		printf("%d: %s\n", fargc, fargv[fargc]);
+	}
+
+	int ifargc = 0, ffargc = 1, dfargc = 0;
+	while (ffargc < fargc) {
+
+		while (strcmp("--", fargv[ffargc]) == 0 && ffargc != fargc) {
+			ffargc++;
+			dfargc++;
 		}
 
 		int optIdx = 0;
 		char charVal;
-		while ((charVal = getopt_long(fargc, fargv, "a:b:c:d:e:f:g:h:i:j:k:l:m:n:o:p:q:r:s:t:u:v:w:x:y:z:A:B:", long_options, &optIdx)) != -1) {
+		while ((charVal = getopt_long(dfargc, &(fargv[ifargc]), "a:b:c:d:e:f:g:h:i:j:k:l:m:n:o:p:q:r:s:t:u:v:w:x:y:z:A:B:", long_options, &optIdx)) != -1) {
 			printf("%c= %s \n", charVal, optarg);
 			switch (charVal) {
 				case 'a':
@@ -196,7 +204,8 @@ int parseHdrFile(char inputFile[], ascii_hdr *header) {
 					break;
 			}
 		}
-		fargc = 0;
+		ifargc = ffargc;
+		dfargc = 0;
 	}
 
 	return returnVal;
