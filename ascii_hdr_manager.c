@@ -86,7 +86,7 @@ int parseHdrFile(char inputFile[], ascii_hdr *header) {
 			dfargc--;	
 		}
 
-		printf("%d\n", dfarg);
+		printf("%d\n", dfargc);
 
 		int optIdx = 0;
 		char charVal;
