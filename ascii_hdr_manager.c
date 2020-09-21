@@ -1,6 +1,8 @@
 #include "ascii_hdr_manager.h"
 
-ascii_hdr ascii_hdr_default = {"J0000+0000", "00:00:00.0000", "+00:00:00.0000", 149.90234375, 95.3125, 0.1953125, 488, 4, 8, 5.12e-6, "LIN", "TRACK", "RAW", "OFF", 0., "UDP2RAW", "Unknown", "ILT", "LOFAR-RSP", "LOFAR-UDP", "0.0.0.0", 16130, 0, 0, ""};
+ascii_hdr ascii_hdr_default = {	"J0000+0000", "00:00:00.0000", "+00:00:00.0000", 149.90234375, 95.3125, 0.1953125, 488, 4, 8, 5.12e-6, \
+								"LIN", "TRACK", "RAW", "OFF", 0., "UDP2RAW", "Unknown", "ILT", "LOFAR-RSP", "LOFAR-UDP", "0.0.0.0", \
+								16130, 0, 0, "", 50000, 0, 0};
 
 int parseHdrFile(char inputFile[], ascii_hdr *header) {
 	int returnVal = 0;
@@ -57,12 +59,15 @@ int parseHdrFile(char inputFile[], ascii_hdr *header) {
 		{ "overlap", required_argument, 0, 'w'},
 		{ "blocsize", required_argument, 0, 'x'},
 		{ "daqpulse", required_argument, 0, 'y'},
+		{ "stt_imjd", required_argument, 0, 'z'},
+		{ "stt_smjd", required_argument, 0, 'A'},
+		{ "pktidx", required_argument, 0, 'B'},
 		{0, 0, 0, 0}
 	};
 
 	int optIdx = 0;
 	char charVal;
-	while ((charVal = getopt_long(fargc, fargv, "a:b:c:d:e:f:g:h:i:j:k:l:m:n:o:p:q:r:s:t:u:v:w:x:y:", long_options, &optIdx)) != -1) {
+	while ((charVal = getopt_long(fargc, fargv, "a:b:c:d:e:f:g:h:i:j:k:l:m:n:o:p:q:r:s:t:u:v:w:x:y:z:A:B:", long_options, &optIdx)) != -1) {
 
 		switch (charVal) {
 			case 'a':
@@ -164,6 +169,18 @@ int parseHdrFile(char inputFile[], ascii_hdr *header) {
 				strcpy(header->daqpulse, optarg);
 				break;
 
+			case 'z':
+				header->stt_imjd = atoi(optarg);
+				break;
+
+			case 'A':
+				breader->stt_smjd = atoi(optarg);
+				break;
+
+			case 'B':
+				header->pktidx = atol(optarg);
+				break;
+
 			default:
 				fprintf(stderr, "Unknown flag %d (%s), continuing with caution...\n", charVal, optarg);
 				returnVal = -1;
@@ -205,7 +222,12 @@ void writeHdr(FILE *fileRef, ascii_hdr *header) {
 	writeInt(fileRef, "BLOCSIZE", header->blocsize);
 	writeStr(fileRef, "DAQPULSE", header->daqpulse);
 
-	char end[3] = "END";
+	writeInt(fileRef, "STT_IMJD", header->stt_imjd);
+	writeInt(fileRef, "STT_SMJD", header->stt_smjd);
+
+	writeLong(fileRef, "PKTIDX", header->pktidx)l
+
+	const char end[3] = "END";
 	fprintf(fileRef, "%-80s", end);
 }
 

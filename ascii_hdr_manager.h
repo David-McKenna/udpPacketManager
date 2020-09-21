@@ -12,6 +12,7 @@
 #define __ASCII_HDR_H
 
 #define HEADER_ARGS 24
+// Likely don't need hald as many as provided here https://github.com/UCBerkeleySETI/rawspec/blob/master/rawspec_rawutils.c#L155
 struct ascii_hdr_s {
 	char src_name[68];
 	char ra_str[68];
@@ -44,6 +45,10 @@ struct ascii_hdr_s {
 
 	long blocsize;
 	char daqpulse[68];
+
+	int stt_imjd;
+	int stt_smjd;
+	long pktidx;
 
 };
 
