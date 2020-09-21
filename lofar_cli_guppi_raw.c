@@ -321,7 +321,7 @@ int main(int argc, char  *argv[]) {
 					for (int port = 0; port < reader->meta->numPorts; port++) printf(" %ld", eventPacketsLost[port]);
 					printf(".\n\n\n");
 				}
-				printf("Beginning work on event %d at %s...\n", loop, timeStr);
+				printf("Beginning work on event %d at %s...\n", loops, timeStr);
 				getStartTimeString(reader, stringBuff);
 				printf("============ Event %d Information ===========\n", loops);
 				printf("Target Time:\t%s\t\tActual Time:\t%s\n", timeStr, stringBuff);
