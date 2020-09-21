@@ -64,22 +64,22 @@ int parseHdrFile(char inputFile[], ascii_hdr *header) {
 	fargv[fargc] = strtok(fileData, " \n\r");
 	printf("%d: %s\n", fargc, fargv[fargc]);
 
-	if (strcmp("--", fgarv[fargc]) == 0) {
-		while (strcmp("--", fgarv[fargc]) == 0) {
+	if (strcmp("--", fargv[fargc]) == 0) {
+		while (strcmp("--", fargv[fargc]) == 0) {
 			fargv[++fargc] = strtok(0, " \n\r");
 		}
 	}
 
 	int ifargc = 0, dfargc = fargc;
 	while (ffargc < fargc) {
-		while (fargc < HEADER_ARGS && fargv[fargc] != 0 && strcmp("--", fgarc[fargv]) == 0) {
+		while (fargc < HEADER_ARGS && fargv[fargc] != 0 && strcmp("--", fargc[fargv]) == 0) {
 			dfargc++;
 			fargv[++fargc] = strtok(0, " \n\r");
 			printf("%d: %s\n", fargc, fargv[fargc]);
 		}
 
 		if (ffargc != fargc) {
-			ffargc--; dfarg--;		
+			dfarg--;		
 		}
 
 		int optIdx = 0;
@@ -205,7 +205,8 @@ int parseHdrFile(char inputFile[], ascii_hdr *header) {
 					returnVal = -1;
 					break;
 			}
-			ifargc += dfargc;
+			ifargc += dfargc + 1;
+			dfargc = 1;
 		}
 
 	return returnVal;
