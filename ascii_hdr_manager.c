@@ -78,7 +78,7 @@ int parseHdrFile(char inputFile[], ascii_hdr *header) {
 			printf("%d: %s\n", fargc, fargv[fargc]);
 		}
 
-		if (ffargc != fargc) {
+		if (fargc != fargc) {
 			dfargc--;		
 		}
 
