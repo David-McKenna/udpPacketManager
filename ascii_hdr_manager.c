@@ -72,7 +72,9 @@ int parseHdrFile(char inputFile[], ascii_hdr *header) {
 	int ifargc = 0, ffargc = 1, dfargc = 0;
 	while (ffargc < fargc) {
 
-		while (dfargc < 3 || ffargc != fargc) {
+		while (dfargc < 3 && ffargc != fargc) {
+
+			printf("%d, %d, %s\n", dfargc, ffargc, fargv[ffargc]);
 			ffargc++;
 
 			if (strcmp("--", fargv[ffargc])) {
@@ -83,6 +85,8 @@ int parseHdrFile(char inputFile[], ascii_hdr *header) {
 		if (ffargc != fargc) {
 			dfargc--;	
 		}
+
+		printf("%d\n", dfarg);
 
 		int optIdx = 0;
 		char charVal;
