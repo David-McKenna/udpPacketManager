@@ -11,13 +11,12 @@ void helpMessages() {
 	printf("\n\n");
 
 	printf("-i: <format>	Input file name format (default: './%%d')\n");
-	printf("-o: <format>	Output file name format (provide %%d, %%s and %%ld to fill in output ID, date/time string and the starting packet number) (default: './output%%d_%%s_%%ld')\n");
+	printf("-o: <format>	Output file name format (provide %%s and %%ld to fill in ate/time string and the starting packet number) (default: './output%%s_%%ld')\n");
 	printf("-m: <numPack>	Number of packets to process in each read request (default: 65536)\n");
 	printf("-u: <numPort>	Number of ports to combine (default: 4)\n");
 	printf("-t: <timeStr>	String of the time of the first requested packet, format YYYY-MM-DDTHH:mm:ss (default: '')\n");
 	printf("-s: <numSec>	Maximum number of seconds to process (default: all)\n");
-	printf("-e: <fileName>	Specify a file of events to extract; newline separated start time and durations in seconds. Events must not overlap.\n");
-	printf("-p: <mode>		Processing mode, options listed below (default: 0)\n");
+	printf("-e: <iters>		Split the file every N iterations (default: inf)\n");
 	printf("-r:		Replay the previous packet when a dropped packet is detected (default: 0 pad)\n");
 	printf("-c:		Change to the alternative clock used for modes 4/6 (160MHz clock) (default: False)\n");
 	printf("-q:		Enable silent mode for the CLI, don't print any information outside of library error messes (default: False)\n");
@@ -26,8 +25,6 @@ void helpMessages() {
 	
 	VERBOSE(printf("-v:		Enable verbose output (default: False)\n");
 			printf("-V:		Enable highly verbose output (default: False)\n"));
-
-	processingModes();
 
 }
 
@@ -38,8 +35,8 @@ int main(int argc, char  *argv[]) {
 	int inputOpt, outputFilesCount, input = 0;
 	float seconds = 0.0;
 	double sampleTime = 0.0;
-	char inputFormat[256] = "./%d", outputFormat[256] = "./output%d_%s_%ld", inputTime[256] = "", eventsFile[256] = "", stringBuff[128], hdrFile[2048] = "", timeStr[24] = "";
-	int ports = 4, processingMode = 0, replayDroppedPackets = 0, verbose = 0, silent = 0, appendMode = 0, compressedReader = 0, eventCount = 0, returnCounter = 0;
+	char inputFormat[256] = "./%d", outputFormat[256] = "./output_%s_%ld", inputTime[256] = "", stringBuff[128], hdrFile[2048] = "", timeStr[24] = "";
+	int ports = 4, replayDroppedPackets = 0, verbose = 0, silent = 0, appendMode = 0, compressedReader = 0, eventCount = 0, returnCounter = 0, itersPerFile = -1;
 	long packetsPerIteration = 65536, maxPackets = -1, startingPacket = -1;
 	unsigned int clock200MHz = 1;
 	ascii_hdr header = ascii_hdr_default;
@@ -61,7 +58,7 @@ int main(int argc, char  *argv[]) {
 	char **dateStr; // Sub elements need to be free'd too.
 
 	// Standard ugly input flags parser
-	while((inputOpt = getopt(argc, argv, "rcqfvVi:o:m:u:t:s:e:p:a:")) != -1) {
+	while((inputOpt = getopt(argc, argv, "rcqfvVi:o:m:u:t:s:e:a:")) != -1) {
 		input = 1;
 		switch(inputOpt) {
 			
@@ -90,11 +87,7 @@ int main(int argc, char  *argv[]) {
 				break;
 
 			case 'e':
-				strcpy(eventsFile, optarg);
-				break;
-
-			case 'p':
-				processingMode = atoi(optarg);
+				itersPerFile = atoi(optarg);
 				break;
 
 			case 'a':
@@ -136,7 +129,7 @@ int main(int argc, char  *argv[]) {
 
 			// Handle edge/error cases
 			case '?':
-				if ((optopt == 'i') || (optopt == 'o') || (optopt == 'm') || (optopt == 'u') || (optopt == 't') || (optopt == 's') || (optopt == 'e') || (optopt == 'p') || (optopt == 'a')) {
+				if ((optopt == 'i') || (optopt == 'o') || (optopt == 'm') || (optopt == 'u') || (optopt == 't') || (optopt == 's') || (optopt == 'e') || (optopt == 'a')) {
 					fprintf(stderr, "Option '%c' requires an argument.\n", optopt);
 				} else {
 					fprintf(stderr, "Option '%c' is unknown or encountered an error.\n", optopt);
@@ -159,14 +152,10 @@ int main(int argc, char  *argv[]) {
 	}
 
 	char workingString[1024];
-	
-	// processingMode -> N output-files 
-	outputFilesCount = ports;
-	if (processingMode == 2 || processingMode == 11 || processingMode == 21) outputFilesCount = UDPNPOL;
-	else if (processingMode == 10 || processingMode == 20 || processingMode > 99) outputFilesCount = 1;
+	outputFilesCount = 1;
 
 	// Sanity check a few inputs
-	if ( (strcmp(inputFormat, "") == 0) || (ports == 0) || (packetsPerIteration < 2)  || (replayDroppedPackets > 1 || replayDroppedPackets < 0) || (processingMode > 1000 || processingMode < 0) || (seconds < 0)) {
+	if ( (strcmp(inputFormat, "") == 0) || (ports == 0) || (packetsPerIteration < 2)  || (replayDroppedPackets > 1 || replayDroppedPackets < 0) || (seconds < 0)) {
 		fprintf(stderr, "One or more inputs invalid or not fully initialised, exiting.\n");
 		helpMessages();
 		return 1;
@@ -184,11 +173,6 @@ int main(int argc, char  *argv[]) {
 	// Determine the clock time
 	sampleTime = clock160MHzSample * (1 - clock200MHz) + clock200MHzSample * clock200MHz;
 
-	// Updae the sample time if we are doing some time averaging
-	if (processingMode > 100) {
-		sampleTime *= 1 << ((processingMode % 10));
-	}
-
 
 	if (silent == 0) {
 		printf("LOFAR UDP Data extractor (CLI v%.1f, Backend V%.1f)\n\n", VERSIONCLI, VERSION);
@@ -196,100 +180,32 @@ int main(int argc, char  *argv[]) {
 		printf("Input File:\t%s\nOutput File: %s\n\n", inputFormat, outputFormat);
 		printf("Packets/Gulp:\t%ld\t\t\tPorts:\t%d\n\n", packetsPerIteration, ports);
 		VERBOSE(printf("Verbose:\t%d\n", verbose););
-		printf("Proc Mode:\t%03d\t\t\tCompressed:\t%d\n\n", processingMode, compressedReader);
+		printf("Proc Mode:\t%03d\t\t\tCompressed:\t%d\n\n", 30, compressedReader);
 	}
 
 
 
-	// If given an events file,
-	if (strcmp(eventsFile, "") != 0) {
+	eventCount = 1;
 
-		// Try to read it
-		eventsFilePtr = fopen(eventsFile, "r");
-		if (eventsFilePtr == NULL) {
-			fprintf(stderr, "Unable to open events file at %s, exiting.\n", eventsFile);
-			return 1;
-		}
-
-		// The first line should be an int of the amount of events we need to process
-		returnCounter = fscanf(eventsFilePtr, "%d", &eventCount);
-		if (returnCounter != 1 || eventCount < 1) {
-			fprintf(stderr, "Unable to parse events file (got %d as number of events), exiting.\n", eventCount);
-			return 1;
-		}
-
-		// Malloc the arrays of the right length
-		startingPackets = calloc(eventCount, sizeof(long));
-		multiMaxPackets = calloc(eventCount, sizeof(long));
-		dateStr = calloc(eventCount, sizeof(char*));
-		eventSeconds = calloc(eventCount, sizeof(float));
-		for (int i =0; i < eventCount; i++) dateStr[i] = calloc(128, sizeof(char));
-
-		if (silent == 0) printf("Events File:\t%s\t\tEvent Count:\t%d\t\t\t200MHz Clock:\t%d\n", eventsFile, eventCount, clock200MHz);
-
-		// For each event,
-		for (int idx = 0; idx < eventCount; idx++) {
-			// Get the time string and length of the event
-			returnCounter = fscanf(eventsFilePtr, "%s %f", &stringBuff[0], &seconds);
-			strcpy(dateStr[idx], stringBuff);
-
-			if (returnCounter != 2) {
-				fprintf(stderr, "Unable to parse line %d of events file, exiting ('%s', %lf).\n", idx + 1, stringBuff, seconds);
-				return 1;
-			}
-
-			// Determine the packet corresponding to the initial time and the amount of packets needed to observe for  the length of the event
-			startingPackets[idx] = getStartingPacket(stringBuff, clock200MHz);
-			if (startingPackets[idx] == 1) return 1;
-
-			eventSeconds[idx] = seconds;
-			multiMaxPackets[idx] = getSecondsToPacket(seconds, clock200MHz);
-			// If packetsPerIteration is too high, we can reduce it later by tracking the largest requested input size
-			if (multiMaxPackets[idx] > maxPackets) maxPackets = multiMaxPackets[idx];
-
-			if(silent == 0) printf("Event:\t%d\tSeconds:\t%.02lf\tInitial Packet:\t%ld\t\tFinal Packet:\t%ld\n", idx, seconds, startingPackets[idx], startingPackets[idx] + multiMaxPackets[idx]);
-
-			// Safety check: all events are correctly ordered in increasing time, and do not overlap
-			// Compressed observations cannot be fseek'd, so this is a required design choice
-			if (idx > 0) {
-				if (startingPackets[idx] < startingPackets[idx-1]) {
-					fprintf(stderr, "Events %d and %d are out of order, please only use increasing event times, exiting.\n", idx, idx - 1);
-					return 1;
-				}
-
-				if (startingPackets[idx] < startingPackets[idx-1] + multiMaxPackets[idx -1]) {
-					fprintf(stderr, "Events %d and %d overlap, please combine them or ensure there is some buffer time between them, exiting.", idx, idx -1);
-					return 1;
-				}
-			}
-
-		}
-
-	} else {
-		// Repeat the step above for a single event, but read the defaults / -t and -s flags as the inputs
-		eventCount = 1;
-
-		startingPackets = calloc(1, sizeof(long));
-		dateStr = calloc(1, sizeof(char*));
-		dateStr[0] = calloc(1, sizeof("2020-20-20T-20:20:20"));
-		if (strcmp(inputTime, "") != 0) {
-			startingPacket = getStartingPacket(inputTime, clock200MHz);
-			if (startingPacket == 1) return 1;
-		}
-		startingPackets[0] = startingPacket;
-		strcpy(dateStr[0], inputTime);
-
-		eventSeconds = calloc(1, sizeof(float));
-		eventSeconds[0] = seconds;
-		multiMaxPackets = calloc(1, sizeof(long));
-		if(seconds != 0.0) multiMaxPackets[0] = getSecondsToPacket(seconds, clock200MHz);
-		else multiMaxPackets[0] = LONG_MAX;
-
-		maxPackets = multiMaxPackets[0];
-		if (silent == 0) printf("Start Time:\t%s\t200MHz Clock:\t%d\n", inputTime, clock200MHz);
-		if (silent == 0) printf("Initial Packet:\t%ld\t\tFinal Packet:\t%ld\n", startingPackets[0], startingPackets[0] + maxPackets);
+	startingPackets = calloc(1, sizeof(long));
+	dateStr = calloc(1, sizeof(char*));
+	dateStr[0] = calloc(1, sizeof("2020-20-20T-20:20:20"));
+	if (strcmp(inputTime, "") != 0) {
+		startingPacket = getStartingPacket(inputTime, clock200MHz);
+		if (startingPacket == 1) return 1;
 	}
+	startingPackets[0] = startingPacket;
+	strcpy(dateStr[0], inputTime);
 
+	eventSeconds = calloc(1, sizeof(float));
+	eventSeconds[0] = seconds;
+	multiMaxPackets = calloc(1, sizeof(long));
+	if(seconds != 0.0) multiMaxPackets[0] = getSecondsToPacket(seconds, clock200MHz);
+	else multiMaxPackets[0] = LONG_MAX;
+
+	maxPackets = multiMaxPackets[0];
+	if (silent == 0) printf("Start Time:\t%s\t200MHz Clock:\t%d\n", inputTime, clock200MHz);
+	if (silent == 0) printf("Initial Packet:\t%ld\t\tFinal Packet:\t%ld\n", startingPackets[0], startingPackets[0] + maxPackets);
 	if (silent == 0) printf("============ End configuration ============\n\n");
 
 
@@ -352,7 +268,7 @@ int main(int argc, char  *argv[]) {
 	CLICK(tick0);
 
 	// Generate the lofar_udp_reader, this also does I/O for the first input or seeks to the required packet
-	lofar_udp_reader *reader =  lofar_udp_meta_file_reader_setup(&(inputFiles[0]), ports, replayDroppedPackets, processingMode, verbose, packetsPerIteration, startingPackets[0], multiMaxPackets[0], compressedReader);
+	lofar_udp_reader *reader =  lofar_udp_meta_file_reader_setup(&(inputFiles[0]), ports, replayDroppedPackets, 30, verbose, packetsPerIteration, startingPackets[0], multiMaxPackets[0], compressedReader);
 
 	if (parseHdrFile(hdrFile, &header) > 0) {
 		fprintf(stderr, "Error initialising ASCII header struct, exiting.");
@@ -363,6 +279,10 @@ int main(int argc, char  *argv[]) {
 	header.obsnchan = reader->meta->totalBeamlets;
 	header.nbits = reader->meta->inputBitMode;
 	header.tbin = sampleTime;
+
+	double mjdTime = lofar_get_packet_time_mjd(reader->meta->inputData[0]);
+	header.stt_imjd = (int) mjdTime;
+	header.stt_smjd = (int) ((mjdTime - (int) mjdTime) * 86400);
 
 
 	// Returns null on error, check
@@ -387,22 +307,13 @@ int main(int argc, char  *argv[]) {
 	}
 
 	// Scan over the registered events
-	for (int eventLoop = 0; eventLoop < eventCount; eventLoop++) {
+	int endCondition = 0;
+	while (!endCondition) {
 		localLoops = 0;
 		returnVal = 0;
 
-		// Initialise / empty the packets lost array
-		for (int port = 0; port < reader->meta->numPorts; port++) eventPacketsLost[port] = 0;
-
-		// If we are not on the first event, set-up the reader for the current event
-		if (loops != 0) {
-			if ((returnVal = lofar_udp_file_reader_reuse(reader, startingPackets[eventLoop], multiMaxPackets[eventLoop])) > 0) {
-				fprintf(stderr, "Error re-initialising reader for event %d (error %d), exiting.\n", eventLoop, returnVal);
-				return 1;
-			}
-		} 
-
 		// Output information about the current/last event if we're performing more than one event
+		getStartTimeString(reader, timeStr);
 		if (eventCount > 1) 
 			if (silent == 0) {
 				if (eventLoop > 0)  {
@@ -410,12 +321,10 @@ int main(int argc, char  *argv[]) {
 					for (int port = 0; port < reader->meta->numPorts; port++) printf(" %ld", eventPacketsLost[port]);
 					printf(".\n\n\n");
 				}
-				printf("Beginning work on event %d at %s: packets %ld to %ld...\n", eventLoop, dateStr[eventLoop], startingPackets[eventLoop], startingPackets[eventLoop] + multiMaxPackets[eventLoop]);
+				printf("Beginning work on event %d at %s...\n", loop, timeStr);
 				getStartTimeString(reader, stringBuff);
 				printf("============ Event %d Information ===========\n", eventLoop);
-				printf("Target Time:\t%s\t\tActual Time:\t%s\n", dateStr[eventLoop], stringBuff);
-				printf("Target Packet:\t%ld\tActual Packet:\t%ld\n", startingPackets[eventLoop], reader->meta->lastPacket + 1);
-				printf("Event Length:\t%fs\t\tPacket Count:\t%ld\n", eventSeconds[eventLoop], multiMaxPackets[eventLoop]);
+				printf("Target Time:\t%s\t\tActual Time:\t%s\n", timeStr, stringBuff);
 				printf("MJD Time:\t%lf\n", lofar_get_packet_time_mjd(reader->meta->inputData[0]));
 				printf("============= End Information ==============\n");
 			}
@@ -426,7 +335,7 @@ int main(int argc, char  *argv[]) {
 
 		// Open the output files for this event
 		for (int out = 0; out < outputFilesCount; out++) {
-			sprintf(workingString, outputFormat, out, dateStr[eventLoop], startingPacket);
+			sprintf(workingString, outputFormat, timeStr, startingPacket);
 			VERBOSE(if (verbose) printf("Testing output file for output %d @ %s\n", out, workingString));
 			
 			if (appendMode != 1 && access(workingString, F_OK) != -1) {
@@ -440,6 +349,10 @@ int main(int argc, char  *argv[]) {
 			if (outputFiles[out] == NULL) {
 				fprintf(stderr, "Output file at %s could not be created, exiting.\n", workingString);
 				return 1;
+			}
+
+			if (loops > 0) {
+				if (silent == 0) printf("\n\nCompleted work for %d iterations, creating new file at %s\n\n\n", loops, workingString);
 			}
 		}
 
@@ -466,6 +379,12 @@ int main(int argc, char  *argv[]) {
 				
 				getStartTimeStringDAQ(reader, timeStr);
 				strcpy(header.daqpulse, timeStr);
+
+				// May cause issues if there's packet loss at the start of a data block
+				mjdTime = lofar_get_packet_time_mjd(reader->meta->inputData[0]);
+				header.stt_imjd = (int) mjdTime;
+				header.stt_smjd = (int) ((mjdTime - (int) mjdTime) * 86400);
+				header.pktidx += packetsToWrite;
 
 				writeHdr(outputFiles[out], &header);
 				
@@ -495,6 +414,7 @@ int main(int argc, char  *argv[]) {
 			// returnVal below 0 indicates we will not be given data on the next iteration, so gracefully exit with the known reason
 			if (returnVal < -1) {
 				printf("We've hit a termination return value (%d, %s), exiting.\n", returnVal, exitReasons[abs(returnVal)]);
+				endCondition = 1;
 				break;
 			}
 
@@ -502,6 +422,10 @@ int main(int argc, char  *argv[]) {
 			sleep(1);
 			#endif
 			CLICK(tick0);
+
+			if (localLoops > itersPerFile) {
+				break;
+			}
 		}
 
 		// Close the output files before we open new ones or exit
