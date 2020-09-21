@@ -206,7 +206,6 @@ int parseHdrFile(char inputFile[], ascii_hdr *header) {
 			}
 		}
 		ifargc = ffargc;
-		dfargc = 0;
 	}
 
 	return returnVal;
