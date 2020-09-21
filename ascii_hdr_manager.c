@@ -282,7 +282,7 @@ void writeLong(FILE *fileRef, char key[], long val) {
 void writeDouble(FILE *fileRef, char key[], double val) {
 	char tmpStr[80];
 	char intStr[20];
-	sprintf(intStr, "%lf", val);
+	sprintf(intStr, "%.9lf", val);
 	sprintf(tmpStr, "%-8s= %20s", key, intStr);
 	fprintf(fileRef, "%-80s", tmpStr);
 }
