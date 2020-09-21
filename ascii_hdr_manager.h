@@ -51,7 +51,7 @@ struct ascii_hdr_s {
 	long pktidx;
 	char pktfmt[68];
 	double stt_offs;
-	int pkt_size;
+	int pktsize;
 
 };
 
