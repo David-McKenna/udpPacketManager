@@ -2,7 +2,7 @@
 
 ascii_hdr ascii_hdr_default = {	"J0000+0000", "00:00:00.0000", "+00:00:00.0000", 149.90234375, 95.3125, 0.1953125, 488, 4, 8, 5.12e-6, \
 								"LIN", "TRACK", "RAW", "OFF", 0., "UDP2RAW", "Unknown", "ILT", "LOFAR-RSP", "LOFAR-UDP", "0.0.0.0", \
-								16130, 0, 0, "", 50000, 0, 0};
+								16130, 0, 0, "", 50000, 0, 0, "1SFA", 0.};
 
 // https://www.gnu.org/software/libc/manual/html_node/Getopt-Long-Option-Example.html
 static struct option long_options[] = {
@@ -35,6 +35,7 @@ static struct option long_options[] = {
 	{ "stt_smjd", required_argument, NULL, 'A'},
 	{ "pktidx", required_argument, NULL, 'B'},
 	{ "pktfmt", required_argument, NULL, 'C'},
+	{ "stt_offs", required_argument, NULL, 'D'},
 	{0, 0, NULL, 0}
 };
 
