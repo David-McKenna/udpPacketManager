@@ -72,7 +72,7 @@ int parseHdrFile(char inputFile[], ascii_hdr *header) {
 
 	int optIdx = 0;
 	char charVal;
-	while ((charVal = getopt_long(fargc, fargv, "a:b:c:d:e:f:g:h:i:j:k:l:m:n:o:p:q:r:s:t:u:v:w:x:y:z:A:B:", long_options, &optIdx)) != -1) {
+	while ((charVal = getopt_long(fargc, fargv, "+", long_options, &optIdx)) != -1) {
 		printf("%c= %s \n", charVal, optarg);
 		switch (charVal) {
 			case 'a':
