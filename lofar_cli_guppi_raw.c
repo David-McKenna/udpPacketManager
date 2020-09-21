@@ -380,13 +380,12 @@ int main(int argc, char  *argv[]) {
 			for (int out = 0; out < reader->meta->numOutputs; out++) {
 				header.blocsize = packetsToWrite * reader->meta->packetOutputLength[out];
 				
+				// Should this be processing time, rather than the recording time?
 				getStartTimeStringDAQ(reader, timeStr);
 				strcpy(header.daqpulse, timeStr);
 
 				// May cause issues if there's packet loss at the start of a data block
-				mjdTime = lofar_get_packet_time_mjd(reader->meta->inputData[0]);
-				header.stt_imjd = (int) mjdTime;
-				header.stt_smjd = (int) ((mjdTime - (int) mjdTime) * 86400);
+				header.stt_offs = ((mjdTime - lofar_get_packet_time_mjd(reader->meta->inputData[0])) * 86400.0);
 				if (loops > 0) {
 					header.pktidx += packetsToWrite;
 				}

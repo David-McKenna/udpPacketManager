@@ -49,6 +49,8 @@ struct ascii_hdr_s {
 	int stt_imjd;
 	int stt_smjd;
 	long pktidx;
+	char pktfmt[68];
+	double stt_offs;
 
 };
 
