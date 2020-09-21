@@ -62,11 +62,13 @@ int parseHdrFile(char inputFile[], ascii_hdr *header) {
 	char *fargv[4 * HEADER_ARGS];
 	int fargc = 0;
 	fargv[fargc] = strtok(fileData, " \n\r");
+	fargv[++fargc] = strtok(0, " \n\r");
 	printf("%d: %s\n", fargc, fargv[fargc]);
 
 	if (strcmp("--", fargv[fargc]) == 0) {
 		while (strcmp("--", fargv[fargc]) == 0) {
 			fargv[++fargc] = strtok(0, " \n\r");
+			printf("%d: %s\n", fargc, fargv[fargc]);
 		}
 	}
 
