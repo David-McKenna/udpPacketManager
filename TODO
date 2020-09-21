@@ -3,3 +3,4 @@ TODO:
 Better approach to out of order packets?
 4-bit decoding + processing
 CLIs -> Get the clock bit from raw data rather than requiring a flag
+lofar_udp_skip_to_packet has an offset issue that's causing a large amount of buffer-filled-before-finished errors in lofar_reader_read_nchars 

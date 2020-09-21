@@ -277,8 +277,11 @@ int main(int argc, char  *argv[]) {
 
 	// Pull the reader parameters into the ASCII header
 	header.obsnchan = reader->meta->totalBeamlets;
+	header.obsbw = header.obsnchan * header.chan_bw;
 	header.nbits = reader->meta->inputBitMode;
 	header.tbin = sampleTime;
+	header.npol = 2;
+	header.overlap = 0;
 
 	double mjdTime = lofar_get_packet_time_mjd(reader->meta->inputData[0]);
 	header.stt_imjd = (int) mjdTime;
@@ -335,7 +338,7 @@ int main(int argc, char  *argv[]) {
 
 		// Open the output files for this event
 		for (int out = 0; out < outputFilesCount; out++) {
-			sprintf(workingString, outputFormat, timeStr, startingPacket);
+			sprintf(workingString, outputFormat, timeStr, loops);
 			VERBOSE(if (verbose) printf("Testing output file for output %d @ %s\n", out, workingString));
 			
 			if (appendMode != 1 && access(workingString, F_OK) != -1) {
@@ -384,7 +387,9 @@ int main(int argc, char  *argv[]) {
 				mjdTime = lofar_get_packet_time_mjd(reader->meta->inputData[0]);
 				header.stt_imjd = (int) mjdTime;
 				header.stt_smjd = (int) ((mjdTime - (int) mjdTime) * 86400);
-				header.pktidx += packetsToWrite;
+				if (loops > 0) {
+					header.pktidx += packetsToWrite;
+				}
 
 				writeHdr(outputFiles[out], &header);
 				

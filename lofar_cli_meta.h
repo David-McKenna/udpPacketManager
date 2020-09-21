@@ -12,6 +12,7 @@
 
 #ifndef __LOFAR_CLI_META
 #define __LOFAR_CLI_META
+void helpMessages(void);
 void processingModes(void);
 long getStartingPacket(char inputTime[], const int clock200MHz);
 long getSecondsToPacket(float seconds, const int clock200MHz);
