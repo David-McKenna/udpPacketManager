@@ -174,7 +174,7 @@ int parseHdrFile(char inputFile[], ascii_hdr *header) {
 				break;
 
 			case 'A':
-				breader->stt_smjd = atoi(optarg);
+				header->stt_smjd = atoi(optarg);
 				break;
 
 			case 'B':
