@@ -34,7 +34,7 @@ static struct option long_options[] = {
 	{ "stt_imjd", required_argument, NULL, 'z'},
 	{ "stt_smjd", required_argument, NULL, 'A'},
 	{ "pktidx", required_argument, NULL, 'B'},
-	{NULL, NULL, NULL, NULL}
+	{0, 0, NULL, 0}
 };
 
 
@@ -186,6 +186,7 @@ int parseHdrFile(char inputFile[], ascii_hdr *header) {
 				header->pktidx = atol(optarg);
 				break;
 
+			case '0':
 			case '?':
 			default:
 				fprintf(stderr, "Unknown flag %d (%s), continuing with caution...\n", charVal, optarg);
