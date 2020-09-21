@@ -4,6 +4,40 @@ ascii_hdr ascii_hdr_default = {	"J0000+0000", "00:00:00.0000", "+00:00:00.0000",
 								"LIN", "TRACK", "RAW", "OFF", 0., "UDP2RAW", "Unknown", "ILT", "LOFAR-RSP", "LOFAR-UDP", "0.0.0.0", \
 								16130, 0, 0, "", 50000, 0, 0};
 
+// https://www.gnu.org/software/libc/manual/html_node/Getopt-Long-Option-Example.html
+static struct option long_options[] = {
+	{ "src_name", required_argument, 0, 'a'},
+	{ "ra_str", required_argument, 0, 'b'},
+	{ "dec_str", required_argument, 0, 'c'},
+	{ "obsfreq", required_argument, 0, 'd'},
+	{ "obsbw", required_argument, 0, 'e'},
+	{ "chan_bw", required_argument, 0, 'f'},
+	{ "obsnchan", required_argument, 0, 'g'},
+	{ "npol", required_argument, 0, 'h'},
+	{ "nbits", required_argument, 0, 'i'},
+	{ "tbin", required_argument, 0, 'j'},
+	{ "fd_poln", required_argument, 0, 'k'},
+	{ "trk_mode", required_argument, 0, 'l'},
+	{ "obs_mode", required_argument, 0, 'm'},
+	{ "cal_mode", required_argument, 0, 'n'},
+	{ "scanlen", required_argument, 0, 'o'},
+	{ "projid", required_argument, 0, 'p'},
+	{ "observer", required_argument, 0, 'q'},
+	{ "telescop", required_argument, 0, 'r'},
+	{ "frontend", required_argument, 0, 's'},
+	{ "backend", required_argument, 0, 't'},
+	{ "datahost", required_argument, 0, 'u'},
+	{ "dataport", required_argument, 0, 'v'},
+	{ "overlap", required_argument, 0, 'w'},
+	{ "blocsize", required_argument, 0, 'x'},
+	{ "daqpulse", required_argument, 0, 'y'},
+	{ "stt_imjd", required_argument, 0, 'z'},
+	{ "stt_smjd", required_argument, 0, 'A'},
+	{ "pktidx", required_argument, 0, 'B'},
+	{0, 0, 0, 0}
+};
+
+
 int parseHdrFile(char inputFile[], ascii_hdr *header) {
 	int returnVal = 0;
 
@@ -22,6 +56,8 @@ int parseHdrFile(char inputFile[], ascii_hdr *header) {
 	
 	fclose(fileRef);
 
+	printf("%s\n", fileData);
+
 	// https://stackoverflow.com/posts/39841506
 	char *fargv[HEADER_ARGS + 1];
 	int fargc = 0;
@@ -30,40 +66,8 @@ int parseHdrFile(char inputFile[], ascii_hdr *header) {
 	while (fargc < HEADER_ARGS && fargv[fargc] != 0) {
 		fargc++;
 		fargv[fargc] = strtok(0, " \n\r");
+		printf("%d: %s\n", fargc, fargv[fargc]);
 	}
-
-	// https://www.gnu.org/software/libc/manual/html_node/Getopt-Long-Option-Example.html
-	static struct option long_options[] = {
-		{ "src_name", required_argument, 0, 'a'},
-		{ "ra_str", required_argument, 0, 'b'},
-		{ "dec_str", required_argument, 0, 'c'},
-		{ "obsfreq", required_argument, 0, 'd'},
-		{ "obsbw", required_argument, 0, 'e'},
-		{ "chan_bw", required_argument, 0, 'f'},
-		{ "obsnchan", required_argument, 0, 'g'},
-		{ "npol", required_argument, 0, 'h'},
-		{ "nbits", required_argument, 0, 'i'},
-		{ "tbin", required_argument, 0, 'j'},
-		{ "fd_poln", required_argument, 0, 'j'},
-		{ "trk_mode", required_argument, 0, 'l'},
-		{ "obs_mode", required_argument, 0, 'm'},
-		{ "cal_mode", required_argument, 0, 'n'},
-		{ "scanlen", required_argument, 0, 'o'},
-		{ "projid", required_argument, 0, 'p'},
-		{ "observer", required_argument, 0, 'q'},
-		{ "telescop", required_argument, 0, 'r'},
-		{ "frontend", required_argument, 0, 's'},
-		{ "backend", required_argument, 0, 't'},
-		{ "datahost", required_argument, 0, 'u'},
-		{ "dataport", required_argument, 0, 'v'},
-		{ "overlap", required_argument, 0, 'w'},
-		{ "blocsize", required_argument, 0, 'x'},
-		{ "daqpulse", required_argument, 0, 'y'},
-		{ "stt_imjd", required_argument, 0, 'z'},
-		{ "stt_smjd", required_argument, 0, 'A'},
-		{ "pktidx", required_argument, 0, 'B'},
-		{0, 0, 0, 0}
-	};
 
 	int optIdx = 0;
 	char charVal;
