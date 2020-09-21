@@ -36,6 +36,7 @@ static struct option long_options[] = {
 	{ "pktidx", required_argument, NULL, 'B'},
 	{ "pktfmt", required_argument, NULL, 'C'},
 	{ "stt_offs", required_argument, NULL, 'D'},
+	{ "pkt_size", required_argument, NULL, 'E'},
 	{0, 0, NULL, 0}
 };
 
@@ -194,6 +195,11 @@ int parseHdrFile(char inputFile[], ascii_hdr *header) {
 
 			case 'D':
 				header->stt_offs = atof(optarg);
+				break;
+
+			case 'E':
+				header->pkt_size = atoi(optarg);
+				break;
 
 			case '0':
 			case '?':

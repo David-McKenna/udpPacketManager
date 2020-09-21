@@ -282,7 +282,7 @@ int main(int argc, char  *argv[]) {
 	header.tbin = sampleTime;
 	header.npol = 2;
 	header.overlap = 0;
-	header.pktfmt = "1SFA";
+	strcpy(header.pktfmt, "1SFA");
 	header.pktsize = reader->meta->portPacketLength[0];
 
 	double mjdTime = lofar_get_packet_time_mjd(reader->meta->inputData[0]);
