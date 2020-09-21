@@ -59,7 +59,7 @@ int parseHdrFile(char inputFile[], ascii_hdr *header) {
 	printf("%s\n", fileData);
 
 	// https://stackoverflow.com/posts/39841506/
-	char *fargv[HEADER_ARGS + 1];
+	char *fargv[4 * HEADER_ARGS];
 	int fargc = 0;
 	fargv[fargc] = strtok(fileData, " \n\r");
 	printf("%d: %s\n", fargc, fargv[fargc]);
