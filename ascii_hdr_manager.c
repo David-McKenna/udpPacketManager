@@ -225,7 +225,7 @@ void writeHdr(FILE *fileRef, ascii_hdr *header) {
 	writeInt(fileRef, "STT_IMJD", header->stt_imjd);
 	writeInt(fileRef, "STT_SMJD", header->stt_smjd);
 
-	writeLong(fileRef, "PKTIDX", header->pktidx)l
+	writeLong(fileRef, "PKTIDX", header->pktidx);
 
 	const char end[3] = "END";
 	fprintf(fileRef, "%-80s", end);
