@@ -35,7 +35,7 @@ int main(int argc, char  *argv[]) {
 	int inputOpt, outputFilesCount, input = 0;
 	float seconds = 0.0;
 	double sampleTime = 0.0;
-	char inputFormat[256] = "./%d", outputFormat[256] = "./output_%s_%ld", inputTime[256] = "", stringBuff[128], hdrFile[2048] = "", timeStr[24] = "";
+	char inputFormat[256] = "./%d", outputFormat[256] = "./output_%s_%ld", inputTime[256] = "", stringBuff[128], hdrFile[2048] = "", timeStr[28] = "";
 	int ports = 4, replayDroppedPackets = 0, verbose = 0, silent = 0, appendMode = 0, compressedReader = 0, eventCount = 0, returnCounter = 0, itersPerFile = -1;
 	long packetsPerIteration = 65536, maxPackets = -1, startingPacket = -1;
 	unsigned int clock200MHz = 1;
@@ -428,7 +428,7 @@ int main(int argc, char  *argv[]) {
 			#endif
 			CLICK(tick0);
 
-			if (localLoops > itersPerFile) {
+			if (localLoops == itersPerFile) {
 				break;
 			}
 		}
@@ -485,5 +485,5 @@ void getStartTimeStringDAQ(lofar_udp_reader *reader, char stringBuff[24]) {
 	startTimeUnix = (unsigned int) startTime;
 	startTimeStruct = gmtime(&startTimeUnix);
 
-	strftime(stringBuff, 24, "%c", startTimeStruct);
+	strftime(stringBuff, 24, "%a %b %e %H:%M:%S %Y", startTimeStruct);
 }
