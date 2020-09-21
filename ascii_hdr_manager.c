@@ -249,6 +249,7 @@ void writeHdr(FILE *fileRef, ascii_hdr *header) {
 
 	writeLong(fileRef, "PKTIDX", header->pktidx);
 	writeStr(fileRef, "PKTFMT", header->pktfmt);
+	writeInt(fileRef, "PKTSIZE", header->pktsize);
 
 	writeDouble(fileRef, "STT_OFFS", header->stt_offs);
 
