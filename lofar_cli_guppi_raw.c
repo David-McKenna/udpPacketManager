@@ -372,7 +372,7 @@ int main(int argc, char  *argv[]) {
 
 			// Write out the desired amount of packets; cap if needed.
 			packetsToWrite = reader->meta->packetsPerIteration;
-			if (multiMaxPackets[loops] < packetsToWrite) packetsToWrite = multiMaxPackets[loops];
+			if (multiMaxPackets[0] < packetsToWrite) packetsToWrite = multiMaxPackets[0];
 
 			CLICK(tick0);
 			
