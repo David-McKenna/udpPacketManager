@@ -6,35 +6,35 @@ ascii_hdr ascii_hdr_default = {	"J0000+0000", "00:00:00.0000", "+00:00:00.0000",
 
 // https://www.gnu.org/software/libc/manual/html_node/Getopt-Long-Option-Example.html
 static struct option long_options[] = {
-	{ "src_name", required_argument, 0, 'a'},
-	{ "ra_str", required_argument, 0, 'b'},
-	{ "dec_str", required_argument, 0, 'c'},
-	{ "obsfreq", required_argument, 0, 'd'},
-	{ "obsbw", required_argument, 0, 'e'},
-	{ "chan_bw", required_argument, 0, 'f'},
-	{ "obsnchan", required_argument, 0, 'g'},
-	{ "npol", required_argument, 0, 'h'},
-	{ "nbits", required_argument, 0, 'i'},
-	{ "tbin", required_argument, 0, 'j'},
-	{ "fd_poln", required_argument, 0, 'k'},
-	{ "trk_mode", required_argument, 0, 'l'},
-	{ "obs_mode", required_argument, 0, 'm'},
-	{ "cal_mode", required_argument, 0, 'n'},
-	{ "scanlen", required_argument, 0, 'o'},
-	{ "projid", required_argument, 0, 'p'},
-	{ "observer", required_argument, 0, 'q'},
-	{ "telescop", required_argument, 0, 'r'},
-	{ "frontend", required_argument, 0, 's'},
-	{ "backend", required_argument, 0, 't'},
-	{ "datahost", required_argument, 0, 'u'},
-	{ "dataport", required_argument, 0, 'v'},
-	{ "overlap", required_argument, 0, 'w'},
-	{ "blocsize", required_argument, 0, 'x'},
-	{ "daqpulse", required_argument, 0, 'y'},
-	{ "stt_imjd", required_argument, 0, 'z'},
-	{ "stt_smjd", required_argument, 0, 'A'},
-	{ "pktidx", required_argument, 0, 'B'},
-	{0, 0, 0, 0}
+	{ "src_name", required_argument, NULL, 'a'},
+	{ "ra_str", required_argument, NULL, 'b'},
+	{ "dec_str", required_argument, NULL, 'c'},
+	{ "obsfreq", required_argument, NULL, 'd'},
+	{ "obsbw", required_argument, NULL, 'e'},
+	{ "chan_bw", required_argument, NULL, 'f'},
+	{ "obsnchan", required_argument, NULL, 'g'},
+	{ "npol", required_argument, NULL, 'h'},
+	{ "nbits", required_argument, NULL, 'i'},
+	{ "tbin", required_argument, NULL, 'j'},
+	{ "fd_poln", required_argument, NULL, 'k'},
+	{ "trk_mode", required_argument, NULL, 'l'},
+	{ "obs_mode", required_argument, NULL, 'm'},
+	{ "cal_mode", required_argument, NULL, 'n'},
+	{ "scanlen", required_argument, NULL, 'o'},
+	{ "projid", required_argument, NULL, 'p'},
+	{ "observer", required_argument, NULL, 'q'},
+	{ "telescop", required_argument, NULL, 'r'},
+	{ "frontend", required_argument, NULL, 's'},
+	{ "backend", required_argument, NULL, 't'},
+	{ "datahost", required_argument, NULL, 'u'},
+	{ "dataport", required_argument, NULL, 'v'},
+	{ "overlap", required_argument, NULL, 'w'},
+	{ "blocsize", required_argument, NULL, 'x'},
+	{ "daqpulse", required_argument, NULL, 'y'},
+	{ "stt_imjd", required_argument, NULL, 'z'},
+	{ "stt_smjd", required_argument, NULL, 'A'},
+	{ "pktidx", required_argument, NULL, 'B'},
+	{NULL, NULL, NULL, NULL}
 };
 
 
@@ -63,7 +63,7 @@ int parseHdrFile(char inputFile[], ascii_hdr *header) {
 	int fargc = 0;
 	fargv[fargc] = strtok(fileData, " \n\r");
 	printf("%d: %s\n", fargc, fargv[fargc]);
-	
+
 	while (fargc < HEADER_ARGS && fargv[fargc] != 0) {
 		fargc++;
 		fargv[fargc] = strtok(0, " \n\r");
@@ -186,6 +186,7 @@ int parseHdrFile(char inputFile[], ascii_hdr *header) {
 				header->pktidx = atol(optarg);
 				break;
 
+			case '?':
 			default:
 				fprintf(stderr, "Unknown flag %d (%s), continuing with caution...\n", charVal, optarg);
 				returnVal = -1;
