@@ -64,136 +64,149 @@ int parseHdrFile(char inputFile[], ascii_hdr *header) {
 	fargv[fargc] = strtok(fileData, " \n\r");
 	printf("%d: %s\n", fargc, fargv[fargc]);
 
-	while (fargc < HEADER_ARGS && fargv[fargc] != 0) {
-		fargc++;
-		fargv[fargc] = strtok(0, " \n\r");
-		printf("%d: %s\n", fargc, fargv[fargc]);
-	}
-
-	int optIdx = 0;
-	char charVal;
-	while ((charVal = getopt_long(fargc, fargv, "a:b:c:d:e:f:g:h:i:j:k:l:m:n:o:p:q:r:s:t:u:v:w:x:y:z:A:B:", long_options, &optIdx)) != -1) {
-		printf("%c= %s \n", charVal, optarg);
-		switch (charVal) {
-			case 'a':
-				strcpy(header->src_name, optarg);
-				break;
-			case 'b':
-				strcpy(header->ra_str, optarg);
-				break;
-
-			case 'c':
-				strcpy(header->dec_str, optarg);
-				break;
-
-			case 'd':
-				header->obsfreq = atof(optarg);
-				break;
-
-			case 'e':
-				header->obsbw = atof(optarg);
-				break;
-
-			case 'f':
-				header->chan_bw = atof(optarg);
-				break;
-
-			case 'g':
-				header->obsnchan = atoi(optarg);
-				break;
-
-			case 'h':
-				header->npol = atoi(optarg);
-				break;
-
-			case 'i':
-				header->nbits = atoi(optarg);
-				break;
-
-			case 'j':
-				header->tbin = atof(optarg);
-				break;
-
-			case 'k':
-				strcpy(header->fd_poln, optarg);
-				break;
-
-			case 'l':
-				strcpy(header->trk_mode, optarg);
-				break;
-
-			case 'm':
-				strcpy(header->obs_mode, optarg);
-				break;
-
-			case 'n':
-				strcpy(header->cal_mode, optarg);
-				break;
-
-			case 'o':
-				header->scanlen = atof(optarg);
-				break;
-
-			case 'p':
-				strcpy(header->projid, optarg);
-				break;
-
-			case 'q':
-				strcpy(header->observer, optarg);
-				break;
-
-			case 'r':
-				strcpy(header->telescop, optarg);
-				break;
-
-			case 's':
-				strcpy(header->frontend, optarg);
-				break;
-
-			case 't':
-				strcpy(header->backend, optarg);
-				break;
-
-			case 'u':
-				strcpy(header->datahost, optarg);
-				break;
-
-			case 'v':
-				header->dataport = atoi(optarg);
-				break;
-
-			case 'w':
-				header->overlap = atoi(optarg);
-				break;
-
-			case 'x':
-				header->blocsize = atol(optarg);
-				break;
-
-			case 'y':
-				strcpy(header->daqpulse, optarg);
-				break;
-
-			case 'z':
-				header->stt_imjd = atoi(optarg);
-				break;
-
-			case 'A':
-				header->stt_smjd = atoi(optarg);
-				break;
-
-			case 'B':
-				header->pktidx = atol(optarg);
-				break;
-
-			case '0':
-			case '?':
-			default:
-				fprintf(stderr, "Unknown flag %d (%s), continuing with caution...\n", charVal, optarg);
-				returnVal = -1;
-				break;
+	if (strcmp("--", fgarv[fargc]) == 0) {
+		while (strcmp("--", fgarv[fargc]) == 0) {
+			fargv[++fargc] = strtok(0, " \n\r");
 		}
 	}
+
+	int ifargc = 0, dfargc = fargc;
+	while (ffargc < fargc) {
+		while (fargc < HEADER_ARGS && fargv[fargc] != 0 && strcmp("--", fgarc[fargv]) == 0) {
+			dfargc++;
+			fargv[++fargc] = strtok(0, " \n\r");
+			printf("%d: %s\n", fargc, fargv[fargc]);
+		}
+
+		if (ffargc != fargc) {
+			ffargc--; dfarg--;		
+		}
+
+		int optIdx = 0;
+		char charVal;
+		while ((charVal = getopt_long(dfargc, &(fargv[ifargc]), "a:b:c:d:e:f:g:h:i:j:k:l:m:n:o:p:q:r:s:t:u:v:w:x:y:z:A:B:", long_options, &optIdx)) != -1) {
+			printf("%c= %s \n", charVal, optarg);
+			switch (charVal) {
+				case 'a':
+					strcpy(header->src_name, optarg);
+					break;
+				case 'b':
+					strcpy(header->ra_str, optarg);
+					break;
+
+				case 'c':
+					strcpy(header->dec_str, optarg);
+					break;
+
+				case 'd':
+					header->obsfreq = atof(optarg);
+					break;
+
+				case 'e':
+					header->obsbw = atof(optarg);
+					break;
+
+				case 'f':
+					header->chan_bw = atof(optarg);
+					break;
+
+				case 'g':
+					header->obsnchan = atoi(optarg);
+					break;
+
+				case 'h':
+					header->npol = atoi(optarg);
+					break;
+
+				case 'i':
+					header->nbits = atoi(optarg);
+					break;
+
+				case 'j':
+					header->tbin = atof(optarg);
+					break;
+
+				case 'k':
+					strcpy(header->fd_poln, optarg);
+					break;
+
+				case 'l':
+					strcpy(header->trk_mode, optarg);
+					break;
+
+				case 'm':
+					strcpy(header->obs_mode, optarg);
+					break;
+
+				case 'n':
+					strcpy(header->cal_mode, optarg);
+					break;
+
+				case 'o':
+					header->scanlen = atof(optarg);
+					break;
+
+				case 'p':
+					strcpy(header->projid, optarg);
+					break;
+
+				case 'q':
+					strcpy(header->observer, optarg);
+					break;
+
+				case 'r':
+					strcpy(header->telescop, optarg);
+					break;
+
+				case 's':
+					strcpy(header->frontend, optarg);
+					break;
+
+				case 't':
+					strcpy(header->backend, optarg);
+					break;
+
+				case 'u':
+					strcpy(header->datahost, optarg);
+					break;
+
+				case 'v':
+					header->dataport = atoi(optarg);
+					break;
+
+				case 'w':
+					header->overlap = atoi(optarg);
+					break;
+
+				case 'x':
+					header->blocsize = atol(optarg);
+					break;
+
+				case 'y':
+					strcpy(header->daqpulse, optarg);
+					break;
+
+				case 'z':
+					header->stt_imjd = atoi(optarg);
+					break;
+
+				case 'A':
+					header->stt_smjd = atoi(optarg);
+					break;
+
+				case 'B':
+					header->pktidx = atol(optarg);
+					break;
+
+				case '0':
+				case '?':
+				default:
+					fprintf(stderr, "Unknown flag %d (%s), continuing with caution...\n", charVal, optarg);
+					returnVal = -1;
+					break;
+			}
+			ifargc += dfargc;
+		}
 
 	return returnVal;
 }
