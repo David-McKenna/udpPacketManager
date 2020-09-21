@@ -74,6 +74,9 @@ int parseHdrFile(char inputFile[], ascii_hdr *header) {
 
 	int ifargc = 0, dfargc = fargc;
 	while (fargv[fargc] != 0) {
+		dfargc++;
+		fargv[++fargc] = strtok(0, " \n\r");
+		
 		while (fargc < HEADER_ARGS && fargv[fargc] != 0 && strcmp("--", fargc[fargv]) == 0) {
 			dfargc++;
 			fargv[++fargc] = strtok(0, " \n\r");
