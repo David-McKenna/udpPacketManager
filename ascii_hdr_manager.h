@@ -53,6 +53,9 @@ struct ascii_hdr_s {
 	double stt_offs;
 	int pktsize;
 
+	double dropblk;
+	double droptot;
+
 };
 
 typedef struct ascii_hdr_s ascii_hdr;

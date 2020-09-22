@@ -288,6 +288,7 @@ int main(int argc, char  *argv[]) {
 	double mjdTime = lofar_get_packet_time_mjd(reader->meta->inputData[0]);
 	header.stt_imjd = (int) mjdTime;
 	header.stt_smjd = (int) ((mjdTime - (int) mjdTime) * 86400);
+	header.stt_offs = ((mjdTime - (int) mjdTime) * 86400) - header.stt_smjd;
 
 
 	// Returns null on error, check
@@ -313,6 +314,7 @@ int main(int argc, char  *argv[]) {
 
 	// Scan over the registered events
 	int endCondition = 0;
+	int totalDropped = 0, blockDropped = 0;
 	while (!endCondition) {
 		localLoops = 0;
 		returnVal = 0;
@@ -376,6 +378,12 @@ int main(int argc, char  *argv[]) {
 			packetsToWrite = reader->meta->packetsPerIteration;
 			if (multiMaxPackets[0] < packetsToWrite) packetsToWrite = multiMaxPackets[0];
 
+			for(int port = 0; port < reader->meta->numPorts; port++)
+				if (reader->meta->portLastDroppedPackets[port] != 0) {
+					blockDropped += reader->meta->portLastDroppedPackets[port];
+					totalDropped += blockDropped;
+				}
+
 			CLICK(tick0);
 			
 			#ifndef BENCHMARKING
@@ -386,7 +394,8 @@ int main(int argc, char  *argv[]) {
 				getStartTimeStringDAQ(reader, timeStr);
 				strcpy(header.daqpulse, timeStr);
 
-				header.stt_offs = header.tbin * packetsWritten * UDPNTIMESLICE;
+				header->dropblk = blockDropped / packetsToWrite;
+				header->droptot = totalDropped / (packetsWritten + packetsToWrite);
 
 				if (loops > 0) {
 					header.pktidx += packetsToWrite;
@@ -416,7 +425,7 @@ int main(int argc, char  *argv[]) {
 			}
 
 			loops++; localLoops++;
-
+			blockDropped = 0;
 			// returnVal below 0 indicates we will not be given data on the next iteration, so gracefully exit with the known reason
 			if (returnVal < -1) {
 				printf("We've hit a termination return value (%d, %s), exiting.\n", returnVal, exitReasons[abs(returnVal)]);

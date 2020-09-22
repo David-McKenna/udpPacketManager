@@ -2,7 +2,7 @@
 
 ascii_hdr ascii_hdr_default = {	"J0000+0000", "00:00:00.0000", "+00:00:00.0000", 149.90234375, 95.3125, 0.1953125, 488, 4, 8, 5.12e-6, \
 								"LIN", "TRACK", "RAW", "OFF", 0., "UDP2RAW", "Unknown", "ILT", "LOFAR-RSP", "LOFAR-UDP", "0.0.0.0", \
-								16130, 0, 0, "", 50000, 0, 0, "1SFA", 0.};
+								16130, 0, 0, "", 50000, 0, 0, "1SFA", 0., 0., 0.};
 
 // https://www.gnu.org/software/libc/manual/html_node/Getopt-Long-Option-Example.html
 static struct option long_options[] = {
@@ -37,6 +37,8 @@ static struct option long_options[] = {
 	{ "pktfmt", required_argument, NULL, 'C'},
 	{ "stt_offs", required_argument, NULL, 'D'},
 	{ "pktsize", required_argument, NULL, 'E'},
+	{ "dropblk", required_argument, NULL, 'F'}
+	{ "droptot", required_argument, NULL, 'G'}
 	{0, 0, NULL, 0}
 };
 
@@ -201,6 +203,14 @@ int parseHdrFile(char inputFile[], ascii_hdr *header) {
 				header->pktsize = atoi(optarg);
 				break;
 
+			case 'F':
+				header->dropblk = atof(optarg);
+				break;
+
+			case 'G':
+				header->droptot = atof(optarg);
+				break;
+
 			case '0':
 			case '?':
 			default:
@@ -246,12 +256,15 @@ void writeHdr(FILE *fileRef, ascii_hdr *header) {
 
 	writeInt(fileRef, "STT_IMJD", header->stt_imjd);
 	writeInt(fileRef, "STT_SMJD", header->stt_smjd);
+	writeDouble(fileRef, "STT_OFFS", header->stt_offs);
 
 	writeLong(fileRef, "PKTIDX", header->pktidx);
 	writeStr(fileRef, "PKTFMT", header->pktfmt);
 	writeInt(fileRef, "PKTSIZE", header->pktsize);
 
-	writeDouble(fileRef, "STT_OFFS", header->stt_offs);
+	writeDouble(fileRef, "DROPBLK", header->dropblk);
+	writeDouble(fileRef, "DROPTOT", header->droptot);
+
 
 	const char end[3] = "END";
 	fprintf(fileRef, "%-80s", end);
