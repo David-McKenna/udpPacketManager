@@ -327,7 +327,7 @@ int main(int argc, char  *argv[]) {
 
 		// Open the output files for this event
 		for (int out = 0; out < outputFilesCount; out++) {
-			sprintf(workingString, outputFormat, loops, timeStr);
+			sprintf(workingString, outputFormat, loops / itersPerFile, timeStr);
 			VERBOSE(if (verbose) printf("Testing output file for output %d @ %s\n", out, workingString));
 			
 			if (appendMode != 1 && access(workingString, F_OK) != -1) {
