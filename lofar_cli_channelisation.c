@@ -618,9 +618,7 @@ void detect(int nbin, int processingFactor, int nfft, int nsubbands, fftwf_compl
 	#pragma omp parallel for
 	for (int ibin = 0; ibin < nbin / processingFactor; ibin++) {
 		#ifdef __INTEL_COMPILER
-		#pragma omp simd
-		#else
-		#pragma GCC unroll 122
+		#pragma omp task firstprivate(ibin)
 		#endif
 		for (int ichan = 0; ichan < processingFactor; ichan++) {
 			#ifdef __INTEL_COMPILER
@@ -639,6 +637,10 @@ void detect(int nbin, int processingFactor, int nfft, int nsubbands, fftwf_compl
 			}
 		}
 	}
+
+	#ifdef __INTEL_COMPILER
+	#pragma omp taskwait
+	#endif
 }
 
 
@@ -656,7 +658,7 @@ void reorderSpectrum(fftwf_complex **workingArr, int nbin, int nruns) {
 		}
 		
 		#ifdef __INTEL_COMPILER
-		#pragma omp simd
+		#pragma omp task firstprivate(i, k)
 		#else
 		#pragma GCC unroll 16
 		#endif
@@ -678,4 +680,8 @@ void reorderSpectrum(fftwf_complex **workingArr, int nbin, int nruns) {
 			}
 		}
 	}
+
+	#ifdef __INTEL_COMPILER
+	#pragma omp taskwait
+	#endif
 }
