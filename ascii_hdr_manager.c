@@ -37,8 +37,8 @@ static struct option long_options[] = {
 	{ "pktfmt", required_argument, NULL, 'C'},
 	{ "stt_offs", required_argument, NULL, 'D'},
 	{ "pktsize", required_argument, NULL, 'E'},
-	{ "dropblk", required_argument, NULL, 'F'}
-	{ "droptot", required_argument, NULL, 'G'}
+	{ "dropblk", required_argument, NULL, 'F'},
+	{ "droptot", required_argument, NULL, 'G'},
 	{0, 0, NULL, 0}
 };
 
