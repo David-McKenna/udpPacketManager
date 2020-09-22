@@ -386,8 +386,8 @@ int main(int argc, char  *argv[]) {
 				getStartTimeStringDAQ(reader, timeStr);
 				strcpy(header.daqpulse, timeStr);
 
-				// May cause issues if there's packet loss at the start of a data block
-				header.stt_offs = ((lofar_get_packet_time_mjd(reader->meta->inputData[0]) - mjdTime) * 86400.0);
+				header.stt_offs = header.tbin * packetsWritten;
+
 				if (loops > 0) {
 					header.pktidx += packetsToWrite;
 				}
