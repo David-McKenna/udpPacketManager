@@ -32,7 +32,6 @@ void helpMessages() {
 	VERBOSE(printf("-v:		Enable verbose output (default: False)\n");
 			printf("-V:		Enable highly verbose output (default: False)\n"));
 
-	processingModes();
 }
 
 
@@ -43,7 +42,7 @@ int main(int argc, char  *argv[]) {
 	float seconds = 0.0;
 	double sampleTime = 0.0;
 	char inputFormat[256] = "./%d", outputFormat[256] = "./output%d_%s_%ld", inputTime[256] = "", eventsFile[256] = "", stringBuff[128], mockHdrArg[2048] = "", mockHdrCmd[4096] = "";
-	int ports = 4, processingFactor = 0, replayDroppedPackets = 0, verbose = 0, silent = 0, appendMode = 0, compressedReader = 0, eventCount = 0, returnCounter = 0, callMockHdr = 0;
+	int ports = 4, processingFactor = 16, replayDroppedPackets = 0, verbose = 0, silent = 0, appendMode = 0, compressedReader = 0, eventCount = 0, returnCounter = 0, callMockHdr = 0;
 	long packetsPerIteration = 65536, maxPackets = -1, startingPacket = -1;
 	unsigned int clock200MHz = 1;
 	FILE *eventsFilePtr;
@@ -170,7 +169,7 @@ int main(int argc, char  *argv[]) {
 	outputFilesCount = 1;
 	
 
-	if (!(packetsPerIteration * UDPNTIMESLICE % processingFactor)) {
+	if ((packetsPerIteration * UDPNTIMESLICE % processingFactor) != 0) {
 		fprintf(stderr, "Channelisation factor (%d) is not a multiple of the number of input samples (%ld), exiting.\n", processingFactor, packetsPerIteration * UDPNTIMESLICE);
 		return 1;
 	}
