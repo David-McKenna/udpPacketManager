@@ -1,6 +1,6 @@
 lofar_udp_guppi_raw
 ===================
-This is a modified version of the [*lofar_udp_extrator*](src/CLI/lofar_cli_extractor.c), where instead of producing a variable mode output with / without a SigProc compatible header, the output is always time-majour (30) and has a GUPPI RAW / FITS compatible header attached between iterations.
+This is a modified version of the [*lofar_udp_extrator*](../src/CLI/lofar_cli_extractor.c), where instead of producing a variable mode output with / without a SigProc compatible header, the output is always time-majour (30) and has a GUPPI RAW / FITS compatible header attached between iterations.
 
 
 Injecting Metadata
@@ -44,7 +44,7 @@ This command
 
 Modified Arguments
 ------------------
-While most of the arguments are the same as the default CLI, as described in [*README_CLI.md*](docs/README_CLI.md), some changes have been made to better support the goal of this CLI.
+While most of the arguments are the same as the default CLI, as described in [*README_CLI.md*](README_CLI.md), some changes have been made to better support the goal of this CLI.
 
 #### -e (int) [default: INT_MAX]
 - Number of iterations to perform before closing the current file and opening a new one

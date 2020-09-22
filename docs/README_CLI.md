@@ -1,6 +1,6 @@
 lofar_udp_extractor
 ===================
-The [*lofar_udp_extractor*](src/CLI/lofar_cli_extractor.c) utility can be used to extract and process LOFAR beamformed observations from international stations. This file will discuss the basis for the CLI, and [*README_CLI_GUPPI_RAW.md*](docs/README_GUPPI_CLI.md) will describe the changes made to support the LOFAR -> GUPPI RAW formatting in [*lofar_udp_guppi_raw*](src/CLI/lofar_cli_guppi_raw.c).
+The [*lofar_udp_extractor*](../src/CLI/lofar_cli_extractor.c) utility can be used to extract and process LOFAR beamformed observations from international stations. This file will discuss the basis for the CLI, and [*README_CLI_GUPPI_RAW.md*](README_GUPPI_CLI.md) will describe the changes made to support the LOFAR -> GUPPI RAW formatting in [*lofar_udp_guppi_raw*](../src/CLI/lofar_cli_guppi_raw.c).
 
 
 Expected Input Formats
