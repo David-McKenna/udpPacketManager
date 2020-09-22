@@ -361,7 +361,7 @@ int main(int argc, char  *argv[]) {
 	CLICK(tick0);
 
 	// Generate the lofar_udp_reader, this also does I/O for the first input or seeks to the required packet
-	lofar_udp_reader *reader =  lofar_udp_meta_file_reader_setup(&(inputFiles[0]), ports, 1, 200, verbose, packetsPerIteration, startingPackets[0], multiMaxPackets[0], compressedReader);
+	lofar_udp_reader *reader =  lofar_udp_meta_file_reader_setup(&(inputFiles[0]), ports, 1, 32, verbose, packetsPerIteration, startingPackets[0], multiMaxPackets[0], compressedReader);
 
 	// Returns null on error, check
 	if (reader == NULL) {
