@@ -394,8 +394,8 @@ int main(int argc, char  *argv[]) {
 				getStartTimeStringDAQ(reader, timeStr);
 				strcpy(header.daqpulse, timeStr);
 
-				header->dropblk = blockDropped / packetsToWrite;
-				header->droptot = totalDropped / (packetsWritten + packetsToWrite);
+				header.dropblk = blockDropped / packetsToWrite;
+				header.droptot = totalDropped / (packetsWritten + packetsToWrite);
 
 				if (loops > 0) {
 					header.pktidx += packetsToWrite;
