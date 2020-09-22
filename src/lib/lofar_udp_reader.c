@@ -511,17 +511,27 @@ int lofar_udp_setup_processing(lofar_udp_meta *meta) {
 			break;
 
 		case 10:
-			meta->processFunc = &lofar_udp_raw_udp_reorder;
+			meta->processFunc = &lofar_udp_raw_udp_channel_major;
 			break;
 		case 11:
-			meta->processFunc = &lofar_udp_raw_udp_reorder_split_pols;
+			meta->processFunc = &lofar_udp_raw_udp_channel_major_split_pols;
 			break;
 
 		case 20:
-			meta->processFunc = &lofar_udp_raw_udp_reversed;
+			meta->processFunc = &lofar_udp_raw_udp_reversed_channel_major;
 			break;
 		case 21:
-			meta->processFunc = &lofar_udp_raw_udp_reversed_split_pols;
+			meta->processFunc = &lofar_udp_raw_udp_reversed_channel_major_split_pols;
+			break;
+
+		case 30:
+			meta->processFunc = &lofar_udp_raw_udp_time_major;
+			break;
+		case 31:
+			meta->processFunc = &lofar_udp_raw_udp_time_major_split_pols;
+			break;
+		case 32:
+			meta->processFunc = &lofar_udp_raw_udp_time_major_dual_pols;
 			break;
 
 		// Base Stokes Methods
@@ -598,6 +608,8 @@ int lofar_udp_setup_processing(lofar_udp_meta *meta) {
 	}
 
 	// Define the output size per packet
+	// Assume we are doing a copy operation by default
+	meta->outputBitMode = meta->inputBitMode;
 	switch (meta->processingMode) {
 		#pragma GCC diagnostic push
 		#pragma GCC diagnostic ignored "-Wimplicit-fallthrough"
@@ -607,22 +619,25 @@ int lofar_udp_setup_processing(lofar_udp_meta *meta) {
 		#pragma GCC diagnostic pop
 		case 1:
 			meta->numOutputs = meta->numPorts;
-			meta->outputBitMode = meta->inputBitMode;
 			equalIO = 1;
 			break;
 
 		case 2:
 		case 11:
 		case 21:
+		case 31:
 			meta->numOutputs = UDPNPOL;
-			meta->outputBitMode = meta->inputBitMode;
 			break;
 
 
 		case 10:
 		case 20:
+		case 30:
 			meta->numOutputs = 1;
-			meta->outputBitMode = meta->inputBitMode;
+			break;
+
+		case 32:
+			meta->numOutputs = 2;
 			break;
 
 		// Base Stokes Methods

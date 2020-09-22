@@ -6,7 +6,7 @@ udpPacketManager is a C library developed to handle reading and processing packe
 
 This library allows for the entire or partial extraction and processing of LOFAR CEP packet streams, re-aligning data to account for packet loss or misalignment on the first packet, to produce one of several data products, ranging from raw voltages (reordered or not) to stokes vector outputs.
 
-A guide on how to integrate the software in your project is provided in the [**README_INTEGRATION.md**](README_INTEGRATION.md) file, and example implementations can be found in the provided [**lofar_cli_extractor.c**](lofar_cli_extractor.c) program and my fork of Cees Bassa's GPU coherent dedispersion software [CDMT](https://github.com/David-McKenna/cdmt) for use with raw data captures.
+A guide on how to integrate the software in your project is provided in the [**README_INTEGRATION.md**](docs/README_INTEGRATION.md) file, and example implementations can be found in the provided [**lofar_cli_extractor.c**](src/CLI/lofar_cli_extractor.c) program and my fork of Cees Bassa's GPU coherent dedispersion software [CDMT](https://github.com/David-McKenna/cdmt) for use with raw data captures.
 
 Caveats & TODOs
 -------
@@ -61,7 +61,8 @@ Once the pre-requisites are met, a simple `make all` should suffice to build the
 
 Usage
 -----
-Please see the [*README_INTEGRATION.md*](README_INTEGRATION.md) file for a guide to implementing the library in your software, and the [*README_CLI.md*](README_CLI.md) file for the usage guide for the provided CLI.
+Please see the [*README_INTEGRATION.md*](docs/README_INTEGRATION.md) file for a guide to implementing the library in your software, and the [*README_CLI.md*](docs/README_CLI.md) file for the usage guide for the provided CLI.
+
 
 Funding
 -------

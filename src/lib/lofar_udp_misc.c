@@ -4,6 +4,10 @@ const float clock200MHzSteps = CLOCK200MHZ;
 const float clock160MHzSteps = CLOCK160MHZ;
 const float clockStepsDelta = CLOCK200MHZ - CLOCK160MHZ;
 
+const double clock200MHzSample = 1.0 / CLOCK200MHZ;
+const double clock160MHzSample = 1.0 / CLOCK160MHZ;
+
+
 // Taken from Olaf Wucknitz' VBLI recorder, with modifiedcations for aribtrary input data
 long beamformed_packno(unsigned int timestamp, unsigned int sequence, unsigned int clock200MHz) {
  	//VERBOSE(printf("Packetno: %d, %d, %d\n", timestamp, sequence, clock200MHz););

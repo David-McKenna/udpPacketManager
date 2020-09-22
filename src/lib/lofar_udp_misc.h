@@ -39,6 +39,16 @@
 
 #endif
 
+#ifndef __LOFAR_SAMPLING_CONSTS
+#define __LOFAR_SAMPLING_CONSTS
+extern const float clock200MHzSteps;
+extern const float clock160MHzSteps;
+extern const float clockStepsDelta;
+
+// Time steps per second in each clock mode
+extern const double clock200MHzSample;
+extern const double clock160MHzSample;
+#endif
 
 
 // Raw data stored as chars, offer methods to read as other value types as required

@@ -78,8 +78,8 @@ int lofar_udp_raw_udp_copy_split_pols(lofar_udp_meta *meta) {
 }
 
 
-int lofar_udp_raw_udp_reorder(lofar_udp_meta *meta) {
-	VERBOSE(if (meta->VERBOSE) printf("Entered C++ call for lofar_udp_raw_udp_reorder\n"));
+int lofar_udp_raw_udp_channel_major(lofar_udp_meta *meta) {
+	VERBOSE(if (meta->VERBOSE) printf("Entered C++ call for lofar_udp_raw_udp_channel_major\n"));
 	switch(meta->inputBitMode) {
 		case 4:
 			fprintf(stderr, "4-bit mode is not yet supported, exiting.\n");
@@ -96,8 +96,8 @@ int lofar_udp_raw_udp_reorder(lofar_udp_meta *meta) {
 }
 
 
-int lofar_udp_raw_udp_reorder_split_pols(lofar_udp_meta *meta) {
-	VERBOSE(if (meta->VERBOSE) printf("Entered C++ call for lofar_udp_raw_udp_reorder_split_\n"));
+int lofar_udp_raw_udp_channel_major_split_pols(lofar_udp_meta *meta) {
+	VERBOSE(if (meta->VERBOSE) printf("Entered C++ call for lofar_udp_raw_udp_channel_major_split_\n"));
 	switch(meta->inputBitMode) {
 		case 4:
 			fprintf(stderr, "4-bit mode is not yet supported, exiting.\n");
@@ -114,8 +114,8 @@ int lofar_udp_raw_udp_reorder_split_pols(lofar_udp_meta *meta) {
 }
 
 
-int lofar_udp_raw_udp_reversed(lofar_udp_meta *meta) {
-	VERBOSE(if (meta->VERBOSE) printf("Entered C++ call for lofar_udp_raw_udp_reversed\n"));
+int lofar_udp_raw_udp_reversed_channel_major(lofar_udp_meta *meta) {
+	VERBOSE(if (meta->VERBOSE) printf("Entered C++ call for lofar_udp_raw_udp_reversed_channel_major\n"));
 	switch(meta->inputBitMode) {
 		case 4:
 			fprintf(stderr, "4-bit mode is not yet supported, exiting.\n");
@@ -132,8 +132,8 @@ int lofar_udp_raw_udp_reversed(lofar_udp_meta *meta) {
 }
 
 
-int lofar_udp_raw_udp_reversed_split_pols(lofar_udp_meta *meta) {
-	VERBOSE(if (meta->VERBOSE) printf("Entered C++ call for lofar_udp_raw_udp_reversed_split\n"));
+int lofar_udp_raw_udp_reversed_channel_major_split_pols(lofar_udp_meta *meta) {
+	VERBOSE(if (meta->VERBOSE) printf("Entered C++ call for lofar_udp_raw_udp_reversed_channel_major_split\n"));
 	switch(meta->inputBitMode) {
 		case 4:
 			fprintf(stderr, "4-bit mode is not yet supported, exiting.\n");
@@ -142,6 +142,61 @@ int lofar_udp_raw_udp_reversed_split_pols(lofar_udp_meta *meta) {
 			return lofar_udp_raw_loop<signed char, signed char, 21>(meta);
 		case 16:
 			return lofar_udp_raw_loop<signed short, signed short, 21>(meta);
+
+		default:
+			fprintf(stderr, "Unexpected bitmode %d. Exiting.\n", meta->inputBitMode);
+			return 1;
+	}
+}
+
+
+
+int lofar_udp_raw_udp_time_major(lofar_udp_meta *meta) {
+	VERBOSE(if (meta->VERBOSE) printf("Entered C++ call for lofar_udp_time_major\n"));
+	switch(meta->inputBitMode) {
+		case 4:
+			fprintf(stderr, "4-bit mode is not yet supported, exiting.\n");
+			return 1;
+		case 8:
+			return lofar_udp_raw_loop<signed char, signed char, 30>(meta);
+		case 16:
+			return lofar_udp_raw_loop<signed short, signed short, 30>(meta);
+
+		default:
+			fprintf(stderr, "Unexpected bitmode %d. Exiting.\n", meta->inputBitMode);
+			return 1;
+	}
+}
+
+
+int lofar_udp_raw_udp_time_major_split_pols(lofar_udp_meta *meta) {
+	VERBOSE(if (meta->VERBOSE) printf("Entered C++ call for lofar_udp_time_major_split_pols\n"));
+	switch(meta->inputBitMode) {
+		case 4:
+			fprintf(stderr, "4-bit mode is not yet supported, exiting.\n");
+			return 1;
+		case 8:
+			return lofar_udp_raw_loop<signed char, signed char, 31>(meta);
+		case 16:
+			return lofar_udp_raw_loop<signed short, signed short, 31>(meta);
+
+		default:
+			fprintf(stderr, "Unexpected bitmode %d. Exiting.\n", meta->inputBitMode);
+			return 1;
+	}
+}
+
+
+int lofar_udp_raw_udp_time_major_dual_pols(lofar_udp_meta *meta) {
+	VERBOSE(if (meta->VERBOSE) printf("Entered C++ call for lofar_udp_time_major_dual_pols\n"));
+	switch(meta->inputBitMode) {
+		case 4:
+			fprintf(stderr, "4-bit mode is not yet supported, exiting.\n");
+			return 1;
+		case 8:
+			return lofar_udp_raw_loop<signed char, signed char, 32>(meta);
+		case 16:
+			return lofar_udp_raw_loop<signed short, signed short, 32>(meta);
 
 		default:
 			fprintf(stderr, "Unexpected bitmode %d. Exiting.\n", meta->inputBitMode);

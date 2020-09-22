@@ -1,6 +1,6 @@
 lofar_udp_extractor
 ===================
-The [*lofar_udp_extractor*](lofar_cli_extractor.c) utility can be used to extract and process LOFAR beamformed observations from international stations.
+The [*lofar_udp_extractor*](src/CLI/lofar_cli_extractor.c) utility can be used to extract and process LOFAR beamformed observations from international stations. This file will discuss the basis for the CLI, and [*README_CLI_GUPPI_RAW.md*](docs/README_GUPPI_CLI.md) will describe the changes made to support the LOFAR -> GUPPI RAW formatting in [*lofar_udp_guppi_raw*](src/CLI/lofar_cli_guppi_raw.c).
 
 
 Expected Input Formats
@@ -100,21 +100,33 @@ Processing Modes
 
 
 ### Re-ordering Operations
-#### 10: "Raw To Beamlet-Majour"
+#### 10: "Raw To Beamlet-Major"
 - Take the input payload, padding where needed, remove the header, reorder the data such that instead of having (f0t0, f0t1... f0t15, f1t0...) we have (f0t0, f1t0, f2t0)...
 - N input files -> 1 output file
 
-#### 11: "Raw to Beamlet-Majour, Split Polarizations"
+#### 11: "Raw to Beamlet-Major, Split Polarizations"
 - Combintion of (2) and (10), split output data per (Xr, Xi, Yr, Yi) polarizations
 - N input files -> 4 output files
 
-#### 20: "Raw To Beamlet-Majour, Frequecy Reversed"
+#### 20: "Raw To Beamlet-Major, Frequecy Reversed"
 - Modified version of (10), where instead of (f0t0, f1t0...) we now output (fNt0, fN-1t0, ...), following the standard used for pulsar observations
 - N input files -> 1 output file
 
-#### 21: "Raw To Beamlet-Majour, Frequency Reversed, Split Polarizations"
-- Combination of (2) and (20), where we split the output data per Xr, Xi, Yr, Yi) polarizations
+#### 21: "Raw To Beamlet-Major, Frequency Reversed, Split Polarizations"
+- Combination of (2) and (20), where we split the output data per (Xr, Xi, Yr, Yi) polarization
 - N input files -> 4 output files
+
+#### 30: "Raw To Time-Major"
+- Take the input payload, padding where needed, remove the header and reorder the data such that we have a single channel's full time stream before presenting the net channel (f0t0, f0t1, f0t2... f0tN-1, f0tN)
+- N input files -> 1 output file
+
+#### 31: "Raw To Time-Major, Split Polarizations"
+- Modified version of (30), where we split the output data per (Xr, Xi, Yr, Yi) polarisation
+- N input files -> 1 output file
+
+#### 32: "Raw To Time-Major, Antenna Polarizations"
+- Modified version of (30), where we split the output per (X, Y) polsarisaiton (complex elements, FFTWF format)
+- N input files -> 2 output files
 
 
 ### Processing Operations

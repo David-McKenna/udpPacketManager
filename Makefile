@@ -28,10 +28,11 @@ endif
 CXXFLAGS += $(CFLAGS) -std=c++17
 # -fopt-info-missed=compiler_report_missed.log -fopt-info-vec=compiler_report_vec.log -fopt-info-loop=compiler_report_loop.log -fopt-info-inline=compiler_report_inline.log -fopt-info-omp=compiler_report_omp.log
 
-LFLAGS 	+= -I./ -I /usr/include/ -lzstd -fopenmp #-lefence
+LFLAGS 	+= -I./src -I./src/lib -I./src/CLI -I/usr/include/ -lzstd -fopenmp #-lefence
 
-OBJECTS = lofar_udp_reader.o lofar_udp_misc.o lofar_udp_backends.o
-CLI_OBJECTS = $(OBJECTS) lofar_cli_extractor.o
+OBJECTS = src/lib/lofar_udp_reader.o src/lib/lofar_udp_misc.o src/lib/lofar_udp_backends.o
+CLI_META_OBJECTS = src/CLI/lofar_cli_meta.o src/CLI/ascii_hdr_manager.o
+CLI_OBJECTS = $(OBJECTS) $(CLI_META_OBJECTS) src/CLI/lofar_cli_extractor.o src/CLI/lofar_cli_guppi_raw.o
 
 LIBRARY_TARGET = liblofudpman.a
 
@@ -44,7 +45,8 @@ PREFIX = /usr/local
 	$(CXX) -c $(CXXFLAGS) -o ./$@ $< $(LFLAGS)
 
 all: $(CLI_OBJECTS) library
-	$(CXX) $(CXXFLAGS) lofar_cli_extractor.o $(LIBRARY_TARGET) -o ./lofar_udp_extractor $(LFLAGS)
+	$(CXX) $(CXXFLAGS) src/CLI/lofar_cli_extractor.o $(CLI_META_OBJECTS) $(LIBRARY_TARGET)  -o ./lofar_udp_extractor $(LFLAGS)
+	$(CXX) $(CXXFLAGS) src/CLI/lofar_cli_guppi_raw.o $(CLI_META_OBJECTS) $(LIBRARY_TARGET) -o ./lofar_udp_guppi_raw $(LFLAGS)
 
 library: $(OBJECTS)
 	$(AR) rc $(LIBRARY_TARGET).$(LIB_VER) $(OBJECTS)
@@ -65,11 +67,14 @@ install-local: all
 	cp ./mockHeader/mockHeader ~/.local/bin/; exit 0;
 
 clean:
-	rm ./*.o; exit 0;
+	rm ./src/CLI/*.o; exit 0;
+	rm ./src/lib/*.o; exit 0;
 	rm ./*.a; exit 0;
-	rm ./*.d; exit 0;
+	rm ./*.a.*; exit 0;
 	rm ./compiler_report_*.log; exit 0;
 	rm ./lofar_udp_extractor; exit 0;
+	rm ./lofar_udp_guppi_raw; exit 0;
+
 
 
 

@@ -233,25 +233,6 @@ long lofar_udp_reader_nchars(lofar_udp_reader *reader, const int port, char *tar
 // Reader struct cleanup
 int lofar_udp_reader_cleanup(const lofar_udp_reader *reader);
 
-// Processing prototypes, with I could template these :(
-int lofar_udp_raw_udp_copy(lofar_udp_meta *meta);
-int lofar_udp_raw_udp_copy_nohdr(lofar_udp_meta *meta);
-int lofar_udp_raw_udp_copy_split_pols(lofar_udp_meta *meta);
-int lofar_udp_raw_udp_reorder(lofar_udp_meta *meta);
-int lofar_udp_raw_udp_reorder_split_pols(lofar_udp_meta *meta);
-int lofar_udp_raw_udp_reversed(lofar_udp_meta *meta);
-int lofar_udp_raw_udp_reversed_split_pols(lofar_udp_meta *meta);
-int lofar_udp_raw_udp_stokesI(lofar_udp_meta *meta);
-int lofar_udp_raw_udp_stokesI_sum16(lofar_udp_meta *meta);
-int lofar_udp_raw_udp_stokesV(lofar_udp_meta *meta);
-
-// TODO: Merge the above functions into catagorised functions, with -funswitch-loops this shouldn't have a performance penalty
-/*
-int lofar_udp_process_hdr(lofar_udp_meta *meta);
-int lofar_udp_process_nohdr(lofar_udp_meta *meta);
-int lofar_udp_process_polarisation(lofar_udp_meta *meta);
-int lofar_udp_process_single(lofar_udp_meta *meta)
-*/
 
 
 
