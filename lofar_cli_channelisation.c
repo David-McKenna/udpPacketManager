@@ -404,6 +404,7 @@ int main(int argc, char  *argv[]) {
 	}
 
 	// Scan over the registered events
+	omp_set_num_threads(OMP_THREADS);
 	for (int eventLoop = 0; eventLoop < eventCount; eventLoop++) {
 		localLoops = 0;
 		returnVal = 0;
@@ -500,7 +501,7 @@ int main(int argc, char  *argv[]) {
 			if (silent == 0) {
 				timing[0] = 9.;
 				timing[1] = 0.;
-				printf("Disk writes completed for operation %d after %f seconds.\n", loops, TICKTOCK(tick0, tock0));
+				printf("FFT Ops and Disk writes completed for operation %d after %f seconds.\n", loops, TICKTOCK(tick0, tock0));
 				if (returnVal < 0) 
 					for(int port = 0; port < reader->meta->numPorts; port++)
 						if (reader->meta->portLastDroppedPackets[port] != 0)
@@ -588,10 +589,12 @@ void chirpKernel(float *taperArray, int totalBeamlets, int chanFactor, float fch
 void fftwAndDetect(lofar_udp_reader *reader, fftwf_plan *forward, fftwf_plan *backward, fftwf_complex **intermediate, fftwf_complex **output, float *stokesOutput, int nbin, int nfft, int nsub, int processingFactor) {
 
 	// Forward FFT
+	printf("Forward FFT\n");
 	for (int i = 0; i < 2; i++)
 		fftwf_execute(forward[i]);
 
 	// Reorder
+	printf("Reorder 1\n");
 	reorderSpectrum(intermediate, nbin, nfft * nsub);
 
 
@@ -599,20 +602,34 @@ void fftwAndDetect(lofar_udp_reader *reader, fftwf_plan *forward, fftwf_plan *ba
 
 
 	// Reorder
+	printf("Reorder 2\n");
 	reorderSpectrum(intermediate, nbin / processingFactor, processingFactor * nfft * nsub);
 
 	// Backward FFT
+	printf("Backward\n");
 	for (int i = 0; i < 2; i++)
 		fftwf_execute(backward[i]);
 
 	// Detect
+	printf("Detect\n");
 	detect(nbin / processingFactor, processingFactor, nfft, reader->meta->totalBeamlets, output, stokesOutput);
 }
 
 
 void detect(int nbin, int processingFactor, int nfft, int nsubbands, fftwf_complex **output, float *stokesOutput) {
+	#pragma omp parallel for
 	for (int ibin = 0; ibin < nbin / processingFactor; ibin++) {
+		#ifdef __INTEL_COMPILER
+		#pragma omp simd
+		#else
+		#pragma GCC unroll 122
+		#endif
 		for (int ichan = 0; ichan < processingFactor; ichan++) {
+			#ifdef __INTEL_COMPILER
+			#pragma omp simd
+			#else
+			#pragma GCC unroll 16
+			#endif
 			for (int ifft = 0; ifft < nfft; ifft++) {
 				for (int isub = 0; isub < nsubbands; isub++) {
 					int voltIdx = ibin+ichan*nbin+(nsubbands-isub-1)*nbin*processingFactor+ifft*nbin*processingFactor*nsubbands;
@@ -630,6 +647,8 @@ void detect(int nbin, int processingFactor, int nfft, int nsubbands, fftwf_compl
 void reorderSpectrum(fftwf_complex **workingArr, int nbin, int nruns) {
 	fftwf_complex tempVal[2];
 	int halfBin = nbin / 2, k;
+
+	#pragma omp parallel for
 	for (int i = 0; i < nbin; i++) {
 		
 		if (i < 0.5 * nbin) {
@@ -638,6 +657,11 @@ void reorderSpectrum(fftwf_complex **workingArr, int nbin, int nruns) {
 			k = i - halfBin;
 		}
 		
+		#ifdef __INTEL_COMPILER
+		#pragma omp simd
+		#else
+		#pragma GCC unroll 16
+		#endif
 		for (int j = 0; j < nruns; j++) {
 			int l = i + nbin * j;
 			int m = k + nbin * j;
