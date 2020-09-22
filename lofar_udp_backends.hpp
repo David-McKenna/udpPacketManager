@@ -243,8 +243,7 @@ void inline udp_reversedChannelMajorSplitPols(long iLoop, char *inputPortData, O
 
 template <typename I, typename O>
 void inline udp_timeMajor(long iLoop, char *inputPortData, O **outputData, long lastInputPacketOffset, int timeStepSize, int totalBeamlets, int portBeamlets, int cumulativeBeamlets, long packetsPerIteration) {
-	long loopRemainder = (iLoop * UDPNTIMESLICE) % packetsPerIteration;
-	long outputPacketOffset = packetsPerIteration * totalBeamlets * (long (loopRemainder / packetsPerIteration));
+	long outputTimeIdx = iLoop * UDPNTIMESLICE;
 	long tsInOffset, tsOutOffset;
 
 	//#pragma omp parallel for schedule(dynamic, 31) // Expected sizes: 61, 122, 244
@@ -255,7 +254,7 @@ void inline udp_timeMajor(long iLoop, char *inputPortData, O **outputData, long 
 	#endif
 	for (int beamlet = 0; beamlet < portBeamlets; beamlet++) {
 		tsInOffset = lastInputPacketOffset + beamlet * UDPNTIMESLICE * UDPNPOL * timeStepSize;
-		tsOutOffset = 4 * (outputPacketOffset + packetsPerIteration * (beamlet + cumulativeBeamlets) + loopRemainder);
+		tsOutOffset = 4 * (((beamlet + cumulativeBeamlets) * packetsPerIteration * UDPNTIMESLICE ) + outputTimeIdx);
 		
 		#ifdef __INTEL_COMPILER
 		#pragma omp simd
@@ -276,8 +275,7 @@ void inline udp_timeMajor(long iLoop, char *inputPortData, O **outputData, long 
 
 template <typename I, typename O>
 void inline udp_timeMajorSplitPols(long iLoop, char *inputPortData, O **outputData, long lastInputPacketOffset, int timeStepSize, int totalBeamlets, int portBeamlets, int cumulativeBeamlets, long packetsPerIteration) {
-	long loopRemainder = (iLoop * UDPNTIMESLICE) % packetsPerIteration;
-	long outputPacketOffset = packetsPerIteration * totalBeamlets * (long (loopRemainder / packetsPerIteration));
+	long outputTimeIdx = iLoop * UDPNTIMESLICE;
 	long tsInOffset, tsOutOffset;
 
 	//#pragma omp parallel for schedule(dynamic, 31) // Expected sizes: 61, 122, 244
@@ -288,7 +286,7 @@ void inline udp_timeMajorSplitPols(long iLoop, char *inputPortData, O **outputDa
 	#endif
 	for (int beamlet = 0; beamlet < portBeamlets; beamlet++) {
 		tsInOffset = lastInputPacketOffset + beamlet * UDPNTIMESLICE * UDPNPOL * timeStepSize;
-		tsOutOffset = outputPacketOffset + packetsPerIteration * (beamlet + cumulativeBeamlets) + loopRemainder;
+		tsOutOffset = ((beamlet + cumulativeBeamlets) * packetsPerIteration * UDPNTIMESLICE ) + outputTimeIdx;
 		
 		#ifdef __INTEL_COMPILER
 		#pragma omp simd
@@ -311,8 +309,7 @@ void inline udp_timeMajorSplitPols(long iLoop, char *inputPortData, O **outputDa
 // FFTW format
 template <typename I, typename O>
 void inline udp_timeMajorDualPols(long iLoop, char *inputPortData, O **outputData, long lastInputPacketOffset, int timeStepSize, int totalBeamlets, int portBeamlets, int cumulativeBeamlets, long packetsPerIteration) {
-	long loopRemainder = (iLoop * UDPNTIMESLICE) % packetsPerIteration;
-	long outputPacketOffset = packetsPerIteration * totalBeamlets * (long (loopRemainder / packetsPerIteration));
+	long outputTimeIdx = iLoop * UDPNTIMESLICE;
 	long tsInOffset, tsOutOffset;
 
 	//#pragma omp parallel for schedule(dynamic, 31) // Expected sizes: 61, 122, 244
@@ -323,7 +320,7 @@ void inline udp_timeMajorDualPols(long iLoop, char *inputPortData, O **outputDat
 	#endif
 	for (int beamlet = 0; beamlet < portBeamlets; beamlet++) {
 		tsInOffset = lastInputPacketOffset + beamlet * UDPNTIMESLICE * UDPNPOL * timeStepSize;
-		tsOutOffset = 2 * (outputPacketOffset + packetsPerIteration * (beamlet + cumulativeBeamlets) + loopRemainder);
+		tsOutOffset = 2 * ((beamlet + cumulativeBeamlets) * packetsPerIteration * UDPNTIMESLICE ) + outputTimeIdx;
 		
 		#ifdef __INTEL_COMPILER
 		#pragma omp simd
