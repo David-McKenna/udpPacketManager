@@ -321,21 +321,6 @@ int main(int argc, char  *argv[]) {
 
 		// Output information about the current/last event if we're performing more than one event
 		getStartTimeString(reader, timeStr);
-		if (eventCount > 1) 
-			if (silent == 0) {
-				if (loops > 0)  {
-					printf("Completed work for event %d, packet loss for each port during this event was", eventCount -1);
-					for (int port = 0; port < reader->meta->numPorts; port++) printf(" %ld", eventPacketsLost[port]);
-					printf(".\n\n\n");
-				}
-				printf("Beginning work on event %d at %s...\n", loops, timeStr);
-				getStartTimeString(reader, stringBuff);
-				printf("============ Event %d Information ===========\n", loops);
-				printf("Target Time:\t%s\t\tActual Time:\t%s\n", timeStr, stringBuff);
-				printf("MJD Time:\t%lf\n", lofar_get_packet_time_mjd(reader->meta->inputData[0]));
-				printf("============= End Information ==============\n");
-			}
-
 
 		// Get the starting packet for output file names
 		startingPacket = reader->meta->leadingPacket;
