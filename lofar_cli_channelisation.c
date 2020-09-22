@@ -196,7 +196,7 @@ int main(int argc, char  *argv[]) {
 			return 1;
 		}
 
-		sampleTime = clock160MHzSample * (1 - clock200MHz) + clock200MHzSample * clock200MHz;
+		sampleTime = clock160MHzSample * (1 - clock200MHz) + clock200MHzSample * clock200MHz * processingFactor;
 	}
 
 	if (silent == 0) {
@@ -443,7 +443,7 @@ int main(int argc, char  *argv[]) {
 		startingPacket = reader->meta->leadingPacket;
 
 		// Open the output files for this event
-		for (int out = 0; out < outputFilesCount; out++) {
+		for (int out = 0; out < 1; out++) {
 			sprintf(workingString, outputFormat, out, dateStr[eventLoop], startingPacket);
 			VERBOSE(if (verbose) printf("Testing output file for output %d @ %s\n", out, workingString));
 			
@@ -453,7 +453,7 @@ int main(int argc, char  *argv[]) {
 			}
 			
 			if (callMockHdr) {
-				sprintf(mockHdrCmd, "mockHeader -tstart %.9lf -nchans %d -nbits %d -tsamp %.9lf %s %s > /tmp/udp_reader_mockheader.log 2>&1", lofar_get_packet_time_mjd(reader->meta->inputData[0]), reader->meta->totalBeamlets, reader->meta->outputBitMode, sampleTime, mockHdrArg, workingString);
+				sprintf(mockHdrCmd, "mockHeader -tstart %.9lf -nchans %d -nbits %d -tsamp %.9lf %s %s > /tmp/udp_reader_mockheader.log 2>&1", lofar_get_packet_time_mjd(reader->meta->inputData[0]), reader->meta->totalBeamlets * processingFactor, reader->meta->outputBitMode, sampleTime, mockHdrArg, workingString);
 				dummy = system(mockHdrCmd);
 
 				if (dummy != 0) fprintf(stderr, "Encountered error while calling mockHeader (%s), continuing with caution.\n", mockHdrCmd);
