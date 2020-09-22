@@ -386,7 +386,7 @@ int main(int argc, char  *argv[]) {
 				getStartTimeStringDAQ(reader, timeStr);
 				strcpy(header.daqpulse, timeStr);
 
-				header.stt_offs = header.tbin * packetsWritten;
+				header.stt_offs = header.tbin * packetsWritten * UDPNTIMESLICE;
 
 				if (loops > 0) {
 					header.pktidx += packetsToWrite;
