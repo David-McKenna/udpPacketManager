@@ -487,10 +487,8 @@ int main(int argc, char  *argv[]) {
 			
 			fftwAndDetect(reader, forward, backward, intermediate, output, stokesIOutput, packetsPerIteration, UDPNTIMESLICE, reader->meta->totalBeamlets, processingFactor);
 			#ifndef BENCHMARKING
-			for (int out = 0; out < reader->meta->numOutputs; out++) {
-				VERBOSE(printf("Writing %ld bytes (%ld packets) to disk for output %d...\n", packetsToWrite * reader->meta->packetOutputLength[out], packetsToWrite, out));
-				fwrite(stokesIOutput, sizeof(float), reader->meta->totalBeamlets * packetsToWrite * UDPNTIMESLICE, outputFiles[out]);
-			}
+			VERBOSE(printf("Writing %ld bytes (%ld packets) to disk for output %d...\n", packetsToWrite * reader->meta->packetOutputLength[out], packetsToWrite, out));
+			fwrite(stokesIOutput, sizeof(float), reader->meta->totalBeamlets * packetsToWrite * UDPNTIMESLICE, outputFiles[0]);
 			#endif
 
 			packetsWritten += packetsToWrite;
