@@ -181,13 +181,15 @@ int lofar_udp_skip_to_packet(lofar_udp_reader *reader) {
 			returnVal = lofar_udp_reader_read_step(reader);
 			if (returnVal > 0) return returnVal;
 
-			// Account for packet ddsync between ports
-			for (int portInner = 0; portInner < reader->meta->numPorts; portInner++) {
-				reader->meta->portLastDroppedPackets[portInner] = (currentPacket + reader->meta->packetsPerIteration) - lofar_get_packet_number(&(reader->meta->inputData[portInner][lastPacketOffset]));
+ 			for (int portInner = 0; portInner < reader->meta->numPorts; portInner++) {
+				reader->meta->portLastDroppedPackets[portInner] = lofar_get_packet_number(&(reader->meta->inputData[portInner][lastPacketOffset])) - (currentPacket + reader->meta->packetsPerIteration);
+				VERBOSE(if (reader->meta->portLastDroppedPackets[portInner]) {
+					printf("%d: %d packets lost.\n", portInner, reader->meta->portLastDroppedPackets[portInner]);
+				});
 			}
 
 			// Get the new last packet
-			currentPacket = lofar_get_packet_number(&(reader->meta->inputData[port][lastPacketOffset]));
+			currentPacket += reader->meta->packetsPerIteration;
 
 			// Print a status update to the CLI
 			printf("\rScanning to packet %ld (~%.02f%% complete, currently at packet %ld on port %d, %ld to go)", reader->meta->lastPacket, (float) 100.0 -  (float) (reader->meta->lastPacket - currentPacket) / (packetDelta) * 100.0, currentPacket, port, reader->meta->lastPacket - currentPacket);
@@ -905,7 +907,7 @@ long lofar_udp_reader_nchars(lofar_udp_reader *reader, const int port, char *tar
 					if (dataRead >= nchars) return dataRead;
 
 					if (reader->decompressionTracker[port].pos == reader->decompressionTracker[port].size) {
-						fprintf(stderr, "Failed to read %ld chars on port %d before filling the buffer. Attempting to continue...\n", nchars, port);
+						fprintf(stderr, "Failed to read %ld/%ld chars on port %d before filling the buffer. Attempting to continue...\n", nchars, dataRead, port);
 						return dataRead;
 					}
 				}
@@ -1409,8 +1411,9 @@ int lofar_udp_shift_remainder_packets(lofar_udp_reader *reader, const int shiftP
 			if (reader->compressedReader) {
 				if ((long) reader->decompressionTracker[port].pos > meta->portPacketLength[port] * meta->packetsPerIteration) {
 					byteShift += reader->decompressionTracker[port].pos - meta->portPacketLength[port] * meta->packetsPerIteration;
-					reader->decompressionTracker[port].pos = destOffset + byteShift;
 				}
+				reader->decompressionTracker[port].pos = destOffset + byteShift;
+
 				VERBOSE(if (meta->VERBOSE) printf("Compressed offset: P: %d, SO: %ld, DO: %d, BS: %ld IDO: %ld\n", port, sourceOffset, destOffset, byteShift, destOffset + byteShift));
 
 			}
