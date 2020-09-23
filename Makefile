@@ -55,15 +55,21 @@ library: $(OBJECTS)
 install: all
 	mkdir -p $(PREFIX)/bin/ && mkdir -p $(PREFIX)/include/
 	cp ./lofar_udp_extractor $(PREFIX)/bin/
-	cp ./*.h $(PREFIX)/include/
+	cp ./lofar_udp_guppi_raw $(PREFIX)/bin/
+	cp ./src/lib/*.h $(PREFIX)/include/
+	cp ./src/lib/*.hpp $(PREFIX)/include/
 	cp ./*.a* ${PREFIX}/lib/
+	cp ./*.a ${PREFIX}/lib/	
 	cp ./mockHeader/mockHeader $(PREFIX)/bin/; exit 0;
 
 install-local: all
 	mkdir -p ~/.local/bin/ && mkdir -p ~/.local/include/
 	cp ./lofar_udp_extractor ~/.local/bin/
-	cp ./*.h ~/.local/include/
+	cp ./lofar_udp_guppi_raw ~/.local/bin/
+	cp ./src/lib/*.h ~/.local/include/
+	cp ./src/lib/*.hpp ~/.local/include/
 	cp ./*.a* ~/.local/lib/
+	cp ./*.a ~/.local/lib/
 	cp ./mockHeader/mockHeader ~/.local/bin/; exit 0;
 
 clean:
