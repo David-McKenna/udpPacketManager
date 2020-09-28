@@ -181,15 +181,13 @@ int lofar_udp_skip_to_packet(lofar_udp_reader *reader) {
 			returnVal = lofar_udp_reader_read_step(reader);
 			if (returnVal > 0) return returnVal;
 
- 			for (int portInner = 0; portInner < reader->meta->numPorts; portInner++) {
-				reader->meta->portLastDroppedPackets[portInner] = lofar_get_packet_number(&(reader->meta->inputData[portInner][lastPacketOffset])) - (currentPacket + reader->meta->packetsPerIteration);
-				VERBOSE(if (reader->meta->portLastDroppedPackets[portInner]) {
-					printf("%d: %d packets lost.\n", portInner, reader->meta->portLastDroppedPackets[portInner]);
-				});
+			// Account for packet ddsync between ports
+			for (int portInner = 0; portInner < reader->meta->numPorts; portInner++) {
+				reader->meta->portLastDroppedPackets[portInner] = (currentPacket + reader->meta->packetsPerIteration) - lofar_get_packet_number(&(reader->meta->inputData[portInner][lastPacketOffset]));
 			}
 
 			// Get the new last packet
-			currentPacket += reader->meta->packetsPerIteration;
+			currentPacket = lofar_get_packet_number(&(reader->meta->inputData[port][lastPacketOffset]));
 
 			// Print a status update to the CLI
 			printf("\rScanning to packet %ld (~%.02f%% complete, currently at packet %ld on port %d, %ld to go)", reader->meta->lastPacket, (float) 100.0 -  (float) (reader->meta->lastPacket - currentPacket) / (packetDelta) * 100.0, currentPacket, port, reader->meta->lastPacket - currentPacket);
@@ -907,7 +905,7 @@ long lofar_udp_reader_nchars(lofar_udp_reader *reader, const int port, char *tar
 					if (dataRead >= nchars) return dataRead;
 
 					if (reader->decompressionTracker[port].pos == reader->decompressionTracker[port].size) {
-						fprintf(stderr, "Failed to read %ld/%ld chars on port %d before filling the buffer. Attempting to continue...\n", nchars, dataRead, port);
+						fprintf(stderr, "Failed to read %ld chars on port %d before filling the buffer. Attempting to continue...\n", nchars, port);
 						return dataRead;
 					}
 				}
@@ -1358,7 +1356,7 @@ int lofar_udp_realign_data(lofar_udp_reader *reader) {
  */
 int lofar_udp_shift_remainder_packets(lofar_udp_reader *reader, const int shiftPackets[], const int handlePadding) {
 
-	int returnVal = 0;
+	int returnVal = 0, fixBuffer = 0;
 	int packetShift, destOffset, portPacketLength;
 	long byteShift, sourceOffset;
 
@@ -1372,9 +1370,15 @@ int lofar_udp_shift_remainder_packets(lofar_udp_reader *reader, const int shiftP
 	for (int port = 0; port < meta->numPorts; port++) {
 		meta->inputDataOffset[port] = 0;
 		totalShift += shiftPackets[port];
+
+		if (reader->compressedReader) {
+			if ((long) reader->decompressionTracker[port].pos > meta->portPacketLength[port] * meta->packetsPerIteration) {
+				fixBuffer = 1;
+			}
+		}
 	}
 
-	if (totalShift < 1) return 0;
+	if (totalShift < 1 && fixBuffer == 0) return 0;
 
 
 	// Shift the data on each port
@@ -1386,7 +1390,7 @@ int lofar_udp_shift_remainder_packets(lofar_udp_reader *reader, const int shiftP
 		VERBOSE(if (meta->VERBOSE) printf("shift_remainder: Port %d packet shift %d padding %d\n", port, packetShift, handlePadding));
 
  		// If we have packet shift or want to copy the final packet for future refernece
-		if (packetShift > 0 || handlePadding == 1) {
+		if (packetShift > 0 || handlePadding == 1 || fixBuffer == 1) {
 
 			// Negative shift -> negative packet loss -> out of order data -> do nothing, we'll  drop a few packets and resume work
 			if (packetShift < 0) {
@@ -1411,9 +1415,8 @@ int lofar_udp_shift_remainder_packets(lofar_udp_reader *reader, const int shiftP
 			if (reader->compressedReader) {
 				if ((long) reader->decompressionTracker[port].pos > meta->portPacketLength[port] * meta->packetsPerIteration) {
 					byteShift += reader->decompressionTracker[port].pos - meta->portPacketLength[port] * meta->packetsPerIteration;
+					reader->decompressionTracker[port].pos = destOffset + byteShift;
 				}
-				reader->decompressionTracker[port].pos = destOffset + byteShift;
-
 				VERBOSE(if (meta->VERBOSE) printf("Compressed offset: P: %d, SO: %ld, DO: %d, BS: %ld IDO: %ld\n", port, sourceOffset, destOffset, byteShift, destOffset + byteShift));
 
 			}
