@@ -141,13 +141,17 @@ By default, we define a number of base Stokes parameter outputs each at a multip
 - Take the input data, apply (20) and then combine the polarizations to form a 32-bit floating point Stokes Q for each frequency sample
 - N input files -> 1 output file
 
-#### 110: "Stokes U"
+#### 120: "Stokes U"
 - Take the input data, apply (20) and then combine the polarizations to form a 32-bit floating point Stokes U for each frequency sample
 - N input files -> 1 output file
 
-#### 110: "Stokes V"
+#### 130: "Stokes V"
 - Take the input data, apply (20) and then combine the polarizations to form a 32-bit floating point Stokes V for each frequency sample
 - N input files -> 1 output file
+
+#### 150: "Stokes Vector"
+- Take the input data, apply (20), and then combine the polariszation to form 4 output 32-bit floating poit Stoke s(I, Q, U, V) filterbanks for each frequency sample
+- N input files -> 4 output files
 
 #### Time decimation
 We also offer up to a 16x decimation during execution (the number of time samples per packet). To select this, choose a Stokes parameter and add a log 2 of the factor to the mode.

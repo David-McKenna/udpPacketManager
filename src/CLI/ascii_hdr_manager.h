@@ -21,6 +21,18 @@
 
 #endif
 
+// Slow stopping macro (enable from makefile)
+#ifndef __LOFAR_SLEEP
+#define __LOFAR_SLEEP
+
+#ifdef __SLOWDOWN
+#include <unistd.h>
+#define PAUSE sleep(1);
+#else
+#define PAUSE while(0) {};
+#endif
+
+#endif
 
 #ifndef __ASCII_HDR_H
 #define __ASCII_HDR_H

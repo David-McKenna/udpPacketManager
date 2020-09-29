@@ -182,12 +182,15 @@ int lofar_udp_skip_to_packet(lofar_udp_reader *reader) {
 			if (returnVal > 0) return returnVal;
 
 			// Account for packet ddsync between ports
-			for (int portInner = 0; portInner < reader->meta->numPorts; portInner++) {
-				reader->meta->portLastDroppedPackets[portInner] = (currentPacket + reader->meta->packetsPerIteration) - lofar_get_packet_number(&(reader->meta->inputData[portInner][lastPacketOffset]));
+ 			for (int portInner = 0; portInner < reader->meta->numPorts; portInner++) {
+				reader->meta->portLastDroppedPackets[portInner] = lofar_get_packet_number(&(reader->meta->inputData[portInner][lastPacketOffset])) - (currentPacket + reader->meta->packetsPerIteration);
+				VERBOSE(if (reader->meta->portLastDroppedPackets[portInner]) {
+					printf("%d: %d packets lost.\n", portInner, reader->meta->portLastDroppedPackets[portInner]);
+				});
 			}
 
 			// Get the new last packet
-			currentPacket = lofar_get_packet_number(&(reader->meta->inputData[port][lastPacketOffset]));
+			currentPacket += reader->meta->packetsPerIteration;
 
 			// Print a status update to the CLI
 			printf("\rScanning to packet %ld (~%.02f%% complete, currently at packet %ld on port %d, %ld to go)", reader->meta->lastPacket, (float) 100.0 -  (float) (reader->meta->lastPacket - currentPacket) / (packetDelta) * 100.0, currentPacket, port, reader->meta->lastPacket - currentPacket);
@@ -547,6 +550,9 @@ int lofar_udp_setup_processing(lofar_udp_meta *meta) {
 		case 130:
 			meta->processFunc = &lofar_udp_raw_udp_stokesV;
 			break;
+		case 150:
+			meta->processFunc = &lofar_udp_raw_udp_full_stokes;
+			break;
 
 		// 2x decimation
 		case 101:
@@ -560,6 +566,9 @@ int lofar_udp_setup_processing(lofar_udp_meta *meta) {
 			break;
 		case 131:
 			meta->processFunc = &lofar_udp_raw_udp_stokesV_sum2;
+			break;
+		case 151:
+			meta->processFunc = &lofar_udp_raw_udp_full_stokes_sum2;
 			break;
 
 		// 4x decimation
@@ -575,6 +584,10 @@ int lofar_udp_setup_processing(lofar_udp_meta *meta) {
 		case 132:
 			meta->processFunc = &lofar_udp_raw_udp_stokesV_sum4;
 			break;
+		case 152:
+			meta->processFunc = &lofar_udp_raw_udp_full_stokes_sum4;
+			break;
+
 		// 8x decimation
 		case 103:
 			meta->processFunc = &lofar_udp_raw_udp_stokesI_sum8;
@@ -587,6 +600,9 @@ int lofar_udp_setup_processing(lofar_udp_meta *meta) {
 			break;
 		case 133:
 			meta->processFunc = &lofar_udp_raw_udp_stokesV_sum8;
+			break;
+		case 153:
+			meta->processFunc = &lofar_udp_raw_udp_full_stokes_sum8;
 			break;
 
 		// 16x decimation
@@ -602,6 +618,10 @@ int lofar_udp_setup_processing(lofar_udp_meta *meta) {
 		case 134:
 			meta->processFunc = &lofar_udp_raw_udp_stokesV_sum16;
 			break;
+		case 154:
+			meta->processFunc = &lofar_udp_raw_udp_full_stokes_sum16;
+			break;
+
 		default:
 			fprintf(stderr, "Unknown processing mode %d, exiting...\n", meta->processingMode);
 			return 1;
@@ -651,6 +671,12 @@ int lofar_udp_setup_processing(lofar_udp_meta *meta) {
 			meta->outputBitMode = 32;
 			break;
 
+		case 150:
+			meta->numOutputs = 4;
+			// 4 input words -> 1 larger word x 4
+			// => Equivilent
+			meta->outputBitMode = 32;
+			break;
 
 		case 101:
 		case 111:
@@ -669,8 +695,18 @@ int lofar_udp_setup_processing(lofar_udp_meta *meta) {
 		case 124:
 		case 134:
 			meta->numOutputs = 1;
-			// Bit shift based on processing mode, 2^(mode % 10) * 4
+			// Bit shift based on processing mode, 2^(mode % 10) * 4, 4 as in modes 100..130
 			mulFactor = 1.0 / (float)  (1 << ((meta->processingMode % 10) + 2));
+			meta->outputBitMode = 32;
+			break;
+
+		case 151:
+		case 152:
+		case 153:
+		case 154:
+			meta->numOutputs = 4;
+			// Bit shift based on processing mode, 2^(mode % 10)
+			mulFactor = 1.0 / (float)  (1 << (meta->processingMode % 10));
 			meta->outputBitMode = 32;
 			break;
 
@@ -905,7 +941,7 @@ long lofar_udp_reader_nchars(lofar_udp_reader *reader, const int port, char *tar
 					if (dataRead >= nchars) return dataRead;
 
 					if (reader->decompressionTracker[port].pos == reader->decompressionTracker[port].size) {
-						fprintf(stderr, "Failed to read %ld chars on port %d before filling the buffer. Attempting to continue...\n", nchars, port);
+						fprintf(stderr, "Failed to read %ld/%ld chars on port %d before filling the buffer. Attempting to continue...\n", dataRead, nchars, port);
 						return dataRead;
 					}
 				}
@@ -1415,8 +1451,8 @@ int lofar_udp_shift_remainder_packets(lofar_udp_reader *reader, const int shiftP
 			if (reader->compressedReader) {
 				if ((long) reader->decompressionTracker[port].pos > meta->portPacketLength[port] * meta->packetsPerIteration) {
 					byteShift += reader->decompressionTracker[port].pos - meta->portPacketLength[port] * meta->packetsPerIteration;
-					reader->decompressionTracker[port].pos = destOffset + byteShift;
 				}
+				reader->decompressionTracker[port].pos = destOffset + byteShift;
 				VERBOSE(if (meta->VERBOSE) printf("Compressed offset: P: %d, SO: %ld, DO: %d, BS: %ld IDO: %ld\n", port, sourceOffset, destOffset, byteShift, destOffset + byteShift));
 
 			}

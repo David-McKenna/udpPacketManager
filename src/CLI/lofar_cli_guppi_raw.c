@@ -177,7 +177,7 @@ int main(int argc, char  *argv[]) {
 
 
 	if (silent == 0) {
-		printf("LOFAR UDP Data extractor (CLI v%.1f, Backend V%.1f)\n\n", VERSIONCLI, VERSION);
+		printf("LOFAR UDP Data extractor (CLI v%.1f, Backend v%.1f)\n\n", VERSIONCLI, VERSION);
 		printf("=========== Given configuration ===========\n");
 		printf("Input File:\t%s\nOutput File: %s\n\n", inputFormat, outputFormat);
 		printf("Packets/Gulp:\t%ld\t\t\tPorts:\t%d\n\n", packetsPerIteration, ports);
@@ -272,7 +272,12 @@ int main(int argc, char  *argv[]) {
 	if (reader == NULL) {
 		fprintf(stderr, "Failed to generate reader. Exiting.\n");
 		return 1;
+	}
 
+	// Sanity check that we were passed the correct clock bit
+	if (((lofar_source_bytes*) &(reader->meta->inputData[0][1]))->clockBit != clock200MHz) {
+		fprintf(stderr, "ERROR: The clock bit of the first packet does not match the clock state given when starting the CLI. Add or remove -c from your command. Exiting.\n");
+		return 1;
 	}
 
 	// Initialise the ASCII header struct if a metadata file was provided

@@ -10,6 +10,7 @@ CXX		= g++
 endif
 
 LIB_VER = 0.3
+LIB_VER_MINOR = 4
 CLI_VER = 0.2
 
 # Detemrine the max threads per socket to speed up execution via OpenMP with ICC (GCC falls over if we set too many)
@@ -49,8 +50,8 @@ all: $(CLI_OBJECTS) library
 	$(CXX) $(CXXFLAGS) src/CLI/lofar_cli_guppi_raw.o $(CLI_META_OBJECTS) $(LIBRARY_TARGET) -o ./lofar_udp_guppi_raw $(LFLAGS)
 
 library: $(OBJECTS)
-	$(AR) rc $(LIBRARY_TARGET).$(LIB_VER) $(OBJECTS)
-	cp ./$(LIBRARY_TARGET).$(LIB_VER) ./$(LIBRARY_TARGET) 
+	$(AR) rc $(LIBRARY_TARGET).$(LIB_VER).$(LIB_VER_MINOR) $(OBJECTS)
+	ln -s ./$(LIBRARY_TARGET).$(LIB_VER).$(LIB_VER_MINOR) ./$(LIBRARY_TARGET) 
 
 install: all
 	mkdir -p $(PREFIX)/bin/ && mkdir -p $(PREFIX)/include/
@@ -58,8 +59,8 @@ install: all
 	cp ./lofar_udp_guppi_raw $(PREFIX)/bin/
 	cp ./src/lib/*.h $(PREFIX)/include/
 	cp ./src/lib/*.hpp $(PREFIX)/include/
-	cp ./*.a* ${PREFIX}/lib/
-	cp ./*.a ${PREFIX}/lib/	
+	cp -P ./*.a* ${PREFIX}/lib/
+	cp -P ./*.a ${PREFIX}/lib/	
 	cp ./mockHeader/mockHeader $(PREFIX)/bin/; exit 0;
 
 install-local: all
@@ -68,8 +69,8 @@ install-local: all
 	cp ./lofar_udp_guppi_raw ~/.local/bin/
 	cp ./src/lib/*.h ~/.local/include/
 	cp ./src/lib/*.hpp ~/.local/include/
-	cp ./*.a* ~/.local/lib/
-	cp ./*.a ~/.local/lib/
+	cp -P ./*.a* ~/.local/lib/
+	cp -P ./*.a ~/.local/lib/
 	cp ./mockHeader/mockHeader ~/.local/bin/; exit 0;
 
 clean:
@@ -81,6 +82,23 @@ clean:
 	rm ./lofar_udp_extractor; exit 0;
 	rm ./lofar_udp_guppi_raw; exit 0;
 
+remove:
+	rm $(PREFIX)/bin/lofar_udp_extractor
+	rm $(PREFIX)/bin/lofar_udp_guppi_raw
+	cd src/lib/; find . -name "*.hpp" -exec rm $(PREFIX)/include/{} \;
+	cd src/lib/; find . -name "*.h" -exec rm $(PREFIX)/include/{} \;
+	find . -name "*.a" -exec rm $(PREFIX)/lib/{} \;
+	find . -name "*.a.*" -exec rm $(PREFIX)/lib/{} \;
+	make clean
+
+remove-local:
+	rm ~/.local/bin/lofar_udp_extractor
+	rm ~/.local/bin/lofar_udp_guppi_raw
+	cd src/lib/; find . -name "*.hpp" -exec rm ~/.local/include/{} \;
+	cd src/lib/; find . -name "*.h" -exec rm ~/.local/include/{} \;
+	find . -name "*.a" -exec rm ~/.local/lib/{} \;
+	find . -name "*.a.*" -exec rm ~/.local/lib/{} \;
+	make clean
 
 
 

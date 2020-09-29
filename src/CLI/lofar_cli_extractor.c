@@ -12,10 +12,10 @@ void helpMessages() {
 	printf("-m: <numPack>	Number of packets to process in each read request (default: 65536)\n");
 	printf("-u: <numPort>	Number of ports to combine (default: 4)\n");
 	printf("-t: <timeStr>	String of the time of the first requested packet, format YYYY-MM-DDTHH:mm:ss (default: '')\n");
-	printf("-s: <numSec>	Maximum number of seconds to process (default: all)\n");
+	printf("-s: <numSec>	Maximum number of seconds of raw data to extract/process (default: all)\n");
 	printf("-e: <fileName>	Specify a file of events to extract; newline separated start time and durations in seconds. Events must not overlap.\n");
 	printf("-p: <mode>		Processing mode, options listed below (default: 0)\n");
-	printf("-r:		Replay the previous packet when a dropped packet is detected (default: 0 pad)\n");
+	printf("-r:		Replay the previous packet when a dropped packet is detected (default: pad with 0 values)\n");
 	printf("-c:		Change to the alternative clock used for modes 4/6 (160MHz clock) (default: False)\n");
 	printf("-q:		Enable silent mode for the CLI, don't print any information outside of library error messes (default: False)\n");
 	printf("-a: <args>		Call mockHeader with the specific flags to prefix output files with a header (default: False)\n");
@@ -160,7 +160,8 @@ int main(int argc, char  *argv[]) {
 	// processingMode -> N output-files 
 	outputFilesCount = ports;
 	if (processingMode == 2 || processingMode == 11 || processingMode == 21) outputFilesCount = UDPNPOL;
-	else if (processingMode == 10 || processingMode == 20 || processingMode > 99) outputFilesCount = 1;
+	else if (processingMode == 10 || processingMode == 20 || (processingMode > 99 && processingMode < 140)) outputFilesCount = 1;
+	else if (processingMode > 149 && processingMode < 160) outputFilesCount = 4;
 
 	// Sanity check a few inputs
 	if ( (strcmp(inputFormat, "") == 0) || (ports == 0) || (packetsPerIteration < 2)  || (replayDroppedPackets > 1 || replayDroppedPackets < 0) || (processingMode > 1000 || processingMode < 0) || (seconds < 0)) {
@@ -191,7 +192,7 @@ int main(int argc, char  *argv[]) {
 	}
 
 	if (silent == 0) {
-		printf("LOFAR UDP Data extractor (CLI v%.1f, Backend V%.1f)\n\n", VERSIONCLI, VERSION);
+		printf("LOFAR UDP Data extractor (CLI v%.1f, Backend v%.1f)\n\n", VERSIONCLI, VERSION);
 		printf("=========== Given configuration ===========\n");
 		printf("Input File:\t%s\nOutput File: %s\n\n", inputFormat, outputFormat);
 		printf("Packets/Gulp:\t%ld\t\t\tPorts:\t%d\n\n", packetsPerIteration, ports);
@@ -358,7 +359,12 @@ int main(int argc, char  *argv[]) {
 	if (reader == NULL) {
 		fprintf(stderr, "Failed to generate reader. Exiting.\n");
 		return 1;
+	}
 
+	// Sanity check that we were passed the correct clock bit
+	if (((lofar_source_bytes*) &(reader->meta->inputData[0][1]))->clockBit != clock200MHz) {
+		fprintf(stderr, "ERROR: The clock bit of the first packet does not match the clock state given when starting the CLI. Add or remove -c from your command. Exiting.\n");
+		return 1;
 	}
 
 	if (silent == 0) {
@@ -395,7 +401,7 @@ int main(int argc, char  *argv[]) {
 		if (eventCount > 1) 
 			if (silent == 0) {
 				if (eventLoop > 0)  {
-					printf("Completed work for event %d, packet loss for each port during this event was", eventCount -1);
+					printf("Completed work for event %d, packets lost for each port during this event was", eventCount -1);
 					for (int port = 0; port < reader->meta->numPorts; port++) printf(" %ld", eventPacketsLost[port]);
 					printf(".\n\n\n");
 				}

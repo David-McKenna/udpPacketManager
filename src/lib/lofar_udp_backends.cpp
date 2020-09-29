@@ -552,3 +552,89 @@ int lofar_udp_raw_udp_stokesV_sum16(lofar_udp_meta *meta) {
 			return 1;
 	}
 }
+
+
+int lofar_udp_raw_udp_full_stokes(lofar_udp_meta *meta) {
+	VERBOSE(if (meta->VERBOSE) printf("Entered C++ call for lofar_udp_raw_udp_full_stokes\n"));
+	switch(meta->inputBitMode) {
+		case 4:
+			fprintf(stderr, "4-bit mode is not yet supported, exiting.\n");
+			return 1;
+		case 8:
+			return lofar_udp_raw_loop<signed char, float, 150>(meta);
+		case 16:
+			return lofar_udp_raw_loop<signed short, float, 150>(meta);
+
+		default:
+			fprintf(stderr, "Unexpected bitmode %d. Exiting.\n", meta->inputBitMode);
+			return 1;
+	}
+}
+
+int lofar_udp_raw_udp_full_stokes_sum2(lofar_udp_meta *meta) {
+	VERBOSE(if (meta->VERBOSE) printf("Entered C++ call for lofar_udp_raw_udp_full_stokes_sum2\n"));
+	switch(meta->inputBitMode) {
+		case 4:
+			fprintf(stderr, "4-bit mode is not yet supported, exiting.\n");
+			return 1;
+		case 8:
+			return lofar_udp_raw_loop<signed char, float, 151>(meta);
+		case 16:
+			return lofar_udp_raw_loop<signed short, float, 151>(meta);
+
+		default:
+			fprintf(stderr, "Unexpected bitmode %d. Exiting.\n", meta->inputBitMode);
+			return 1;
+	}
+}
+
+int lofar_udp_raw_udp_full_stokes_sum4(lofar_udp_meta *meta) {
+	VERBOSE(if (meta->VERBOSE) printf("Entered C++ call for lofar_udp_raw_udp_full_stokes_sum4\n"));
+	switch(meta->inputBitMode) {
+		case 4:
+			fprintf(stderr, "4-bit mode is not yet supported, exiting.\n");
+			return 1;
+		case 8:
+			return lofar_udp_raw_loop<signed char, float, 152>(meta);
+		case 16:
+			return lofar_udp_raw_loop<signed short, float, 152>(meta);
+
+		default:
+			fprintf(stderr, "Unexpected bitmode %d. Exiting.\n", meta->inputBitMode);
+			return 1;
+	}
+}
+
+int lofar_udp_raw_udp_full_stokes_sum8(lofar_udp_meta *meta) {
+	VERBOSE(if (meta->VERBOSE) printf("Entered C++ call for lofar_udp_raw_udp_full_stokes_sum8\n"));
+	switch(meta->inputBitMode) {
+		case 4:
+			fprintf(stderr, "4-bit mode is not yet supported, exiting.\n");
+			return 1;
+		case 8:
+			return lofar_udp_raw_loop<signed char, float, 153>(meta);
+		case 16:
+			return lofar_udp_raw_loop<signed short, float, 153>(meta);
+
+		default:
+			fprintf(stderr, "Unexpected bitmode %d. Exiting.\n", meta->inputBitMode);
+			return 1;
+	}
+}
+
+int lofar_udp_raw_udp_full_stokes_sum16(lofar_udp_meta *meta) {
+	VERBOSE(if (meta->VERBOSE) printf("Entered C++ call for lofar_udp_raw_udp_full_stokes_sum16\n"));
+	switch(meta->inputBitMode) {
+		case 4:
+			fprintf(stderr, "4-bit mode is not yet supported, exiting.\n");
+			return 1;
+		case 8:
+			return lofar_udp_raw_loop<signed char, float, 154>(meta);
+		case 16:
+			return lofar_udp_raw_loop<signed short, float, 154>(meta);
+
+		default:
+			fprintf(stderr, "Unexpected bitmode %d. Exiting.\n", meta->inputBitMode);
+			return 1;
+	}
+}

@@ -2,7 +2,7 @@ udpPacketManager
 ================
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.4043970.svg)](https://doi.org/10.5281/zenodo.4043970)
 
-udpPacketManager is a C library developed to handle reading and processing packet streams from international LOFAR stations. It is used at the Irish LOFAR station (I-LOFAR) in conjunction with Olaf Wucknitz's (MPIfRA) VLBI recording software, but in principle can be used with any packet capture that keep the last 16 bytes of the UDP header attached to CEP packets.
+udpPacketManager is a C library developed to handle reading and processing packet streams from international LOFAR stations. It is used at the Irish LOFAR station (I-LOFAR) in conjunction with Olaf Wucknitz's (MPIfRA) VLBI recording software, but in principle can be used with any packet capture that keeps the last 16 bytes of the UDP header attached to CEP packets.
 
 This library allows for the entire or partial extraction and processing of LOFAR CEP packet streams, re-aligning data to account for packet loss or misalignment on the first packet, to produce one of several data products, ranging from raw voltages (reordered or not) to stokes vector outputs.
 
