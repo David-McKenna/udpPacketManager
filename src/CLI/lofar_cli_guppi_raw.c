@@ -11,7 +11,7 @@ void helpMessages() {
 	printf("\n\n");
 
 	printf("-i: <format>	Input file name format (default: './%%d')\n");
-	printf("-o: <format>	Output file name format (provide %%s and %%ld to fill in ate/time string and the starting packet number) (default: './output%%s_%%ld')\n");
+	printf("-o: <format>	Output file name format (provide %%d and %%s to fill in the output file number and date/time string) (default: './output%%d')\n");
 	printf("-m: <numPack>	Number of packets to process in each read request (default: 65536)\n");
 	printf("-u: <numPort>	Number of ports to combine (default: 4)\n");
 	printf("-t: <timeStr>	String of the time of the first requested packet, format YYYY-MM-DDTHH:mm:ss (default: '')\n");
@@ -35,7 +35,7 @@ int main(int argc, char  *argv[]) {
 	int inputOpt, outputFilesCount, input = 0;
 	float seconds = 0.0;
 	double sampleTime = 0.0;
-	char inputFormat[256] = "./%d", outputFormat[256] = "./output_%s_%ld", inputTime[256] = "", stringBuff[128], hdrFile[2048] = "", timeStr[28] = "";
+	char inputFormat[256] = "./%d", outputFormat[256] = "./output_%d", inputTime[256] = "", stringBuff[128], hdrFile[2048] = "", timeStr[28] = "";
 	int ports = 4, replayDroppedPackets = 0, verbose = 0, silent = 0, appendMode = 0, compressedReader = 0, itersPerFile = INT_MAX;
 	long packetsPerIteration = 65536, maxPackets = -1, startingPacket = -1;
 	unsigned int clock200MHz = 1;
