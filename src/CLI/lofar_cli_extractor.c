@@ -401,7 +401,7 @@ int main(int argc, char  *argv[]) {
 		if (eventCount > 1) 
 			if (silent == 0) {
 				if (eventLoop > 0)  {
-					printf("Completed work for event %d, packets lost for each port during this event was", eventCount -1);
+					printf("Completed work for event %d, packets lost for each port during this event was", eventLoop -1);
 					for (int port = 0; port < reader->meta->numPorts; port++) printf(" %ld", eventPacketsLost[port]);
 					printf(".\n\n\n");
 				}

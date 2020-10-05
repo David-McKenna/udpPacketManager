@@ -18,7 +18,7 @@ void processingModes(void) {
 
 	printf("30: Raw UDP to Time Major Output: Time-continuous output\n");
 	printf("31: Raw UDP to Time Major, Split Pols Output: Time-continuous output: combine (2) and (30)\n");
-	printf("32: Raw UDP to Time Major, Dual Pols Output: Time-continuous output, to antenna polarisation output (X/Y Split, FFTW format)\n");
+	printf("32: Raw UDP to Time Major, Dual Pols Output: Time-continuous output, to antenna polarisation output (X/Y Split, FFTW format)\n\n");
 
 	printf("100: Raw UDP to Stokes I: Form a 32-bit float Stokes I for the input.\n");
 	printf("110: Raw UDP to Stokes Q: Form a 32-bit float Stokes Q for the input.\n");
