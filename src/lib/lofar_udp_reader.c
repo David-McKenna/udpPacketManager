@@ -667,7 +667,7 @@ int lofar_udp_setup_processing(lofar_udp_meta *meta) {
 		case 130:
 			meta->numOutputs = 1;
 			// 4 input words -> 1 larger word
-			mulFactor = 1.0 / 4.0;
+			mulFactor = ((float) meta->inputBitMode / 8) / 4.0;
 			meta->outputBitMode = 32;
 			break;
 
@@ -675,6 +675,7 @@ int lofar_udp_setup_processing(lofar_udp_meta *meta) {
 			meta->numOutputs = 4;
 			// 4 input words -> 1 larger word x 4
 			// => Equivilent
+			mulFactor = ((float) meta->inputBitMode / 8);
 			meta->outputBitMode = 32;
 			break;
 
@@ -696,7 +697,7 @@ int lofar_udp_setup_processing(lofar_udp_meta *meta) {
 		case 134:
 			meta->numOutputs = 1;
 			// Bit shift based on processing mode, 2^(mode % 10) * 4, 4 as in modes 100..130
-			mulFactor = 1.0 / (float)  (1 << ((meta->processingMode % 10) + 2));
+			mulFactor = ((float) meta->inputBitMode / 8)  / (float)  (1 << ((meta->processingMode % 10) + 2));
 			meta->outputBitMode = 32;
 			break;
 
@@ -706,7 +707,7 @@ int lofar_udp_setup_processing(lofar_udp_meta *meta) {
 		case 154:
 			meta->numOutputs = 4;
 			// Bit shift based on processing mode, 2^(mode % 10)
-			mulFactor = 1.0 / (float)  (1 << (meta->processingMode % 10));
+			mulFactor = ((float) meta->inputBitMode / 8) / (float)  (1 << (meta->processingMode % 10));
 			meta->outputBitMode = 32;
 			break;
 
