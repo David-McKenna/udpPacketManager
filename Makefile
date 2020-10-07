@@ -51,7 +51,7 @@ all: $(CLI_OBJECTS) library
 
 library: $(OBJECTS)
 	$(AR) rc $(LIBRARY_TARGET).$(LIB_VER).$(LIB_VER_MINOR) $(OBJECTS)
-	ln -s ./$(LIBRARY_TARGET).$(LIB_VER).$(LIB_VER_MINOR) ./$(LIBRARY_TARGET) 
+	ln -sf ./$(LIBRARY_TARGET).$(LIB_VER).$(LIB_VER_MINOR) ./$(LIBRARY_TARGET)
 
 install: all
 	mkdir -p $(PREFIX)/bin/ && mkdir -p $(PREFIX)/include/
