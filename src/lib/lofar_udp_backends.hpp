@@ -633,6 +633,7 @@ int lofar_udp_raw_loop(lofar_udp_meta *meta) {
 
 			}
 
+			VERBOSE(printf("%d: %d, %ld, %d, %d, %d, %d, %d, %ld\n", port, lastInputPacketOffset, timeStepSize, iLoop, packetOutputLength, UDPNTIMESLICE, sizeof(O), decimation, iLoop * packetOutputLength * UDPNTIMESLICE / sizeof(O) / decimation))
 			switch(state) {
 
 				case 0:
