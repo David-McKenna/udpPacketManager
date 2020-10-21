@@ -17,10 +17,8 @@ While using the library, do be aware
 - 4-bit data is not yet supported
 
 Future work should not break the exiting load/process iteration loop, and may consist of
-- Re-learning the intended way of installing C libraries (headers are copied to /usr/local/include, but the compiled objects need to be sorted)
 - Implementing 4-bit
 - Creating a wrapper python library to allow for easer interfacing within python scripts rather than requiring a C program (CFFI if I can strip out ifdefs?)
-- Add some 'defaults' into the mockHeader input, such as a "-mode5" string converted to implement the default sampling time and frequencies used
 - Investigating [blosc](https://github.com/Blosc/) [(examples link)](https://github.com/Blosc/c-blosc2/tree/master/examples) as an option to speed up some processing modes
 - Specifying specific beamlets to process rather than entire ports
 
@@ -31,7 +29,7 @@ Requirements
 - Modern C and C++ compilers with OpenMP and C++17 support (gcc/g++-9 used for development, icc/icpc-2021.01 also tested and optimal)
 - Zstandard libary/development headers (ver > 1.3, libzstd-dev on Ubuntu 18.04+, libzstd1-dev on Ubuntu 16.04, may require the restricted toolchain PPA)
 
-While we support both gcc and icc, they have different execution paths. Due to differences in the OpenMP libraries between GOMP and Intel's OpenMP, the icc code path is up to a factor of 2.5 faster in non-stokes processing methods and advised as the compiler as a result. Some sample execution times for working on a 600 second block of compressed data using an Intel Xeon Gold 6130
+While we support both gcc and icc, they have different execution paths. Due to differences in the OpenMP libraries between GOMP and Intel's OpenMP, the icc code path is up to a factor of 2.5 faster in non-stokes processing methods and advised as the compiler as a result. Some sample execution times for working on a 600 second block of compressed data using an Intel Xeon Gold 6130 on version 0.2.
 ```
 icc-2021.01, mode 11: 	Total Read Time:        152.96          Total CPU Ops Time:     18.11
 icc-2021.01, mode 100:	Total Read Time:        151.91          Total CPU Ops Time:     16.01
