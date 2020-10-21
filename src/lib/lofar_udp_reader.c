@@ -138,9 +138,6 @@ int lofar_udp_skip_to_packet(lofar_udp_reader *reader) {
 	long currentPacket, lastPacketOffset, guessPacket, packetDelta, scanning = 0, startOff, nextOff, endOff;
 	int packetShift[MAX_NUM_PORTS], nchars, returnLen, returnVal = 0;
 
-	// Initialise the offset shift needed
-	for (int port = 0; port < reader->meta->numPorts; port++) packetShift[port] = 0;
-
 	VERBOSE(printf("lofar_udp_skip_to_packet: starting scan...\n"););
 
 	// Scanning across each port,
@@ -196,12 +193,18 @@ int lofar_udp_skip_to_packet(lofar_udp_reader *reader) {
 			printf("\rScanning to packet %ld (~%.02f%% complete, currently at packet %ld on port %d, %ld to go)", reader->meta->lastPacket, (float) 100.0 -  (float) (reader->meta->lastPacket - currentPacket) / (packetDelta) * 100.0, currentPacket, port, reader->meta->lastPacket - currentPacket);
 			fflush(stdout);
 		}
+		if (lofar_get_packet_number(&(reader->meta->inputData[port][lastPacketOffset])) > reader->meta->lastPacket) {
+			fprintf(stderr, "Port %d has scanned beyond target packet %d (to start at %ld), exiting.\n", port, reader->meta->lastPacket, lofar_get_packet_number(&(reader->meta->inputData[port][lastPacketOffset])));
+		}
 		if (scanning) printf("\33[2K\rReached target packet %ld on port %d.\n", reader->meta->lastPacket, port);
 	}
 	// Data is now all loaded such that every inputData array has or is past the target packet, now we need to interally align the arrays
 
 	// For each port,
 	for (int port = 0; port < reader->meta->numPorts; port++) {
+
+		// Re-initialise the offset shift needed on each port
+		for (int port = 0; port < reader->meta->numPorts; port++) packetShift[port] = 0;
 
 		// Get the current packet, and guess the target packet by assuming no packet loss
 		currentPacket = lofar_get_packet_number(&(reader->meta->inputData[port][0]));
@@ -1271,7 +1274,7 @@ int lofar_udp_get_first_packet_alignment_meta(lofar_udp_meta *meta) {
 	}
 
 	// Set the lastPacket variable
-	meta->lastPacket = maxPacketNumber -1;
+	meta->lastPacket = maxPacketNumber - 1;
 	meta->leadingPacket = maxPacketNumber;
 
 	return returnValue;
@@ -1426,7 +1429,7 @@ int lofar_udp_shift_remainder_packets(lofar_udp_reader *reader, const int shiftP
 		VERBOSE(if (meta->VERBOSE) printf("shift_remainder: Port %d packet shift %d padding %d\n", port, packetShift, handlePadding));
 
  		// If we have packet shift or want to copy the final packet for future refernece
-		if (packetShift > 0 || handlePadding == 1 || fixBuffer == 1) {
+		if (packetShift > 0 || handlePadding == 1 || (handlePadding == 1 && fixBuffer == 1)) {
 
 			// Negative shift -> negative packet loss -> out of order data -> do nothing, we'll  drop a few packets and resume work
 			if (packetShift < 0) {

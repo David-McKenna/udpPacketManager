@@ -165,6 +165,9 @@ int main(int argc, char  *argv[]) {
 	// Warn if we haven't been provided metadata for the header
 	if (strcmp(hdrFile, "") == 0) {
 		fprintf(stderr, "WARNING: A header file was not provided; we are using the default values for the output file.\n");
+	} else if (access(hdrFile, F_OK) == -1) {
+		fprintf(stderr, "Header file does not exist at given location %s; exiting.\n", hdrFile);
+		return 1;
 	}
 
 	// Check if we have a compressed input file
