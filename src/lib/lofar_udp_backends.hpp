@@ -532,6 +532,7 @@ int lofar_udp_raw_loop(lofar_udp_meta *meta) {
 	// Setup working variables
 	
 	VERBOSE(const int verbose = meta->VERBOSE);
+	VERBOSE(if (verbose) printf("Begining processing for state %d, with input %d and output %d\n", state, sizeof(I), sizeof(O)););
 	
 	const int packetsPerIteration = meta->packetsPerIteration;
 	const int replayDroppedPackets = meta->replayDroppedPackets;
@@ -676,7 +677,7 @@ int lofar_udp_raw_loop(lofar_udp_meta *meta) {
 
 
 			#ifdef __INTEL_COMPILER
-			#pragma omp task firstprivate(iLoop, lastInputPacketOffset) private(inputPortData, localThreadNum) shared(byteWorkspace)
+			#pragma omp task firstprivate(iLoop, lastInputPacketOffset, inputPortData) private(localThreadNum) shared(byteWorkspace)
 			{
 			#else
 				LIPOCache = lastInputPacketOffset;

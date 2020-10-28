@@ -9,8 +9,8 @@ CC		= gcc
 CXX		= g++
 endif
 
-LIB_VER = 0.3
-LIB_VER_MINOR = 5
+LIB_VER = 0.4
+LIB_VER_MINOR = 0
 CLI_VER = 0.2
 
 # Detemrine the max threads per socket to speed up execution via OpenMP with ICC (GCC falls over if we set too many)
