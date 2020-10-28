@@ -100,6 +100,19 @@ int lofar_udp_parse_headers(lofar_udp_meta *meta, const char header[MAX_NUM_PORT
 		}
 
 
+
+/*
+ *=========== Reader  Information ===========
+Total Beamlets: -24                                     First Packet:   19578052734381
+Start time:     2020-10-27T21:28:00.000578              MJD Time:       59149.894444
+------------------ Port 0 -----------------
+Port Beamlets:  -12             Port Bitmode:   4               Input Pkt Len:  16
+------------------ Port 1 -----------------
+Port Beamlets:  -12             Port Bitmode:   4               Input Pkt Len:  16
+Output Pkt Len (0):     0
+============= End Information =============
+*/
+
 		// Determine the size of the input array
 		// 4-bit: half the size per sample
 		// 16-bit: 2x the size per sample

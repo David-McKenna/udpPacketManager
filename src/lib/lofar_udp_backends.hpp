@@ -692,7 +692,7 @@ int lofar_udp_raw_loop(lofar_udp_meta *meta) {
 
 				// Use a LUT to extract the 4-bit signed ints from signed chars
 				#ifdef __INTEL_COMPILER
-				#pragma unroll 16
+				#pragma unroll(16)
 				#else
 				#pragma GCC unroll 16
 				#endif
@@ -825,6 +825,15 @@ int lofar_udp_raw_loop(lofar_udp_meta *meta) {
 	// Update the input/output states
 	meta->inputDataReady = 0;
 	meta->outputDataReady = 1;
+
+
+	// If needed, free the 4-bit workspace
+	if constexpr (state >= 4000) {
+		for (int i = 0; i < OMP_THREADS; i++) {
+			free(byteWorkspace[i]);
+		}
+		free(byteWorkspace);
+	}
 
 	return packetLoss;
 }
