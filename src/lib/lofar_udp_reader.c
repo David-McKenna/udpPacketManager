@@ -45,8 +45,8 @@ int lofar_udp_parse_headers(lofar_udp_meta *meta, const char header[MAX_NUM_PORT
 			return 1;
 		}
 
-		if ((unsigned char) header[port][7] != 16) {
-			fprintf(stderr, "Input header on port %d appears malformed (time slices are %d, not 16), exiting.\n", port, header[port][7]);
+		if ((unsigned char) header[port][7] != UDPNTIMESLICE) {
+			fprintf(stderr, "Input header on port %d appears malformed (time slices are %d, not UDPNTIMESLICE), exiting.\n", port, header[port][7]);
 			return 1;
 		}
 
@@ -69,9 +69,10 @@ int lofar_udp_parse_headers(lofar_udp_meta *meta, const char header[MAX_NUM_PORT
 
 
 		// Determine the number of beamlets and bitmode on the port
-		meta->portBeamlets[port] = (int) header[port][6];
+		VERBOSE(printf("port %d, bitMode %d, beamlets %d (%c, %u)\n", port, ((lofar_source_bytes*) &source)->bitMode, (int) ((unsigned char) header[port][6]), header[port][6], (unsigned char) header[port][6]););
+		meta->portBeamlets[port] = (int) ((unsigned char) header[port][6]);
 		meta->portCumulativeBeamlets[port] = meta->totalBeamlets;
-		meta->totalBeamlets += (int) header[port][6];
+		meta->totalBeamlets += (int) ((unsigned char) header[port][6]);
 		switch (((lofar_source_bytes*) &source)->bitMode) {
 			case 0:
 				meta->inputBitMode = 16;
@@ -100,18 +101,6 @@ int lofar_udp_parse_headers(lofar_udp_meta *meta, const char header[MAX_NUM_PORT
 		}
 
 
-
-/*
- *=========== Reader  Information ===========
-Total Beamlets: -24                                     First Packet:   19578052734381
-Start time:     2020-10-27T21:28:00.000578              MJD Time:       59149.894444
------------------- Port 0 -----------------
-Port Beamlets:  -12             Port Bitmode:   4               Input Pkt Len:  16
------------------- Port 1 -----------------
-Port Beamlets:  -12             Port Bitmode:   4               Input Pkt Len:  16
-Output Pkt Len (0):     0
-============= End Information =============
-*/
 
 		// Determine the size of the input array
 		// 4-bit: half the size per sample
