@@ -193,13 +193,6 @@ typedef struct lofar_udp_reader {
 
 
 
-// 4-bit LUT for faster decoding (and for lock in when I finally work out which 4-bit more they used...)
-#ifndef __LOFAR_4BITLUT
-#define __LOFAR_4BITLUT
-extern const char bitmodeConversion[256][2];
-#endif
-
-
 
 // Function Prototypes
 #ifndef __LOFAR_UDP_READER_H
