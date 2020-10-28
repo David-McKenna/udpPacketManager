@@ -16,7 +16,7 @@ int lofar_udp_parse_headers(lofar_udp_meta *meta, const char header[MAX_NUM_PORT
 	union char_unsigned_int tsseq;
 	union char_short source;
 
-	int bitMul;
+	float bitMul;
 	int baseLength;
 	int cacheBitMode = 0;
 
@@ -69,7 +69,7 @@ int lofar_udp_parse_headers(lofar_udp_meta *meta, const char header[MAX_NUM_PORT
 
 
 		// Determine the number of beamlets and bitmode on the port
-		VERBOSE(printf("port %d, bitMode %d, beamlets %d (%c, %u)\n", port, ((lofar_source_bytes*) &source)->bitMode, (int) ((unsigned char) header[port][6]), header[port][6], (unsigned char) header[port][6]););
+		VERBOSE(printf("port %d, bitMode %d, beamlets %d (%u)\n", port, ((lofar_source_bytes*) &source)->bitMode, (int) ((unsigned char) header[port][6]), (unsigned char) header[port][6]););
 		meta->portBeamlets[port] = (int) ((unsigned char) header[port][6]);
 		meta->portCumulativeBeamlets[port] = meta->totalBeamlets;
 		meta->totalBeamlets += (int) ((unsigned char) header[port][6]);
