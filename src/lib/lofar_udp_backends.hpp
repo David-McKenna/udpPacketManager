@@ -708,7 +708,7 @@ int lofar_udp_raw_loop(lofar_udp_meta *meta) {
 
 				VERBOSE(if (verbose && port == 0 && iLoop == 0) {
 					for (int i = 0; i < numSamples - UDPHDRLEN; i++)
-						printf("%c, ", inputPortData[i]);
+						printf("%d, ", inputPortData[i]);
 					printf("\n");
 				};);
 
