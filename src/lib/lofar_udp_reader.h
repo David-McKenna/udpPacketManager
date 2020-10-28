@@ -125,7 +125,7 @@ typedef struct lofar_udp_meta {
 
 
 	// Track the packets, logging the beamlet counts and their metadata
-	char portBeamlets[MAX_NUM_PORTS];
+	int portBeamlets[MAX_NUM_PORTS];
 	int portCumulativeBeamlets[MAX_NUM_PORTS];
 	int totalBeamlets;
 
