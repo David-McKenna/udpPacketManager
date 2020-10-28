@@ -524,7 +524,7 @@ int lofar_udp_raw_loop(lofar_udp_meta *meta) {
 			}
 		}
 		for (int i = 0; i < OMP_THREADS; i++) {
-			byteWorkspace[i] = (char*) calloc(maxPacketSize - UDPHDRLEN, sizeof(char));
+			byteWorkspace[i] = (char*) calloc(2 * maxPacketSize - 2 * UDPHDRLEN, sizeof(char));
 		}
 	}
 	#pragma GCC diagnostic pop
