@@ -532,7 +532,7 @@ int lofar_udp_raw_loop(lofar_udp_meta *meta) {
 	// Setup working variables
 	
 	VERBOSE(const int verbose = meta->VERBOSE);
-	VERBOSE(if (verbose) printf("Begining processing for state %d, with input %d and output %d\n", state, sizeof(I), sizeof(O)););
+	VERBOSE(if (verbose) printf("Begining processing for state %d, with input %ld and output %ld\n", state, sizeof(I), sizeof(O)););
 	
 	const int packetsPerIteration = meta->packetsPerIteration;
 	const int replayDroppedPackets = meta->replayDroppedPackets;
