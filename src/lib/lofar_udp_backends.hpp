@@ -689,7 +689,7 @@ int lofar_udp_raw_loop(lofar_udp_meta *meta) {
 				inputPortData = byteWorkspace[omp_get_thread_num()];
 
 				// Determine the number of (byte-sized) samples to process
-				int numSamples = portBeamlets * UDPNTIMESLICE / 2;
+				int numSamples = portPacketLength;
 
 				// Use a LUT to extract the 4-bit signed ints from signed chars
 				#ifdef __INTEL_COMPILER
@@ -697,7 +697,7 @@ int lofar_udp_raw_loop(lofar_udp_meta *meta) {
 				#else
 				#pragma GCC unroll 16
 				#endif
-				for (int idx = 0; idx < numSamples; idx++) {
+				for (int idx = UDPHDRLEN; idx < numSamples; idx++) {
 					#pragma GCC diagnostic push
 					#pragma GCC diagnostic ignored "-Wchar-subscripts"
 					const char *result = bitmodeConversion[meta->inputData[port][lastInputPacketOffset + idx]];
@@ -705,6 +705,12 @@ int lofar_udp_raw_loop(lofar_udp_meta *meta) {
 					inputPortData[idx * 2] = result[0];
 					inputPortData[idx * 2 + 1] = result[1];
 				}
+
+				VERBOSE(if (verbose && port == 0 && iLoop == 0) {
+					for (int i = 0; i < numSamples - UDPHDRLEN; i++)
+						printf("%c, ", inputPortData[i]);
+					printf("\n");
+				};);
 
 				// We have data at the start of the array, reset the pointer offset to 0
 				lastInputPacketOffset = 0;
