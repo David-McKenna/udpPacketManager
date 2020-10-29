@@ -525,7 +525,7 @@ int lofar_udp_raw_loop(lofar_udp_meta *meta) {
 			}
 		}
 		for (int i = 0; i < OMP_THREADS; i++) {
-			byteWorkspace[i] = (char*) malloc(2 * maxPacketSize - 2 * UDPHDRLEN, sizeof(char));
+			byteWorkspace[i] = (char*) malloc(2 * maxPacketSize - 2 * UDPHDRLEN * sizeof(char));
 			VERBOSE(if (verbose) printf("Allocating %d bytes at %p\n", 2 * maxPacketSize - 2 * UDPHDRLEN, (void *) byteWorkspace[i]););
 		}
 	}
