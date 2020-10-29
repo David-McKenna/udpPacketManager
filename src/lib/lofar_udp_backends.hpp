@@ -430,7 +430,7 @@ void inline udp_fullStokes(long iLoop, char *inputPortData, O **outputData,  lon
 		tsInOffset = lastInputPacketOffset + beamlet * UDPNTIMESLICE * UDPNPOL * timeStepSize;
 		tsOutOffset = outputPacketOffset + (totalBeamlets - 1 - beamlet - cumulativeBeamlets);
 
-		VERBOSE(if (iLoop == 0 && cumulativeBeamlets == 244) printf("\nidx %d: %ld, %ld, ", beamlet, tsInOffset, tsOutOffset););
+		VERBOSE(if (iLoop == 0) printf("\nidx %d (%d): %ld, %ld, ", beamlet, cumulativeBeamlets, tsInOffset, tsOutOffset););
 
 		#ifdef __INTEL_COMPILER
 		#pragma omp simd
@@ -446,7 +446,7 @@ void inline udp_fullStokes(long iLoop, char *inputPortData, O **outputData,  lon
 			tsInOffset += 4 * timeStepSize;
 			tsOutOffset += totalBeamlets;
 
-		VERBOSE(if (iLoop == 0 && cumulativeBeamlets == 244) printf("%ld, %ld, ", tsInOffset, tsOutOffset););
+		VERBOSE(if (iLoop == 0) printf("%ld, %ld, ", tsInOffset, tsOutOffset););
 
 		}
 	}
@@ -687,7 +687,7 @@ int lofar_udp_raw_loop(lofar_udp_meta *meta) {
 
 
 			#ifdef __INTEL_COMPILER
-			#pragma omp task firstprivate(iLoop, lastInputPacketOffset, inputPortData) private(localThreadNum) shared(byteWorkspace)
+			#pragma omp task firstprivate(iLoop, lastInputPacketOffset, inputPortData) private(localThreadNum) shared(byteWorkspace, outputData)
 			{
 			#else
 				LIPOCache = lastInputPacketOffset;
