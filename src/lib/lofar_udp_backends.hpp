@@ -808,6 +808,8 @@ int lofar_udp_raw_loop(lofar_udp_meta *meta) {
 		#pragma omp taskwait
 		#endif
 
+		VERBOSE(if (verbose) printf("Port %d finished loop.\n", port););
+
 	}
 
 	for (int port = 0; port < meta->numPorts; port++) {
@@ -836,10 +838,13 @@ int lofar_udp_raw_loop(lofar_udp_meta *meta) {
 
 	// If needed, free the 4-bit workspace
 	if constexpr (state >= 4000) {
+		VERBOSE(if (verbose) printf("freeing byteWorkspace data\n"););
 		for (int i = 0; i < OMP_THREADS; i++) {
 			free(byteWorkspace[i]);
 		}
+		VERBOSE(if (verbose) printf("byteWorkspaceSubArrays free'd\n"););
 		free(byteWorkspace);
+		VERBOSE(if (verbose) printf("byteWorkspace free'd\n"););
 	}
 
 	return packetLoss;
