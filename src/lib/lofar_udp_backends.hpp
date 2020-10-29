@@ -502,6 +502,8 @@ int lofar_udp_raw_loop(lofar_udp_meta *meta) {
 	// Setup return variable
 	int packetLoss = 0;
 
+	VERBOSE(const int verbose = meta->VERBOSE);
+
 	// Confirm number of OMP threads
 	omp_set_num_threads(OMP_THREADS);
 
@@ -531,9 +533,10 @@ int lofar_udp_raw_loop(lofar_udp_meta *meta) {
 	}
 	#pragma GCC diagnostic pop
 	#pragma GCC diagnostic pop
-	// Setup working variables
-	
-	VERBOSE(const int verbose = meta->VERBOSE);
+
+
+
+	// Setup working variables	
 	VERBOSE(if (verbose) printf("Begining processing for state %d, with input %ld and output %ld\n", state, sizeof(I), sizeof(O)););
 	
 	const int packetsPerIteration = meta->packetsPerIteration;
