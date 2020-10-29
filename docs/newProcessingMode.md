@@ -8,14 +8,14 @@ int lofar_udp_raw_udp_my_new_kernel(lofar_udp_meta *meta);
 ```
 
 2. Create the CPP/C bridge in `lofar_udp_backends.cpp`. You will need to pick both a processing mode int enum (any value greater than 0 and not in use by other modes) and an output data format. For copy methods, the output datatype should be the same as the input. Though you can change it, eg to convert to float by using float as the output datatype. 
+The 4-bit processing enum is (almost) always 4000 larger than the default enum, to signal to the processing loop that the data packet needs to have the bits upacked before proceeding. If you have a processing mode that just performs a data move, eg memcpy, this change is not needed.
 
 ```
 int lofar_udp_raw_udp_my_new_kernel(lofar_udp_meta *meta) {
 	VERBOSE(if (meta->VERBOSE) printf("Entered C++ call for lofar_udp_raw_udp_my_new_kernel\n"));
 	switch(meta->inputBitMode) {
 		case 4:
-			fprintf(stderr, "4-bit mode is not yet supported, exiting.\n");
-			return 1;
+			return lofar_udp_raw_loop<signed char, OUTPUT_DTYPE, KERNEL_ENUM_VAL (+ 4000)>(meta);
 		case 8:
 			return lofar_udp_raw_loop<signed char, OUTPUT_DTYPE, KERNEL_ENUM_VAL>(meta);
 		case 16:
@@ -82,6 +82,6 @@ case KERNEL_ENUM_VAL:
 	break;
 ```
 
-6. Staying in `int lofar_udp_setup_processing(lofar_udp_meta *meta)`, run the maths on the input / output data sizes and add your case to the switch statement. If adding a completely new calculation, be sue to add a `break;` statement afterwards, as the compiler warning is disabled for this switch statement. In the case of a re-rodering operation, you will just need to define the number of output arrays.
+6. Staying in `int lofar_udp_setup_processing(lofar_udp_meta *meta)`, run the maths on the input / output data sizes and add your case to the switch statement. If adding a completely new calculation, be sure to add a `break;` statement afterwards, as the compiler warning is disabled for this switch statement. In the case of a re-rodering operation, you will just need to define the number of output arrays.
 
 7. Add documentation to `README_CLI.md` and `lofar_cli_meta.c`.

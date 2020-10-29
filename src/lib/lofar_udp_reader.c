@@ -16,7 +16,7 @@ int lofar_udp_parse_headers(lofar_udp_meta *meta, const char header[MAX_NUM_PORT
 	union char_unsigned_int tsseq;
 	union char_short source;
 
-	int bitMul;
+	float bitMul;
 	int baseLength;
 	int cacheBitMode = 0;
 
@@ -45,8 +45,8 @@ int lofar_udp_parse_headers(lofar_udp_meta *meta, const char header[MAX_NUM_PORT
 			return 1;
 		}
 
-		if ((unsigned char) header[port][7] != 16) {
-			fprintf(stderr, "Input header on port %d appears malformed (time slices are %d, not 16), exiting.\n", port, header[port][7]);
+		if ((unsigned char) header[port][7] != UDPNTIMESLICE) {
+			fprintf(stderr, "Input header on port %d appears malformed (time slices are %d, not UDPNTIMESLICE), exiting.\n", port, header[port][7]);
 			return 1;
 		}
 
@@ -69,9 +69,10 @@ int lofar_udp_parse_headers(lofar_udp_meta *meta, const char header[MAX_NUM_PORT
 
 
 		// Determine the number of beamlets and bitmode on the port
-		meta->portBeamlets[port] = (int) header[port][6];
+		VERBOSE(printf("port %d, bitMode %d, beamlets %d (%u)\n", port, ((lofar_source_bytes*) &source)->bitMode, (int) ((unsigned char) header[port][6]), (unsigned char) header[port][6]););
+		meta->portBeamlets[port] = (int) ((unsigned char) header[port][6]);
 		meta->portCumulativeBeamlets[port] = meta->totalBeamlets;
-		meta->totalBeamlets += (int) header[port][6];
+		meta->totalBeamlets += (int) ((unsigned char) header[port][6]);
 		switch (((lofar_source_bytes*) &source)->bitMode) {
 			case 0:
 				meta->inputBitMode = 16;
@@ -98,6 +99,7 @@ int lofar_udp_parse_headers(lofar_udp_meta *meta, const char header[MAX_NUM_PORT
 				return 1;
 			}
 		}
+
 
 
 		// Determine the size of the input array
@@ -195,7 +197,7 @@ int lofar_udp_skip_to_packet(lofar_udp_reader *reader) {
 		}
 
 		if (lofar_get_packet_number(&(reader->meta->inputData[port][0])) > reader->meta->lastPacket) {
-			fprintf(stderr, "Port %d has scanned beyond target packet %d (to start at %ld), exiting.\n", port, reader->meta->lastPacket, lofar_get_packet_number(&(reader->meta->inputData[port][lastPacketOffset])));
+			fprintf(stderr, "Port %d has scanned beyond target packet %ld (to start at %ld), exiting.\n", port, reader->meta->lastPacket, lofar_get_packet_number(&(reader->meta->inputData[port][lastPacketOffset])));
 			return 1;
 		}
 
@@ -503,8 +505,6 @@ int lofar_udp_setup_processing(lofar_udp_meta *meta) {
 	float mulFactor = 1.0; // Scale packet length linearly
 	int workingData = 0;
 
-	// TODO: 4-bit mode not yet implemented
-
 
 	// Define the processing function
 	switch (meta->processingMode) {
@@ -559,6 +559,9 @@ int lofar_udp_setup_processing(lofar_udp_meta *meta) {
 		case 150:
 			meta->processFunc = &lofar_udp_raw_udp_full_stokes;
 			break;
+		case 160:
+			meta->processFunc = &lofar_udp_raw_udp_useful_stokes;
+			break;
 
 		// 2x decimation
 		case 101:
@@ -575,6 +578,9 @@ int lofar_udp_setup_processing(lofar_udp_meta *meta) {
 			break;
 		case 151:
 			meta->processFunc = &lofar_udp_raw_udp_full_stokes_sum2;
+			break;
+		case 161:
+			meta->processFunc = &lofar_udp_raw_udp_useful_stokes_sum2;
 			break;
 
 		// 4x decimation
@@ -593,6 +599,9 @@ int lofar_udp_setup_processing(lofar_udp_meta *meta) {
 		case 152:
 			meta->processFunc = &lofar_udp_raw_udp_full_stokes_sum4;
 			break;
+		case 162:
+			meta->processFunc = &lofar_udp_raw_udp_useful_stokes_sum4;
+			break;
 
 		// 8x decimation
 		case 103:
@@ -609,6 +618,9 @@ int lofar_udp_setup_processing(lofar_udp_meta *meta) {
 			break;
 		case 153:
 			meta->processFunc = &lofar_udp_raw_udp_full_stokes_sum8;
+			break;
+		case 163:
+			meta->processFunc = &lofar_udp_raw_udp_useful_stokes_sum8;
 			break;
 
 		// 16x decimation
@@ -627,6 +639,9 @@ int lofar_udp_setup_processing(lofar_udp_meta *meta) {
 		case 154:
 			meta->processFunc = &lofar_udp_raw_udp_full_stokes_sum16;
 			break;
+		case 164:
+			meta->processFunc = &lofar_udp_raw_udp_useful_stokes_sum16;
+			break;
 
 		default:
 			fprintf(stderr, "Unknown processing mode %d, exiting...\n", meta->processingMode);
@@ -636,6 +651,12 @@ int lofar_udp_setup_processing(lofar_udp_meta *meta) {
 	// Define the output size per packet
 	// Assume we are doing a copy operation by default
 	meta->outputBitMode = meta->inputBitMode;
+
+	// 4-bit data will (nearly) always be expanded to 8-bit chars
+	if (meta->outputBitMode == 4) {
+		meta->outputBitMode = 8;
+	}
+
 	switch (meta->processingMode) {
 		#pragma GCC diagnostic push
 		#pragma GCC diagnostic ignored "-Wimplicit-fallthrough"
@@ -646,6 +667,12 @@ int lofar_udp_setup_processing(lofar_udp_meta *meta) {
 		case 1:
 			meta->numOutputs = meta->numPorts;
 			equalIO = 1;
+			
+			// These are the only processing modes that do not require 4-bit
+			// data to be extracted. EqualIO will handle our sizes anyway
+			if (meta->inputBitMode == 4) {
+				meta->outputBitMode = 4;
+			}
 			break;
 
 		case 2:
@@ -684,6 +711,13 @@ int lofar_udp_setup_processing(lofar_udp_meta *meta) {
 			meta->outputBitMode = 32;
 			break;
 
+		case 160:
+			meta->numOutputs = 4;
+			// 4 input words -> 2 larger word x 4
+			mulFactor = 2.0 / 4.0;
+			meta->outputBitMode = 32;
+			break;
+
 		case 101:
 		case 111:
 		case 121:
@@ -713,6 +747,16 @@ int lofar_udp_setup_processing(lofar_udp_meta *meta) {
 			meta->numOutputs = 4;
 			// Bit shift based on processing mode, 2^(mode % 10)
 			mulFactor = 1.0 / (float)  (1 << (meta->processingMode % 10));
+			meta->outputBitMode = 32;
+			break;
+
+		case 161:
+		case 162:
+		case 163:
+		case 164:
+			meta->numOutputs = 2;
+			// Bit shift based on processing mode, 2^(mode % 10) * 2, 2 as in mode 160
+			mulFactor = 1.0 / (float)  (1 << ((meta->processingMode % 10) + 1));
 			meta->outputBitMode = 32;
 			break;
 
@@ -844,8 +888,8 @@ lofar_udp_reader* lofar_udp_meta_file_reader_setup(FILE **inputFiles, const int 
 				meta.totalBeamlets, meta.numPorts, meta.replayDroppedPackets, meta.processingMode, 0, meta.packetsPerIteration, meta.packetsRead, meta.packetsReadMax, meta.lastPacket);
 
 		for (int i = 0; i < meta.numPorts; i++) {
-			printf("Port %d: inputDataOffset %ld, portBeamlets %d, inputBitMode %d, portPacketLength %d, packetOutputLength %d, portLastDroppedPackets %d, portTotalDroppedPackets %d\n", i, 
-				meta.inputDataOffset[i], meta.portBeamlets[i], meta.inputBitMode, meta.portPacketLength[i], meta.packetOutputLength[i], meta.portLastDroppedPackets[i], meta.portTotalDroppedPackets[i]);
+			printf("Port %d: inputDataOffset %ld, portBeamlets %d, cumulativeBeamlets %d, inputBitMode %d, portPacketLength %d, packetOutputLength %d, portLastDroppedPackets %d, portTotalDroppedPackets %d\n", i, 
+				meta.inputDataOffset[i], meta.portBeamlets[i], meta.portCumulativeBeamlets[i], meta.inputBitMode, meta.portPacketLength[i], meta.packetOutputLength[i], meta.portLastDroppedPackets[i], meta.portTotalDroppedPackets[i]);
 
 		for (int i = 0; i < meta.numOutputs; i++) printf("Output %d, packetLength %d, numOut %d", i, meta.packetOutputLength[i], meta.numOutputs);
 	}});
@@ -1483,60 +1527,3 @@ int lofar_udp_shift_remainder_packets(lofar_udp_reader *reader, const int shiftP
 
 	return returnVal;
 }
-
-/* LUT for 4-bit data */
-const char bitmodeConversion[256][2] = {
-		{ 0 , 0 }, { 0 , 1 }, { 0 , 2 }, { 0 , 3 }, { 0 , 4 }, 
-		{ 0 , 5 }, { 0 , 6 }, { 0 , 7 }, { 0 , -8 }, { 0 , -7 }, 
-		{ 0 , -6 }, { 0 , -5 }, { 0 , -4 }, { 0 , -3 }, { 0 , -2 }, 
-		{ 0 , -1 }, { 1 , 0 }, { 1 , 1 }, { 1 , 2 }, { 1 , 3 }, 
-		{ 1 , 4 }, { 1 , 5 }, { 1 , 6 }, { 1 , 7 }, { 1 , -8 }, 
-		{ 1 , -7 }, { 1 , -6 }, { 1 , -5 }, { 1 , -4 }, { 1 , -3 }, 
-		{ 1 , -2 }, { 1 , -1 }, { 2 , 0 }, { 2 , 1 }, { 2 , 2 }, 
-		{ 2 , 3 }, { 2 , 4 }, { 2 , 5 }, { 2 , 6 }, { 2 , 7 }, 
-		{ 2 , -8 }, { 2 , -7 }, { 2 , -6 }, { 2 , -5 }, { 2 , -4 }, 
-		{ 2 , -3 }, { 2 , -2 }, { 2 , -1 }, { 3 , 0 }, { 3 , 1 }, 
-		{ 3 , 2 }, { 3 , 3 }, { 3 , 4 }, { 3 , 5 }, { 3 , 6 }, 
-		{ 3 , 7 }, { 3 , -8 }, { 3 , -7 }, { 3 , -6 }, { 3 , -5 }, 
-		{ 3 , -4 }, { 3 , -3 }, { 3 , -2 }, { 3 , -1 }, { 4 , 0 }, 
-		{ 4 , 1 }, { 4 , 2 }, { 4 , 3 }, { 4 , 4 }, { 4 , 5 }, 
-		{ 4 , 6 }, { 4 , 7 }, { 4 , -8 }, { 4 , -7 }, { 4 , -6 }, 
-		{ 4 , -5 }, { 4 , -4 }, { 4 , -3 }, { 4 , -2 }, { 4 , -1 }, 
-		{ 5 , 0 }, { 5 , 1 }, { 5 , 2 }, { 5 , 3 }, { 5 , 4 }, 
-		{ 5 , 5 }, { 5 , 6 }, { 5 , 7 }, { 5 , -8 }, { 5 , -7 }, 
-		{ 5 , -6 }, { 5 , -5 }, { 5 , -4 }, { 5 , -3 }, { 5 , -2 }, 
-		{ 5 , -1 }, { 6 , 0 }, { 6 , 1 }, { 6 , 2 }, { 6 , 3 }, 
-		{ 6 , 4 }, { 6 , 5 }, { 6 , 6 }, { 6 , 7 }, { 6 , -8 }, 
-		{ 6 , -7 }, { 6 , -6 }, { 6 , -5 }, { 6 , -4 }, { 6 , -3 }, 
-		{ 6 , -2 }, { 6 , -1 }, { 7 , 0 }, { 7 , 1 }, { 7 , 2 }, 
-		{ 7 , 3 }, { 7 , 4 }, { 7 , 5 }, { 7 , 6 }, { 7 , 7 }, 
-		{ 7 , -8 }, { 7 , -7 }, { 7 , -6 }, { 7 , -5 }, { 7 , -4 }, 
-		{ 7 , -3 }, { 7 , -2 }, { 7 , -1 }, { -8 , 0 }, { -8 , 1 }, 
-		{ -8 , 2 }, { -8 , 3 }, { -8 , 4 }, { -8 , 5 }, { -8 , 6 }, 
-		{ -8 , 7 }, { -8 , -8 }, { -8 , -7 }, { -8 , -6 }, { -8 , -5 }, 
-		{ -8 , -4 }, { -8 , -3 }, { -8 , -2 }, { -8 , -1 }, { -7 , 0 }, 
-		{ -7 , 1 }, { -7 , 2 }, { -7 , 3 }, { -7 , 4 }, { -7 , 5 }, 
-		{ -7 , 6 }, { -7 , 7 }, { -7 , -8 }, { -7 , -7 }, { -7 , -6 }, 
-		{ -7 , -5 }, { -7 , -4 }, { -7 , -3 }, { -7 , -2 }, { -7 , -1 }, 
-		{ -6 , 0 }, { -6 , 1 }, { -6 , 2 }, { -6 , 3 }, { -6 , 4 }, 
-		{ -6 , 5 }, { -6 , 6 }, { -6 , 7 }, { -6 , -8 }, { -6 , -7 }, 
-		{ -6 , -6 }, { -6 , -5 }, { -6 , -4 }, { -6 , -3 }, { -6 , -2 }, 
-		{ -6 , -1 }, { -5 , 0 }, { -5 , 1 }, { -5 , 2 }, { -5 , 3 }, 
-		{ -5 , 4 }, { -5 , 5 }, { -5 , 6 }, { -5 , 7 }, { -5 , -8 }, 
-		{ -5 , -7 }, { -5 , -6 }, { -5 , -5 }, { -5 , -4 }, { -5 , -3 }, 
-		{ -5 , -2 }, { -5 , -1 }, { -4 , 0 }, { -4 , 1 }, { -4 , 2 }, 
-		{ -4 , 3 }, { -4 , 4 }, { -4 , 5 }, { -4 , 6 }, { -4 , 7 }, 
-		{ -4 , -8 }, { -4 , -7 }, { -4 , -6 }, { -4 , -5 }, { -4 , -4 }, 
-		{ -4 , -3 }, { -4 , -2 }, { -4 , -1 }, { -3 , 0 }, { -3 , 1 }, 
-		{ -3 , 2 }, { -3 , 3 }, { -3 , 4 }, { -3 , 5 }, { -3 , 6 }, 
-		{ -3 , 7 }, { -3 , -8 }, { -3 , -7 }, { -3 , -6 }, { -3 , -5 }, 
-		{ -3 , -4 }, { -3 , -3 }, { -3 , -2 }, { -3 , -1 }, { -2 , 0 }, 
-		{ -2 , 1 }, { -2 , 2 }, { -2 , 3 }, { -2 , 4 }, { -2 , 5 }, 
-		{ -2 , 6 }, { -2 , 7 }, { -2 , -8 }, { -2 , -7 }, { -2 , -6 }, 
-		{ -2 , -5 }, { -2 , -4 }, { -2 , -3 }, { -2 , -2 }, { -2 , -1 }, 
-		{ -1 , 0 }, { -1 , 1 }, { -1 , 2 }, { -1 , 3 }, { -1 , 4 }, 
-		{ -1 , 5 }, { -1 , 6 }, { -1 , 7 }, { -1 , -8 }, { -1 , -7 },
-		{ -1 , -6 }, { -1 , -5 }, { -1 , -4 }, { -1 , -3 }, { -1 , -2 }, 
-		{ -1 , -1 }
-
-};

@@ -15,6 +15,13 @@ extern "C" {
 #include <omp.h>
 
 
+// 4-bit LUT for faster decoding (and for lock in when I finally work out which 4-bit more they used...)
+#ifndef __LOFAR_4BITLUT
+#define __LOFAR_4BITLUT
+extern const char bitmodeConversion[256][2];
+#endif
+
+
 float stokesI(float Xr, float Xi, float Yr, float Yi);
 float stokesQ(float Xr, float Xi, float Yr, float Yi);
 float stokesU(float Xr, float Xi, float Yr, float Yi);
@@ -60,6 +67,11 @@ int lofar_udp_raw_udp_full_stokes_sum2(lofar_udp_meta *meta);
 int lofar_udp_raw_udp_full_stokes_sum4(lofar_udp_meta *meta);
 int lofar_udp_raw_udp_full_stokes_sum8(lofar_udp_meta *meta);
 int lofar_udp_raw_udp_full_stokes_sum16(lofar_udp_meta *meta);
+int lofar_udp_raw_udp_useful_stokes(lofar_udp_meta *meta);
+int lofar_udp_raw_udp_useful_stokes_sum2(lofar_udp_meta *meta);
+int lofar_udp_raw_udp_useful_stokes_sum4(lofar_udp_meta *meta);
+int lofar_udp_raw_udp_useful_stokes_sum8(lofar_udp_meta *meta);
+int lofar_udp_raw_udp_useful_stokes_sum16(lofar_udp_meta *meta);
 #ifdef __cplusplus
 }
 #endif
@@ -488,6 +500,76 @@ void inline udp_fullStokesDecimation(long iLoop, char *inputPortData, O **output
 	}
 }
 
+template <typename I, typename O>
+void inline udp_usefulStokes(long iLoop, char *inputPortData, O **outputData,  long lastInputPacketOffset, long packetOutputLength, int timeStepSize, int totalBeamlets, int portBeamlets, int cumulativeBeamlets) {
+	long outputPacketOffset = iLoop * packetOutputLength / sizeof(O);
+	long tsInOffset, tsOutOffset;
+
+	//#pragma omp parallel for schedule(dynamic, 31) // Expected sizes: 61, 122, 244
+	#ifdef __INTEL_COMPILER
+	#pragma omp simd
+	#else
+	#pragma GCC unroll 61
+	#endif
+	for (int beamlet = 0; beamlet < portBeamlets; beamlet++) {
+		tsInOffset = lastInputPacketOffset + beamlet * UDPNTIMESLICE * UDPNPOL * timeStepSize;
+		tsOutOffset = outputPacketOffset + (totalBeamlets - 1 - beamlet - cumulativeBeamlets);
+
+		#ifdef __INTEL_COMPILER
+		#pragma omp simd
+		#else
+		#pragma GCC unroll 16
+		#endif
+		for (int ts = 0; ts < UDPNTIMESLICE; ts++) {
+			outputData[0][tsOutOffset] = stokesI(*((I*) &(inputPortData[tsInOffset])), *((I*) &(inputPortData[tsInOffset + 1 * timeStepSize])), *((I*) &(inputPortData[tsInOffset + 2 * timeStepSize])), *((I*) &(inputPortData[tsInOffset + 3 * timeStepSize])));
+			outputData[1][tsOutOffset] = stokesV(*((I*) &(inputPortData[tsInOffset])), *((I*) &(inputPortData[tsInOffset + 1 * timeStepSize])), *((I*) &(inputPortData[tsInOffset + 2 * timeStepSize])), *((I*) &(inputPortData[tsInOffset + 3 * timeStepSize])));
+
+			tsInOffset += 4 * timeStepSize;
+			tsOutOffset += totalBeamlets;
+
+		}
+	}
+}
+
+template <typename I, typename O, int factor>
+void inline udp_usefulStokesDecimation(long iLoop, char *inputPortData, O **outputData, long lastInputPacketOffset, long packetOutputLength, int timeStepSize, int totalBeamlets, int portBeamlets, int cumulativeBeamlets) {
+	long outputPacketOffset = iLoop * packetOutputLength * UDPNTIMESLICE / sizeof(O) / factor;
+	long tsInOffset, tsOutOffset;
+	O tempValI, tempValV;
+
+	//#pragma omp parallel for schedule(dynamic, 31) // Expected sizes: 61, 122, 244
+	#ifdef __INTEL_COMPILER
+	#pragma omp simd
+	#else
+	#pragma GCC unroll 61
+	#endif
+	for (int beamlet = 0; beamlet < portBeamlets; beamlet++) {
+		tsInOffset = lastInputPacketOffset + beamlet * UDPNTIMESLICE * UDPNPOL * timeStepSize;
+		tsOutOffset = outputPacketOffset + (totalBeamlets - 1 - beamlet - cumulativeBeamlets);
+		tempValI = 0.0;
+		tempValV = 0.0;
+
+		#ifdef __INTEL_COMPILER
+		#pragma omp simd
+		#else
+		#pragma GCC unroll 16
+		#endif
+		for (int ts = 0; ts < UDPNTIMESLICE; ts++) {
+			tempValI += stokesI(*((I*) &(inputPortData[tsInOffset])), *((I*) &(inputPortData[tsInOffset + 1 * timeStepSize])), *((I*) &(inputPortData[tsInOffset + 2 * timeStepSize])), *((I*) &(inputPortData[tsInOffset + 3 * timeStepSize])));
+			tempValV += stokesV(*((I*) &(inputPortData[tsInOffset])), *((I*) &(inputPortData[tsInOffset + 1 * timeStepSize])), *((I*) &(inputPortData[tsInOffset + 2 * timeStepSize])), *((I*) &(inputPortData[tsInOffset + 3 * timeStepSize])));
+
+			tsInOffset += 4 * timeStepSize;
+			if ((ts + 1) % factor == 0) {
+				outputData[0][tsOutOffset] = tempValI;
+				outputData[1][tsOutOffset] = tempValV;
+				tempValI = 0.0;
+				tempValV = 0.0;
+
+				tsOutOffset += totalBeamlets;
+			}
+		}
+	}
+}
 
 
 template <typename I, typename O, const int state>
@@ -495,34 +577,72 @@ int lofar_udp_raw_loop(lofar_udp_meta *meta) {
 	// Setup return variable
 	int packetLoss = 0;
 
-	// Setup decimation factor if needed
+	VERBOSE(const int verbose = meta->VERBOSE);
+
+	// Confirm number of OMP threads
+	omp_set_num_threads(OMP_THREADS);
+
+	// Setup decimation factor, 4-bit workspaces if needed
+	// Silence compiler warnings as this variable is only needed for some processing modes
+	#pragma GCC diagnostic push
+	#pragma GCC diagnostic ignored "-Wunused-variable"
+	#pragma GCC diagnostic ignored "-Wunused-but-set-variable"
+	#pragma GCC diagnostic push
+	#pragma GCC diagnostic push
 	constexpr int decimation = 1 << (state % 10);
 
-	// Setup working variables
-	
-	VERBOSE(const int verbose = meta->VERBOSE);
+	char **byteWorkspace;
+	if constexpr (state >= 4010) {
+		byteWorkspace = (char**) malloc(sizeof(char *) * OMP_THREADS);
+		VERBOSE(if (verbose) printf("Allocating %ld bytes at %p\n", sizeof(char *) * OMP_THREADS, (void *) byteWorkspace););
+		int maxPacketSize = 0;
+		for (int port = 0; port < meta->numPorts; port++) {
+			if (meta->portPacketLength[port] > maxPacketSize) {
+				maxPacketSize = meta->portPacketLength[port];
+			}
+		}
+		for (int i = 0; i < OMP_THREADS; i++) {
+			byteWorkspace[i] = (char*) malloc(2 * maxPacketSize - 2 * UDPHDRLEN * sizeof(char));
+			VERBOSE(if (verbose) printf("Allocating %d bytes at %p\n", 2 * maxPacketSize - 2 * UDPHDRLEN, (void *) byteWorkspace[i]););
+		}
+	}
+	#pragma GCC diagnostic pop
+	#pragma GCC diagnostic pop
+
+
+
+	// Setup working variables	
+	VERBOSE(if (verbose) printf("Begining processing for state %d, with input %ld and output %ld\n", state, sizeof(I), sizeof(O)););
 	
 	const int packetsPerIteration = meta->packetsPerIteration;
 	const int replayDroppedPackets = meta->replayDroppedPackets;
 
 	// For each port of data provided,
-	omp_set_num_threads(OMP_THREADS);
 	#pragma omp parallel for 
 	for (int port = 0; port < meta->numPorts; port++) {
 		VERBOSE(if (verbose) printf("Port: %d on thread %d\n", port, omp_get_thread_num()));
 
 		long lastPortPacket, currentPortPacket, inputPacketOffset, lastInputPacketOffset, iWork, iLoop;
+
+		// On GCC, keep a cache of the last inputPacketOffset while operating in 4-bit mode
+		#ifndef __INTEL_COMPILER
+		long LIPOCache;
+		#endif
+
 		// Reset the dropped packets counter
 		meta->portLastDroppedPackets[port] = 0;
-		int currentPacketsDropped = 0, nextSequence;
+		int currentPacketsDropped = 0, nextSequence, localThreadNum;
 
 		// Reset last packet, reference data on the current port
 		lastPortPacket = meta->lastPacket;
 		char *inputPortData = meta->inputData[port];
 		O  **outputData = (O**) meta->outputData;
 
+		// Silence compiler warnings as this variable is only needed for some processing modes
 		#pragma GCC diagnostic push
 		#pragma GCC diagnostic ignored "-Wunused-variable"
+		#pragma GCC diagnostic ignored "-Wunused-but-set-variable"
+		#pragma GCC diagnostic push
 		#pragma GCC diagnostic push
 		const int portBeamlets = meta->portBeamlets[port];
 		const int cumulativeBeamlets = meta->portCumulativeBeamlets[port];
@@ -534,6 +654,8 @@ int lofar_udp_raw_loop(lofar_udp_meta *meta) {
 		const int packetOutputLength = meta->packetOutputLength[0];
 		const int timeStepSize = sizeof(I) / sizeof(char);
 		#pragma GCC diagnostic pop
+		#pragma GCC diagnostic pop
+
 		lastInputPacketOffset = (-2 + meta->replayDroppedPackets) * portPacketLength; 	// We request at least 2 packets are malloc'd before the array head pointer, so no SEGFAULTs here
 														// -2 * PPL = 0s -1 * PPL = last processed packet -- used for calcuating offset in dropped case if 
 														// 	we have packet loss on the boundary.
@@ -633,155 +755,133 @@ int lofar_udp_raw_loop(lofar_udp_meta *meta) {
 
 			}
 
-			switch(state) {
 
-				case 0:
-					#ifdef __INTEL_COMPILER
-					#pragma omp task firstprivate(iLoop, lastInputPacketOffset)
-					#endif
-					udp_copy<char, char>(iLoop, inputPortData, (char**) outputData, port, lastInputPacketOffset, packetOutputLength);
-					break;
-				case 1:
-					#ifdef __INTEL_COMPILER
-					#pragma omp task firstprivate(iLoop, lastInputPacketOffset)
-					#endif
-					udp_copyNoHdr<char, char>(iLoop, inputPortData, (char**) outputData, port, lastInputPacketOffset, packetOutputLength);
-					break;
-				case 2:
-					#ifdef __INTEL_COMPILER
-					#pragma omp task firstprivate(iLoop, lastInputPacketOffset)
-					#endif
-					udp_copySplitPols<I, O>(iLoop, inputPortData, outputData, lastInputPacketOffset, packetOutputLength, timeStepSize, portBeamlets, cumulativeBeamlets);
-					break;
+			// Use firstprivate to lock 4-bit variables in a task, create a cache variable otherwise
+			#ifdef __INTEL_COMPILER
+			#pragma omp task firstprivate(iLoop, lastInputPacketOffset, inputPortData) private(localThreadNum) shared(byteWorkspace, outputData)
+			{
+			#else
+				LIPOCache = lastInputPacketOffset;
+			#endif
 
+			// Unpacket 4-bit data into an array of chars, so it can be processed the same way we process 8-bit data
+			if constexpr (state >= 4010) {
+				// Get the workspace for the current packet
+				inputPortData = byteWorkspace[omp_get_thread_num()];
 
+				// Determine the number of (byte-sized) samples to process
+				int numSamples = portPacketLength - UDPHDRLEN;
 
-				case 10:
-					#ifdef __INTEL_COMPILER
-					#pragma omp task firstprivate(iLoop, lastInputPacketOffset)
-					#endif
-					udp_channelMajor<I, O>(iLoop, inputPortData, outputData, lastInputPacketOffset, packetOutputLength, timeStepSize, totalBeamlets, portBeamlets, cumulativeBeamlets);
-					break;
-				case 11:
-					#ifdef __INTEL_COMPILER
-					#pragma omp task firstprivate(iLoop, lastInputPacketOffset)
-					#endif
-					udp_channelMajorSplitPols<I, O>(iLoop, inputPortData, outputData, lastInputPacketOffset, packetOutputLength, timeStepSize, totalBeamlets, portBeamlets, cumulativeBeamlets);
-					break;
+				// Use a LUT to extract the 4-bit signed ints from signed chars
+				#ifdef __INTEL_COMPILER
+				#pragma unroll(16)
+				#else
+				#pragma GCC unroll 16
+				#endif
+				for (int idx = 0; idx < numSamples; idx++) {
+					#pragma GCC diagnostic push
+					#pragma GCC diagnostic ignored "-Wchar-subscripts"
+					const char *result = bitmodeConversion[(unsigned char) meta->inputData[port][lastInputPacketOffset + idx]];
+					#pragma GCC diagnostic pop
+					inputPortData[idx * 2] = result[0];
+					inputPortData[idx * 2 + 1] = result[1];
+				}
 
+				VERBOSE(if (verbose && port == 0 && iLoop == 0) {
+					for (int i = 0; i < numSamples - UDPHDRLEN; i++)
+						printf("%d, ", inputPortData[i]);
+					printf("\n");
+				};);
 
-
-				case 20:
-					#ifdef __INTEL_COMPILER
-					#pragma omp task firstprivate(iLoop, lastInputPacketOffset)
-					#endif
-					udp_reversedChannelMajor<I, O>(iLoop, inputPortData, outputData, lastInputPacketOffset, packetOutputLength, timeStepSize, totalBeamlets, portBeamlets, cumulativeBeamlets);
-					break;
-				case 21:
-					#ifdef __INTEL_COMPILER
-					#pragma omp task firstprivate(iLoop, lastInputPacketOffset)
-					#endif
-					udp_reversedChannelMajorSplitPols<I, O>(iLoop, inputPortData, outputData, lastInputPacketOffset, packetOutputLength, timeStepSize, totalBeamlets, portBeamlets, cumulativeBeamlets);
-					break;
-
-
-
-				case 30:
-					#ifdef __INTEL_COMPILER
-					#pragma omp task firstprivate(iLoop, lastInputPacketOffset)
-					#endif
-					udp_timeMajor<I, O>(iLoop, inputPortData, outputData, lastInputPacketOffset, timeStepSize, portBeamlets, cumulativeBeamlets, packetsPerIteration);
-					break;
-				case 31:
-					#ifdef __INTEL_COMPILER
-					#pragma omp task firstprivate(iLoop, lastInputPacketOffset)
-					#endif
-					udp_timeMajorSplitPols<I, O>(iLoop, inputPortData, outputData, lastInputPacketOffset, timeStepSize, portBeamlets, cumulativeBeamlets, packetsPerIteration);
-					break;
-				case 32:
-					#ifdef __INTEL_COMPILER
-					#pragma omp task firstprivate(iLoop, lastInputPacketOffset)
-					#endif
-					udp_timeMajorDualPols<I, O>(iLoop, inputPortData, outputData, lastInputPacketOffset, timeStepSize, portBeamlets, cumulativeBeamlets, packetsPerIteration);
-					break;
-
-
-
-				case 100:
-					#ifdef __INTEL_COMPILER
-					#pragma omp task firstprivate(iLoop, lastInputPacketOffset)
-					#endif
-					udp_stokes<I, O, stokesI>(iLoop, inputPortData, outputData, lastInputPacketOffset, packetOutputLength, timeStepSize, totalBeamlets, portBeamlets, cumulativeBeamlets);
-					break;
-				case 110:
-					#ifdef __INTEL_COMPILER
-					#pragma omp task firstprivate(iLoop, lastInputPacketOffset)
-					#endif
-					udp_stokes<I, O, stokesQ>(iLoop, inputPortData, outputData, lastInputPacketOffset, packetOutputLength, timeStepSize, totalBeamlets, portBeamlets, cumulativeBeamlets);
-					break;
-				case 120:
-					#ifdef __INTEL_COMPILER
-					#pragma omp task firstprivate(iLoop, lastInputPacketOffset)
-					#endif
-					udp_stokes<I, O, stokesU>(iLoop, inputPortData, outputData, lastInputPacketOffset, packetOutputLength, timeStepSize, totalBeamlets, portBeamlets, cumulativeBeamlets);
-					break;
-				case 130:
-					#ifdef __INTEL_COMPILER
-					#pragma omp task firstprivate(iLoop, lastInputPacketOffset)
-					#endif
-					udp_stokes<I, O, stokesV>(iLoop, inputPortData, outputData, lastInputPacketOffset, packetOutputLength, timeStepSize, totalBeamlets, portBeamlets, cumulativeBeamlets);
-					break;
-
-				case 150:
-					#ifdef __INTEL_COMPILER
-					#pragma omp task firstprivate(iLoop, lastInputPacketOffset)
-					#endif
-					udp_fullStokes<I, O>(iLoop, inputPortData, outputData, lastInputPacketOffset, packetOutputLength, timeStepSize, totalBeamlets, portBeamlets, cumulativeBeamlets);
-					break;
-
-
-				case 101 ... 104:
-					#ifdef __INTEL_COMPILER
-					#pragma omp task firstprivate(iLoop, lastInputPacketOffset)
-					#endif
-					udp_stokesDecimation<I, O, stokesI, decimation>(iLoop, inputPortData, outputData, lastInputPacketOffset, packetOutputLength, timeStepSize, totalBeamlets, portBeamlets, cumulativeBeamlets);
-					break;
-
-				case 111 ... 114:
-					#ifdef __INTEL_COMPILER
-					#pragma omp task firstprivate(iLoop, lastInputPacketOffset)
-					#endif
-					udp_stokesDecimation<I, O, stokesQ, decimation>(iLoop, inputPortData, outputData, lastInputPacketOffset, packetOutputLength, timeStepSize, totalBeamlets, portBeamlets, cumulativeBeamlets);
-					break;
-
-				case 121 ... 124:
-					#ifdef __INTEL_COMPILER
-					#pragma omp task firstprivate(iLoop, lastInputPacketOffset)
-					#endif
-					udp_stokesDecimation<I, O, stokesU, decimation>(iLoop, inputPortData, outputData, lastInputPacketOffset, packetOutputLength, timeStepSize, totalBeamlets, portBeamlets, cumulativeBeamlets);
-					break;
-
-				case 131 ... 134:
-					#ifdef __INTEL_COMPILER
-					#pragma omp task firstprivate(iLoop, lastInputPacketOffset)
-					#endif
-					udp_stokesDecimation<I, O, stokesV, decimation>(iLoop, inputPortData, outputData, lastInputPacketOffset, packetOutputLength, timeStepSize, totalBeamlets, portBeamlets, cumulativeBeamlets);
-					break;
-
-				case 151 ... 154:
-					#ifdef __INTEL_COMPILER
-					#pragma omp task firstprivate(iLoop, lastInputPacketOffset)
-					#endif
-					udp_fullStokesDecimation<I, O, decimation>(iLoop, inputPortData, outputData, lastInputPacketOffset, packetOutputLength, timeStepSize, totalBeamlets, portBeamlets, cumulativeBeamlets);
-					break;
-
-
-
-				default:
-					fprintf(stderr, "Unknown processing mode %d, exiting.\n", state);
-					exit(1);
+				// We have data at the start of the array, reset the pointer offset to 0
+				lastInputPacketOffset = 0;
 			}
 
+			// Effectively a large switch statement, but more performant as it's decided at compile time.
+			if constexpr ((state % 4000) == 0) {
+				udp_copy<char, char>(iLoop, inputPortData, (char**) outputData, port, lastInputPacketOffset, packetOutputLength);
+			} else if constexpr ((state % 4000) == 1) {
+				udp_copyNoHdr<char, char>(iLoop, inputPortData, (char**) outputData, port, lastInputPacketOffset, packetOutputLength);
+			} else if constexpr ((state % 4000) == 2) {
+				udp_copySplitPols<I, O>(iLoop, inputPortData, outputData, lastInputPacketOffset, packetOutputLength, timeStepSize, portBeamlets, cumulativeBeamlets);
+			
+
+
+
+			} else if constexpr ((state % 4000) == 10) {
+				udp_channelMajor<I, O>(iLoop, inputPortData, outputData, lastInputPacketOffset, packetOutputLength, timeStepSize, totalBeamlets, portBeamlets, cumulativeBeamlets);
+			} else if constexpr ((state % 4000) == 11) {
+				udp_channelMajorSplitPols<I, O>(iLoop, inputPortData, outputData, lastInputPacketOffset, packetOutputLength, timeStepSize, totalBeamlets, portBeamlets, cumulativeBeamlets);
+			
+
+
+
+			} else if constexpr ((state % 4000) == 20) {
+				udp_reversedChannelMajor<I, O>(iLoop, inputPortData, outputData, lastInputPacketOffset, packetOutputLength, timeStepSize, totalBeamlets, portBeamlets, cumulativeBeamlets);
+			} else if constexpr ((state % 4000) == 21) {
+				udp_reversedChannelMajorSplitPols<I, O>(iLoop, inputPortData, outputData, lastInputPacketOffset, packetOutputLength, timeStepSize, totalBeamlets, portBeamlets, cumulativeBeamlets);
+			
+
+
+
+			} else if constexpr ((state % 4000) == 30) {
+				udp_timeMajor<I, O>(iLoop, inputPortData, outputData, lastInputPacketOffset, timeStepSize, portBeamlets, cumulativeBeamlets, packetsPerIteration);
+			} else if constexpr ((state % 4000) == 31) {
+				udp_timeMajorSplitPols<I, O>(iLoop, inputPortData, outputData, lastInputPacketOffset, timeStepSize, portBeamlets, cumulativeBeamlets, packetsPerIteration);
+			} else if constexpr ((state % 4000) == 32) {
+				udp_timeMajorDualPols<I, O>(iLoop, inputPortData, outputData, lastInputPacketOffset, timeStepSize, portBeamlets, cumulativeBeamlets, packetsPerIteration);
+			
+
+
+
+			} else if constexpr ((state % 4000) == 100) {
+				udp_stokes<I, O, stokesI>(iLoop, inputPortData, outputData, lastInputPacketOffset, packetOutputLength, timeStepSize, totalBeamlets, portBeamlets, cumulativeBeamlets);
+			} else if constexpr ((state % 4000) == 110) {
+				udp_stokes<I, O, stokesQ>(iLoop, inputPortData, outputData, lastInputPacketOffset, packetOutputLength, timeStepSize, totalBeamlets, portBeamlets, cumulativeBeamlets);
+			} else if constexpr ((state % 4000) == 120) {
+				udp_stokes<I, O, stokesU>(iLoop, inputPortData, outputData, lastInputPacketOffset, packetOutputLength, timeStepSize, totalBeamlets, portBeamlets, cumulativeBeamlets);
+			} else if constexpr ((state % 4000) == 130) {
+				udp_stokes<I, O, stokesV>(iLoop, inputPortData, outputData, lastInputPacketOffset, packetOutputLength, timeStepSize, totalBeamlets, portBeamlets, cumulativeBeamlets);
+			} else if constexpr ((state % 4000) == 150) {
+				udp_fullStokes<I, O>(iLoop, inputPortData, outputData, lastInputPacketOffset, packetOutputLength, timeStepSize, totalBeamlets, portBeamlets, cumulativeBeamlets);
+			} else if constexpr ((state % 4000) == 160) {
+				udp_usefulStokes<I, O>(iLoop, inputPortData, outputData, lastInputPacketOffset, packetOutputLength, timeStepSize, totalBeamlets, portBeamlets, cumulativeBeamlets);
+
+
+
+
+			} else if constexpr ((state % 4000) >= 101 && (state % 4000) <= 104) {
+				udp_stokesDecimation<I, O, stokesI, decimation>(iLoop, inputPortData, outputData, lastInputPacketOffset, packetOutputLength, timeStepSize, totalBeamlets, portBeamlets, cumulativeBeamlets);
+			} else if constexpr ((state % 4000) >= 111 && (state % 4000) <= 114) {
+				udp_stokesDecimation<I, O, stokesQ, decimation>(iLoop, inputPortData, outputData, lastInputPacketOffset, packetOutputLength, timeStepSize, totalBeamlets, portBeamlets, cumulativeBeamlets);
+			} else if constexpr ((state % 4000) >= 121 && (state % 4000) <= 124) {
+				udp_stokesDecimation<I, O, stokesU, decimation>(iLoop, inputPortData, outputData, lastInputPacketOffset, packetOutputLength, timeStepSize, totalBeamlets, portBeamlets, cumulativeBeamlets);
+			} else if constexpr ((state % 4000) >= 131 && (state % 4000) <= 134) {
+				udp_stokesDecimation<I, O, stokesV, decimation>(iLoop, inputPortData, outputData, lastInputPacketOffset, packetOutputLength, timeStepSize, totalBeamlets, portBeamlets, cumulativeBeamlets);
+			} else if constexpr ((state % 4000) >= 151 && (state % 4000) <= 154) {
+				udp_fullStokesDecimation<I, O, decimation>(iLoop, inputPortData, outputData, lastInputPacketOffset, packetOutputLength, timeStepSize, totalBeamlets, portBeamlets, cumulativeBeamlets);
+			} else if constexpr ((state % 4000) >= 161 && (state % 4000) <= 164) {
+				udp_usefulStokesDecimation<I, O, decimation>(iLoop, inputPortData, outputData, lastInputPacketOffset, packetOutputLength, timeStepSize, totalBeamlets, portBeamlets, cumulativeBeamlets);
+			
+
+
+
+
+			} else {
+				fprintf(stderr, "Unknown processing mode %d, exiting.\n", state);
+				exit(1);
+			}
+
+
+			// End ICC task block, update cached variables as needed
+			#ifdef __INTEL_COMPILER
+			}
+			#else
+			if constexpr (state >= 4000) {
+				inputPortData = meta->inputData[port];
+				lastInputPacketOffset = LIPOCache;
+			}
+			#endif
 		}
 		// Update the overall dropped packet count for this port
 
@@ -792,6 +892,8 @@ int lofar_udp_raw_loop(lofar_udp_meta *meta) {
 		#ifdef __INTEL_COMPILER
 		#pragma omp taskwait
 		#endif
+
+		VERBOSE(if (verbose) printf("Port %d finished loop.\n", port););
 
 	}
 
@@ -817,6 +919,18 @@ int lofar_udp_raw_loop(lofar_udp_meta *meta) {
 	// Update the input/output states
 	meta->inputDataReady = 0;
 	meta->outputDataReady = 1;
+
+
+	// If needed, free the 4-bit workspace
+	if constexpr (state >= 4010) {
+		for (int i = 0; i < OMP_THREADS; i++) {
+			VERBOSE(if (verbose) printf("freeing byteWorkspace data at %p\n", (void *) byteWorkspace[i]););
+			free(byteWorkspace[i]);
+		}
+		VERBOSE(if (verbose) printf("byteWorkspaceSubArrays free'd\n"););
+		free(byteWorkspace);
+		VERBOSE(if (verbose) printf("byteWorkspace free'd\n"););
+	}
 
 	return packetLoss;
 }

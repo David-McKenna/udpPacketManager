@@ -125,7 +125,7 @@ typedef struct lofar_udp_meta {
 
 
 	// Track the packets, logging the beamlet counts and their metadata
-	char portBeamlets[MAX_NUM_PORTS];
+	int portBeamlets[MAX_NUM_PORTS];
 	int portCumulativeBeamlets[MAX_NUM_PORTS];
 	int totalBeamlets;
 
@@ -191,13 +191,6 @@ typedef struct lofar_udp_reader {
 } lofar_udp_reader;
 #endif
 
-
-
-// 4-bit LUT for faster decoding (and for lock in when I finally work out which 4-bit more they used...)
-#ifndef __LOFAR_4BITLUT
-#define __LOFAR_4BITLUT
-extern const char bitmodeConversion[256][2];
-#endif
 
 
 

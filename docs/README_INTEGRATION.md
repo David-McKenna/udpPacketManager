@@ -9,7 +9,7 @@ Include the reader header
 ```
 
 
-You may need to manually include some C functions for some compilers (CUDA needed this in my case). For a basic implementation, all you need is
+You may need to manually include some C functions for some compilers (CUDA needed this in my case, I haven't caught all of the prototypes for C++). For a basic implementation, all you need is
 ```
 extern "C"  {
   int lofar_udp_reader_step(lofar_udp_reader *reader);
