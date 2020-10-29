@@ -430,6 +430,8 @@ void inline udp_fullStokes(long iLoop, char *inputPortData, O **outputData,  lon
 		tsInOffset = lastInputPacketOffset + beamlet * UDPNTIMESLICE * UDPNPOL * timeStepSize;
 		tsOutOffset = outputPacketOffset + (totalBeamlets - 1 - beamlet - cumulativeBeamlets);
 
+		VERBOSE(if (iLoop == 0 && cumulativeBeamlets == 0) printf("\nidx %d: %ld, %ld, ", beamlet, tsInOffset, tsOutOffset););
+
 		#ifdef __INTEL_COMPILER
 		#pragma omp simd
 		#else
@@ -443,6 +445,9 @@ void inline udp_fullStokes(long iLoop, char *inputPortData, O **outputData,  lon
 
 			tsInOffset += 4 * timeStepSize;
 			tsOutOffset += totalBeamlets;
+
+		VERBOSE(if (iLoop == 0 && cumulativeBeamlets == 0) printf("%ld, %ld, ", tsInOffset, tsOutOffset););
+
 		}
 	}
 }
@@ -694,7 +699,7 @@ int lofar_udp_raw_loop(lofar_udp_meta *meta) {
 				inputPortData = byteWorkspace[omp_get_thread_num()];
 
 				// Determine the number of (byte-sized) samples to process
-				int numSamples = portPacketLength;
+				int numSamples = portPacketLength - UDPHDRLEN;
 
 				// Use a LUT to extract the 4-bit signed ints from signed chars
 				#ifdef __INTEL_COMPILER
@@ -702,7 +707,7 @@ int lofar_udp_raw_loop(lofar_udp_meta *meta) {
 				#else
 				#pragma GCC unroll 16
 				#endif
-				for (int idx = UDPHDRLEN; idx < numSamples; idx++) {
+				for (int idx = 0; idx < numSamples; idx++) {
 					#pragma GCC diagnostic push
 					#pragma GCC diagnostic ignored "-Wchar-subscripts"
 					const char *result = bitmodeConversion[(unsigned char) meta->inputData[port][lastInputPacketOffset + idx]];
