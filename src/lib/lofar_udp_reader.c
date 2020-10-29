@@ -559,6 +559,9 @@ int lofar_udp_setup_processing(lofar_udp_meta *meta) {
 		case 150:
 			meta->processFunc = &lofar_udp_raw_udp_full_stokes;
 			break;
+		case 160:
+			meta->processFunc = &lofar_udp_raw_udp_useful_stokes;
+			break;
 
 		// 2x decimation
 		case 101:
@@ -575,6 +578,9 @@ int lofar_udp_setup_processing(lofar_udp_meta *meta) {
 			break;
 		case 151:
 			meta->processFunc = &lofar_udp_raw_udp_full_stokes_sum2;
+			break;
+		case 161:
+			meta->processFunc = &lofar_udp_raw_udp_useful_stokes_sum2;
 			break;
 
 		// 4x decimation
@@ -593,6 +599,9 @@ int lofar_udp_setup_processing(lofar_udp_meta *meta) {
 		case 152:
 			meta->processFunc = &lofar_udp_raw_udp_full_stokes_sum4;
 			break;
+		case 162:
+			meta->processFunc = &lofar_udp_raw_udp_useful_stokes_sum4;
+			break;
 
 		// 8x decimation
 		case 103:
@@ -610,6 +619,9 @@ int lofar_udp_setup_processing(lofar_udp_meta *meta) {
 		case 153:
 			meta->processFunc = &lofar_udp_raw_udp_full_stokes_sum8;
 			break;
+		case 163:
+			meta->processFunc = &lofar_udp_raw_udp_useful_stokes_sum8;
+			break;
 
 		// 16x decimation
 		case 104:
@@ -626,6 +638,9 @@ int lofar_udp_setup_processing(lofar_udp_meta *meta) {
 			break;
 		case 154:
 			meta->processFunc = &lofar_udp_raw_udp_full_stokes_sum16;
+			break;
+		case 164:
+			meta->processFunc = &lofar_udp_raw_udp_useful_stokes_sum16;
 			break;
 
 		default:
@@ -696,6 +711,13 @@ int lofar_udp_setup_processing(lofar_udp_meta *meta) {
 			meta->outputBitMode = 32;
 			break;
 
+		case 160:
+			meta->numOutputs = 4;
+			// 4 input words -> 2 larger word x 4
+			mulFactor = 2.0 / 4.0;
+			meta->outputBitMode = 32;
+			break;
+
 		case 101:
 		case 111:
 		case 121:
@@ -725,6 +747,16 @@ int lofar_udp_setup_processing(lofar_udp_meta *meta) {
 			meta->numOutputs = 4;
 			// Bit shift based on processing mode, 2^(mode % 10)
 			mulFactor = 1.0 / (float)  (1 << (meta->processingMode % 10));
+			meta->outputBitMode = 32;
+			break;
+
+		case 161:
+		case 162:
+		case 163:
+		case 164:
+			meta->numOutputs = 2;
+			// Bit shift based on processing mode, 2^(mode % 10) * 2, 2 as in mode 160
+			mulFactor = 1.0 / (float)  (1 << ((meta->processingMode % 10) + 1));
 			meta->outputBitMode = 32;
 			break;
 

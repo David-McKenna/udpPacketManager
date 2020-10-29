@@ -162,6 +162,7 @@ int main(int argc, char  *argv[]) {
 	if (processingMode == 2 || processingMode == 11 || processingMode == 21) outputFilesCount = UDPNPOL;
 	else if (processingMode == 10 || processingMode == 20 || (processingMode > 99 && processingMode < 140)) outputFilesCount = 1;
 	else if (processingMode > 149 && processingMode < 160) outputFilesCount = 4;
+	else if (processingMode > 159 && processingMode < 170) outputFilesCount = 2;
 
 	// Sanity check a few inputs
 	if ( (strcmp(inputFormat, "") == 0) || (ports == 0) || (packetsPerIteration < 2)  || (replayDroppedPackets > 1 || replayDroppedPackets < 0) || (processingMode > 1000 || processingMode < 0) || (seconds < 0)) {
