@@ -856,8 +856,8 @@ lofar_udp_reader* lofar_udp_meta_file_reader_setup(FILE **inputFiles, const int 
 				meta.totalBeamlets, meta.numPorts, meta.replayDroppedPackets, meta.processingMode, 0, meta.packetsPerIteration, meta.packetsRead, meta.packetsReadMax, meta.lastPacket);
 
 		for (int i = 0; i < meta.numPorts; i++) {
-			printf("Port %d: inputDataOffset %ld, portBeamlets %d, inputBitMode %d, portPacketLength %d, packetOutputLength %d, portLastDroppedPackets %d, portTotalDroppedPackets %d\n", i, 
-				meta.inputDataOffset[i], meta.portBeamlets[i], meta.inputBitMode, meta.portPacketLength[i], meta.packetOutputLength[i], meta.portLastDroppedPackets[i], meta.portTotalDroppedPackets[i]);
+			printf("Port %d: inputDataOffset %ld, portBeamlets %d, cumulativeBeamlets %d, inputBitMode %d, portPacketLength %d, packetOutputLength %d, portLastDroppedPackets %d, portTotalDroppedPackets %d\n", i, 
+				meta.inputDataOffset[i], meta.portBeamlets[i], meta.portCumulativeBeamlets[i], meta.inputBitMode, meta.portPacketLength[i], meta.packetOutputLength[i], meta.portLastDroppedPackets[i], meta.portTotalDroppedPackets[i]);
 
 		for (int i = 0; i < meta.numOutputs; i++) printf("Output %d, packetLength %d, numOut %d", i, meta.packetOutputLength[i], meta.numOutputs);
 	}});
