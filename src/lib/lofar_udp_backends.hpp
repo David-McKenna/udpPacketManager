@@ -515,8 +515,9 @@ int lofar_udp_raw_loop(lofar_udp_meta *meta) {
 	constexpr int decimation = 1 << (state % 10);
 
 	char **byteWorkspace;
-	if constexpr (state >= 4000) {
+	if constexpr (state >= 4010) {
 		byteWorkspace = (char**) malloc(sizeof(char *) * OMP_THREADS);
+		VERBOSE(if (verbose) printf("Allocating %ld bytes at %p\n", sizeof(char *) * OMP_THREADS, (void *) byteWorkspace););
 		int maxPacketSize = 0;
 		for (int port = 0; port < meta->numPorts; port++) {
 			if (meta->portPacketLength[port] > maxPacketSize) {
@@ -524,7 +525,8 @@ int lofar_udp_raw_loop(lofar_udp_meta *meta) {
 			}
 		}
 		for (int i = 0; i < OMP_THREADS; i++) {
-			byteWorkspace[i] = (char*) calloc(2 * maxPacketSize - 2 * UDPHDRLEN, sizeof(char));
+			byteWorkspace[i] = (char*) malloc(2 * maxPacketSize - 2 * UDPHDRLEN, sizeof(char));
+			VERBOSE(if (verbose) printf("Allocating %d bytes at %p\n", 2 * maxPacketSize - 2 * UDPHDRLEN, (void *) byteWorkspace[i]););
 		}
 	}
 	#pragma GCC diagnostic pop
@@ -684,7 +686,7 @@ int lofar_udp_raw_loop(lofar_udp_meta *meta) {
 			#endif
 
 			// Unpacket 4-bit data into an array of chars, so it can be processed the same way we process 8-bit data
-			if constexpr (state >= 4000) {
+			if constexpr (state >= 4010) {
 				// Get the workspace for the current packet
 				inputPortData = byteWorkspace[omp_get_thread_num()];
 
@@ -700,7 +702,7 @@ int lofar_udp_raw_loop(lofar_udp_meta *meta) {
 				for (int idx = UDPHDRLEN; idx < numSamples; idx++) {
 					#pragma GCC diagnostic push
 					#pragma GCC diagnostic ignored "-Wchar-subscripts"
-					const char *result = bitmodeConversion[meta->inputData[port][lastInputPacketOffset + idx]];
+					const char *result = bitmodeConversion[(unsigned char) meta->inputData[port][lastInputPacketOffset + idx]];
 					#pragma GCC diagnostic pop
 					inputPortData[idx * 2] = result[0];
 					inputPortData[idx * 2 + 1] = result[1];
@@ -837,9 +839,9 @@ int lofar_udp_raw_loop(lofar_udp_meta *meta) {
 
 
 	// If needed, free the 4-bit workspace
-	if constexpr (state >= 4000) {
-		VERBOSE(if (verbose) printf("freeing byteWorkspace data\n"););
+	if constexpr (state >= 4010) {
 		for (int i = 0; i < OMP_THREADS; i++) {
+			VERBOSE(if (verbose) printf("freeing byteWorkspace data at %p\n", (void *) byteWorkspace[i]););
 			free(byteWorkspace[i]);
 		}
 		VERBOSE(if (verbose) printf("byteWorkspaceSubArrays free'd\n"););
