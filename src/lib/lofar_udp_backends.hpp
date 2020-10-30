@@ -578,6 +578,7 @@ int lofar_udp_raw_loop(lofar_udp_meta *meta) {
 	int packetLoss = 0;
 
 	VERBOSE(const int verbose = meta->VERBOSE);
+	constexpr int trueState = state % 4000;
 
 	// Confirm number of OMP threads
 	omp_set_num_threads(OMP_THREADS);
@@ -798,69 +799,69 @@ int lofar_udp_raw_loop(lofar_udp_meta *meta) {
 			}
 
 			// Effectively a large switch statement, but more performant as it's decided at compile time.
-			if constexpr ((state % 4000) == 0) {
+			if constexpr (trueState == 0) {
 				udp_copy<char, char>(iLoop, inputPortData, (char**) outputData, port, lastInputPacketOffset, packetOutputLength);
-			} else if constexpr ((state % 4000) == 1) {
+			} else if constexpr (trueState == 1) {
 				udp_copyNoHdr<char, char>(iLoop, inputPortData, (char**) outputData, port, lastInputPacketOffset, packetOutputLength);
-			} else if constexpr ((state % 4000) == 2) {
+			} else if constexpr (trueState == 2) {
 				udp_copySplitPols<I, O>(iLoop, inputPortData, outputData, lastInputPacketOffset, packetOutputLength, timeStepSize, portBeamlets, cumulativeBeamlets);
 			
 
 
 
-			} else if constexpr ((state % 4000) == 10) {
+			} else if constexpr (trueState == 10) {
 				udp_channelMajor<I, O>(iLoop, inputPortData, outputData, lastInputPacketOffset, packetOutputLength, timeStepSize, totalBeamlets, portBeamlets, cumulativeBeamlets);
-			} else if constexpr ((state % 4000) == 11) {
+			} else if constexpr (trueState == 11) {
 				udp_channelMajorSplitPols<I, O>(iLoop, inputPortData, outputData, lastInputPacketOffset, packetOutputLength, timeStepSize, totalBeamlets, portBeamlets, cumulativeBeamlets);
 			
 
 
 
-			} else if constexpr ((state % 4000) == 20) {
+			} else if constexpr (trueState == 20) {
 				udp_reversedChannelMajor<I, O>(iLoop, inputPortData, outputData, lastInputPacketOffset, packetOutputLength, timeStepSize, totalBeamlets, portBeamlets, cumulativeBeamlets);
-			} else if constexpr ((state % 4000) == 21) {
+			} else if constexpr (trueState == 21) {
 				udp_reversedChannelMajorSplitPols<I, O>(iLoop, inputPortData, outputData, lastInputPacketOffset, packetOutputLength, timeStepSize, totalBeamlets, portBeamlets, cumulativeBeamlets);
 			
 
 
 
-			} else if constexpr ((state % 4000) == 30) {
+			} else if constexpr (trueState == 30) {
 				udp_timeMajor<I, O>(iLoop, inputPortData, outputData, lastInputPacketOffset, timeStepSize, portBeamlets, cumulativeBeamlets, packetsPerIteration);
-			} else if constexpr ((state % 4000) == 31) {
+			} else if constexpr (trueState == 31) {
 				udp_timeMajorSplitPols<I, O>(iLoop, inputPortData, outputData, lastInputPacketOffset, timeStepSize, portBeamlets, cumulativeBeamlets, packetsPerIteration);
-			} else if constexpr ((state % 4000) == 32) {
+			} else if constexpr (trueState == 32) {
 				udp_timeMajorDualPols<I, O>(iLoop, inputPortData, outputData, lastInputPacketOffset, timeStepSize, portBeamlets, cumulativeBeamlets, packetsPerIteration);
 			
 
 
 
-			} else if constexpr ((state % 4000) == 100) {
+			} else if constexpr (trueState == 100) {
 				udp_stokes<I, O, stokesI>(iLoop, inputPortData, outputData, lastInputPacketOffset, packetOutputLength, timeStepSize, totalBeamlets, portBeamlets, cumulativeBeamlets);
-			} else if constexpr ((state % 4000) == 110) {
+			} else if constexpr (trueState == 110) {
 				udp_stokes<I, O, stokesQ>(iLoop, inputPortData, outputData, lastInputPacketOffset, packetOutputLength, timeStepSize, totalBeamlets, portBeamlets, cumulativeBeamlets);
-			} else if constexpr ((state % 4000) == 120) {
+			} else if constexpr (trueState == 120) {
 				udp_stokes<I, O, stokesU>(iLoop, inputPortData, outputData, lastInputPacketOffset, packetOutputLength, timeStepSize, totalBeamlets, portBeamlets, cumulativeBeamlets);
-			} else if constexpr ((state % 4000) == 130) {
+			} else if constexpr (trueState == 130) {
 				udp_stokes<I, O, stokesV>(iLoop, inputPortData, outputData, lastInputPacketOffset, packetOutputLength, timeStepSize, totalBeamlets, portBeamlets, cumulativeBeamlets);
-			} else if constexpr ((state % 4000) == 150) {
+			} else if constexpr (trueState == 150) {
 				udp_fullStokes<I, O>(iLoop, inputPortData, outputData, lastInputPacketOffset, packetOutputLength, timeStepSize, totalBeamlets, portBeamlets, cumulativeBeamlets);
-			} else if constexpr ((state % 4000) == 160) {
+			} else if constexpr (trueState == 160) {
 				udp_usefulStokes<I, O>(iLoop, inputPortData, outputData, lastInputPacketOffset, packetOutputLength, timeStepSize, totalBeamlets, portBeamlets, cumulativeBeamlets);
 
 
 
 
-			} else if constexpr ((state % 4000) >= 101 && (state % 4000) <= 104) {
+			} else if constexpr (trueState >= 101 && trueState <= 104) {
 				udp_stokesDecimation<I, O, stokesI, decimation>(iLoop, inputPortData, outputData, lastInputPacketOffset, packetOutputLength, timeStepSize, totalBeamlets, portBeamlets, cumulativeBeamlets);
-			} else if constexpr ((state % 4000) >= 111 && (state % 4000) <= 114) {
+			} else if constexpr (trueState >= 111 && trueState <= 114) {
 				udp_stokesDecimation<I, O, stokesQ, decimation>(iLoop, inputPortData, outputData, lastInputPacketOffset, packetOutputLength, timeStepSize, totalBeamlets, portBeamlets, cumulativeBeamlets);
-			} else if constexpr ((state % 4000) >= 121 && (state % 4000) <= 124) {
+			} else if constexpr (trueState >= 121 && trueState <= 124) {
 				udp_stokesDecimation<I, O, stokesU, decimation>(iLoop, inputPortData, outputData, lastInputPacketOffset, packetOutputLength, timeStepSize, totalBeamlets, portBeamlets, cumulativeBeamlets);
-			} else if constexpr ((state % 4000) >= 131 && (state % 4000) <= 134) {
+			} else if constexpr (trueState >= 131 && trueState <= 134) {
 				udp_stokesDecimation<I, O, stokesV, decimation>(iLoop, inputPortData, outputData, lastInputPacketOffset, packetOutputLength, timeStepSize, totalBeamlets, portBeamlets, cumulativeBeamlets);
-			} else if constexpr ((state % 4000) >= 151 && (state % 4000) <= 154) {
+			} else if constexpr (trueState >= 151 && trueState <= 154) {
 				udp_fullStokesDecimation<I, O, decimation>(iLoop, inputPortData, outputData, lastInputPacketOffset, packetOutputLength, timeStepSize, totalBeamlets, portBeamlets, cumulativeBeamlets);
-			} else if constexpr ((state % 4000) >= 161 && (state % 4000) <= 164) {
+			} else if constexpr (trueState >= 161 && trueState <= 164) {
 				udp_usefulStokesDecimation<I, O, decimation>(iLoop, inputPortData, outputData, lastInputPacketOffset, packetOutputLength, timeStepSize, totalBeamlets, portBeamlets, cumulativeBeamlets);
 			
 
