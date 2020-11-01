@@ -11,6 +11,7 @@ void helpMessages() {
 	printf("-o: <format>	Output file name format (provide %%d, %%s and %%ld to fill in output ID, date/time string and the starting packet number) (default: './output%%d_%%s_%%ld')\n");
 	printf("-m: <numPack>	Number of packets to process in each read request (default: 65536)\n");
 	printf("-u: <numPort>	Number of ports to combine (default: 4)\n");
+	printf("-b: <baseNum>	Base value to iterate when chosing ports (default: 0)\n");
 	printf("-t: <timeStr>	String of the time of the first requested packet, format YYYY-MM-DDTHH:mm:ss (default: '')\n");
 	printf("-s: <numSec>	Maximum number of seconds of raw data to extract/process (default: all)\n");
 	printf("-e: <fileName>	Specify a file of events to extract; newline separated start time and durations in seconds. Events must not overlap.\n");
@@ -36,7 +37,7 @@ int main(int argc, char  *argv[]) {
 	float seconds = 0.0;
 	double sampleTime = 0.0;
 	char inputFormat[256] = "./%d", outputFormat[256] = "./output%d_%s_%ld", inputTime[256] = "", eventsFile[256] = "", stringBuff[128], mockHdrArg[2048] = "", mockHdrCmd[4096] = "";
-	int ports = 4, processingMode = 0, replayDroppedPackets = 0, verbose = 0, silent = 0, appendMode = 0, compressedReader = 0, eventCount = 0, returnCounter = 0, callMockHdr = 0;
+	int ports = 4, processingMode = 0, replayDroppedPackets = 0, verbose = 0, silent = 0, appendMode = 0, compressedReader = 0, eventCount = 0, returnCounter = 0, callMockHdr = 0, basePort = 0;
 	long packetsPerIteration = 65536, maxPackets = -1, startingPacket = -1;
 	unsigned int clock200MHz = 1;
 	FILE *eventsFilePtr;
@@ -57,7 +58,7 @@ int main(int argc, char  *argv[]) {
 	char **dateStr; // Sub elements need to be free'd too.
 
 	// Standard ugly input flags parser
-	while((inputOpt = getopt(argc, argv, "rcqfvVi:o:m:u:t:s:e:p:a:")) != -1) {
+	while((inputOpt = getopt(argc, argv, "rcqfvVi:o:m:u:t:s:e:p:a:b:")) != -1) {
 		input = 1;
 		switch(inputOpt) {
 			
@@ -75,6 +76,10 @@ int main(int argc, char  *argv[]) {
 
 			case 'u':
 				ports = atoi(optarg);
+				break;
+
+			case 'b':
+				basePort = atoi(optarg);
 				break;
 
 			case 't':
@@ -303,7 +308,7 @@ int main(int argc, char  *argv[]) {
 	}
 
 	// Set-up the input files, with checks to ensure they're opened
-	for (int port = 0; port < ports; port++) {
+	for (int port = basePort; port < ports; port++) {
 		sprintf(workingString, inputFormat, port);
 
 		VERBOSE(if (verbose) printf("Opening file at %s\n", workingString));

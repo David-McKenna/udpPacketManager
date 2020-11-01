@@ -14,6 +14,7 @@ void helpMessages() {
 	printf("-o: <format>	Output file name format (provide %%d and %%s to fill in the output file number and date/time string) (default: './output%%d')\n");
 	printf("-m: <numPack>	Number of packets to process in each read request (default: 65536)\n");
 	printf("-u: <numPort>	Number of ports to combine (default: 4)\n");
+	printf("-b: <baseNum>	Base value to iterate when chosing ports (default: 0)\n");
 	printf("-t: <timeStr>	String of the time of the first requested packet, format YYYY-MM-DDTHH:mm:ss (default: '')\n");
 	printf("-s: <numSec>	Maximum number of seconds to process (default: all)\n");
 	printf("-e: <iters>		Split the file every N iterations (default: inf)\n");
@@ -36,7 +37,7 @@ int main(int argc, char  *argv[]) {
 	float seconds = 0.0;
 	double sampleTime = 0.0;
 	char inputFormat[256] = "./%d", outputFormat[256] = "./output_%d", inputTime[256] = "", stringBuff[128], hdrFile[2048] = "", timeStr[28] = "";
-	int ports = 4, replayDroppedPackets = 0, verbose = 0, silent = 0, appendMode = 0, compressedReader = 0, itersPerFile = INT_MAX;
+	int ports = 4, replayDroppedPackets = 0, verbose = 0, silent = 0, appendMode = 0, compressedReader = 0, itersPerFile = INT_MAX, basePort = 0;
 	long packetsPerIteration = 65536, maxPackets = -1, startingPacket = -1;
 	unsigned int clock200MHz = 1;
 	ascii_hdr header = ascii_hdr_default;
@@ -57,7 +58,7 @@ int main(int argc, char  *argv[]) {
 	char **dateStr; // Sub elements need to be free'd too.
 
 	// Standard ugly input flags parser
-	while((inputOpt = getopt(argc, argv, "rcqfvVi:o:m:u:t:s:e:a:")) != -1) {
+	while((inputOpt = getopt(argc, argv, "rcqfvVi:o:m:u:t:s:e:a:b:")) != -1) {
 		input = 1;
 		switch(inputOpt) {
 			
@@ -75,6 +76,10 @@ int main(int argc, char  *argv[]) {
 
 			case 'u':
 				ports = atoi(optarg);
+				break;
+
+			case 'b':
+				basePort = atoi(optarg);
 				break;
 
 			case 't':
@@ -222,7 +227,7 @@ int main(int argc, char  *argv[]) {
 	}
 
 	// Set-up the input files, with checks to ensure they're opened
-	for (int port = 0; port < ports; port++) {
+	for (int port = basePort; port < ports; port++) {
 		sprintf(workingString, inputFormat, port);
 
 		VERBOSE(if (verbose) printf("Opening file at %s\n", workingString));
