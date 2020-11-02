@@ -169,13 +169,6 @@ int main(int argc, char  *argv[]) {
 	}
 
 	char workingString[1024];
-	
-	// processingMode -> N output-files 
-	outputFilesCount = config.numPorts;
-	if (config.processingMode == 2 || config.processingMode == 11 || config.processingMode == 21) outputFilesCount = UDPNPOL;
-	else if (config.processingMode == 10 || config.processingMode == 20 || (config.processingMode > 99 && config.processingMode < 140)) outputFilesCount = 1;
-	else if (config.processingMode > 149 && config.processingMode < 160) outputFilesCount = 4;
-	else if (config.processingMode > 159 && config.processingMode < 170) outputFilesCount = 2;
 
 	// Sanity check a few inputs
 	if ( (strcmp(inputFormat, "") == 0) || (config.numPorts == 0) || (config.packetsPerIteration < 2)  || (config.replayDroppedPackets > 1 || config.replayDroppedPackets < 0) || (config.processingMode > 1000 || config.processingMode < 0) || (seconds < 0)) {
@@ -330,37 +323,8 @@ int main(int argc, char  *argv[]) {
 		PAUSE;
 	}
 
-	// Check that the output files don't already exist (no append mode), or that they can be written to (append mode)
-	for (int eventLoop = 0; eventLoop < eventCount; eventLoop++) {
-		
-		if (strstr(outputFormat, "%ld") != NULL && silent == 0)  {
-			printf("WARNING: we cannot predict whether or not files following the prefix '%s' will exist due to the packet number being variable due to packet loss.\nContinuing with caution.\n\n", outputFormat);
-			break;
-		}
-
-		for (int out = 0; out < outputFilesCount; out++) {
-			sprintf(workingString, outputFormat, out, dateStr[eventLoop]);
-
-			VERBOSE( if(verbose) printf("Checking if file at %s exists / can be written to\n", workingString));
-			if (!appendMode) {
-				if (access(workingString, F_OK) != -1) {
-					fprintf(stderr, "Output file at %s already exists; exiting.\n", workingString);
-					return 1;
-				}
-			} else {
-				outputFiles[0] = fopen(workingString, "a");
-				if (outputFiles[0] == NULL) {
-					fprintf(stderr, "Output file at %s could not be opened for writing, exiting.\n", workingString);
-					return 1;
-				}
-
-				fclose(outputFiles[0]);
-			}
-		}
-	}
 
 
-	
 	if (silent == 0) printf("Starting data read/reform operations...\n");
 
 	// Start our timers
@@ -385,6 +349,39 @@ int main(int argc, char  *argv[]) {
 		return 1;
 	}
 
+
+
+	// Check that the output files don't already exist (no append mode), or that they can be written to (append mode)
+	for (int eventLoop = 0; eventLoop < eventCount; eventLoop++) {
+		
+		if (strstr(outputFormat, "%ld") != NULL && silent == 0)  {
+			printf("WARNING: we cannot predict whether or not files following the prefix '%s' will exist due to the packet number being variable due to packet loss.\nContinuing with caution.\n\n", outputFormat);
+			break;
+		}
+
+		for (int out = 0; out < reader->meta->numOutputs; out++) {
+			sprintf(workingString, outputFormat, out, dateStr[eventLoop]);
+
+			VERBOSE( if(verbose) printf("Checking if file at %s exists / can be written to\n", workingString));
+			if (!appendMode) {
+				if (access(workingString, F_OK) != -1) {
+					fprintf(stderr, "Output file at %s already exists; exiting.\n", workingString);
+					return 1;
+				}
+			} else {
+				outputFiles[0] = fopen(workingString, "a");
+				if (outputFiles[0] == NULL) {
+					fprintf(stderr, "Output file at %s could not be opened for writing, exiting.\n", workingString);
+					return 1;
+				}
+
+				fclose(outputFiles[0]);
+			}
+		}
+	}
+
+
+	
 	if (silent == 0) {
 		getStartTimeString(reader, stringBuff);
 		printf("\n\n=========== Reader  Information ===========\n");
