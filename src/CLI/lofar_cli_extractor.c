@@ -516,7 +516,7 @@ int main(int argc, char  *argv[]) {
 		}
 
 		// Close the output files before we open new ones or exit
-		for (int out = 0; out < outputFilesCount; out++) fclose(outputFiles[out]);
+		for (int out = 0; out < reader->meta->numOutputs; out++) fclose(outputFiles[out]);
 
 	}
 
@@ -528,7 +528,7 @@ int main(int argc, char  *argv[]) {
 	// Print out a summary of the operations performed, this does not contain data read for seek operations
 	if (silent == 0) {
 		for (int port = 0; port < config.numPorts; port++) totalPacketLength += reader->meta->portPacketLength[port];
-		for (int out = 0; out < outputFilesCount; out++) totalOutLength += reader->meta->packetOutputLength[out];
+		for (int out = 0; out < reader->meta->numOutputs; out++) totalOutLength += reader->meta->packetOutputLength[out];
 		for (int port = 0; port < config.numPorts; port++) droppedPackets += reader->meta->portTotalDroppedPackets[port];
 
 		printf("Reader loop exited (%d); overall process took %f seconds.\n", returnVal, (double) TICKTOCK(tick, tock));
