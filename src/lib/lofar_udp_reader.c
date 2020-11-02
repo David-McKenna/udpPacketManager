@@ -100,7 +100,6 @@ int lofar_udp_parse_headers(lofar_udp_meta *meta, const char header[MAX_NUM_PORT
 
 		if ((beamletLimits[0] < (meta->portCumulativeBeamlets[port] + meta->portBeamlets[port])) && (beamletLimits[0] > meta->portCumulativeBeamlets[port])) {
 			meta->baseBeamlets[port] = beamletLimits[0] - meta->portCumulativeBeamlets[port];
-			meta->portCumulativeBeamlets[port] -= beamletLimits[0];
 
 			// Lower the total count of beamlets, while not modifiyng
 			// 	portBeamlets 
@@ -1035,7 +1034,7 @@ lofar_udp_reader* lofar_udp_meta_file_reader_setup_struct(lofar_udp_config *conf
 
 	VERBOSE(if (meta.VERBOSE) {
 		printf("Meta debug:\ntotalBeamlets %d, numPorts %d, replayDroppedPackets %d, processingMode %d, outputBitMode %d, packetsPerIteration %ld, packetsRead %ld, packetsReadMax %ld, lastPacket %ld, \n",
-				meta.totalBeamlets, meta.numPorts, meta.replayDroppedPackets, meta.processingMode, meta->outputBitMode, meta.packetsPerIteration, meta.packetsRead, meta.packetsReadMax, meta.lastPacket);
+				meta.totalBeamlets, meta.numPorts, meta.replayDroppedPackets, meta.processingMode, meta.outputBitMode, meta.packetsPerIteration, meta.packetsRead, meta.packetsReadMax, meta.lastPacket);
 
 		for (int i = 0; i < meta.numPorts; i++) {
 			printf("Port %d: inputDataOffset %ld, portBeamlets %d, cumulativeBeamlets %d, inputBitMode %d, portPacketLength %d, packetOutputLength %d, portLastDroppedPackets %d, portTotalDroppedPackets %d\n", i, 
@@ -1294,7 +1293,7 @@ int lofar_udp_reader_step_timed(lofar_udp_reader *reader, double timing[2]) {
 	}
 
 
-	VERBOSE(if (reader->meta->VERBOSE) printf("reader_step ready2: %d, %d\n", reader->meta->inputDataReady, reader->meta->outputDataReady, reader->metapacketsPerIteration > 0));
+	VERBOSE(if (reader->meta->VERBOSE) printf("reader_step ready2: %d, %d\n", reader->meta->inputDataReady, reader->meta->outputDataReady, reader->meta->packetsPerIteration > 0));
 	// Make sure there is a new input data set before running
 	// On the setup iteration, the output data is marked as ready to prevent this occurring until the first read step is called
 	if (reader->meta->outputDataReady != 1 && reader->meta->packetsPerIteration > 0) {

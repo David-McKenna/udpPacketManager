@@ -33,7 +33,7 @@ void helpMessages() {
 int main(int argc, char  *argv[]) {
 
 	// Set up input local variables
-	int inputOpt, outputFilesCount, input = 0;
+	int inputOpt, input = 0;
 	float seconds = 0.0;
 	double sampleTime = 0.0;
 	char inputFormat[256] = "./%d", outputFormat[256] = "./output%d_%s_%ld", inputTime[256] = "", eventsFile[256] = "", stringBuff[128], mockHdrArg[2048] = "", mockHdrCmd[4096] = "";
