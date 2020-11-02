@@ -388,6 +388,7 @@ void inline udp_stokes(long iLoop, char *inputPortData, O **outputData,  long la
 template <typename I, typename O, StokesFuncType stokesFunc, int factor>
 void inline udp_stokesDecimation(long iLoop, char *inputPortData, O **outputData, long lastInputPacketOffset, long packetOutputLength, int timeStepSize, int totalBeamlets, int portBeamlets, int cumulativeBeamlets, int baseBeamlet) {
 	long outputPacketOffset = (long) (((float) iLoop * packetOutputLength / sizeof(O)) * ((float) UDPNTIMESLICE / (float) factor));
+	printf("dec: %ld, %ld, %d, %d, %d\n"), outputPacketOffset, iLoop, packetOutputLength, UDPNTIMESLICE, factor;
 	long tsInOffset, tsOutOffset;
 	O tempVal;
 
