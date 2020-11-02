@@ -387,7 +387,7 @@ void inline udp_stokes(long iLoop, char *inputPortData, O **outputData,  long la
 
 template <typename I, typename O, StokesFuncType stokesFunc, int factor>
 void inline udp_stokesDecimation(long iLoop, char *inputPortData, O **outputData, long lastInputPacketOffset, long packetOutputLength, int timeStepSize, int totalBeamlets, int portBeamlets, int cumulativeBeamlets, int baseBeamlet) {
-	long outputPacketOffset = iLoop * packetOutputLength * UDPNTIMESLICE / sizeof(O) / factor;
+	long outputPacketOffset = (long) (((float) iLoop * packetOutputLength / sizeof(O)) * ((float) UDPNTIMESLICE / (float) factor));
 	long tsInOffset, tsOutOffset;
 	O tempVal;
 
@@ -454,7 +454,7 @@ void inline udp_fullStokes(long iLoop, char *inputPortData, O **outputData,  lon
 
 template <typename I, typename O, int factor>
 void inline udp_fullStokesDecimation(long iLoop, char *inputPortData, O **outputData, long lastInputPacketOffset, long packetOutputLength, int timeStepSize, int totalBeamlets, int portBeamlets, int cumulativeBeamlets, int baseBeamlet) {
-	long outputPacketOffset = iLoop * packetOutputLength * UDPNTIMESLICE / sizeof(O) / factor;
+	long outputPacketOffset = (long) (((float) iLoop * packetOutputLength / sizeof(O)) * ((float) UDPNTIMESLICE / (float) factor));
 	long tsInOffset, tsOutOffset;
 	O tempValI, tempValQ, tempValU, tempValV;
 
@@ -533,7 +533,7 @@ void inline udp_usefulStokes(long iLoop, char *inputPortData, O **outputData,  l
 
 template <typename I, typename O, int factor>
 void inline udp_usefulStokesDecimation(long iLoop, char *inputPortData, O **outputData, long lastInputPacketOffset, long packetOutputLength, int timeStepSize, int totalBeamlets, int portBeamlets, int cumulativeBeamlets, int baseBeamlet) {
-	long outputPacketOffset = iLoop * packetOutputLength * UDPNTIMESLICE / sizeof(O) / factor;
+	long outputPacketOffset = (long) (((float) iLoop * packetOutputLength / sizeof(O)) * ((float) UDPNTIMESLICE / (float) factor));
 	long tsInOffset, tsOutOffset;
 	O tempValI, tempValV;
 
@@ -632,7 +632,7 @@ int lofar_udp_raw_loop(lofar_udp_meta *meta) {
 
 		// Reset the dropped packets counter
 		meta->portLastDroppedPackets[port] = 0;
-		int currentPacketsDropped = 0, nextSequence, localThreadNum;
+		int currentPacketsDropped = 0, nextSequence;
 
 		// Reset last packet, reference data on the current port
 		lastPortPacket = meta->lastPacket;
@@ -760,7 +760,7 @@ int lofar_udp_raw_loop(lofar_udp_meta *meta) {
 
 			// Use firstprivate to lock 4-bit variables in a task, create a cache variable otherwise
 			#ifdef __INTEL_COMPILER
-			#pragma omp task firstprivate(iLoop, lastInputPacketOffset, inputPortData) private(localThreadNum) shared(byteWorkspace, outputData)
+			#pragma omp task firstprivate(iLoop, lastInputPacketOffset, inputPortData, packetOutputLength, portBeamlets, cumulativeBeamlets, baseBeamlets) shared(byteWorkspace, outputData) default(shared)
 			{
 			#else
 				LIPOCache = lastInputPacketOffset;

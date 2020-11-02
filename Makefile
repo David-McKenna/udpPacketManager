@@ -16,7 +16,7 @@ CLI_VER = 0.2
 # Detemrine the max threads per socket to speed up execution via OpenMP with ICC (GCC falls over if we set too many)
 THREADS = $(shell cat /proc/cpuinfo | uniq | grep -m 2 "siblings" | cut -d ":" -f 2 | sort --numeric --unique | awk '{printf("%d", $$1);}')
 
-CFLAGS 	+= -march=native -W -Wall -O3 -march=native -DVERSION=$(LIB_VER) -DVERSIONCLI=$(CLI_VER) -fPIC # -DBENCHMARK -g -DALLOW_VERBOSE #-D__SLOWDOWN
+CFLAGS 	+= -W -Wall -O3 -march=native -DVERSION=$(LIB_VER) -DVERSIONCLI=$(CLI_VER) -fPIC # -DBENCHMARKING -g -DALLOW_VERBOSE #-D__SLOWDOWN
 
 ifeq ($(CC), icc)
 AR = xiar
@@ -81,6 +81,7 @@ clean:
 	rm ./compiler_report_*.log; exit 0;
 	rm ./lofar_udp_extractor; exit 0;
 	rm ./lofar_udp_guppi_raw; exit 0;
+	rm ./tests/output_*; exit 0;
 
 remove:
 	rm $(PREFIX)/bin/lofar_udp_extractor
@@ -99,6 +100,27 @@ remove-local:
 	find . -name "*.a" -exec rm ~/.local/lib/{} \;
 	find . -name "*.a.*" -exec rm ~/.local/lib/{} \;
 	make clean
+
+
+test:
+	for procMode in 0 1 2 10 11 20 21 30 31 32; do \
+		echo "Running lofar_udp_extractor -i ./tests/udp_1613%d_sample.zst -o './tests/output_'$$procModeStokes'_%d' -p $$procMode -m 4096"; \
+		lofar_udp_extractor -i ./tests/udp_1613%d_sample -o './tests/output_'$$procMode'_%d' -p $$procMode -m 4096; \
+	done
+
+	for procMode in 100 110 120 130 150 160; do \
+		for offset in 0 1 2 3 4; do \
+			procModeStokes="`expr $$procMode + $$offset`"; \
+			echo "Running lofar_udp_extractor -i ./tests/udp_1613%d_sample.zst -o './tests/output_'$$procModeStokes'_%d' -p $$procModeStokes -m 4096"; \
+			lofar_udp_extractor -i ./tests/udp_1613%d_sample.zst -o './tests/output_'$$procModeStokes'_%d' -p $$procModeStokes -m 4096; \
+		done; \
+	done
+
+	source hashVariables.txt; for output in ./tests/*; do \
+		if [ "`md5sum $$output" != $$output_hash ]; then \
+			echo "Processed output $$output does not match expected hash. Exiting."
+		fi;
+	done;
 
 
 

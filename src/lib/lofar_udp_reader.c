@@ -1028,19 +1028,20 @@ lofar_udp_reader* lofar_udp_meta_file_reader_setup_struct(lofar_udp_config *conf
 
 	for (int out = 0; out < meta.numOutputs; out++) {
 		meta.outputData[out] = calloc(meta.packetOutputLength[out] * meta.packetsPerIteration, sizeof(char));
+		VERBOSE(if(meta.VERBOSE) printf("calloc at %p for %ld bytes\n", meta.outputData[out], meta.packetOutputLength[out] * meta.packetsPerIteration););
 	}
 
 
 
 	VERBOSE(if (meta.VERBOSE) {
 		printf("Meta debug:\ntotalBeamlets %d, numPorts %d, replayDroppedPackets %d, processingMode %d, outputBitMode %d, packetsPerIteration %ld, packetsRead %ld, packetsReadMax %ld, lastPacket %ld, \n",
-				meta.totalBeamlets, meta.numPorts, meta.replayDroppedPackets, meta.processingMode, 0, meta.packetsPerIteration, meta.packetsRead, meta.packetsReadMax, meta.lastPacket);
+				meta.totalBeamlets, meta.numPorts, meta.replayDroppedPackets, meta.processingMode, meta->outputBitMode, meta.packetsPerIteration, meta.packetsRead, meta.packetsReadMax, meta.lastPacket);
 
 		for (int i = 0; i < meta.numPorts; i++) {
 			printf("Port %d: inputDataOffset %ld, portBeamlets %d, cumulativeBeamlets %d, inputBitMode %d, portPacketLength %d, packetOutputLength %d, portLastDroppedPackets %d, portTotalDroppedPackets %d\n", i, 
 				meta.inputDataOffset[i], meta.portBeamlets[i], meta.portCumulativeBeamlets[i], meta.inputBitMode, meta.portPacketLength[i], meta.packetOutputLength[i], meta.portLastDroppedPackets[i], meta.portTotalDroppedPackets[i]);
 
-		for (int i = 0; i < meta.numOutputs; i++) printf("Output %d, packetLength %d, numOut %d", i, meta.packetOutputLength[i], meta.numOutputs);
+		for (int i = 0; i < meta.numOutputs; i++) printf("Output %d, packetLength %d, numOut %d\n", i, meta.packetOutputLength[i], meta.numOutputs);
 	}});
 
 
@@ -1220,7 +1221,7 @@ int lofar_udp_reader_read_step(lofar_udp_reader *reader) {
 	
 	// Read in the required new data
 	omp_set_num_threads(OMP_THREADS);
-	#pragma omp parallel for 
+	#pragma omp parallel for shared(returnVal)
 	for (int port = 0; port < reader->meta->numPorts; port++) {
 		long charsToRead, charsRead, packetPerIter;
 		
@@ -1235,14 +1236,19 @@ int lofar_udp_reader_read_step(lofar_udp_reader *reader) {
 			#pragma omp critical (packetCheck) 
 			{
 			if(packetPerIter < reader->meta->packetsPerIteration) {
-				reader->meta->packetsPerIteration = packetPerIter;
+				// Sanity check, out of order packets can cause a negiative value here
+				if (packetPerIter > 0) {
+					reader->meta->packetsPerIteration = packetPerIter;
+				} else {
+					reader->meta->packetsPerIteration = 0;
+				}
 				fprintf(stderr, "Received less data from file on port %d than expected, may be nearing end of file.\nReducing packetsPerIteration to %ld, to account for the limited amount of input data.\n", port, reader->meta->packetsPerIteration);
-
 			}
 			#ifdef __SLOWDOWN
 			sleep(5);
 			#endif
 
+			#pragma omp atomic write
 			returnVal = -3;
 			}
 		}
@@ -1288,10 +1294,10 @@ int lofar_udp_reader_step_timed(lofar_udp_reader *reader, double timing[2]) {
 	}
 
 
-	VERBOSE(if (reader->meta->VERBOSE) printf("reader_step ready2: %d, %d\n", reader->meta->inputDataReady, reader->meta->outputDataReady));
+	VERBOSE(if (reader->meta->VERBOSE) printf("reader_step ready2: %d, %d\n", reader->meta->inputDataReady, reader->meta->outputDataReady, reader->metapacketsPerIteration > 0));
 	// Make sure there is a new input data set before running
 	// On the setup iteration, the output data is marked as ready to prevent this occurring until the first read step is called
-	if (reader->meta->outputDataReady != 1) {
+	if (reader->meta->outputDataReady != 1 && reader->meta->packetsPerIteration > 0) {
 		if ((stepReturnVal = (reader->meta->processFunc)(reader->meta)) > 0) return stepReturnVal;
 		reader->meta->packetsRead += reader->meta->packetsPerIteration;
 		reader->meta->inputDataReady = 0;
