@@ -1293,7 +1293,7 @@ int lofar_udp_reader_step_timed(lofar_udp_reader *reader, double timing[2]) {
 	}
 
 
-	VERBOSE(if (reader->meta->VERBOSE) printf("reader_step ready2: %d, %d\n", reader->meta->inputDataReady, reader->meta->outputDataReady, reader->meta->packetsPerIteration > 0));
+	VERBOSE(if (reader->meta->VERBOSE) printf("reader_step ready2: %d, %d, %d\n", reader->meta->inputDataReady, reader->meta->outputDataReady, reader->meta->packetsPerIteration > 0));
 	// Make sure there is a new input data set before running
 	// On the setup iteration, the output data is marked as ready to prevent this occurring until the first read step is called
 	if (reader->meta->outputDataReady != 1 && reader->meta->packetsPerIteration > 0) {

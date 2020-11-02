@@ -313,7 +313,7 @@ int main(int argc, char  *argv[]) {
 	for (int port = basePort; port < config.numPorts; port++) {
 		sprintf(workingString, inputFormat, port);
 
-		VERBOSE(if (verbose) printf("Opening file at %s\n", workingString));
+		VERBOSE(if (meta->verbose) printf("Opening file at %s\n", workingString));
 
 		inputFiles[port] = fopen(workingString, "r");
 		if (inputFiles[port] == NULL) {
