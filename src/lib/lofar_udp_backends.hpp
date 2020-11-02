@@ -760,7 +760,7 @@ int lofar_udp_raw_loop(lofar_udp_meta *meta) {
 
 			// Use firstprivate to lock 4-bit variables in a task, create a cache variable otherwise
 			#ifdef __INTEL_COMPILER
-			#pragma omp task firstprivate(iLoop, lastInputPacketOffset, inputPortData, packetOutputLength, portBeamlets, cumulativeBeamlets, baseBeamlets) shared(byteWorkspace, outputData) default(shared)
+			#pragma omp task firstprivate(iLoop, lastInputPacketOffset, inputPortData, packetOutputLength, portBeamlets, cumulativeBeamlets, baseBeamlets) shared(byteWorkspace, outputData)
 			{
 			#else
 				LIPOCache = lastInputPacketOffset;

@@ -435,7 +435,7 @@ int main(int argc, char  *argv[]) {
 		startingPacket = reader->meta->leadingPacket;
 
 		// Open the output files for this event
-		for (int out = 0; out < outputFilesCount; out++) {
+		for (int out = 0; out < reader->meta->numOutputs; out++) {
 			sprintf(workingString, outputFormat, out, dateStr[eventLoop], startingPacket);
 			VERBOSE(if (verbose) printf("Testing output file for output %d @ %s\n", out, workingString));
 			
