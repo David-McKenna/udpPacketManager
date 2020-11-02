@@ -387,7 +387,7 @@ void inline udp_stokes(long iLoop, char *inputPortData, O **outputData,  long la
 
 template <typename I, typename O, StokesFuncType stokesFunc, int factor>
 void inline udp_stokesDecimation(long iLoop, char *inputPortData, O **outputData, long lastInputPacketOffset, long packetOutputLength, int timeStepSize, int totalBeamlets, int portBeamlets, int cumulativeBeamlets, int baseBeamlet) {
-	long outputPacketOffset = (long) (((float) iLoop * packetOutputLength / sizeof(O)) * ((float) UDPNTIMESLICE / (float) factor));
+	long outputPacketOffset = (long) ((float) iLoop * packetOutputLength / sizeof(O));
 	printf("dec: %ld, %ld, %d, %d, %d\n", outputPacketOffset, iLoop, packetOutputLength, UDPNTIMESLICE, factor);
 	long tsInOffset, tsOutOffset;
 	O tempVal;
@@ -455,7 +455,7 @@ void inline udp_fullStokes(long iLoop, char *inputPortData, O **outputData,  lon
 
 template <typename I, typename O, int factor>
 void inline udp_fullStokesDecimation(long iLoop, char *inputPortData, O **outputData, long lastInputPacketOffset, long packetOutputLength, int timeStepSize, int totalBeamlets, int portBeamlets, int cumulativeBeamlets, int baseBeamlet) {
-	long outputPacketOffset = (long) (((float) iLoop * packetOutputLength / sizeof(O)) * ((float) UDPNTIMESLICE / (float) factor));
+	long outputPacketOffset = (long) ((float) iLoop * packetOutputLength / sizeof(O));
 	long tsInOffset, tsOutOffset;
 	O tempValI, tempValQ, tempValU, tempValV;
 
@@ -534,7 +534,7 @@ void inline udp_usefulStokes(long iLoop, char *inputPortData, O **outputData,  l
 
 template <typename I, typename O, int factor>
 void inline udp_usefulStokesDecimation(long iLoop, char *inputPortData, O **outputData, long lastInputPacketOffset, long packetOutputLength, int timeStepSize, int totalBeamlets, int portBeamlets, int cumulativeBeamlets, int baseBeamlet) {
-	long outputPacketOffset = (long) (((float) iLoop * packetOutputLength / sizeof(O)) * ((float) UDPNTIMESLICE / (float) factor));
+	long outputPacketOffset = (long) ((float) iLoop * packetOutputLength / sizeof(O));
 	long tsInOffset, tsOutOffset;
 	O tempValI, tempValV;
 
