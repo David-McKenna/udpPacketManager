@@ -25,7 +25,7 @@ lofar_udp_config lofar_udp_config_default = {
  *
  * @return     0: Success, 1: Fatal error
  */
-int lofar_udp_parse_headers(lofar_udp_meta *meta, const char header[MAX_NUM_PORTS][UDPHDRLEN], const int beamletLimits[2]) {
+int lofar_udp_parse_headers(lofar_udp_meta *meta, char header[MAX_NUM_PORTS][UDPHDRLEN], const int beamletLimits[2]) {
 
 	union char_unsigned_int tsseq;
 	union char_short source;
