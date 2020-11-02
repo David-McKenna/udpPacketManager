@@ -3,6 +3,20 @@
 #include "lofar_udp_backends.hpp"
 
 
+// Define a default config
+lofar_udp_config lofar_udp_config_default = {
+	.inputFiles = NULL,
+	.numPorts = 0,
+	.replayDroppedPackets = 0,
+	.processingMode = 0,
+	.verbose = 0,
+	.packetsPerIteration = 0,
+	.startingPacket = -1,
+	.packetsReadMax = -1,
+	.compressedReader = -1,
+	.beamletLimits = { 0, 0 }
+};
+
 /**
  * @brief      Parse LOFAR UDP headers to determine some metadata about the ports
  *
@@ -11,7 +25,7 @@
  *
  * @return     0: Success, 1: Fatal error
  */
-int lofar_udp_parse_headers(lofar_udp_meta *meta, const char header[MAX_NUM_PORTS][UDPHDRLEN]) {
+int lofar_udp_parse_headers(lofar_udp_meta *meta, const char header[MAX_NUM_PORTS][UDPHDRLEN], const int beamletLimits[2]) {
 
 	union char_unsigned_int tsseq;
 	union char_short source;
@@ -19,6 +33,7 @@ int lofar_udp_parse_headers(lofar_udp_meta *meta, const char header[MAX_NUM_PORT
 	float bitMul;
 	int baseLength;
 	int cacheBitMode = 0;
+	meta->totalBeamlets = 0;
 
 	// Process each input port
 	for (int port = 0; port < meta->numPorts; port++) {
@@ -70,9 +85,36 @@ int lofar_udp_parse_headers(lofar_udp_meta *meta, const char header[MAX_NUM_PORT
 
 		// Determine the number of beamlets and bitmode on the port
 		VERBOSE(printf("port %d, bitMode %d, beamlets %d (%u)\n", port, ((lofar_source_bytes*) &source)->bitMode, (int) ((unsigned char) header[port][6]), (unsigned char) header[port][6]););
-		meta->portBeamlets[port] = (int) ((unsigned char) header[port][6]);
 		meta->portCumulativeBeamlets[port] = meta->totalBeamlets;
-		meta->totalBeamlets += (int) ((unsigned char) header[port][6]);
+		meta->portBeamlets[port] = (int) ((unsigned char) header[port][6]);
+
+
+		// Set the  upper, lower limit of beamlets as needed
+		// SANITY CHECK: ARE WE GETTING THE RIGHT INDEX?
+		
+		// Check the upper limit first, so that we can modify portBeamlets if needed.
+		if ((beamletLimits[1] < (meta->portCumulativeBeamlets[port] + meta->portBeamlets[port])) && (beamletLimits[1] > meta->portCumulativeBeamlets[port])) {
+			meta->portBeamlets[port] = beamletLimits[1] - meta->portCumulativeBeamlets[port];
+		}
+
+
+		if ((beamletLimits[0] < (meta->portCumulativeBeamlets[port] + meta->portBeamlets[port])) && (beamletLimits[0] > meta->portCumulativeBeamlets[port])) {
+			meta->baseBeamlets[port] = beamletLimits[0] - meta->portCumulativeBeamlets[port];
+			meta->portCumulativeBeamlets[port] -= beamletLimits[0];
+
+			// Lower the total count of beamlets, while not modifiyng
+			// 	portBeamlets 
+			// portBeamlets sets the upper limit on scans per-port,
+			// 	so changing that variable would incorrectly remove 2N beamlets
+			// 	from the current port, rather than just N 
+			// Yes, this make the actual values of these arrays less useful, 
+			// 	but it works without introducing new variables
+			meta->totalBeamlets += meta->portBeamlets[port] - beamletLimits[0];
+		} else {
+			meta->baseBeamlets[port] = 0;
+			meta->totalBeamlets += meta->portBeamlets[port];
+		}
+
 		switch (((lofar_source_bytes*) &source)->bitMode) {
 			case 0:
 				meta->inputBitMode = 16;
@@ -782,65 +824,110 @@ int lofar_udp_setup_processing(lofar_udp_meta *meta) {
 	return 0;
 }
 
+
+
 /**
- * @brief      Set up a lofar_udp_reader and assoaicted lofar_udp_meta using a
- *             set of input files and pre-set control/metadata parameters
+ * @brief      Old API access
  *
  * @param      inputFiles            An array of input files (max MAX_NUM_PORTS)
- * @param[in]  numPorts              The number ports to process (max MAX_NUM_PORTS)
- * @param[in]  replayDroppedPackets  1: Enable 0: Disable replaying the last packet (otherwise pad with 0s)
+ * @param[in]  numPorts              The number ports to process (max
+ *                                   MAX_NUM_PORTS)
+ * @param[in]  replayDroppedPackets  1: Enable 0: Disable replaying the last
+ *                                   packet (otherwise pad with 0s)
  * @param[in]  processingMode        The processing mode
  * @param[in]  verbose               1: Enable verbosity, 0: Disable verbosity
  *                                   (only if enabled at compile time)
  * @param[in]  packetsPerIteration   The packets per read/process iteration
- * @param[in]  startingPacket        The starting packet number (LOFAR packet number, not an offset)
- * @param[in]  packetsReadMax        The maximum number of packets to read over the lifetime of the object
- * @param[in]  compressedReader      Enable / disable zstandard decompression on the input data
+ * @param[in]  startingPacket        The starting packet number (LOFAR packet
+ *                                   number, not an offset)
+ * @param[in]  packetsReadMax        The maximum number of packets to read over
+ *                                   the lifetime of the object
+ * @param[in]  compressedReader      Enable / disable zstandard decompression on
+ *                                   the input data
+ *
+ * @return     lofar_udp_reader ptr, or NULL on error
+ *
+ * @return     { description_of_the_return_value }
+ */
+lofar_udp_reader* lofar_udp_meta_file_reader_setup(FILE **inputFiles, const int numPorts, const int replayDroppedPackets, const int processingMode, const int verbose, const long packetsPerIteration, const long startingPacket, const long packetsReadMax, const int compressedReader) {
+		static lofar_udp_config config;
+		config.inputFiles = inputFiles;
+		config.numPorts = numPorts;
+		config.replayDroppedPackets = replayDroppedPackets;
+		config.processingMode = processingMode;
+		config.verbose = verbose;
+		config.packetsPerIteration = packetsPerIteration;
+		config.startingPacket = startingPacket;
+		config.packetsReadMax = packetsReadMax;
+		config.compressedReader = compressedReader;
+
+		// Old call did not support beamlet limits, don't update.
+		config.beamletLimits[0] = 0;
+		config.beamletLimits[1] = 0;
+		
+		return lofar_udp_meta_file_reader_setup_struct(&config);
+}
+/**
+ * @brief      Set up a lofar_udp_reader and assoaicted lofar_udp_meta using a
+ *             set of input files and pre-set control/metadata parameters
+ *
+ * @param      config  The configuration struct, detailed options above
  *
  * @return     lofar_udp_reader ptr, or NULL on error
  */
-lofar_udp_reader* lofar_udp_meta_file_reader_setup(FILE **inputFiles, const int numPorts, const int replayDroppedPackets, const int processingMode, const int verbose, const long packetsPerIteration, const long startingPacket, const long packetsReadMax, const int compressedReader) {
+lofar_udp_reader* lofar_udp_meta_file_reader_setup_struct(lofar_udp_config *config) {
 	
-	if (numPorts > MAX_NUM_PORTS) {
-		fprintf(stderr, "ERROR: You requested %d ports, but LOFAR can only produce %d, exiting.\n", numPorts, MAX_NUM_PORTS);
+	if (config->numPorts > MAX_NUM_PORTS) {
+		fprintf(stderr, "ERROR: You requested %d ports, but LOFAR can only produce %d, exiting.\n", config->numPorts, MAX_NUM_PORTS);
 		return NULL;
 	}
-	if (packetsPerIteration < 1) {
-		fprintf(stderr, "ERROR: Packets per iteration indicates no work will be performed (%ld per iteration), exiting.\n", packetsPerIteration);
+	if (config->packetsPerIteration < 1) {
+		fprintf(stderr, "ERROR: Packets per iteration indicates no work will be performed (%ld per iteration), exiting.\n", config->packetsPerIteration);
 		return NULL;
+	}
+	if (config->beamletLimits[0] > 0 || config->beamletLimits[1] > 0) {
+		if (config->beamletLimits[0] > config->beamletLimits[1]) {
+			fprintf(stderr, "ERROR: Upper beamlet limit is lower than the lower beamlet limit. Please fix your ordering (%d, %d), exiting.\n", config->beamletLimits[0], config->beamletLimits[1]);
+			return NULL;
+		}
+
+		if (config->processingMode < 2) {
+			fprintf(stderr, "ERROR: Processing modes 0 and 1 do not support setting beamlet limits, exiting.\n");
+			return NULL;
+		}
 	}
 
 	// Setup the metadata struct and a few variables we'll need
-	static lofar_udp_meta meta = { .processingMode = 0, .packetsRead = 0, .inputDataReady = 0, .outputDataReady = 0 }; // .outputBitMode
+	static lofar_udp_meta meta = { .processingMode = 0, .packetsRead = 0, .inputDataReady = 0, .outputDataReady = 0 };
 	char inputHeaders[MAX_NUM_PORTS][UDPHDRLEN];
 	int readlen, bufferSize;
-	long localMaxPackets = packetsReadMax;
+	long localMaxPackets = config->packetsReadMax;
 
 	// Reset the maximum packets to LONG_MAX if set to an unreasonable value
-	if (packetsReadMax < 0) localMaxPackets = LONG_MAX;
+	if (config->packetsReadMax < 0) localMaxPackets = LONG_MAX;
 
 	// Set the simple metadata defaults
-	meta.numPorts = numPorts;
-	meta.replayDroppedPackets = replayDroppedPackets;
-	meta.processingMode = processingMode;
-	meta.packetsPerIteration = packetsPerIteration;
+	meta.numPorts = config->numPorts;
+	meta.replayDroppedPackets = config->replayDroppedPackets;
+	meta.processingMode = config->processingMode;
+	meta.packetsPerIteration = config->packetsPerIteration;
 	meta.packetsReadMax = localMaxPackets;
-	meta.lastPacket = startingPacket;
+	meta.lastPacket = config->startingPacket;
 	
-	VERBOSE(meta.VERBOSE = verbose);
+	VERBOSE(meta.VERBOSE = config->verbose);
 	#ifndef ALLOW_VERBOSE
-	if (verbose) fprintf(stderr, "Warning: verbosity was disabled at compile time, but you requested it. Continuing...\n");
+	if (config->verbose) fprintf(stderr, "Warning: verbosity was disabled at compile time, but you requested it. Continuing...\n");
 	#endif
 
 
 	// Scan in the first header on each port
-	for (int port = 0; port < numPorts; port++) {
+	for (int port = 0; port < meta.numPorts; port++) {
 		
-		if (compressedReader)  {
-			readlen = fread_temp_ZSTD(&(inputHeaders[port]), sizeof(char), 16, inputFiles[port], 1);
+		if (config->compressedReader)  {
+			readlen = fread_temp_ZSTD(&(inputHeaders[port]), sizeof(char), 16, config->inputFiles[port], 1);
 		} else  {
-			readlen = fread(&(inputHeaders[port]), sizeof(char), 16, inputFiles[port]);
-			fseek(inputFiles[port], -16, SEEK_CUR);
+			readlen = fread(&(inputHeaders[port]), sizeof(char), 16, config->inputFiles[port]);
+			fseek(config->inputFiles[port], -16, SEEK_CUR);
 		}
 
 		if (readlen != 16) {
@@ -852,13 +939,75 @@ lofar_udp_reader* lofar_udp_meta_file_reader_setup(FILE **inputFiles, const int 
 
 
 	// Parse the input file headers to get packet metadata on each port
-	if (lofar_udp_parse_headers(&meta, inputHeaders)) {
-		fprintf(stderr, "Unable to setup meadata using given headers; exiting.\n");
-		return NULL;
+	// We may repeat this step if the selected beamlets cause us to drop a port of dataa
+	int updateBeamlets = 1;
+	while (updateBeamlets != -1) {
+		// Standard setup
+		if (lofar_udp_parse_headers(&meta, inputHeaders, config->beamletLimits) > 0) {
+			fprintf(stderr, "Unable to setup meadata using given headers; exiting.\n");
+			return NULL;
+
+		// If we are only parsing a subset of beamlets
+		} else if (updateBeamlets) {
+			int lowerPort = 0;
+			int upperPort = meta.numPorts;
+
+			// Iterate over the given ports
+			for (int port = 0; port < meta.numPorts; port++) {
+				// Check if the lower limit is on the given port
+				if (config->beamletLimits[0] > 0) {
+					if ((meta.portCumulativeBeamlets[port] <  config->beamletLimits[0]) && ((meta.portCumulativeBeamlets[port] + meta.portBeamlets[port]) > config->beamletLimits[0] )) {
+						lowerPort = port;
+					}
+				}
+
+				// Check if the upper limit is on the given port
+				if (config->beamletLimits[1] > 0) {
+					if ((meta.portCumulativeBeamlets[port] <  config->beamletLimits[1]) && ((meta.portCumulativeBeamlets[port] + meta.portBeamlets[port]) > config->beamletLimits[1] )) {
+						upperPort = port;
+					}
+				}
+			}
+
+			// Sanity check before progressing
+			if (lowerPort > upperPort) {
+				fprintf(stderr, "ERROR: Upon updating beamletLimits, we found the upper beamlet is in a port higher than the lower port (%d, %d), exiting.\n", upperPort, lowerPort);
+				return NULL;
+			}
+
+			if (lowerPort != 0) {
+				// Shift input files down
+				for (int port = lowerPort; port <= upperPort; port++) {
+					config->inputFiles[port - lowerPort] = config->inputFiles[port];
+					memcpy(inputHeaders[port - lowerPort], inputHeaders[port], UDPHDRLEN);
+				}
+
+				// Close unneeded files
+				for (int port = upperPort + 1; port < config->numPorts; port++) {
+					fclose(config->inputFiles[port]);
+				}
+
+				// Update beamlet limits to be relative to the new ports
+				config->beamletLimits[0] -= meta.portCumulativeBeamlets[lowerPort];
+				config->beamletLimits[1] -= meta.portCumulativeBeamlets[lowerPort];
+
+			}
+
+			// If we are dropping any ports, update numPorts
+			if ((lowerPort != 0) || ((upperPort + 1 ) != config->numPorts)) {
+				meta.numPorts = (upperPort + 1) - lowerPort;
+			}
+
+			// Update updateBeamlets so that we can start the loop again, but not enter this code block.
+			updateBeamlets = 0;
+		} else {
+			updateBeamlets = -1;
+		}
 	}
 
+
 	if (lofar_udp_setup_processing(&meta)) {
-		fprintf(stderr, "Unable to setup processing mode %d, exiting.\n", processingMode);
+		fprintf(stderr, "Unable to setup processing mode %d, exiting.\n", config->processingMode);
 		return NULL;
 	}
 
@@ -868,8 +1017,8 @@ lofar_udp_reader* lofar_udp_meta_file_reader_setup(FILE **inputFiles, const int 
 		// Ofset input by 2 for a zero/buffer packet on boundary
 		// If we have a compressed reader, align the length with the ZSTD buffer sizes
 		bufferSize = (meta.portPacketLength[port] * (meta.packetsPerIteration)) % ZSTD_DStreamOutSize();
-		meta.inputData[port] = calloc(meta.portPacketLength[port] * (meta.packetsPerIteration + 2) + bufferSize * compressedReader, sizeof(char)) + (meta.portPacketLength[port] * 2);
-		VERBOSE(if(meta.VERBOSE) printf("calloc at %p for %ld +(%d) bytes\n", meta.inputData[port] - (meta.portPacketLength[port] * 2), meta.portPacketLength[port] * (meta.packetsPerIteration + 2) + bufferSize * compressedReader - meta.portPacketLength[port] * 2, meta.portPacketLength[port] * 2););
+		meta.inputData[port] = calloc(meta.portPacketLength[port] * (meta.packetsPerIteration + 2) + bufferSize * config->compressedReader, sizeof(char)) + (meta.portPacketLength[port] * 2);
+		VERBOSE(if(meta.VERBOSE) printf("calloc at %p for %ld +(%d) bytes\n", meta.inputData[port] - (meta.portPacketLength[port] * 2), meta.portPacketLength[port] * (meta.packetsPerIteration + 2) + bufferSize * config->compressedReader - meta.portPacketLength[port] * 2, meta.portPacketLength[port] * 2););
 
 		// Initalise these arrays while we're looping
 		meta.inputDataOffset[port] = 0;
@@ -896,7 +1045,7 @@ lofar_udp_reader* lofar_udp_meta_file_reader_setup(FILE **inputFiles, const int 
 
 
 	// Form a reader using the given metadata and input files
-	return lofar_udp_file_reader_setup(inputFiles, &meta, compressedReader);
+	return lofar_udp_file_reader_setup(config->inputFiles, &meta, config->compressedReader);
 }
 
 
