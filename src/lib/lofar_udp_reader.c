@@ -952,7 +952,7 @@ lofar_udp_reader* lofar_udp_meta_file_reader_setup_struct(lofar_udp_config *conf
 		} else if (updateBeamlets) {
 			VERBOSE(if (meta.VERBOSE) printf("Handle headers chain: %d\n", updateBeamlets););
 			int lowerPort = 0;
-			int upperPort = meta.numPorts;
+			int upperPort = meta.numPorts - 1;
 
 			// Iterate over the given ports
 			for (int port = 0; port < meta.numPorts; port++) {
