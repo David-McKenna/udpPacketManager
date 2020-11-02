@@ -37,6 +37,7 @@ int lofar_udp_parse_headers(lofar_udp_meta *meta, char header[MAX_NUM_PORTS][UDP
 
 	// Process each input port
 	for (int port = 0; port < meta->numPorts; port++) {
+		VERBOSE( if(meta->verbose) printf("Port %d\n"););
 		// Data integrity checks
 		if ((unsigned char) header[port][0] < UDPCURVER) {
 			fprintf(stderr, "Input header on port %d appears malformed (RSP Version less than 3), exiting.\n", port);
