@@ -754,7 +754,7 @@ int lofar_udp_setup_processing(lofar_udp_meta *meta) {
 			break;
 
 		case 160:
-			meta->numOutputs = 4;
+			meta->numOutputs = 2;
 			// 4 input words -> 2 larger word x 4
 			mulFactor = 2.0 / 4.0;
 			meta->outputBitMode = 32;
