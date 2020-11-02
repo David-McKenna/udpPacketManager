@@ -942,6 +942,7 @@ lofar_udp_reader* lofar_udp_meta_file_reader_setup_struct(lofar_udp_config *conf
 	// We may repeat this step if the selected beamlets cause us to drop a port of dataa
 	int updateBeamlets = 1;
 	while (updateBeamlets != -1) {
+		VERBOSE(if (meta->verbose) printf("Handle headers: %d\n", updateBeamlets););
 		// Standard setup
 		if (lofar_udp_parse_headers(&meta, inputHeaders, config->beamletLimits) > 0) {
 			fprintf(stderr, "Unable to setup meadata using given headers; exiting.\n");
@@ -949,6 +950,7 @@ lofar_udp_reader* lofar_udp_meta_file_reader_setup_struct(lofar_udp_config *conf
 
 		// If we are only parsing a subset of beamlets
 		} else if (updateBeamlets) {
+			VERBOSE(if (meta->verbose) printf("Handle headers chain: %d\n", updateBeamlets););
 			int lowerPort = 0;
 			int upperPort = meta.numPorts;
 
@@ -1001,6 +1003,7 @@ lofar_udp_reader* lofar_udp_meta_file_reader_setup_struct(lofar_udp_config *conf
 			// Update updateBeamlets so that we can start the loop again, but not enter this code block.
 			updateBeamlets = 0;
 		} else {
+			VERBOSE(if (meta->verbose) printf("Handle headers: %d\n", updateBeamlets););
 			updateBeamlets = -1;
 		}
 	}
