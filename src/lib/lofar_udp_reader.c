@@ -1023,7 +1023,7 @@ lofar_udp_reader* lofar_udp_meta_file_reader_setup_struct(lofar_udp_config *conf
 				meta.numPorts = (upperPort + 1) - lowerPort;
 			}
 
-			VERBOSE(if (meta->VERBOSE) printf("New numPorts: %d\n", meta.numPorts););
+			VERBOSE(if (meta.VERBOSE) printf("New numPorts: %d\n", meta.numPorts););
 
 			// Update updateBeamlets so that we can start the loop again, but not enter this code block.
 			updateBeamlets = 0;
