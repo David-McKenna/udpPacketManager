@@ -122,7 +122,7 @@ remove-local:
 
 	touch ./tests/obj-generated-$(LIB_VER).$(LIB_VER_MINOR)
 
-test: test-make-obj
+test: ./tests/obj-generated-$(LIB_VER).$(LIB_VER_MINOR)
 	# . === source
 	. ./tests/hashVariables.txt; for output in ./tests/*; do \
 		base=$$(basename $$output); \
