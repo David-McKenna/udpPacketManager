@@ -104,12 +104,12 @@ int lofar_udp_parse_headers(lofar_udp_meta *meta, char header[MAX_NUM_PORTS][UDP
 		// SANITY CHECK: ARE WE GETTING THE RIGHT INDEX?
 		
 		// Check the upper limit first, so that we can modify portBeamlets if needed.
-		if ((beamletLimits[1] < (meta->portCumulativeBeamlets[port] + meta->portBeamlets[port])) && (beamletLimits[1] >= meta->portCumulativeBeamlets[port])) {
+		if (beamletLimits[1] != 0 && (beamletLimits[1] < (meta->portCumulativeBeamlets[port] + meta->portBeamlets[port])) && (beamletLimits[1] >= meta->portCumulativeBeamlets[port])) {
 			meta->portBeamlets[port] = beamletLimits[1] - meta->portCumulativeBeamlets[port] + 1;
 		}
 
 
-		if ((beamletLimits[0] < (meta->portCumulativeBeamlets[port] + meta->portBeamlets[port])) && (beamletLimits[0] >= meta->portCumulativeBeamlets[port])) {
+		if (beamletLimits[0] != 0 && (beamletLimits[0] < (meta->portCumulativeBeamlets[port] + meta->portBeamlets[port])) && (beamletLimits[0] >= meta->portCumulativeBeamlets[port])) {
 			meta->baseBeamlets[port] = beamletLimits[0] - meta->portCumulativeBeamlets[port];
 
 			// Lower the total count of beamlets, while not modifiyng
@@ -961,7 +961,7 @@ lofar_udp_reader* lofar_udp_meta_file_reader_setup_struct(lofar_udp_config *conf
 
 	// Parse the input file headers to get packet metadata on each port
 	// We may repeat this step if the selected beamlets cause us to drop a port of dataa
-	int updateBeamlets = 1;
+	int updateBeamlets = (config->beamletLimits[0] > 0 || config->beamletLimits[1] > 0);
 	while (updateBeamlets != -1) {
 		VERBOSE(if (meta.VERBOSE) printf("Handle headers: %d\n", updateBeamlets););
 		// Standard setup
