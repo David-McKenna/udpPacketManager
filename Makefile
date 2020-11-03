@@ -107,8 +107,24 @@ remove-local:
 	make clean
 
 
-./tests/obj-generated-$(LIB_VER).$(LIB_VER_MINOR):
+
+test: ./tests/obj-generated-$(LIB_VER).$(LIB_VER_MINOR)
+	# . === source
+	. ./tests/hashVariables.txt; for output in ./tests/output*; do \
+		base=$$(basename $$output); \
+		md5hash=($$(md5sum $$output)); \
+		echo "$$base: $${md5hash[0]}, $${!base}"; \
+		if [[ "$${md5hash[0]}" != "$${!base}" ]]; then \
+			echo "Processed output $$output does not match expected hash. Exiting."; \
+			exit 1; \
+		fi; \
+	done;
+
+	rm ./tests/output*
+
+./tests/obj-generated-$(LIB_VER).$(LIB_VER_MINOR): test-samples
 	-rm ./tests/output*
+
 
 	for procMode in 0 1 2 10 11 20 21 30 31 32; do \
 		echo "Running lofar_udp_extractor -i ./tests/udp_1613%d_sample.zst -o './tests/output_'$$procModeStokes'_%d' -p $$procMode -m 501"; \
@@ -124,17 +140,11 @@ remove-local:
 	done
 
 	touch ./tests/obj-generated-$(LIB_VER).$(LIB_VER_MINOR)
+	rm ./tests/udp_*_sample
 
-test: ./tests/obj-generated-$(LIB_VER).$(LIB_VER_MINOR)
-	# . === source
-	. ./tests/hashVariables.txt; for output in ./tests/output*; do \
-		base=$$(basename $$output); \
-		md5hash=($$(md5sum $$output)); \
-		echo "$$base: $${md5hash[0]}, $${!base}"; \
-		if [[ "$${md5hash[0]}" != "$${!base}" ]]; then \
-			echo "Processed output $$output does not match expected hash. Exiting."; \
-			exit 1; \
-		fi; \
+test-samples:
+	for fil in ./test/*zst; do \
+		zstd -d $fil;
 	done;
 
 test-make-hashes: ./tests/obj-generated-$(LIB_VER).$(LIB_VER_MINOR)
