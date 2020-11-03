@@ -105,7 +105,7 @@ int lofar_udp_parse_headers(lofar_udp_meta *meta, char header[MAX_NUM_PORTS][UDP
 		
 		// Check the upper limit first, so that we can modify portBeamlets if needed.
 		if (beamletLimits[1] != 0 && (beamletLimits[1] < (meta->portCumulativeBeamlets[port] + meta->portBeamlets[port])) && (beamletLimits[1] >= meta->portCumulativeBeamlets[port])) {
-			meta->portBeamlets[port] = beamletLimits[1] - meta->portCumulativeBeamlets[port] + 1;
+			meta->portBeamlets[port] = beamletLimits[1] - meta->portCumulativeBeamlets[port] - beamletLimits[0] + 1;
 		}
 
 
