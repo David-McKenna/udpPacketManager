@@ -42,7 +42,7 @@ LIBRARY_TARGET = liblofudpman.a
 
 PREFIX = /usr/local
 
-.INTERMEDIATE : ./tests/obj-generated-$(LIB_VER).$(LIB_VER_MINOR)
+.DELETE_ON_ERROR : ./tests/obj-generated-$(LIB_VER).$(LIB_VER_MINOR)
 
 %.o: %.c
 	$(CC) -c $(CFLAGS) -o ./$@ $< $(LFLAGS)
@@ -129,10 +129,11 @@ test: ./tests/obj-generated-$(LIB_VER).$(LIB_VER_MINOR)
 	# . === source
 	. ./tests/hashVariables.txt; for output in ./tests/output*; do \
 		base=$$(basename $$output); \
-		md5hash=$$(md5sum $$output); \
+		md5hash=($$(md5sum $$output)); \
 		echo "Testing: $$md5hash"; \
 		echo "Reference: $${!base}"; \
-		if [[ "$$md5hash" != "$${!base}" ]]; then \
+		echo "$${md5hash[0]}", "($${!base})[0]"; \
+		if [[ "$${md5hash[0]}" != "($${!base})[0]" ]]; then \
 			echo "Processed output $$output does not match expected hash. Exiting."; \
 			exit 1; \
 		fi; \
