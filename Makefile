@@ -142,9 +142,9 @@ test: ./tests/obj-generated-$(LIB_VER).$(LIB_VER_MINOR)
 test-make-hashes:
 	touch ./tests/hashVariables.txt
 	for fil in ./tests/output*; \
-		do outp=$$(md5sum $$fil); \
+		do outp=($$(md5sum $$fil)); \
 		base=$$(basename $$fil); \
-		echo $$base='"'$$outp'"' >> ./tests/hashVariables.txt; \
+		echo $$base='"'$$(outp[0])'"' >> ./tests/hashVariables.txt; \
 	done
 
 
