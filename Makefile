@@ -144,7 +144,7 @@ test-make-hashes:
 	for fil in ./tests/output*; \
 		do outp=($$(md5sum $$fil)); \
 		base=$$(basename $$fil); \
-		echo $$base='"'"$$(outp[0])"'"' >> ./tests/hashVariables.txt; \
+		echo $$base='"'"$${outp[0]}"'"' >> ./tests/hashVariables.txt; \
 	done
 
 
