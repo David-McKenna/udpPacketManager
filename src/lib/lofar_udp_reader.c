@@ -104,12 +104,12 @@ int lofar_udp_parse_headers(lofar_udp_meta *meta, char header[MAX_NUM_PORTS][UDP
 		// SANITY CHECK: ARE WE GETTING THE RIGHT INDEX?
 		
 		// Check the upper limit first, so that we can modify portBeamlets if needed.
-		if ((beamletLimits[1] < (meta->portCumulativeBeamlets[port] + meta->portBeamlets[port])) && (beamletLimits[1] > meta->portCumulativeBeamlets[port])) {
-			meta->portBeamlets[port] = beamletLimits[1] - meta->portCumulativeBeamlets[port];
+		if ((beamletLimits[1] < (meta->portCumulativeBeamlets[port] + meta->portBeamlets[port])) && (beamletLimits[1] >= meta->portCumulativeBeamlets[port])) {
+			meta->portBeamlets[port] = beamletLimits[1] - meta->portCumulativeBeamlets[port] + 1;
 		}
 
 
-		if ((beamletLimits[0] < (meta->portCumulativeBeamlets[port] + meta->portBeamlets[port])) && (beamletLimits[0] > meta->portCumulativeBeamlets[port])) {
+		if ((beamletLimits[0] < (meta->portCumulativeBeamlets[port] + meta->portBeamlets[port])) && (beamletLimits[0] >= meta->portCumulativeBeamlets[port])) {
 			meta->baseBeamlets[port] = beamletLimits[0] - meta->portCumulativeBeamlets[port];
 
 			// Lower the total count of beamlets, while not modifiyng
