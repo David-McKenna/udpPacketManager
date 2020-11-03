@@ -132,8 +132,9 @@ test: ./tests/obj-generated-$(LIB_VER).$(LIB_VER_MINOR)
 		md5hash=$$(md5sum $$output); \
 		echo "Testing: $$md5hash"; \
 		echo "Reference: $${!base}"; \
-		if [ "$$md5hash" != "$${!base}" ]; then \
+		if [[ "$$md5hash" != "$${!base}" ]]; then \
 			echo "Processed output $$output does not match expected hash. Exiting."; \
+			exit 1; \
 		fi; \
 	done;
 
