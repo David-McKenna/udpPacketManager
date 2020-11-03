@@ -17,6 +17,16 @@ lofar_udp_config lofar_udp_config_default = {
 	.beamletLimits = { 0, 0 }
 };
 
+lofar_udp_reader lofar_udp_reader_default = {
+	.dstream = { NULL },
+	.inBuffer = { NULL }
+};
+
+lofar_udp_meta lofar_udp_meta_default = {
+	.inputData = { NULL },
+	.outputData = { NULL }
+};
+
 /**
  * @brief      Parse LOFAR UDP headers to determine some metadata about the ports
  *
@@ -391,7 +401,10 @@ lofar_udp_reader* lofar_udp_file_reader_setup(FILE **inputFiles, lofar_udp_meta 
 
 	// Gulp the first set of raw data
 	returnVal = lofar_udp_reader_read_step(&reader);
-	if (returnVal > 0) return NULL;
+	if (returnVal > 0) {
+		lofar_udp_reader_cleanup_f(&reader, 0);
+		return NULL;
+	}
 	reader.meta->inputDataReady = 0;
 
 	VERBOSE(if (meta->VERBOSE) printf("reader_setup: First packet %ld\n", meta->lastPacket));
@@ -399,14 +412,20 @@ lofar_udp_reader* lofar_udp_file_reader_setup(FILE **inputFiles, lofar_udp_meta 
 	// If we have been given a starting packet, search for it and align the data to it
 	if (reader.meta->lastPacket > LFREPOCH) {
 		returnVal = lofar_udp_skip_to_packet(&reader);
-		if (returnVal > 0) return NULL;
+		if (returnVal > 0) {
+			lofar_udp_reader_cleanup_f(&reader, 0);
+			return NULL;
+		}
 	}
 
 	VERBOSE(if (meta->VERBOSE) printf("reader_setup: Skipped, aligning to %ld\n", meta->lastPacket));
 
 	// Align the first packet on each port, previous search may still have a 1/2 packet delta if there was packet loss
 	returnVal = lofar_udp_get_first_packet_alignment(&reader);
-	if (returnVal > 0) return NULL;
+	if (returnVal > 0) {
+		lofar_udp_reader_cleanup_f(&reader, 0);
+		return NULL;
+	}
 
 	reader.meta->inputDataReady = 1;
 	return &reader;
@@ -514,6 +533,8 @@ int fread_temp_ZSTD(void *outbuf, const size_t size, int num, FILE* inputFile, c
 	VERBOSE(printf("Header decompression code: %ld, %s\n", output, ZSTD_getErrorName(output)));
 	if (ZSTD_isError(output)) {
 		printf("ZSTD enountered an error while doing temp read (code %ld, %s), returning 0 data.\n", output, ZSTD_getErrorName(output));
+		free(inBuff);
+		free(outBuff);
 		return 0;
 	}
 	// Ensure we got enough data
@@ -898,7 +919,7 @@ lofar_udp_reader* lofar_udp_meta_file_reader_setup_struct(lofar_udp_config *conf
 	}
 
 	// Setup the metadata struct and a few variables we'll need
-	static lofar_udp_meta meta = { .processingMode = 0, .packetsRead = 0, .inputDataReady = 0, .outputDataReady = 0 };
+	static lofar_udp_meta meta = { .packetsRead = 0, .inputDataReady = 0, .outputDataReady = 0 };
 	char inputHeaders[MAX_NUM_PORTS][UDPHDRLEN];
 	int readlen, bufferSize;
 	long localMaxPackets = config->packetsReadMax;
@@ -1061,26 +1082,57 @@ lofar_udp_reader* lofar_udp_meta_file_reader_setup_struct(lofar_udp_config *conf
  *
  * @return     int: 0: Success, other: ???
  */
-int lofar_udp_reader_cleanup(const lofar_udp_reader *reader) {
+int lofar_udp_reader_cleanup(lofar_udp_reader *reader) {
+	return lofar_udp_reader_cleanup_f(reader, 1);
+}
+
+
+/**
+ * @brief      Optionally lose input files, free alloc'd memory, free zstd
+ *             decompression streams once we are finished.
+ *
+ * @param[in]  reader      The lofar_udp_reader struct to cleanup
+ * @param[in]  closeFiles  bool: close input files (1) or don't (0)
+ *
+ * @return     int: 0: Success, other: ???
+ */
+int lofar_udp_reader_cleanup_f(lofar_udp_reader *reader, const int closeFiles) {
 
 	// Cleanup the malloc/calloc'd memory addresses, close the input files.
-	for (int i = 0; i < reader->meta->numOutputs; i++) free(reader->meta->outputData[i]);
+	for (int i = 0; i < reader->meta->numOutputs; i++) {
+		if (reader->meta->outputData[i] != NULL) {
+			free(reader->meta->outputData[i]);
+		}
+	}
 
 	for (int i = 0; i < reader->meta->numPorts; i++) {
 		// Free input data pointer (from the correct offset)
-		VERBOSE(if(reader->meta->VERBOSE) printf("On port: %d freeing inputData at %p\n", i, reader->meta->inputData[i] - 2 * reader->meta->portPacketLength[i]););
-		free(reader->meta->inputData[i] - 2 * reader->meta->portPacketLength[i]);
+		if (reader->meta->inputData[i] != NULL) {
+			VERBOSE(if(reader->meta->VERBOSE) printf("On port: %d freeing inputData at %p\n", i, reader->meta->inputData[i] - 2 * reader->meta->portPacketLength[i]););
+			free(reader->meta->inputData[i] - 2 * reader->meta->portPacketLength[i]);
+			reader->meta->inputData[i] = NULL;
+		}
 
 		// Close the input file
-		VERBOSE(if(reader->meta->VERBOSE) printf("On port: %d closing file\n", i))
-		fclose(reader->fileRef[i]);
+		if (reader->fileRef[i] != NULL && closeFiles) {
+			VERBOSE(if(reader->meta->VERBOSE) printf("On port: %d closing file\n", i))
+			fclose(reader->fileRef[i]);
+			reader->fileRef[i] = NULL;
+		}
 
 		if (reader->compressedReader) {
 			// Free the decomression stream
-			VERBOSE(if(reader->meta->VERBOSE) printf("Freeing decompression buffers and ZSTD stream on port %d\n", i););
-			ZSTD_freeDStream(reader->dstream[i]);
-			// Free the decompression input buffer
-			free(reader->inBuffer[i]);
+			if (reader->dstream[i] != NULL) {
+				VERBOSE(if(reader->meta->VERBOSE) printf("Freeing decompression buffers and ZSTD stream on port %d\n", i););
+				ZSTD_freeDStream(reader->dstream[i]);
+				reader->dstream[i] = NULL;
+			}
+
+			if (reader->inBuffer[i] != NULL) {
+				// Free the decompression input buffer
+				free(reader->inBuffer[i]);
+				reader->inBuffer[i] = NULL;
+			}
 		}
 	}
 

@@ -107,9 +107,10 @@ typedef struct __attribute__((__packed__)) lofar_source_bytes {
 
 
 
+#ifndef __LOFAR_UDP_READER_STRUCTS
+#define __LOFAR_UDP_READER_STRUCTS
+
 // Metadata struct
-#ifndef __LOFAR_UDP_META_STRUCT
-#define __LOFAR_UDP_META_STRUCT
 typedef struct lofar_udp_meta lofar_udp_meta;
 typedef int (*lofar_udp_processing_function )(lofar_udp_meta*);
 
@@ -163,13 +164,10 @@ typedef struct lofar_udp_meta {
 	#endif
 
 } lofar_udp_meta;
-#endif
-
+extern lofar_udp_meta lofar_udp_meta_default;
 
 
 // File data + decompression struct
-#ifndef __LOFAR_UDP_READER_STRUCTS
-#define __LOFAR_UDP_READER_STRUCTS
 typedef struct lofar_udp_reader {
 	FILE* fileRef[MAX_NUM_PORTS];
 
@@ -190,9 +188,10 @@ typedef struct lofar_udp_reader {
 	lofar_udp_meta* meta;
 
 } lofar_udp_reader;
+extern lofar_udp_reader lofar_udp_reader_default;
 
-
-struct lofar_udp_config_s {
+// Confugration struct
+typedef struct lofar_udp_config {
 	// Points to input files, ompressed ro uncompressed
 	FILE **inputFiles;
 
@@ -223,9 +222,8 @@ struct lofar_udp_config_s {
 
 	// Lower / Upper limits of beamlets to process
 	int beamletLimits[2];
-};
+} lofar_udp_config;
 
-typedef struct lofar_udp_config_s lofar_udp_config;
 extern lofar_udp_config lofar_udp_config_default;
 #endif
 
@@ -263,8 +261,8 @@ long lofar_udp_reader_nchars(lofar_udp_reader *reader, const int port, char *tar
 
 
 // Reader struct cleanup
-int lofar_udp_reader_cleanup(const lofar_udp_reader *reader);
-
+int lofar_udp_reader_cleanup(lofar_udp_reader *reader);
+int lofar_udp_reader_cleanup_f(lofar_udp_reader *reader, const int closeFiles);
 
 
 
