@@ -159,7 +159,7 @@ int lofar_udp_parse_headers(lofar_udp_meta *meta, char header[MAX_NUM_PORTS][UDP
 		// 16-bit: 2x the size per sample
 		bitMul = 1 - 0.5 * (meta->inputBitMode == 4) + 1 * (meta->inputBitMode == 16); // 4bit = 0.5x, 16bit = 2x
 
-		baseLength = (int) (meta->portBeamlets[port] * bitMul * UDPNTIMESLICE * UDPNPOL);
+		baseLength = (int) (((int) ((unsigned char) header[port][6])) * bitMul * UDPNTIMESLICE * UDPNPOL);
 		meta->portPacketLength[port] = (int) ((UDPHDRLEN) + baseLength);
 		
 	}
@@ -833,7 +833,7 @@ int lofar_udp_setup_processing(lofar_udp_meta *meta) {
 			meta->packetOutputLength[port] = hdrOffset + meta->portPacketLength[port];
 		}
 	} else {
-		for (int port = 0; port < meta->numPorts; port++) workingData += hdrOffset + meta->portPacketLength[port];
+		for (int port = 0; port < meta->numPorts; port++) workingData += hdrOffset + meta->portBeamlets[port] * UDPNPOL * ((float) meta->inputBitMode / 8.0) * UDPNTIMESLICE;
 		workingData =  (int) (workingData * ((float) meta->outputBitMode / (float) meta->inputBitMode) * mulFactor);
 		workingData /= meta->numOutputs;
 
