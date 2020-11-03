@@ -117,11 +117,19 @@ test:
 	done
 
 	source hashVariables.txt; for output in ./tests/*; do \
-		if [ "`md5sum $$output" != $$output_hash ]; then \
+		base=$$(basename $$output); \
+		if [ "`md5sum $$output`" != $${!base} ]; then \
 			echo "Processed output $$output does not match expected hash. Exiting."
 		fi;
 	done;
 
+make-test-hashes:
+	touch ./tests/hashVariables.txt
+	for fil in ./tests/output*; \
+		do outp=$$(md5sum $$fil); \
+		base=$$(basename $$fil); \
+		echo $$base='"'$$outp'"' >> ./tests/hashVariables.txt; \
+	done
 
 
 mockHeader:
