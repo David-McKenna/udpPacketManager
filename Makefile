@@ -62,7 +62,7 @@ install: all
 	cp ./src/lib/*.h $(PREFIX)/include/
 	cp ./src/lib/*.hpp $(PREFIX)/include/
 	cp -P ./*.a* ${PREFIX}/lib/
-	cp -P ./*.a ${PREFIX}/lib/	
+	cp -P ./*.a ${PREFIX}/lib/
 	-cp ./mockHeader/mockHeader $(PREFIX)/bin/
 
 install-local: all
@@ -124,7 +124,7 @@ remove-local:
 
 test: ./tests/obj-generated-$(LIB_VER).$(LIB_VER_MINOR)
 	# . === source
-	. ./tests/hashVariables.txt; for output in ./tests/*; do \
+	. ./tests/hashVariables.txt; for output in ./tests/output*; do \
 		base=$$(basename $$output); \
 		if [ "`md5sum $$output`" != $${!base} ]; then \
 			echo "Processed output $$output does not match expected hash. Exiting."; \
