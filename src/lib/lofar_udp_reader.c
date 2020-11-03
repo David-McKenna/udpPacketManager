@@ -834,7 +834,7 @@ int lofar_udp_setup_processing(lofar_udp_meta *meta) {
 		}
 	} else {
 		for (int port = 0; port < meta->numPorts; port++) {
-			workingData += hdrOffset + UDPHDRLEN + meta->portBeamlets[port] * UDPNPOL * ((float) meta->inputBitMode / 8.0) * UDPNTIMESLICE;
+			workingData += hdrOffset + UDPHDRLEN + (meta->portBeamlets[port] - meta->baseBeamlets[port]) * UDPNPOL * ((float) meta->inputBitMode / 8.0) * UDPNTIMESLICE;
 			printf("%d %d\n", workingData, meta->portBeamlets[port]);
 		}
 		
