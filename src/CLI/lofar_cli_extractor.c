@@ -312,6 +312,11 @@ int main(int argc, char  *argv[]) {
 	for (int port = basePort; port < config.numPorts; port++) {
 		sprintf(workingString, inputFormat, port);
 
+		if (strcmp(inputFormat, workingString) == 0 && config.numPorts > 1) {
+			fprintf(stderr, "ERROR: Input file was not iterated while trying to load raw data, please ensure it contains a '%%d' value. Exiting.\n");
+			return 1;
+		}
+
 		VERBOSE(if (config.verbose) printf("Opening file at %s\n", workingString));
 
 		inputFiles[port] = fopen(workingString, "r");

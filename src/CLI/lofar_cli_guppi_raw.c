@@ -231,6 +231,11 @@ int main(int argc, char  *argv[]) {
 
 		VERBOSE(if (config.verbose) printf("Opening file at %s\n", workingString));
 
+		if (strcmp(inputFormat, workingString) == 0 && config.numPorts > 1) {
+			fprintf(stderr, "ERROR: Input file was not iterated while trying to load raw data, please ensure it contains a '%%d' value. Exiting.\n");
+			return 1;
+		}
+
 		inputFiles[port] = fopen(workingString, "r");
 		if (inputFiles[port] == NULL) {
 			fprintf(stderr, "Input file at %s does not exist, exiting.\n", workingString);
