@@ -531,13 +531,13 @@ int main(int argc, char  *argv[]) {
 
 	// Print out a summary of the operations performed, this does not contain data read for seek operations
 	if (silent == 0) {
-		for (int port = 0; port < config.numPorts; port++) totalPacketLength += reader->meta->portPacketLength[port];
+		for (int port = 0; port < reader->meta->numPorts; port++) totalPacketLength += reader->meta->portPacketLength[port];
 		for (int out = 0; out < reader->meta->numOutputs; out++) totalOutLength += reader->meta->packetOutputLength[out];
-		for (int port = 0; port < config.numPorts; port++) droppedPackets += reader->meta->portTotalDroppedPackets[port];
+		for (int port = 0; port < reader->meta->numPorts; port++) droppedPackets += reader->meta->portTotalDroppedPackets[port];
 
 		printf("Reader loop exited (%d); overall process took %f seconds.\n", returnVal, (double) TICKTOCK(tick, tock));
-		printf("We processed %ld packets, representing %.03lf seconds of data", packetsProcessed, config.numPorts * packetsProcessed * UDPNTIMESLICE * 5.12e-6);
-		if (config.numPorts > 1) printf(" (%.03lf per port)\n", packetsProcessed * UDPNTIMESLICE * 5.12e-6);
+		printf("We processed %ld packets, representing %.03lf seconds of data", packetsProcessed, reader->meta->numPorts * packetsProcessed * UDPNTIMESLICE * 5.12e-6);
+		if (reader->meta->numPorts > 1) printf(" (%.03lf per port)\n", packetsProcessed * UDPNTIMESLICE * 5.12e-6);
 		else printf(".\n");
 		printf("Total Read Time:\t%3.02lf\t\tTotal CPU Ops Time:\t%3.02lf\tTotal Write Time:\t%3.02lf\n", totalReadTime, totalOpsTime, totalWriteTime);
 		printf("Total Data Read:\t%3.03lfGB\t\t\t\tTotal Data Written:\t%3.03lfGB\n", (double) packetsProcessed * totalPacketLength / 1e+9, (double) packetsWritten* totalOutLength / 1e+9);
