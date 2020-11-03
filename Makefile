@@ -39,6 +39,8 @@ LIBRARY_TARGET = liblofudpman.a
 
 PREFIX = /usr/local
 
+.INTERMEDIATE : ./tests/obj-generated-$(LIB_VER).$(LIB_VER_MINOR)
+
 %.o: %.c
 	$(CC) -c $(CFLAGS) -o ./$@ $< $(LFLAGS)
 
@@ -61,7 +63,7 @@ install: all
 	cp ./src/lib/*.hpp $(PREFIX)/include/
 	cp -P ./*.a* ${PREFIX}/lib/
 	cp -P ./*.a ${PREFIX}/lib/	
-	cp ./mockHeader/mockHeader $(PREFIX)/bin/; exit 0;
+	-cp ./mockHeader/mockHeader $(PREFIX)/bin/
 
 install-local: all
 	mkdir -p ~/.local/bin/ && mkdir -p ~/.local/include/
@@ -71,17 +73,17 @@ install-local: all
 	cp ./src/lib/*.hpp ~/.local/include/
 	cp -P ./*.a* ~/.local/lib/
 	cp -P ./*.a ~/.local/lib/
-	cp ./mockHeader/mockHeader ~/.local/bin/; exit 0;
+	-cp ./mockHeader/mockHeader ~/.local/bin/
 
 clean:
-	rm ./src/CLI/*.o; exit 0;
-	rm ./src/lib/*.o; exit 0;
-	rm ./*.a; exit 0;
-	rm ./*.a.*; exit 0;
-	rm ./compiler_report_*.log; exit 0;
-	rm ./lofar_udp_extractor; exit 0;
-	rm ./lofar_udp_guppi_raw; exit 0;
-	rm ./tests/output_*; exit 0;
+	-rm ./src/CLI/*.o
+	-rm ./src/lib/*.o
+	-rm ./*.a
+	-rm ./*.a.*
+	-rm ./compiler_report_*.log
+	-rm ./lofar_udp_extractor
+	-rm ./lofar_udp_guppi_raw
+	-rm ./tests/output_*
 
 remove:
 	rm $(PREFIX)/bin/lofar_udp_extractor
@@ -102,8 +104,8 @@ remove-local:
 	make clean
 
 
-test:
-	rm ./tests/output*; exit 0;
+test-make-obj: ./tests/obj-generated-$(LIB_VER).$(LIB_VER_MINOR)
+	-rm ./tests/output*
 
 	for procMode in 0 1 2 10 11 20 21 30 31 32; do \
 		echo "Running lofar_udp_extractor -i ./tests/udp_1613%d_sample.zst -o './tests/output_'$$procModeStokes'_%d' -p $$procMode -m 501"; \
@@ -118,15 +120,18 @@ test:
 		done; \
 	done
 
+	touch ./tests/obj-generated-$(LIB_VER).$(LIB_VER_MINOR)
+
+test: test-make-obj
 	# . === source
-	. hashVariables.txt; for output in ./tests/*; do \
+	. ./tests/hashVariables.txt; for output in ./tests/*; do \
 		base=$$(basename $$output); \
 		if [ "`md5sum $$output`" != $${!base} ]; then \
 			echo "Processed output $$output does not match expected hash. Exiting."; \
 		fi; \
 	done;
 
-make-test-hashes:
+test-make-hashes:
 	touch ./tests/hashVariables.txt
 	for fil in ./tests/output*; \
 		do outp=$$(md5sum $$fil); \
