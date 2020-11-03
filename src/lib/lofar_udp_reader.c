@@ -989,7 +989,7 @@ lofar_udp_reader* lofar_udp_meta_file_reader_setup_struct(lofar_udp_config *conf
 			for (int port = 0; port < meta.numPorts; port++) {
 				// Check if the lower limit is on the given port
 				if (config->beamletLimits[0] > 0) {
-					if ((meta.portCumulativeBeamlets[port] < config->beamletLimits[0]) && ((meta.portCumulativeBeamlets[port] + meta.portBeamlets[port]) >= config->beamletLimits[0] )) {
+					if ((meta.portCumulativeBeamlets[port] <= config->beamletLimits[0]) && ((meta.portCumulativeBeamlets[port] + meta.portBeamlets[port]) > config->beamletLimits[0] )) {
 						VERBOSE(if (meta.VERBOSE) printf("Lower beamlet %d found on port %d\n", config->beamletLimits[0], port););
 						lowerPort = port;
 					}
