@@ -127,7 +127,7 @@ test: ./tests/obj-generated-$(LIB_VER).$(LIB_VER_MINOR)
 	. ./tests/hashVariables.txt; for output in ./tests/output*; do \
 		base=$$(basename $$output); \
 		md5hash=$$(md5sum $$output); \
-		echo "Testing $$md5hash"
+		echo "Testing $$md5hash"; \
 		if [ "$$md5hash" != "$${!base}" ]; then \
 			echo "Processed output $$output does not match expected hash. Exiting."; \
 		fi; \
