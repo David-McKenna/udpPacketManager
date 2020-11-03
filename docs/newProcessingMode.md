@@ -85,3 +85,5 @@ case KERNEL_ENUM_VAL:
 6. Staying in `int lofar_udp_setup_processing(lofar_udp_meta *meta)`, run the maths on the input / output data sizes and add your case to the switch statement. If adding a completely new calculation, be sure to add a `break;` statement afterwards, as the compiler warning is disabled for this switch statement. In the case of a re-rodering operation, you will just need to define the number of output arrays.
 
 7. Add documentation to `README_CLI.md` and `lofar_cli_meta.c`.
+
+8. Generate hashes for the output mode with `make test-make-hashes` and update the hasVarlies.txt file in the git repo

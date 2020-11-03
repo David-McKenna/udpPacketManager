@@ -12,6 +12,7 @@ void helpMessages() {
 	printf("-m: <numPack>	Number of packets to process in each read request (default: 65536)\n");
 	printf("-u: <numPort>	Number of ports to combine (default: 4)\n");
 	printf("-n: <baseNum>	Base value to iterate when chosing ports (default: 0)\n");
+	printf("-b: <lo>,<hi>	Beamlets to extract from the input dataset. Hi and lo are inclusive. (defualt: 0,0 === all)\n")
 	printf("-t: <timeStr>	String of the time of the first requested packet, format YYYY-MM-DDTHH:mm:ss (default: '')\n");
 	printf("-s: <numSec>	Maximum number of seconds of raw data to extract/process (default: all)\n");
 	printf("-e: <fileName>	Specify a file of events to extract; newline separated start time and durations in seconds. Events must not overlap.\n");

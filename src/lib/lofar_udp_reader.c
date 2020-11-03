@@ -47,7 +47,7 @@ int lofar_udp_parse_headers(lofar_udp_meta *meta, char header[MAX_NUM_PORTS][UDP
 
 	// Process each input port
 	for (int port = 0; port < meta->numPorts; port++) {
-		VERBOSE( if(meta->VERBOSE) printf("Port %d/%d\n", port, meta->numPorts););
+		VERBOSE( if(meta->VERBOSE) printf("Port %d/%d\n", port, meta->numPorts - 1););
 		// Data integrity checks
 		if ((unsigned char) header[port][0] < UDPCURVER) {
 			fprintf(stderr, "Input header on port %d appears malformed (RSP Version less than 3), exiting.\n", port);
@@ -979,14 +979,16 @@ lofar_udp_reader* lofar_udp_meta_file_reader_setup_struct(lofar_udp_config *conf
 			for (int port = 0; port < meta.numPorts; port++) {
 				// Check if the lower limit is on the given port
 				if (config->beamletLimits[0] > 0) {
-					if ((meta.portCumulativeBeamlets[port] <  config->beamletLimits[0]) && ((meta.portCumulativeBeamlets[port] + meta.portBeamlets[port]) > config->beamletLimits[0] )) {
+					if ((meta.portCumulativeBeamlets[port] < config->beamletLimits[0]) && ((meta.portCumulativeBeamlets[port] + meta.portBeamlets[port]) >= config->beamletLimits[0] )) {
+						VERBOSE(if (meta.VERBOSE) printf("Lower beamlet %d found on port %d\n", config->beamletLimits[0], port););
 						lowerPort = port;
 					}
 				}
 
 				// Check if the upper limit is on the given port
 				if (config->beamletLimits[1] > 0) {
-					if ((meta.portCumulativeBeamlets[port] <  config->beamletLimits[1]) && ((meta.portCumulativeBeamlets[port] + meta.portBeamlets[port]) > config->beamletLimits[1] )) {
+					if ((meta.portCumulativeBeamlets[port] < config->beamletLimits[1]) && ((meta.portCumulativeBeamlets[port] + meta.portBeamlets[port]) >= config->beamletLimits[1] )) {
+						VERBOSE(if (meta.VERBOSE) printf("Upper beamlet %d found on port %d\n", config->beamletLimits[1], port););
 						upperPort = port;
 					}
 				}
@@ -1017,9 +1019,11 @@ lofar_udp_reader* lofar_udp_meta_file_reader_setup_struct(lofar_udp_config *conf
 			}
 
 			// If we are dropping any ports, update numPorts
-			if ((lowerPort != 0) || ((upperPort + 1 ) != config->numPorts)) {
+			if ((lowerPort != 0) || ((upperPort + 1) != config->numPorts)) {
 				meta.numPorts = (upperPort + 1) - lowerPort;
 			}
+
+			VERBOSE(if (meta->VERBOSE) printf("New numPorts: %d\n", meta.numPorts););
 
 			// Update updateBeamlets so that we can start the loop again, but not enter this code block.
 			updateBeamlets = 0;
