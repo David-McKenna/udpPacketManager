@@ -132,14 +132,15 @@ test: ./tests/obj-generated-$(LIB_VER).$(LIB_VER_MINOR)
 		md5hash=($$(md5sum $$output)); \
 		echo "Testing: $$md5hash"; \
 		echo "Reference: $${!base}"; \
-		echo "$${md5hash[0]}", "($${!base})[0]"; \
-		if [[ "$${md5hash[0]}" != "($${!base})[0]" ]]; then \
+		echo "$${md5hash[0]}", "$${!base}"; \
+		if [[ "$${md5hash[0]}" != "$${!base}" ]]; then \
 			echo "Processed output $$output does not match expected hash. Exiting."; \
 			exit 1; \
 		fi; \
 	done;
 
-test-make-hashes:
+test-make-hashes: ./tests/obj-generated-$(LIB_VER).$(LIB_VER_MINOR)
+	-rm ./tests/hashVariables.txt
 	touch ./tests/hashVariables.txt
 	for fil in ./tests/output*; \
 		do outp=($$(md5sum $$fil)); \
