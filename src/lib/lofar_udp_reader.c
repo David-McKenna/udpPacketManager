@@ -41,7 +41,7 @@ int lofar_udp_parse_headers(lofar_udp_meta *meta, char header[MAX_NUM_PORTS][UDP
 	union char_short source;
 
 	float bitMul;
-	int baseLength;
+	int baseLength, rawBeamlets;
 	int cacheBitMode = 0;
 	meta->totalBeamlets = 0;
 
@@ -97,20 +97,21 @@ int lofar_udp_parse_headers(lofar_udp_meta *meta, char header[MAX_NUM_PORTS][UDP
 		// Determine the number of beamlets and bitmode on the port
 		VERBOSE(printf("port %d, bitMode %d, beamlets %d (%u)\n", port, ((lofar_source_bytes*) &source)->bitMode, (int) ((unsigned char) header[port][6]), (unsigned char) header[port][6]););
 		meta->portCumulativeBeamlets[port] = meta->totalBeamlets;
-		meta->portBeamlets[port] = (int) ((unsigned char) header[port][6]);
+		rawBeamlets = (int) ((unsigned char) header[port][6]);
+		meta->portBeamlets[port] = rawBeamlets;
 
 
 		// Set the  upper, lower limit of beamlets as needed
 		// SANITY CHECK: ARE WE GETTING THE RIGHT INDEX?
 		
 		// Check the upper limit first, so that we can modify portBeamlets if needed.
-		if (beamletLimits[1] != 0 && (beamletLimits[1] < (meta->portCumulativeBeamlets[port] + meta->portBeamlets[port])) && (beamletLimits[1] >= meta->portCumulativeBeamlets[port])) {
-			meta->portBeamlets[port] = beamletLimits[1] - meta->portCumulativeBeamlets[port] - beamletLimits[0];
+		if (beamletLimits[1] != 0 && (beamletLimits[1] < ((port + 1) * rawBeamlets)) && (beamletLimits[1] >= port * rawBeamlets)) {
+			meta->portBeamlets[port] = beamletLimits[1] - (port * rawBeamlets) - beamletLimits[0];
 		}
 
 
-		if (beamletLimits[0] != 0 && (beamletLimits[0] < (meta->portCumulativeBeamlets[port] + meta->portBeamlets[port])) && (beamletLimits[0] >= meta->portCumulativeBeamlets[port])) {
-			meta->baseBeamlets[port] = beamletLimits[0] - meta->portCumulativeBeamlets[port];
+		if (beamletLimits[0] != 0 && (beamletLimits[0] < ((port + 1) * rawBeamlets)) && (beamletLimits[0] >= port * rawBeamlets)) {
+			meta->baseBeamlets[port] = beamletLimits[0] - (port * rawBeamlets);
 
 			// Lower the total count of beamlets, while not modifiyng
 			// 	portBeamlets 
@@ -980,8 +981,6 @@ lofar_udp_reader* lofar_udp_meta_file_reader_setup_struct(lofar_udp_config *conf
 
 		// If we are only parsing a subset of beamlets
 		} else if (updateBeamlets) {
-			beamletLimits[0] = config->beamletLimits[0];
-			beamletLimits[1] = config->beamletLimits[1];
 			VERBOSE(if (meta.VERBOSE) printf("Handle headers chain: %d\n", updateBeamlets););
 			int lowerPort = 0;
 			int upperPort = meta.numPorts - 1;
@@ -1038,6 +1037,9 @@ lofar_udp_reader* lofar_udp_meta_file_reader_setup_struct(lofar_udp_config *conf
 
 			// Update updateBeamlets so that we can start the loop again, but not enter this code block.
 			updateBeamlets = 0;
+			// Update the limits to our current limits.
+			beamletLimits[0] = config->beamletLimits[0];
+			beamletLimits[1] = config->beamletLimits[1];
 		} else {
 			VERBOSE(if (meta.VERBOSE) printf("Handle headers: %d\n", updateBeamlets););
 			updateBeamlets = -1;
