@@ -104,7 +104,7 @@ remove-local:
 	make clean
 
 
-test-make-obj: ./tests/obj-generated-$(LIB_VER).$(LIB_VER_MINOR)
+./tests/obj-generated-$(LIB_VER).$(LIB_VER_MINOR):
 	-rm ./tests/output*
 
 	for procMode in 0 1 2 10 11 20 21 30 31 32; do \
