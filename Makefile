@@ -42,7 +42,7 @@ LIBRARY_TARGET = liblofudpman.a
 
 PREFIX = /usr/local
 
-.DELETE_ON_ERROR : ./tests/obj-generated-$(LIB_VER).$(LIB_VER_MINOR)
+.INTERMEDIATE : ./tests/obj-generated-$(LIB_VER).$(LIB_VER_MINOR)
 
 %.o: %.c
 	$(CC) -c $(CFLAGS) -o ./$@ $< $(LFLAGS)
