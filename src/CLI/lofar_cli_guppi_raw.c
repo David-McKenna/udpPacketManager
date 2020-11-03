@@ -41,9 +41,6 @@ int main(int argc, char  *argv[]) {
 	unsigned int clock200MHz = 1;
 	
 	lofar_udp_config config = lofar_udp_config_default;
-	config.numPorts = 4;
-	config.packetsPerIteration = 65536;
-
 	ascii_hdr header = ascii_hdr_default;
 
 	// Set up reader loop variables

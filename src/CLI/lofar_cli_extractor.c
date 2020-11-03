@@ -43,8 +43,6 @@ int main(int argc, char  *argv[]) {
 	FILE *eventsFilePtr;
 
 	lofar_udp_config config = lofar_udp_config_default;
-	config.numPorts = 4;
-	config.packetsPerIteration = 65536;
 
 	// Set up reader loop variables
 	int loops = 0, localLoops = 0, returnVal, dummy;

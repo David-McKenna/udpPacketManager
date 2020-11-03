@@ -6,14 +6,14 @@
 // Define a default config
 lofar_udp_config lofar_udp_config_default = {
 	.inputFiles = NULL,
-	.numPorts = 0,
+	.numPorts = 4,
 	.replayDroppedPackets = 0,
 	.processingMode = 0,
 	.verbose = 0,
-	.packetsPerIteration = 0,
+	.packetsPerIteration = 65536,
 	.startingPacket = -1,
 	.packetsReadMax = -1,
-	.compressedReader = -1,
+	.compressedReader = 0,
 	.beamletLimits = { 0, 0 }
 };
 
