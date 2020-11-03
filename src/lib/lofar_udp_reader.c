@@ -914,7 +914,7 @@ lofar_udp_reader* lofar_udp_meta_file_reader_setup_struct(lofar_udp_config *conf
 		fprintf(stderr, "ERROR: Packets per iteration indicates no work will be performed (%ld per iteration), exiting.\n", config->packetsPerIteration);
 		return NULL;
 	}
-	if (config->beamletLimits[0] > 0 || config->beamletLimits[1] > 0) {
+	if (config->beamletLimits[0] > 0 && config->beamletLimits[1] > 0) {
 		if (config->beamletLimits[0] > config->beamletLimits[1]) {
 			fprintf(stderr, "ERROR: Upper beamlet limit is lower than the lower beamlet limit. Please fix your ordering (%d, %d), exiting.\n", config->beamletLimits[0], config->beamletLimits[1]);
 			return NULL;
