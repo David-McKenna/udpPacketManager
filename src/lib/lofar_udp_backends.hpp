@@ -238,7 +238,7 @@ void inline udp_reversedChannelMajorSplitPols(long iLoop, char *inputPortData, O
 	#endif
 	for (int beamlet = baseBeamlet; beamlet < portBeamlets; beamlet++) {
 		tsInOffset = lastInputPacketOffset + beamlet * UDPNTIMESLICE * UDPNPOL * timeStepSize;
-		tsOutOffset = outputPacketOffset + (totalBeamlets - 1 - beamlet - baseBeamlet - cumulativeBeamlets);
+		tsOutOffset = outputPacketOffset + (totalBeamlets - 1 - beamlet + baseBeamlet - cumulativeBeamlets);
 		
 		#ifdef __INTEL_COMPILER
 		#pragma omp simd
@@ -369,7 +369,7 @@ void inline udp_stokes(long iLoop, char *inputPortData, O **outputData,  long la
 	#endif
 	for (int beamlet = baseBeamlet; beamlet < portBeamlets; beamlet++) {
 		tsInOffset = lastInputPacketOffset + beamlet * UDPNTIMESLICE * UDPNPOL * timeStepSize;
-		tsOutOffset = outputPacketOffset + (totalBeamlets - 1 - beamlet - baseBeamlet - cumulativeBeamlets);
+		tsOutOffset = outputPacketOffset + (totalBeamlets - 1 - beamlet + baseBeamlet - cumulativeBeamlets);
 
 		#ifdef __INTEL_COMPILER
 		#pragma omp simd
@@ -399,7 +399,7 @@ void inline udp_stokesDecimation(long iLoop, char *inputPortData, O **outputData
 	#endif
 	for (int beamlet = baseBeamlet; beamlet < portBeamlets; beamlet++) {
 		tsInOffset = lastInputPacketOffset + beamlet * UDPNTIMESLICE * UDPNPOL * timeStepSize;
-		tsOutOffset = outputPacketOffset + (totalBeamlets - 1 - beamlet - baseBeamlet - cumulativeBeamlets);
+		tsOutOffset = outputPacketOffset + (totalBeamlets - 1 - beamlet + baseBeamlet - cumulativeBeamlets);
 		tempVal = 0.0;
 
 		#ifdef __INTEL_COMPILER
@@ -433,7 +433,7 @@ void inline udp_fullStokes(long iLoop, char *inputPortData, O **outputData,  lon
 	#endif
 	for (int beamlet = baseBeamlet; beamlet < portBeamlets; beamlet++) {
 		tsInOffset = lastInputPacketOffset + beamlet * UDPNTIMESLICE * UDPNPOL * timeStepSize;
-		tsOutOffset = outputPacketOffset + (totalBeamlets - 1 - beamlet - baseBeamlet - cumulativeBeamlets);
+		tsOutOffset = outputPacketOffset + (totalBeamlets - 1 - beamlet + baseBeamlet - cumulativeBeamlets);
 
 		#ifdef __INTEL_COMPILER
 		#pragma omp simd
@@ -466,7 +466,7 @@ void inline udp_fullStokesDecimation(long iLoop, char *inputPortData, O **output
 	#endif
 	for (int beamlet = baseBeamlet; beamlet < portBeamlets; beamlet++) {
 		tsInOffset = lastInputPacketOffset + beamlet * UDPNTIMESLICE * UDPNPOL * timeStepSize;
-		tsOutOffset = outputPacketOffset + (totalBeamlets - 1 - beamlet - baseBeamlet - cumulativeBeamlets);
+		tsOutOffset = outputPacketOffset + (totalBeamlets - 1 - beamlet + baseBeamlet - cumulativeBeamlets);
 		tempValI = 0.0;
 		tempValQ = 0.0;
 		tempValU = 0.0;
@@ -513,7 +513,7 @@ void inline udp_usefulStokes(long iLoop, char *inputPortData, O **outputData,  l
 	#endif
 	for (int beamlet = baseBeamlet; beamlet < portBeamlets; beamlet++) {
 		tsInOffset = lastInputPacketOffset + beamlet * UDPNTIMESLICE * UDPNPOL * timeStepSize;
-		tsOutOffset = outputPacketOffset + (totalBeamlets - 1 - beamlet - baseBeamlet - cumulativeBeamlets);
+		tsOutOffset = outputPacketOffset + (totalBeamlets - 1 - beamlet + baseBeamlet - cumulativeBeamlets);
 
 		#ifdef __INTEL_COMPILER
 		#pragma omp simd
@@ -545,7 +545,7 @@ void inline udp_usefulStokesDecimation(long iLoop, char *inputPortData, O **outp
 	#endif
 	for (int beamlet = baseBeamlet; beamlet < portBeamlets; beamlet++) {
 		tsInOffset = lastInputPacketOffset + beamlet * UDPNTIMESLICE * UDPNPOL * timeStepSize;
-		tsOutOffset = outputPacketOffset + (totalBeamlets - 1 - beamlet - baseBeamlet - cumulativeBeamlets);
+		tsOutOffset = outputPacketOffset + (totalBeamlets - 1 - beamlet + baseBeamlet - cumulativeBeamlets);
 		tempValI = 0.0;
 		tempValV = 0.0;
 
