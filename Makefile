@@ -103,24 +103,27 @@ remove-local:
 
 
 test:
+	rm ./tests/output*; exit 0;
+
 	for procMode in 0 1 2 10 11 20 21 30 31 32; do \
-		echo "Running lofar_udp_extractor -i ./tests/udp_1613%d_sample.zst -o './tests/output_'$$procModeStokes'_%d' -p $$procMode -m 4096"; \
-		lofar_udp_extractor -i ./tests/udp_1613%d_sample -o './tests/output_'$$procMode'_%d' -p $$procMode -m 4096; \
+		echo "Running lofar_udp_extractor -i ./tests/udp_1613%d_sample.zst -o './tests/output_'$$procModeStokes'_%d' -p $$procMode -m 501"; \
+		lofar_udp_extractor -i ./tests/udp_1613%d_sample -o './tests/output_'$$procMode'_%d' -p $$procMode -m 501; \
 	done
 
 	for procMode in 100 110 120 130 150 160; do \
 		for offset in 0 1 2 3 4; do \
 			procModeStokes="`expr $$procMode + $$offset`"; \
-			echo "Running lofar_udp_extractor -i ./tests/udp_1613%d_sample.zst -o './tests/output_'$$procModeStokes'_%d' -p $$procModeStokes -m 4096"; \
-			lofar_udp_extractor -i ./tests/udp_1613%d_sample.zst -o './tests/output_'$$procModeStokes'_%d' -p $$procModeStokes -m 4096; \
+			echo "Running lofar_udp_extractor -i ./tests/udp_1613%d_sample.zst -o './tests/output_'$$procModeStokes'_%d' -p $$procModeStokes -m 501"; \
+			lofar_udp_extractor -i ./tests/udp_1613%d_sample.zst -o './tests/output_'$$procModeStokes'_%d' -p $$procModeStokes -m 501; \
 		done; \
 	done
 
-	source hashVariables.txt; for output in ./tests/*; do \
+	# . === source
+	. hashVariables.txt; for output in ./tests/*; do \
 		base=$$(basename $$output); \
 		if [ "`md5sum $$output`" != $${!base} ]; then \
-			echo "Processed output $$output does not match expected hash. Exiting."
-		fi;
+			echo "Processed output $$output does not match expected hash. Exiting."; \
+		fi; \
 	done;
 
 make-test-hashes:
