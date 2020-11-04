@@ -302,7 +302,7 @@ int main(int argc, char  *argv[]) {
 
 	// Pull the reader parameters into the ASCII header
 	// Frequency indo
-	header.obsnchan = reader->meta->totalBeamlets;
+	header.obsnchan = reader->meta->totalProcBeamlets;
 	header.chan_bw = (CLOCK160MHZ / 1e6) * (1 - clock200MHz) + (CLOCK200MHZ / 1e6) * clock200MHz;
 	header.obsbw = header.obsnchan * header.chan_bw;
 
@@ -324,11 +324,11 @@ int main(int argc, char  *argv[]) {
 	if (silent == 0) {
 		getStartTimeString(reader, stringBuff);
 		printf("\n\n=========== Reader  Information ===========\n");
-		printf("Total Beamlets:\t%d\t\t\t\t\tFirst Packet:\t%ld\n", reader->meta->totalBeamlets, reader->meta->lastPacket);
+		printf("Total Beamlets:\t%d\t\t\t\t\tFirst Packet:\t%ld\n", reader->meta->totalRawBeamlets, reader->meta->lastPacket);
 		printf("Start time:\t%s\t\tMJD Time:\t%lf\n", stringBuff, lofar_get_packet_time_mjd(reader->meta->inputData[0]));
 		for (int port = 0; port < reader->meta->numPorts; port++) {
 			printf("------------------ Port %d -----------------\n", port);
-			printf("Port Beamlets:\t%d\t\tPort Bitmode:\t%d\t\tInput Pkt Len:\t%d\n", reader->meta->portBeamlets[port] - reader->meta->baseBeamlets[port], reader->meta->inputBitMode, reader->meta->portPacketLength[port]);
+			printf("Port Beamlets:\t%d/%d\t\tPort Bitmode:\t%d\t\tInput Pkt Len:\t%d\n", reader->meta->upperBeamlets[port] - reader->meta->baseBeamlets[port], reader->meta->portRawBeamlets[port], reader->meta->inputBitMode, reader->meta->portPacketLength[port]);
 		}
 		for (int out = 0; out < reader->meta->numOutputs; out++) printf("Output Pkt Len (%d):\t%d\t\t", out, reader->meta->packetOutputLength[out]);
 		printf("\n"); 
