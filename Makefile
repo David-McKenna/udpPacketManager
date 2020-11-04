@@ -1,6 +1,7 @@
 # Don't default to sh/dash
 SHELL = bash
 
+ifeq (,$(CC))
 ifneq (,$(shell which icc))
 CC		= icc
 CXX		= icpc
@@ -11,6 +12,7 @@ else
 CC		= gcc
 CXX		= g++
 endif
+endif
 
 LIB_VER = 0.5
 LIB_VER_MINOR = 0
@@ -19,7 +21,7 @@ CLI_VER = 0.3
 # Detemrine the max threads per socket to speed up execution via OpenMP with ICC (GCC falls over if we set too many)
 THREADS = $(shell cat /proc/cpuinfo | uniq | grep -m 2 "siblings" | cut -d ":" -f 2 | sort --numeric --unique | awk '{printf("%d", $$1);}')
 
-CFLAGS 	+= -W -Wall -O3 -march=native -DVERSION=$(LIB_VER) -DVERSIONCLI=$(CLI_VER) -fPIC # -DBENCHMARKING -g -DALLOW_VERBOSE #-D__SLOWDOWN
+CFLAGS 	+= -W -Wall -Ofast -march=native -DVERSION=$(LIB_VER) -DVERSIONCLI=$(CLI_VER) -fPIC # -DBENCHMARKING -g -DALLOW_VERBOSE #-D__SLOWDOWN
 
 ifeq ($(CC), icc)
 AR = xiar

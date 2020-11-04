@@ -469,6 +469,40 @@ void inline udp_fullStokesDecimation(long iLoop, char *inputPortData, O **output
 		tsOutOffset = outputPacketOffset + (totalBeamlets - 1 - beamlet + baseBeamlet - cumulativeBeamlets);
 		tempValI = 0.0;
 		tempValQ = 0.0;
+
+		#ifdef __INTEL_COMPILER
+		#pragma omp simd
+		#else
+		#pragma GCC unroll 16
+		#endif
+		for (int ts = 0; ts < UDPNTIMESLICE; ts++) {
+			tempValI += stokesI(*((I*) &(inputPortData[tsInOffset])), *((I*) &(inputPortData[tsInOffset + 1 * timeStepSize])), *((I*) &(inputPortData[tsInOffset + 2 * timeStepSize])), *((I*) &(inputPortData[tsInOffset + 3 * timeStepSize])));
+			tempValQ += stokesQ(*((I*) &(inputPortData[tsInOffset])), *((I*) &(inputPortData[tsInOffset + 1 * timeStepSize])), *((I*) &(inputPortData[tsInOffset + 2 * timeStepSize])), *((I*) &(inputPortData[tsInOffset + 3 * timeStepSize])));
+
+			tsInOffset += 4 * timeStepSize;
+			if ((ts + 1) % factor == 0) {
+				outputData[0][tsOutOffset] = tempValI;
+				outputData[1][tsOutOffset] = tempValQ;
+				tempValI = 0.0;
+				tempValQ = 0.0;
+
+				tsOutOffset += totalBeamlets;
+			}
+		}
+	}
+
+
+	// This is split into 2 loops as ICC generates garbage outputs when the loop is run on the full inner loop.
+	// 
+	//#pragma omp parallel for schedule(dynamic, 31) // Expected sizes: 61, 122, 244
+	#ifdef __INTEL_COMPILER
+	#pragma omp simd
+	#else
+	#pragma GCC unroll 61
+	#endif
+	for (int beamlet = baseBeamlet; beamlet < upperBeamlet; beamlet++) {
+		tsInOffset = lastInputPacketOffset + beamlet * UDPNTIMESLICE * UDPNPOL * timeStepSize;
+		tsOutOffset = outputPacketOffset + (totalBeamlets - 1 - beamlet + baseBeamlet - cumulativeBeamlets);
 		tempValU = 0.0;
 		tempValV = 0.0;
 
@@ -478,19 +512,13 @@ void inline udp_fullStokesDecimation(long iLoop, char *inputPortData, O **output
 		#pragma GCC unroll 16
 		#endif
 		for (int ts = 0; ts < UDPNTIMESLICE; ts++) {
-			tempValI += stokesI(*((I*) &(inputPortData[tsInOffset])), *((I*) &(inputPortData[tsInOffset + 1 * timeStepSize])), *((I*) &(inputPortData[tsInOffset + 2 * timeStepSize])), *((I*) &(inputPortData[tsInOffset + 3 * timeStepSize])));
-			//tempValQ += stokesQ(*((I*) &(inputPortData[tsInOffset])), *((I*) &(inputPortData[tsInOffset + 1 * timeStepSize])), *((I*) &(inputPortData[tsInOffset + 2 * timeStepSize])), *((I*) &(inputPortData[tsInOffset + 3 * timeStepSize])));
-			//tempValU += stokesU(*((I*) &(inputPortData[tsInOffset])), *((I*) &(inputPortData[tsInOffset + 1 * timeStepSize])), *((I*) &(inputPortData[tsInOffset + 2 * timeStepSize])), *((I*) &(inputPortData[tsInOffset + 3 * timeStepSize])));
+			tempValU += stokesU(*((I*) &(inputPortData[tsInOffset])), *((I*) &(inputPortData[tsInOffset + 1 * timeStepSize])), *((I*) &(inputPortData[tsInOffset + 2 * timeStepSize])), *((I*) &(inputPortData[tsInOffset + 3 * timeStepSize])));
 			tempValV += stokesV(*((I*) &(inputPortData[tsInOffset])), *((I*) &(inputPortData[tsInOffset + 1 * timeStepSize])), *((I*) &(inputPortData[tsInOffset + 2 * timeStepSize])), *((I*) &(inputPortData[tsInOffset + 3 * timeStepSize])));
 
 			tsInOffset += 4 * timeStepSize;
 			if ((ts + 1) % factor == 0) {
-				outputData[0][tsOutOffset] = tempValI;
-				outputData[1][tsOutOffset] = tempValQ;
 				outputData[2][tsOutOffset] = tempValU;
 				outputData[3][tsOutOffset] = tempValV;
-				tempValI = 0.0;
-				tempValQ = 0.0;
 				tempValU = 0.0;
 				tempValV = 0.0;
 
