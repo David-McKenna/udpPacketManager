@@ -144,7 +144,7 @@ test: ./tests/obj-generated-$(LIB_VER).$(LIB_VER_MINOR)
 
 test-samples:
 	for fil in ./test/*zst; do \
-		zstd -d $fil;
+		zstd -d $fil; \
 	done;
 
 test-make-hashes: ./tests/obj-generated-$(LIB_VER).$(LIB_VER_MINOR)
