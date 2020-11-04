@@ -102,7 +102,6 @@ int lofar_udp_parse_headers(lofar_udp_meta *meta, char header[MAX_NUM_PORTS][UDP
 
 		meta->portRawCumulativeBeamlets[port] = meta->totalRawBeamlets;
 		meta->portCumulativeBeamlets[port] = meta->totalProcBeamlets;
-		meta->totalRawBeamlets += meta->portRawBeamlets[port];
 
 
 		// Set the  upper, lower limit of beamlets as needed
@@ -129,6 +128,8 @@ int lofar_udp_parse_headers(lofar_udp_meta *meta, char header[MAX_NUM_PORTS][UDP
 			meta->baseBeamlets[port] = 0;
 			meta->totalProcBeamlets += meta->upperBeamlets[port];
 		}
+
+		meta->totalRawBeamlets += meta->portRawBeamlets[port];
 
 		switch (((lofar_source_bytes*) &source)->bitMode) {
 			case 0:
