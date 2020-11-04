@@ -1074,11 +1074,11 @@ lofar_udp_reader* lofar_udp_meta_file_reader_setup_struct(lofar_udp_config *conf
 
 	VERBOSE(if (meta.VERBOSE) {
 		printf("Meta debug:\ntotalBeamlets %d, numPorts %d, replayDroppedPackets %d, processingMode %d, outputBitMode %d, packetsPerIteration %ld, packetsRead %ld, packetsReadMax %ld, lastPacket %ld, \n",
-				meta.totalBeamlets, meta.numPorts, meta.replayDroppedPackets, meta.processingMode, meta.outputBitMode, meta.packetsPerIteration, meta.packetsRead, meta.packetsReadMax, meta.lastPacket);
+				meta.totalRawBeamlets, meta.numPorts, meta.replayDroppedPackets, meta.processingMode, meta.outputBitMode, meta.packetsPerIteration, meta.packetsRead, meta.packetsReadMax, meta.lastPacket);
 
 		for (int i = 0; i < meta.numPorts; i++) {
 			printf("Port %d: inputDataOffset %ld, portBeamlets %d, cumulativeBeamlets %d, inputBitMode %d, portPacketLength %d, packetOutputLength %d, portLastDroppedPackets %d, portTotalDroppedPackets %d\n", i, 
-				meta.inputDataOffset[i], meta.portBeamlets[i], meta.portCumulativeBeamlets[i], meta.inputBitMode, meta.portPacketLength[i], meta.packetOutputLength[i], meta.portLastDroppedPackets[i], meta.portTotalDroppedPackets[i]);
+				meta.inputDataOffset[i], meta.portRawBeamlets[i], meta.portCumulativeBeamlets[i], meta.inputBitMode, meta.portPacketLength[i], meta.packetOutputLength[i], meta.portLastDroppedPackets[i], meta.portTotalDroppedPackets[i]);
 
 		for (int i = 0; i < meta.numOutputs; i++) printf("Output %d, packetLength %d, numOut %d\n", i, meta.packetOutputLength[i], meta.numOutputs);
 	}});
