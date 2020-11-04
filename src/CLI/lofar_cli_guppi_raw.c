@@ -324,7 +324,7 @@ int main(int argc, char  *argv[]) {
 	if (silent == 0) {
 		getStartTimeString(reader, stringBuff);
 		printf("\n\n=========== Reader  Information ===========\n");
-		printf("Total Beamlets:\t%/d%d\t\t\t\t\tFirst Packet:\t%ld\n", reader->meta->totalProcBeamlets, reader->meta->totalRawBeamlets, reader->meta->lastPacket);
+		printf("Total Beamlets:\t%d%d\t\t\t\t\tFirst Packet:\t%ld\n", reader->meta->totalProcBeamlets, reader->meta->totalRawBeamlets, reader->meta->lastPacket);
 		printf("Start time:\t%s\t\tMJD Time:\t%lf\n", stringBuff, lofar_get_packet_time_mjd(reader->meta->inputData[0]));
 		for (int port = 0; port < reader->meta->numPorts; port++) {
 			printf("------------------ Port %d -----------------\n", port);
