@@ -143,7 +143,7 @@ test: ./tests/obj-generated-$(LIB_VER).$(LIB_VER_MINOR)
 	rm ./tests/udp_*_sample
 
 test-samples:
-	for fil in ./test/*zst; do \
+	for fil in ./tests/*zst; do \
 		zstd -d $$fil; \
 	done;
 
