@@ -467,6 +467,10 @@ void inline udp_fullStokesDecimation(long iLoop, char *inputPortData, O **output
 	for (int beamlet = baseBeamlet; beamlet < upperBeamlet; beamlet++) {
 		tsInOffset = lastInputPacketOffset + beamlet * UDPNTIMESLICE * UDPNPOL * timeStepSize;
 		tsOutOffset = outputPacketOffset + (totalBeamlets - 1 - beamlet + baseBeamlet - cumulativeBeamlets);
+
+
+		// This is split into 2 inner loops as ICC generates garbage outputs when the loop is run on the full inner loop.
+		// Should still be relatively efficient as 16 time samples fit inside one cache line on REALTA, so they should never be dropped
 		tempValI = 0.0;
 		tempValQ = 0.0;
 
@@ -489,20 +493,7 @@ void inline udp_fullStokesDecimation(long iLoop, char *inputPortData, O **output
 				tsOutOffset += totalBeamlets;
 			}
 		}
-	}
 
-
-	// This is split into 2 loops as ICC generates garbage outputs when the loop is run on the full inner loop.
-	// 
-	//#pragma omp parallel for schedule(dynamic, 31) // Expected sizes: 61, 122, 244
-	#ifdef __INTEL_COMPILER
-	#pragma omp simd
-	#else
-	#pragma GCC unroll 61
-	#endif
-	for (int beamlet = baseBeamlet; beamlet < upperBeamlet; beamlet++) {
-		tsInOffset = lastInputPacketOffset + beamlet * UDPNTIMESLICE * UDPNPOL * timeStepSize;
-		tsOutOffset = outputPacketOffset + (totalBeamlets - 1 - beamlet + baseBeamlet - cumulativeBeamlets);
 		tempValU = 0.0;
 		tempValV = 0.0;
 
@@ -526,6 +517,10 @@ void inline udp_fullStokesDecimation(long iLoop, char *inputPortData, O **output
 			}
 		}
 	}
+
+
+	
+
 }
 
 template <typename I, typename O>
