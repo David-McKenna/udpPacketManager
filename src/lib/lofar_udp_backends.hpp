@@ -671,6 +671,9 @@ int lofar_udp_raw_loop(lofar_udp_meta *meta) {
 		iWork = 0, inputPacketOffset = 0;
 		currentPortPacket = lofar_get_packet_number(&(inputPortData[inputPacketOffset]));
 		VERBOSE(if (verbose) printf("Packet 0: %ld\n", currentPortPacket));
+
+		VERBOSE(if (verbose) printf("Port %d: Packet %ld, iters %ld, base %d, upper %d, cumulative %d, total %d, outputLength %d, timeStep %d, decimation %d, trueState %d", \
+					port, currentPortPacket, packetsPerIteration, baseBeamlet, upperBeamlet, cumulativeBeamlets, totalBeamlets, packetOutputLength, timeStepSize, decimation, trueState););
 		
 		for (iLoop = 0; iLoop < packetsPerIteration; iLoop++) {
 			VERBOSE(if (verbose == 2) printf("Loop %ld, Work %ld, packet %ld, target %ld\n", iLoop, iWork, currentPortPacket, lastPortPacket + 1));
@@ -761,7 +764,7 @@ int lofar_udp_raw_loop(lofar_udp_meta *meta) {
 
 			// Use firstprivate to lock 4-bit variables in a task, create a cache variable otherwise
 			#ifdef __INTEL_COMPILER
-			#pragma omp task firstprivate(iLoop, lastInputPacketOffset, inputPortData, packetOutputLength, upperBeamlet, cumulativeBeamlets, baseBeamlet) shared(byteWorkspace, outputData)
+			#pragma omp task firstprivate(iLoop, lastInputPacketOffset, inputPortData, packetOutputLength, upperBeamlet, cumulativeBeamlets, baseBeamlet, totalBeamlets, timeStepSize, decimation) shared(byteWorkspace, outputData)
 			{
 			#else
 				LIPOCache = lastInputPacketOffset;
