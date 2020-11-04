@@ -494,6 +494,8 @@ void inline udp_fullStokesDecimation(long iLoop, char *inputPortData, O **output
 			}
 		}
 
+		tsInOffset = lastInputPacketOffset + beamlet * UDPNTIMESLICE * UDPNPOL * timeStepSize;
+		tsOutOffset = outputPacketOffset + (totalBeamlets - 1 - beamlet + baseBeamlet - cumulativeBeamlets);
 		tempValU = 0.0;
 		tempValV = 0.0;
 
