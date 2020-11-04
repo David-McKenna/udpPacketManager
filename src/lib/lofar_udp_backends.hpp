@@ -671,7 +671,7 @@ int lofar_udp_raw_loop(lofar_udp_meta *meta) {
 		iWork = 0, inputPacketOffset = 0;
 		currentPortPacket = lofar_get_packet_number(&(inputPortData[inputPacketOffset]));
 
-		VERBOSE(if (verbose) printf("Port %d: Packet %ld, iters %ld, base %d, upper %d, cumulative %d, total %d, outputLength %d, timeStep %d, decimation %d, trueState %d\n", \
+		VERBOSE(if (verbose) printf("Port %d: Packet %ld, iters %d, base %d, upper %d, cumulative %d, total %d, outputLength %d, timeStep %d, decimation %d, trueState %d\n", \
 					port, currentPortPacket, packetsPerIteration, baseBeamlet, upperBeamlet, cumulativeBeamlets, totalBeamlets, packetOutputLength, timeStepSize, decimation, trueState););
 		
 		for (iLoop = 0; iLoop < packetsPerIteration; iLoop++) {

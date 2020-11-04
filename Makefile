@@ -118,7 +118,9 @@ test: ./tests/obj-generated-$(LIB_VER).$(LIB_VER_MINOR)
 			echo "Processed output $$output does not match expected hash. Exiting."; \
 			exit 1; \
 		fi; \
-	done;
+	done; \
+	\
+	# TODO: check overlapping outputs, eg 100, 150, 160 against each other.
 
 	rm ./tests/output*
 

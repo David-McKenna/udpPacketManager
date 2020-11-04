@@ -273,6 +273,9 @@ int main(int argc, char  *argv[]) {
 
 		}
 
+		config.startingPacket = startingPackets[0];
+		maxPackets = maxPackets[0];
+
 	} else {
 		// Repeat the step above for a single event, but read the defaults / -t and -s flags as the inputs
 		eventCount = 1;
