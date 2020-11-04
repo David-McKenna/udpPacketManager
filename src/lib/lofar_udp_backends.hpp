@@ -479,8 +479,8 @@ void inline udp_fullStokesDecimation(long iLoop, char *inputPortData, O **output
 		#endif
 		for (int ts = 0; ts < UDPNTIMESLICE; ts++) {
 			tempValI += stokesI(*((I*) &(inputPortData[tsInOffset])), *((I*) &(inputPortData[tsInOffset + 1 * timeStepSize])), *((I*) &(inputPortData[tsInOffset + 2 * timeStepSize])), *((I*) &(inputPortData[tsInOffset + 3 * timeStepSize])));
-			tempValQ += stokesQ(*((I*) &(inputPortData[tsInOffset])), *((I*) &(inputPortData[tsInOffset + 1 * timeStepSize])), *((I*) &(inputPortData[tsInOffset + 2 * timeStepSize])), *((I*) &(inputPortData[tsInOffset + 3 * timeStepSize])));
-			tempValU += stokesU(*((I*) &(inputPortData[tsInOffset])), *((I*) &(inputPortData[tsInOffset + 1 * timeStepSize])), *((I*) &(inputPortData[tsInOffset + 2 * timeStepSize])), *((I*) &(inputPortData[tsInOffset + 3 * timeStepSize])));
+			//tempValQ += stokesQ(*((I*) &(inputPortData[tsInOffset])), *((I*) &(inputPortData[tsInOffset + 1 * timeStepSize])), *((I*) &(inputPortData[tsInOffset + 2 * timeStepSize])), *((I*) &(inputPortData[tsInOffset + 3 * timeStepSize])));
+			//tempValU += stokesU(*((I*) &(inputPortData[tsInOffset])), *((I*) &(inputPortData[tsInOffset + 1 * timeStepSize])), *((I*) &(inputPortData[tsInOffset + 2 * timeStepSize])), *((I*) &(inputPortData[tsInOffset + 3 * timeStepSize])));
 			tempValV += stokesV(*((I*) &(inputPortData[tsInOffset])), *((I*) &(inputPortData[tsInOffset + 1 * timeStepSize])), *((I*) &(inputPortData[tsInOffset + 2 * timeStepSize])), *((I*) &(inputPortData[tsInOffset + 3 * timeStepSize])));
 
 			tsInOffset += 4 * timeStepSize;
@@ -763,7 +763,7 @@ int lofar_udp_raw_loop(lofar_udp_meta *meta) {
 
 			// Use firstprivate to lock 4-bit variables in a task, create a cache variable otherwise
 			#ifdef __INTEL_COMPILER
-			#pragma omp task firstprivate(iLoop, lastInputPacketOffset, inputPortData, packetOutputLength, upperBeamlet, cumulativeBeamlets, baseBeamlet, totalBeamlets, timeStepSize, decimation) shared(byteWorkspace, outputData)
+			#pragma omp task firstprivate(iLoop, lastInputPacketOffset, inputPortData) shared(byteWorkspace, outputData)
 			{
 			#else
 				LIPOCache = lastInputPacketOffset;
@@ -779,9 +779,9 @@ int lofar_udp_raw_loop(lofar_udp_meta *meta) {
 
 				// Use a LUT to extract the 4-bit signed ints from signed chars
 				#ifdef __INTEL_COMPILER
-				#pragma unroll(16)
+				#pragma unroll(976)
 				#else
-				#pragma GCC unroll 16
+				#pragma GCC unroll 976
 				#endif
 				for (int idx = 0; idx < numSamples; idx++) {
 					#pragma GCC diagnostic push
