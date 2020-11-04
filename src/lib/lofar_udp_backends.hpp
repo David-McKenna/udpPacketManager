@@ -336,7 +336,7 @@ void inline udp_timeMajorDualPols(long iLoop, char *inputPortData, O **outputDat
 	#endif
 	for (int beamlet = baseBeamlet; beamlet < upperBeamlet; beamlet++) {
 		tsInOffset = lastInputPacketOffset + beamlet * UDPNTIMESLICE * UDPNPOL * timeStepSize;
-		tsOutOffset = 2 * ((beamlet - baseBeamlet + cumulativeBeamlets) * packetsPerIteration * UDPNTIMESLICE ) + outputTimeIdx;
+		tsOutOffset = 2 * ((beamlet - baseBeamlet + cumulativeBeamlets) * packetsPerIteration * UDPNTIMESLICE + outputTimeIdx);
 		
 		#ifdef __INTEL_COMPILER
 		#pragma omp simd
