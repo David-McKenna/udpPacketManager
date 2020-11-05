@@ -18,7 +18,8 @@ While using the library, do be aware
 Future work should not break the exiting load/process iteration loop, and may consist of
 - Creating a wrapper python library to allow for easer interfacing within python scripts rather than requiring a C program (CFFI if I can strip out ifdefs?)
 - Investigating [blosc](https://github.com/Blosc/) [(examples link)](https://github.com/Blosc/c-blosc2/tree/master/examples) as an option to speed up some processing modes
-- Specifying specific beamlets to process rather than entire ports
+- Integrate mscorpol/dreamBeam for pointing corrections
+-- Complicated. If done, we'll need float outputs rather than char/shorts for many processing modes.
 
 Requirements
 ------------

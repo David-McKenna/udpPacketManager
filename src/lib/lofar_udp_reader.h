@@ -23,7 +23,7 @@
 #define UDPNTIMESLICE 16
 
 // Timing values
-#define LFREPOCH 1199145600 // 2008-01-01 Unix time
+#define LFREPOCH 1199145600 // 2008-01-01 Unix time, sanity check
 #define RSPMAXSEQ 195313
 #define CLOCK200MHZ 195312.5
 #define CLOCK160MHZ 156250.0
@@ -37,7 +37,7 @@
 
 
 
-// Slow stpping macro (enable from makefile)
+// Slow stopping macro (enable from makefile)
 #ifndef __LOFAR_SLEEP
 #define __LOFAR_SLEEP
 
@@ -75,6 +75,7 @@
 
 
 // Raw data stored as chars, offer methods to read as other value types as required
+// Do I really need this?
 #ifndef __LOFAR_UNION_TYPES
 #define __LOFAR_UNION_TYPES
 typedef union char_unsigned_int {
@@ -126,7 +127,7 @@ typedef struct lofar_udp_meta {
 
 
 	// Track the packets, logging the beamlet counts and their metadata
-	int portRawBeamlets[MAX_NUM_PORTS];
+	int portRawBeamlets[MAX_NU	M_PORTS];
 	int totalRawBeamlets;
 	int totalProcBeamlets;
 
@@ -135,6 +136,7 @@ typedef struct lofar_udp_meta {
 	int portRawCumulativeBeamlets[MAX_NUM_PORTS];
 	int portCumulativeBeamlets[MAX_NUM_PORTS];
 
+	// Input characteristics
 	int inputBitMode;
 	int portPacketLength[MAX_NUM_PORTS];
 

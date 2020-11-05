@@ -8,15 +8,6 @@ Include the reader header
 #include "lofar_udp_reader.h"
 ```
 
-
-You may need to manually include some C functions for some compilers (CUDA needed this in my case, I haven't caught all of the prototypes for C++). For a basic implementation, all you need is
-```
-extern "C"  {
-  int lofar_udp_reader_step(lofar_udp_reader *reader);
-  lofar_udp_reader* lofar_udp_meta_file_reader_setup(FILE **inputFiles, const int numPorts, const int replayDroppedPackets, const int processingMode, const int verbose, const long packetsPerIteration, const long startingPacket, const long packetsReadMax, const int compressedReader);
-}
-```
-
 Generate your reader
 ```
 lofar_udp_reader *reader;

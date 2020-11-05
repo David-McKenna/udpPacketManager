@@ -1,6 +1,7 @@
 # Don't default to sh/dash
 SHELL = bash
 
+# If we haven't been provided a compiler, check for icc/gcc
 ifeq (,$(CC))
 ifneq (,$(shell which icc))
 CC		= icc
@@ -14,6 +15,7 @@ CXX		= g++
 endif
 endif
 
+# Library versions
 LIB_VER = 0.5
 LIB_VER_MINOR = 0
 CLI_VER = 0.3
@@ -22,7 +24,10 @@ CLI_VER = 0.3
 THREADS = $(shell cat /proc/cpuinfo | uniq | grep -m 2 "siblings" | cut -d ":" -f 2 | sort --numeric --unique | awk '{printf("%d", $$1);}')
 
 CFLAGS 	+= -W -Wall -Ofast -march=native -DVERSION=$(LIB_VER) -DVERSIONCLI=$(CLI_VER) -fPIC # -DBENCHMARKING -g -DALLOW_VERBOSE #-D__SLOWDOWN
+# -fopt-info-missed=compiler_report_missed.log -fopt-info-vec=compiler_report_vec.log -fopt-info-loop=compiler_report_loop.log -fopt-info-inline=compiler_report_inline.log -fopt-info-omp=compiler_report_omp.log
 
+# Adjust flaged based on the compiler
+# ICC has a different code path and can use more threads as a result
 ifeq ($(CC), icc)
 AR = xiar
 CFLAGS += -fast -static -static-intel -qopenmp-link=static -DOMP_THREADS=$(THREADS)
@@ -31,11 +36,12 @@ AR = ar
 CFLAGS += -funswitch-loops -DOMP_THREADS=5
 endif
 
+# Ensure we're using C++17
 CXXFLAGS += $(CFLAGS) -std=c++17
-# -fopt-info-missed=compiler_report_missed.log -fopt-info-vec=compiler_report_vec.log -fopt-info-loop=compiler_report_loop.log -fopt-info-inline=compiler_report_inline.log -fopt-info-omp=compiler_report_omp.log
 
 LFLAGS 	+= -I./src -I./src/lib -I./src/CLI -I/usr/include/ -lzstd -fopenmp #-lefence
 
+# Define our general build targets
 OBJECTS = src/lib/lofar_udp_reader.o src/lib/lofar_udp_misc.o src/lib/lofar_udp_backends.o
 CLI_META_OBJECTS = src/CLI/lofar_cli_meta.o src/CLI/ascii_hdr_manager.o
 CLI_OBJECTS = $(OBJECTS) $(CLI_META_OBJECTS) src/CLI/lofar_cli_extractor.o src/CLI/lofar_cli_guppi_raw.o
@@ -46,20 +52,25 @@ PREFIX = /usr/local
 
 .INTERMEDIATE : ./tests/obj-generated-$(LIB_VER).$(LIB_VER_MINOR)
 
+# C -> CC
 %.o: %.c
 	$(CC) -c $(CFLAGS) -o ./$@ $< $(LFLAGS)
 
+# C++ -> CXX
 %.o: %.cpp
 	$(CXX) -c $(CXXFLAGS) -o ./$@ $< $(LFLAGS)
 
+# CLI -> link with C++
 all: $(CLI_OBJECTS) library
 	$(CXX) $(CXXFLAGS) src/CLI/lofar_cli_extractor.o $(CLI_META_OBJECTS) $(LIBRARY_TARGET)  -o ./lofar_udp_extractor $(LFLAGS)
 	$(CXX) $(CXXFLAGS) src/CLI/lofar_cli_guppi_raw.o $(CLI_META_OBJECTS) $(LIBRARY_TARGET) -o ./lofar_udp_guppi_raw $(LFLAGS)
 
+# Library -> *ar
 library: $(OBJECTS)
 	$(AR) rc $(LIBRARY_TARGET).$(LIB_VER).$(LIB_VER_MINOR) $(OBJECTS)
 	ln -sf ./$(LIBRARY_TARGET).$(LIB_VER).$(LIB_VER_MINOR) ./$(LIBRARY_TARGET)
 
+# Install CLI, headers, library
 install: all
 	mkdir -p $(PREFIX)/bin/ && mkdir -p $(PREFIX)/include/
 	cp ./lofar_udp_extractor $(PREFIX)/bin/
@@ -70,6 +81,7 @@ install: all
 	cp -P ./*.a ${PREFIX}/lib/
 	-cp ./mockHeader/mockHeader $(PREFIX)/bin/
 
+# Install CLI, headers, library, locally
 install-local: all
 	mkdir -p ~/.local/bin/ && mkdir -p ~/.local/include/
 	cp ./lofar_udp_extractor ~/.local/bin/
@@ -80,6 +92,7 @@ install-local: all
 	cp -P ./*.a ~/.local/lib/
 	-cp ./mockHeader/mockHeader ~/.local/bin/
 
+# Remove local build arifacts
 clean:
 	-rm ./src/CLI/*.o
 	-rm ./src/lib/*.o
@@ -90,6 +103,7 @@ clean:
 	-rm ./lofar_udp_guppi_raw
 	-rm ./tests/output_*
 
+# Uninstall the software from the system
 remove:
 	rm $(PREFIX)/bin/lofar_udp_extractor
 	rm $(PREFIX)/bin/lofar_udp_guppi_raw
@@ -99,6 +113,7 @@ remove:
 	find . -name "*.a.*" -exec rm $(PREFIX)/lib/{} \;
 	make clean
 
+# Uninstall the software from the local user
 remove-local:
 	rm ~/.local/bin/lofar_udp_extractor
 	rm ~/.local/bin/lofar_udp_guppi_raw
@@ -109,7 +124,12 @@ remove-local:
 	make clean
 
 
-
+# Generate test outputs to ensure we haven't broken anything
+# Works based on output file md5 hashes, should be stable between
+# versions and builds.
+# 
+# The generated hashes were generated using -ffast-math and will
+# not be correct without that flag.
 test: ./tests/obj-generated-$(LIB_VER).$(LIB_VER_MINOR)
 	# . === source
 	. ./tests/hashVariables.txt; for output in ./tests/output*; do \
@@ -126,6 +146,8 @@ test: ./tests/obj-generated-$(LIB_VER).$(LIB_VER_MINOR)
 
 	rm ./tests/output*
 
+
+# Build the objects to test
 ./tests/obj-generated-$(LIB_VER).$(LIB_VER_MINOR): test-samples
 	-rm ./tests/output*
 
@@ -146,11 +168,13 @@ test: ./tests/obj-generated-$(LIB_VER).$(LIB_VER_MINOR)
 	touch ./tests/obj-generated-$(LIB_VER).$(LIB_VER_MINOR)
 	rm ./tests/udp_*_sample
 
+# Decompress the input data
 test-samples:
 	for fil in ./tests/*zst; do \
 		zstd -d $$fil; \
 	done;
 
+# Generate hashes for the current output files
 test-make-hashes: ./tests/obj-generated-$(LIB_VER).$(LIB_VER_MINOR)
 	-rm ./tests/hashVariables.txt
 	touch ./tests/hashVariables.txt
@@ -161,6 +185,9 @@ test-make-hashes: ./tests/obj-generated-$(LIB_VER).$(LIB_VER_MINOR)
 	done
 
 
+
+
+# Optional: build mockHeader
 mockHeader:
 	git clone https://github.com/David-McKenna/mockHeader && \
 	cd mockHeader && \

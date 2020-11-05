@@ -3,7 +3,7 @@
 #include "lofar_udp_backends.hpp"
 
 
-// Define a default config
+// Define a set of default structs
 lofar_udp_config lofar_udp_config_default = {
 	.inputFiles = NULL,
 	.numPorts = 4,
@@ -17,6 +17,8 @@ lofar_udp_config lofar_udp_config_default = {
 	.beamletLimits = { 0, 0 }
 };
 
+
+// Reader / meta with NULL-initialised values to help the cleaner function
 lofar_udp_reader lofar_udp_reader_default = {
 	.dstream = { NULL },
 	.inBuffer = { NULL }
@@ -28,10 +30,12 @@ lofar_udp_meta lofar_udp_meta_default = {
 };
 
 /**
- * @brief      Parse LOFAR UDP headers to determine some metadata about the ports
+ * @brief      Parse LOFAR UDP headers to determine some metadata about the
+ *             ports
  *
- * @param      meta    The lofar_udp_meta to initialise
- * @param[in]  header  The header data to process
+ * @param      meta           The lofar_udp_meta to initialise
+ * @param[in]  header         The header data to process
+ * @param[in]  beamletLimits  The upper/lower beamlets limits
  *
  * @return     0: Success, 1: Fatal error
  */

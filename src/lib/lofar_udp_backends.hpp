@@ -15,7 +15,7 @@ extern "C" {
 #include <omp.h>
 
 
-// 4-bit LUT for faster decoding (and for lock in when I finally work out which 4-bit more they used...)
+// 4-bit LUT for faster decoding of 4-bit data
 #ifndef __LOFAR_4BITLUT
 #define __LOFAR_4BITLUT
 extern const char bitmodeConversion[256][2];
@@ -29,6 +29,8 @@ float stokesV(float Xr, float Xi, float Yr, float Yi);
 
 int lofar_udp_raw_udp_copy_cpp(lofar_udp_meta *meta);
 
+
+// Define the C-access interfaces
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -78,6 +80,7 @@ int lofar_udp_raw_udp_useful_stokes_sum16(lofar_udp_meta *meta);
 
 #endif
 
+// Setup templates for each processing mode
 #ifndef LOFAR_UDP_BACKEND_TEMPLATES
 #define LOFAR_UDP_BACKEND_TEMPLATES
 
@@ -101,7 +104,7 @@ void inline udp_copySplitPols(long iLoop, char *inputPortData, O **outputData, l
 	long outputPacketOffset = iLoop * packetOutputLength / sizeof(O);
 	long tsInOffset, tsOutOffset;
 
-	//#pragma omp parallel for schedule(dynamic, 31) // Expected sizes: 61, 122, 244
+	
 	#ifdef __INTEL_COMPILER
 	#pragma omp simd
 	#else
@@ -134,7 +137,7 @@ void inline udp_channelMajor(long iLoop, char *inputPortData, O **outputData, lo
 	long outputPacketOffset = iLoop * packetOutputLength / sizeof(O);
 	long tsInOffset, tsOutOffset;
 
-	//#pragma omp parallel for schedule(dynamic, 31) // Expected sizes: 61, 122, 244
+	
 	#ifdef __INTEL_COMPILER
 	#pragma omp simd
 	#else
@@ -166,7 +169,7 @@ void inline udp_channelMajorSplitPols(long iLoop, char *inputPortData, O **outpu
 	long outputPacketOffset = iLoop * packetOutputLength / sizeof(O);
 	long tsInOffset, tsOutOffset;
 
-	//#pragma omp parallel for schedule(dynamic, 31) // Expected sizes: 61, 122, 244
+	
 	#ifdef __INTEL_COMPILER
 	#pragma omp simd
 	#else
@@ -198,7 +201,7 @@ void inline udp_reversedChannelMajor(long iLoop, char *inputPortData, O **output
 	long outputPacketOffset = iLoop * packetOutputLength / sizeof(O);
 	long tsInOffset, tsOutOffset;
 
-	//#pragma omp parallel for schedule(dynamic, 31) // Expected sizes: 61, 122, 244
+	
 	#ifdef __INTEL_COMPILER
 	#pragma omp simd
 	#else
@@ -230,7 +233,7 @@ void inline udp_reversedChannelMajorSplitPols(long iLoop, char *inputPortData, O
 	long outputPacketOffset = iLoop * packetOutputLength / sizeof(O);
 	long tsInOffset, tsOutOffset;
 
-	//#pragma omp parallel for schedule(dynamic, 31) // Expected sizes: 61, 122, 244
+	
 	#ifdef __INTEL_COMPILER
 	#pragma omp simd
 	#else
@@ -262,7 +265,7 @@ void inline udp_timeMajor(long iLoop, char *inputPortData, O **outputData, long 
 	long outputTimeIdx = iLoop * UDPNTIMESLICE / sizeof(O);
 	long tsInOffset, tsOutOffset;
 
-	//#pragma omp parallel for schedule(dynamic, 31) // Expected sizes: 61, 122, 244
+	
 	#ifdef __INTEL_COMPILER
 	#pragma omp simd
 	#else
@@ -294,7 +297,7 @@ void inline udp_timeMajorSplitPols(long iLoop, char *inputPortData, O **outputDa
 	long outputTimeIdx = iLoop * UDPNTIMESLICE / sizeof(O);
 	long tsInOffset, tsOutOffset;
 
-	//#pragma omp parallel for schedule(dynamic, 31) // Expected sizes: 61, 122, 244
+	
 	#ifdef __INTEL_COMPILER
 	#pragma omp simd
 	#else
@@ -328,7 +331,7 @@ void inline udp_timeMajorDualPols(long iLoop, char *inputPortData, O **outputDat
 	long outputTimeIdx = iLoop * UDPNTIMESLICE / sizeof(O);
 	long tsInOffset, tsOutOffset;
 
-	//#pragma omp parallel for schedule(dynamic, 31) // Expected sizes: 61, 122, 244
+	
 	#ifdef __INTEL_COMPILER
 	#pragma omp simd
 	#else
@@ -361,7 +364,7 @@ void inline udp_stokes(long iLoop, char *inputPortData, O **outputData,  long la
 	long outputPacketOffset = iLoop * packetOutputLength / sizeof(O);
 	long tsInOffset, tsOutOffset;
 
-	//#pragma omp parallel for schedule(dynamic, 31) // Expected sizes: 61, 122, 244
+	
 	#ifdef __INTEL_COMPILER
 	#pragma omp simd
 	#else
@@ -391,7 +394,7 @@ void inline udp_stokesDecimation(long iLoop, char *inputPortData, O **outputData
 	long tsInOffset, tsOutOffset;
 	O tempVal;
 
-	//#pragma omp parallel for schedule(dynamic, 31) // Expected sizes: 61, 122, 244
+	
 	#ifdef __INTEL_COMPILER
 	#pragma omp simd
 	#else
@@ -425,7 +428,7 @@ void inline udp_fullStokes(long iLoop, char *inputPortData, O **outputData,  lon
 	long outputPacketOffset = iLoop * packetOutputLength / sizeof(O);
 	long tsInOffset, tsOutOffset;
 
-	//#pragma omp parallel for schedule(dynamic, 31) // Expected sizes: 61, 122, 244
+	
 	#ifdef __INTEL_COMPILER
 	#pragma omp simd
 	#else
@@ -458,7 +461,7 @@ void inline udp_fullStokesDecimation(long iLoop, char *inputPortData, O **output
 	long tsInOffset, tsOutOffset;
 	O tempValI, tempValQ, tempValU, tempValV;
 
-	//#pragma omp parallel for schedule(dynamic, 31) // Expected sizes: 61, 122, 244
+	
 	#ifdef __INTEL_COMPILER
 	#pragma omp simd
 	#else
@@ -530,7 +533,7 @@ void inline udp_usefulStokes(long iLoop, char *inputPortData, O **outputData,  l
 	long outputPacketOffset = iLoop * packetOutputLength / sizeof(O);
 	long tsInOffset, tsOutOffset;
 
-	//#pragma omp parallel for schedule(dynamic, 31) // Expected sizes: 61, 122, 244
+	
 	#ifdef __INTEL_COMPILER
 	#pragma omp simd
 	#else
@@ -562,7 +565,7 @@ void inline udp_usefulStokesDecimation(long iLoop, char *inputPortData, O **outp
 	long tsInOffset, tsOutOffset;
 	O tempValI, tempValV;
 
-	//#pragma omp parallel for schedule(dynamic, 31) // Expected sizes: 61, 122, 244
+	
 	#ifdef __INTEL_COMPILER
 	#pragma omp simd
 	#else
@@ -597,6 +600,7 @@ void inline udp_usefulStokesDecimation(long iLoop, char *inputPortData, O **outp
 }
 
 
+// Define the main processing loop
 template <typename I, typename O, const int state>
 int lofar_udp_raw_loop(lofar_udp_meta *meta) {
 	// Setup return variable
