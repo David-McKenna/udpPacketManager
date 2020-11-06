@@ -71,7 +71,7 @@ long getStartingPacket(char inputTime[], const int clock200MHz) {
  * @return     The number of packets generated
  */
 long getSecondsToPacket(float seconds, const int clock200MHz) {
-	return (long) seconds * (clock200MHz * clock200MHzSteps + (1 - clock200MHz) * clock160MHzSteps) / 16;
+	return (long) (seconds * (clock200MHz * clock200MHzSteps + (float) (1 - clock200MHz) * clock160MHzSteps) / (float) UDPNTIMESLICE);
 }
 
 /**

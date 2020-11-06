@@ -23,7 +23,7 @@
 #define UDPNTIMESLICE 16
 
 // Timing values
-#define LFREPOCH 1199145600 // 2008-01-01 Unix time
+#define LFREPOCH 1199145600 // 2008-01-01 Unix time, sanity check
 #define RSPMAXSEQ 195313
 #define CLOCK200MHZ 195312.5
 #define CLOCK160MHZ 156250.0
@@ -37,7 +37,7 @@
 
 
 
-// Slow stpping macro (enable from makefile)
+// Slow stopping macro (enable from makefile)
 #ifndef __LOFAR_SLEEP
 #define __LOFAR_SLEEP
 
@@ -75,6 +75,7 @@
 
 
 // Raw data stored as chars, offer methods to read as other value types as required
+// Do I really need this?
 #ifndef __LOFAR_UNION_TYPES
 #define __LOFAR_UNION_TYPES
 typedef union char_unsigned_int {
@@ -107,9 +108,10 @@ typedef struct __attribute__((__packed__)) lofar_source_bytes {
 
 
 
+#ifndef __LOFAR_UDP_READER_STRUCTS
+#define __LOFAR_UDP_READER_STRUCTS
+
 // Metadata struct
-#ifndef __LOFAR_UDP_META_STRUCT
-#define __LOFAR_UDP_META_STRUCT
 typedef struct lofar_udp_meta lofar_udp_meta;
 typedef int (*lofar_udp_processing_function )(lofar_udp_meta*);
 
@@ -125,10 +127,17 @@ typedef struct lofar_udp_meta {
 
 
 	// Track the packets, logging the beamlet counts and their metadata
-	int portBeamlets[MAX_NUM_PORTS];
-	int portCumulativeBeamlets[MAX_NUM_PORTS];
-	int totalBeamlets;
+	int portRawBeamlets[MAX_NUM_PORTS];
+	int portRawCumulativeBeamlets[MAX_NUM_PORTS];
+	int totalRawBeamlets;
 
+	// Tracking beamlets with respect to the processing strategy
+	int baseBeamlets[MAX_NUM_PORTS];
+	int upperBeamlets[MAX_NUM_PORTS];
+	int portCumulativeBeamlets[MAX_NUM_PORTS];
+	int totalProcBeamlets;
+
+	// Input characteristics
 	int inputBitMode;
 	int portPacketLength[MAX_NUM_PORTS];
 
@@ -162,13 +171,10 @@ typedef struct lofar_udp_meta {
 	#endif
 
 } lofar_udp_meta;
-#endif
-
+extern lofar_udp_meta lofar_udp_meta_default;
 
 
 // File data + decompression struct
-#ifndef __LOFAR_UDP_READER_STRUCTS
-#define __LOFAR_UDP_READER_STRUCTS
 typedef struct lofar_udp_reader {
 	FILE* fileRef[MAX_NUM_PORTS];
 
@@ -189,6 +195,43 @@ typedef struct lofar_udp_reader {
 	lofar_udp_meta* meta;
 
 } lofar_udp_reader;
+extern lofar_udp_reader lofar_udp_reader_default;
+
+// Confugration struct
+typedef struct lofar_udp_config {
+	// Points to input files, compressed or uncompressed
+	FILE **inputFiles;
+
+	// Number of ports of raw data being provided in inputFIles
+	int numPorts;
+
+	// Configure whether to path with 0's (0) or replay last packet (1) when we
+	// encounter a dropped/missed packet
+	int replayDroppedPackets;
+
+	// Porcessing mode, see documentation
+	int processingMode;
+
+	// Enable verbose mode when ccompile with -DALLOW_VERBOSE
+	int verbose;
+
+	// Number of packets to process per iteration
+	long packetsPerIteration;
+
+	// Index of the starting packet
+	long startingPacket;
+
+	// Index of the last packet to process
+	long packetsReadMax;
+
+	// Whether or not inputFiles are compressed files or raw packet captures
+	int compressedReader;
+
+	// Lower / Upper limits of beamlets to process
+	int beamletLimits[2];
+} lofar_udp_config;
+
+extern lofar_udp_config lofar_udp_config_default;
 #endif
 
 
@@ -205,11 +248,12 @@ extern "C" {
 
 // Reader/meta struct initialisation
 lofar_udp_reader* lofar_udp_meta_file_reader_setup(FILE **inputFiles, const int numPorts, const int replayDroppedPackets, const int processingMode, const int verbose, const long packetsPerIteration, const long startingPacket, const long packetsReadMax, const int compressedReader);
+lofar_udp_reader* lofar_udp_meta_file_reader_setup_struct(lofar_udp_config *config);
 lofar_udp_reader* lofar_udp_file_reader_setup(FILE **inputFiles, lofar_udp_meta *meta, const int compressedReader);
 int lofar_udp_file_reader_reuse(lofar_udp_reader *reader, const long startingPacket, const long packetsReadMax);
 
 // Initialisation helpers
-int lofar_udp_parse_headers(lofar_udp_meta *meta, const char header[MAX_NUM_PORTS][UDPHDRLEN]);
+int lofar_udp_parse_headers(lofar_udp_meta *meta, char header[MAX_NUM_PORTS][UDPHDRLEN], const int beamletLimits[2]);
 int lofar_udp_setup_processing(lofar_udp_meta *meta);
 int lofar_udp_get_first_packet_alignment(lofar_udp_reader *reader);
 int lofar_udp_get_first_packet_alignment_meta(lofar_udp_meta *meta);
@@ -224,8 +268,8 @@ long lofar_udp_reader_nchars(lofar_udp_reader *reader, const int port, char *tar
 
 
 // Reader struct cleanup
-int lofar_udp_reader_cleanup(const lofar_udp_reader *reader);
-
+int lofar_udp_reader_cleanup(lofar_udp_reader *reader);
+int lofar_udp_reader_cleanup_f(lofar_udp_reader *reader, const int closeFiles);
 
 
 

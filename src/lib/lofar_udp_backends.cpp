@@ -23,7 +23,7 @@ float stokesV(float Xr, float Xi, float Yr, float Yi) {
 }
 
 
-// Re-parsing processing modes
+// C interfaces for the C++ loop and kernels
 int lofar_udp_raw_udp_copy(lofar_udp_meta *meta) {
 	VERBOSE(if (meta->VERBOSE) printf("Entered C++ call for lofar_udp_raw_udp_copy\n"));
 	switch(meta->inputBitMode) {
@@ -687,7 +687,7 @@ int lofar_udp_raw_udp_useful_stokes_sum16(lofar_udp_meta *meta) {
 }
 
 
-/* LUT for 4-bit data */
+// LUT for 4-bit data, faster than re-calculating upper/lower nibble for every sample.
 const char bitmodeConversion[256][2] = {
 		{ 0 , 0 }, { 0 , 1 }, { 0 , 2 }, { 0 , 3 }, { 0 , 4 }, 
 		{ 0 , 5 }, { 0 , 6 }, { 0 , 7 }, { 0 , -8 }, { 0 , -7 }, 

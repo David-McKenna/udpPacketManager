@@ -29,7 +29,7 @@ int lofar_udp_raw_udp_my_new_kernel(lofar_udp_meta *meta) {
 
 ```
 
-3. Create the task kernel in `lofar_udp_backends.hpp`, following the format of
+3. Create the task kernel in `lofar_udp_backends.hpp`, following the format below. Have a look at the existing kernels and you'll likely be able to find an input/putput idx calculation that suits what you are doing.
 
 ```
 template<typename I, typename O>
@@ -41,7 +41,7 @@ void inline udp_myNewKernel(params) {
 	#else
 	#pragma GCC unroll 61
 	#endif
-	for (int beamlet = 0; beamlet < portBeamlets; beamlet++) {
+	for (int beamlet = lowerBeamlet; beamlet < upperBeamlet; beamlet++) {
 		tsInOffset = <inIdx>;
 		tsOutOffset = <outIdx>;
 
@@ -65,12 +65,10 @@ void inline udp_myNewKernel(params) {
 4. Include the kernel in the switch statement of `int lofar_udp_raw_loop(lofar_udp_meta *meta)`
 
 ```
-case KERNEL_ENUM_VAL:
-	#ifdef __INTEL_COMPILER
-	#pragma omp task firstprivate(iLoop, lastInputPacketOffset)
-	#endif
+else if (trueState == KERNEL_ENUM_VAL) {
 	udp_myNewKernel<I, O>(iLoop, lastInputPacketOffset, timeStepSize....);
-	break;
+}
+...
 
 ```
 
@@ -85,3 +83,5 @@ case KERNEL_ENUM_VAL:
 6. Staying in `int lofar_udp_setup_processing(lofar_udp_meta *meta)`, run the maths on the input / output data sizes and add your case to the switch statement. If adding a completely new calculation, be sure to add a `break;` statement afterwards, as the compiler warning is disabled for this switch statement. In the case of a re-rodering operation, you will just need to define the number of output arrays.
 
 7. Add documentation to `README_CLI.md` and `lofar_cli_meta.c`.
+
+8. Generate hashes for the output mode by adding it to the makefiles' `./tests/obj-generated-$(LIB_VER).$(LIB_VER_MINOR)` target, either in the compressed or uncompressed loop. `make test-make-hashes` will generate an output and add a hash to tests/hashVariables.txt file in the git repo. Ensure no other mode hashes change.

@@ -49,8 +49,7 @@ While most of the arguments are the same as the default CLI, as described in [*R
 
 #### -o (str) [default: ./output_%d]
 - Output file name, must contain at least *%d* when generating multiple outputs
-- *%s* will include the starting time stamp, *%ld* for the packet number **is not supported by this CLI**
-- These values must be added in order, so *%d_%s* is allowed to not print the packet number but *%ld_%d_%s* will not work.
+- Both *%s* for the starting time stamp, *%ld* for the packet number **are not supported by this CLI**
 
 #### -e (int) [default: INT_MAX]
 - Number of iterations to perform before closing the current file and opening a new one

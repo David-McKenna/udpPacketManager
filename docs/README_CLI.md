@@ -48,6 +48,11 @@ Arguments
 #### -u (int) [default: 4]
 - Number of input ports to iterate over
 
+#### -b (int),(int) [default: 0,0 === all inputs]
+- Indicies of beamlets to extract from the input dataset. Lower value is inclusive, higher value is exclusive
+- Eg, `-b 0,300` will return 300 beamlets, at indicies 0:299.
+- I wanted this to be inclusive on both ends but couldn't find a solid way to just index it as intended.
+
 #### -t (str) [default: T=0]
 - Starting time string, in UTC+0 and ISOT format (YYYY-MM-DDTHH:mm:ss)
 
