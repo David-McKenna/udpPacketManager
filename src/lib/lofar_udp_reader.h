@@ -128,13 +128,14 @@ typedef struct lofar_udp_meta {
 
 	// Track the packets, logging the beamlet counts and their metadata
 	int portRawBeamlets[MAX_NUM_PORTS];
+	int portRawCumulativeBeamlets[MAX_NUM_PORTS];
 	int totalRawBeamlets;
-	int totalProcBeamlets;
 
+	// Tracking beamlets with respect to the processing strategy
 	int baseBeamlets[MAX_NUM_PORTS];
 	int upperBeamlets[MAX_NUM_PORTS];
-	int portRawCumulativeBeamlets[MAX_NUM_PORTS];
 	int portCumulativeBeamlets[MAX_NUM_PORTS];
+	int totalProcBeamlets;
 
 	// Input characteristics
 	int inputBitMode;
@@ -198,7 +199,7 @@ extern lofar_udp_reader lofar_udp_reader_default;
 
 // Confugration struct
 typedef struct lofar_udp_config {
-	// Points to input files, ompressed ro uncompressed
+	// Points to input files, compressed or uncompressed
 	FILE **inputFiles;
 
 	// Number of ports of raw data being provided in inputFIles

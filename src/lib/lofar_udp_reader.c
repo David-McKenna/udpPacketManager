@@ -18,7 +18,7 @@ lofar_udp_config lofar_udp_config_default = {
 };
 
 
-// Reader / meta with NULL-initialised values to help the cleaner function
+// Reader / meta with NULL-initialised values to help the cleanup function
 lofar_udp_reader lofar_udp_reader_default = {
 	.dstream = { NULL },
 	.inBuffer = { NULL }
@@ -99,17 +99,21 @@ int lofar_udp_parse_headers(lofar_udp_meta *meta, char header[MAX_NUM_PORTS][UDP
 		}
 
 
-		// Determine the number of beamlets and bitmode on the port
+		// Determine the number of beamlets on the port
 		VERBOSE(printf("port %d, bitMode %d, beamlets %d (%u)\n", port, ((lofar_source_bytes*) &source)->bitMode, (int) ((unsigned char) header[port][6]), (unsigned char) header[port][6]););
 		meta->portRawBeamlets[port] = (int) ((unsigned char) header[port][6]);
+
+		// Assume we are processing all beamlets by default
 		meta->upperBeamlets[port] = meta->portRawBeamlets[port];
 
+		// Update the cumulative beamlets, total raw beamlets
+		// Ordering is intentional so that we get the number of beamlets before this port.
 		meta->portRawCumulativeBeamlets[port] = meta->totalRawBeamlets;
 		meta->portCumulativeBeamlets[port] = meta->totalProcBeamlets;
+		meta->totalRawBeamlets += meta->portRawBeamlets[port];
 
 
 		// Set the  upper, lower limit of beamlets as needed
-		// SANITY CHECK: ARE WE GETTING THE RIGHT INDEX?
 		
 		// Check the upper limit first, so that we can modify upperBeamlets if needed.
 		if (beamletLimits[1] != 0 && (beamletLimits[1] < ((port + 1) * meta->portRawBeamlets[port])) && (beamletLimits[1] >= port * meta->portRawBeamlets[port])) {
@@ -117,24 +121,19 @@ int lofar_udp_parse_headers(lofar_udp_meta *meta, char header[MAX_NUM_PORTS][UDP
 		}
 
 
+		// Check the lower beamlet, and then update the total beamlets counters as needed
 		if (beamletLimits[0] != 0 && (beamletLimits[0] < ((port + 1) * meta->portRawBeamlets[port])) && (beamletLimits[0] >= port * meta->portRawBeamlets[port])) {
 			meta->baseBeamlets[port] = beamletLimits[0] - meta->totalRawBeamlets;
 
 			// Lower the total count of beamlets, while not modifiyng
-			// 	upperBeamlets 
-			// upperBeamlets sets the upper limit on scans per-port,
-			// 	so changing that variable would incorrectly remove 2N beamlets
-			// 	from the current port, rather than just N 
-			// Yes, this make the actual values of these arrays less useful, 
-			// 	but it works without introducing new variables
+			// 	upperBeamlets
 			meta->totalProcBeamlets += meta->upperBeamlets[port] - beamletLimits[0];
 		} else {
 			meta->baseBeamlets[port] = 0;
 			meta->totalProcBeamlets += meta->upperBeamlets[port];
 		}
 
-		meta->totalRawBeamlets += meta->portRawBeamlets[port];
-
+		// Check the bitmode on the port
 		switch (((lofar_source_bytes*) &source)->bitMode) {
 			case 0:
 				meta->inputBitMode = 16;
@@ -153,6 +152,8 @@ int lofar_udp_parse_headers(lofar_udp_meta *meta, char header[MAX_NUM_PORTS][UDP
 				return 1;
 		}
 
+		// Ensure that the bitmode does not change between ports; we assume it is constant elsewhere.
+		// Fairly certain the RSPs fall over if you try to do multiple bit modes anyway.
 		if (port == 0) {
 			cacheBitMode = meta->inputBitMode;
 		} else {
@@ -503,11 +504,12 @@ int lofar_udp_file_reader_reuse(lofar_udp_reader *reader, const long startingPac
 /**
  * @brief      Temporarily read in num bytes from a zstandard compressed file
  *
- * @param      outbuf     The outbuf
- * @param[in]  size       The size
- * @param[in]  num        The number
+ * @param      outbuf     The output buffer pointer
+ * @param[in]  size       The size of words ot read
+ * @param[in]  num        The number of words to read
  * @param      inputFile  The input file
- * @param[in]  resetSeek  The reset seek
+ * @param[in]  resetSeek  Do (1) / Don't (0) reset back to the original location
+ *                        in FILE* after performing a read operation
  *
  * @return     int 0: ZSTD error, 1: File error, other: data read length
  */
@@ -878,8 +880,6 @@ int lofar_udp_setup_processing(lofar_udp_meta *meta) {
  *                                   the input data
  *
  * @return     lofar_udp_reader ptr, or NULL on error
- *
- * @return     { description_of_the_return_value }
  */
 lofar_udp_reader* lofar_udp_meta_file_reader_setup(FILE **inputFiles, const int numPorts, const int replayDroppedPackets, const int processingMode, const int verbose, const long packetsPerIteration, const long startingPacket, const long packetsReadMax, const int compressedReader) {
 		static lofar_udp_config config;
@@ -899,6 +899,7 @@ lofar_udp_reader* lofar_udp_meta_file_reader_setup(FILE **inputFiles, const int 
 		
 		return lofar_udp_meta_file_reader_setup_struct(&config);
 }
+
 /**
  * @brief      Set up a lofar_udp_reader and assoaicted lofar_udp_meta using a
  *             set of input files and pre-set control/metadata parameters
@@ -1168,6 +1169,7 @@ int lofar_udp_reader_cleanup_f(lofar_udp_reader *reader, const int closeFiles) {
  * @param[in]  port         The port (file) to read data from
  * @param      targetArray  The storage array
  * @param[in]  nchars       The number of chars (bytes) to read in
+ * @param[in]  knownOffset  the compressed known offset
  *
  * @return     long: bytes read
  */
@@ -1395,7 +1397,8 @@ int lofar_udp_reader_step_timed(lofar_udp_reader *reader, double timing[2]) {
  *
  * @param      reader  The input lofar_udp_reader struct to process
  *
- * @return     int: 0: Success, < 0: Some data issues, but tolerable: > 1: Fatal errors
+ * @return     int: 0: Success, < 0: Some data issues, but tolerable: > 1: Fatal
+ *             errors
  */
 int lofar_udp_reader_step(lofar_udp_reader *reader) {
 	double fakeTiming[2] = {-1.0, 0};
@@ -1660,14 +1663,15 @@ int lofar_udp_realign_data(lofar_udp_reader *reader) {
  *             the start; mainly used to handle the case of packet loss without
  *             re-reading the data (read: zstd streaming is hell)
  *
- * @param      meta           The input lofar_udp_meta struct to process
+ * @param      reader         The udp reader struct
  * @param      shiftPackets   [PORTS] int array of number of packets to shift
  *                            from the tail of each port by
  * @param[in]  handlePadding  Allow the function to handle copying the last
  *                            packet to the padding offset
+ * @param      meta  The input lofar_udp_meta struct to process
  *
- * @return     int: 0: Success, -1: Negative shift requested, out
- *             of order data on last gulp,
+ * @return     int: 0: Success, -1: Negative shift requested, out of order data
+ *             on last gulp,
  */
 int lofar_udp_shift_remainder_packets(lofar_udp_reader *reader, const int shiftPackets[], const int handlePadding) {
 

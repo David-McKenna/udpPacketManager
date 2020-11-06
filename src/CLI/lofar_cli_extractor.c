@@ -273,9 +273,6 @@ int main(int argc, char  *argv[]) {
 
 		}
 
-		config.startingPacket = startingPackets[0];
-		maxPackets = multiMaxPackets[0];
-
 	} else {
 		// Repeat the step above for a single event, but read the defaults / -t and -s flags as the inputs
 		eventCount = 1;
@@ -312,7 +309,7 @@ int main(int argc, char  *argv[]) {
 	}
 
 	// Set-up the input files, with checks to ensure they're opened
-	for (int port = basePort; port < config.numPorts; port++) {
+	for (int port = basePort; port < config.numPorts + basePort; port++) {
 		sprintf(workingString, inputFormat, port);
 
 		if (strcmp(inputFormat, workingString) == 0 && config.numPorts > 1) {
@@ -338,7 +335,7 @@ int main(int argc, char  *argv[]) {
 	CLICK(tick);
 	CLICK(tick0);
 
-	// Generate the lofar_udp_reader, this also does I/O for the first input or seeks to the required packet
+	// Generate the lofar_udp_reader, this also does I/O to seeks to the required packet and gulps the first input
 	config.inputFiles = &(inputFiles[0]);
 	config.startingPacket = startingPackets[0];
 	config.packetsReadMax = multiMaxPackets[0];
@@ -451,9 +448,10 @@ int main(int argc, char  *argv[]) {
 				return 1;
 			}
 			
+
 			if (callMockHdr) {
-				if (config.processingMode == 2 || config.processingMode == 11 || config.processingMode == 21 || config.processingMode > 99) sprintf(mockHdrCmd, "mockHeader -tstart %.9lf -nchans %d -nbits %d -tsamp %.9lf %s %s > /tmp/udp_reader_mockheader.log 2>&1", lofar_get_packet_time_mjd(reader->meta->inputData[0]), reader->meta->totalProcBeamlets, reader->meta->outputBitMode, sampleTime, mockHdrArg, workingString);
-				else sprintf(mockHdrCmd, "mockHeader -tstart %.9lf -nchans %d -nbits %d -tsamp %.9lf %s %s > /tmp/udp_reader_mockheader.log 2>&1", lofar_get_packet_time_mjd(reader->meta->inputData[0]), reader->meta->upperBeamlets[out] - reader->meta->baseBeamlets[out], reader->meta->outputBitMode, sampleTime, mockHdrArg, workingString);
+				// Call mockHeader, we can populate the starting time, number of channels, output bit size and sampling rate
+				sprintf(mockHdrCmd, "mockHeader -tstart %.9lf -nchans %d -nbits %d -tsamp %.9lf %s %s > /tmp/udp_reader_mockheader.log 2>&1", lofar_get_packet_time_mjd(reader->meta->inputData[0]), reader->meta->totalProcBeamlets, reader->meta->outputBitMode, sampleTime, mockHdrArg, workingString);
 				dummy = system(mockHdrCmd);
 
 				if (dummy != 0) fprintf(stderr, "Encountered error while calling mockHeader (%s), continuing with caution.\n", mockHdrCmd);

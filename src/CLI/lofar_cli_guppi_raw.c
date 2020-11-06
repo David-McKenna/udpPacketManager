@@ -226,7 +226,7 @@ int main(int argc, char  *argv[]) {
 	}
 
 	// Set-up the input files, with checks to ensure they're opened
-	for (int port = basePort; port < config.numPorts; port++) {
+	for (int port = basePort; port < config.numPorts + basePort; port++) {
 		sprintf(workingString, inputFormat, port);
 
 		VERBOSE(if (config.verbose) printf("Opening file at %s\n", workingString));
