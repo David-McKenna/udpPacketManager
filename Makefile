@@ -148,6 +148,8 @@ test: ./tests/obj-generated-$(LIB_VER).$(LIB_VER_MINOR)
 
 
 # Build the objects to test
+# Stress test: multiple ports, compressed and uncompressed, every processing mode, an odd/small number of packets
+# In futre: consider dropping a few packets from the test case
 ./tests/obj-generated-$(LIB_VER).$(LIB_VER_MINOR): test-samples
 	-rm ./tests/output*
 
