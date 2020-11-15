@@ -55,6 +55,12 @@ Installing
 ----------
 Once the pre-requisites are met, a simple `make all` should suffice to build the library, while `make install` and `make install-local` will copy the CLI and headers to the /usr/local or \~/.local/ folders. 
 
+### Calibration Installation Notes
+
+If you are also installing the required components for polarmetric calibrations you may receive several errors from casacore regaridng missing ephemeris, leap second catalogues, etc, which can be fixed by following the following help guide
+
+https://casaguides.nrao.edu/index.php?title=Fixing_out_of_date_TAI_UTC_tables_%28missing_information_on_leap_seconds%29
+
 
 Usage
 -----

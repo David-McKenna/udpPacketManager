@@ -141,6 +141,10 @@ typedef struct lofar_udp_meta {
 	int inputBitMode;
 	int portPacketLength[MAX_NUM_PORTS];
 
+	// Calibration data
+	int calibrateData;
+	float **jonesMatrices;
+
 
 	// Track the output metatdata
 	int numOutputs;
@@ -164,6 +168,7 @@ typedef struct lofar_udp_meta {
 	long packetsReadMax;
 	long leadingPacket;
 	long lastPacket;
+	int numIters;
 
 	// Configuration: verbosity of processing
 	#ifdef ALLOW_VERBOSE
@@ -229,6 +234,9 @@ typedef struct lofar_udp_config {
 
 	// Lower / Upper limits of beamlets to process
 	int beamletLimits[2];
+
+	// Enable / disable dreamBeam polarmetric corrections
+	int calibrateData;
 } lofar_udp_config;
 
 extern lofar_udp_config lofar_udp_config_default;

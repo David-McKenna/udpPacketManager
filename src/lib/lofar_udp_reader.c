@@ -14,7 +14,8 @@ lofar_udp_config lofar_udp_config_default = {
 	.startingPacket = -1,
 	.packetsReadMax = -1,
 	.compressedReader = 0,
-	.beamletLimits = { 0, 0 }
+	.beamletLimits = { 0, 0 },
+	.calibrateData = 0
 };
 
 
@@ -26,7 +27,8 @@ lofar_udp_reader lofar_udp_reader_default = {
 
 lofar_udp_meta lofar_udp_meta_default = {
 	.inputData = { NULL },
-	.outputData = { NULL }
+	.outputData = { NULL },
+	.numIters = 0
 };
 
 /**
@@ -247,10 +249,21 @@ int lofar_udp_skip_to_packet(lofar_udp_reader *reader) {
 				VERBOSE(if (reader->meta->portLastDroppedPackets[portInner]) {
 					printf("%d: %d packets lost.\n", portInner, reader->meta->portLastDroppedPackets[portInner]);
 				});
+
+				if (reader->meta->portLastDroppedPackets[portInner] > reader->meta->packetsPerIteration) {
+					fprintf(stderr, "\n\nWARNING: Large amount of packets dropped on port %d during scan iteration (%d lost), attempting to continue...\n", port, reader->meta->portLastDroppedPackets[portInner]);
+					returnVal = -2;
+				}
 			}
 
 			// Get the new last packet
-			currentPacket += reader->meta->packetsPerIteration;
+			if (returnVal == -2) {
+				// If we have a large amount of packet loss, update directly
+				currentPacket = lofar_get_packet_number(&(reader->meta->inputData[0][lastPacketOffset]));
+			} else {
+				// Otherwise just add the number of iterations
+				currentPacket += reader->meta->packetsPerIteration;			
+			}
 
 			// Print a status update to the CLI
 			printf("\rScanning to packet %ld (~%.02f%% complete, currently at packet %ld on port %d, %ld to go)", reader->meta->lastPacket, (float) 100.0 -  (float) (reader->meta->lastPacket - currentPacket) / (packetDelta) * 100.0, currentPacket, port, reader->meta->lastPacket - currentPacket);
@@ -579,141 +592,23 @@ int lofar_udp_setup_processing(lofar_udp_meta *meta) {
 	int workingData = 0;
 
 
-	// Define the processing function
+	// Sanity check the processing mode
 	switch (meta->processingMode) {
-		case 0:
-			meta->processFunc = &lofar_udp_raw_udp_copy;
-			break;
-		case 1:
-			meta->processFunc = &lofar_udp_raw_udp_copy_nohdr;
-			break;
-
+		case 0 ... 1:
+			if (meta->calibrateData) {
+				fprintf(stderr, "WARNING: Modes 0 and 1 cannot be calibrated, disabling calibration and continuing.\n");
+				meta->calibrateData = 0;
+			}
 		case 2:
-			meta->processFunc = &lofar_udp_raw_udp_copy_split_pols;
-			break;
-
-		case 10:
-			meta->processFunc = &lofar_udp_raw_udp_channel_major;
-			break;
-		case 11:
-			meta->processFunc = &lofar_udp_raw_udp_channel_major_split_pols;
-			break;
-
-		case 20:
-			meta->processFunc = &lofar_udp_raw_udp_reversed_channel_major;
-			break;
-		case 21:
-			meta->processFunc = &lofar_udp_raw_udp_reversed_channel_major_split_pols;
-			break;
-
-		case 30:
-			meta->processFunc = &lofar_udp_raw_udp_time_major;
-			break;
-		case 31:
-			meta->processFunc = &lofar_udp_raw_udp_time_major_split_pols;
-			break;
-		case 32:
-			meta->processFunc = &lofar_udp_raw_udp_time_major_dual_pols;
-			break;
-
-		// Base Stokes Methods
-		case 100:
-			meta->processFunc = &lofar_udp_raw_udp_stokesI;
-			break;
-		case 110:
-			meta->processFunc = &lofar_udp_raw_udp_stokesQ;
-			break;
-		case 120:
-			meta->processFunc = &lofar_udp_raw_udp_stokesU;
-			break;
-		case 130:
-			meta->processFunc = &lofar_udp_raw_udp_stokesV;
-			break;
-		case 150:
-			meta->processFunc = &lofar_udp_raw_udp_full_stokes;
-			break;
-		case 160:
-			meta->processFunc = &lofar_udp_raw_udp_useful_stokes;
-			break;
-
-		// 2x decimation
-		case 101:
-			meta->processFunc = &lofar_udp_raw_udp_stokesI_sum2;
-			break;
-		case 111:
-			meta->processFunc = &lofar_udp_raw_udp_stokesQ_sum2;
-			break;
-		case 121:
-			meta->processFunc = &lofar_udp_raw_udp_stokesU_sum2;
-			break;
-		case 131:
-			meta->processFunc = &lofar_udp_raw_udp_stokesV_sum2;
-			break;
-		case 151:
-			meta->processFunc = &lofar_udp_raw_udp_full_stokes_sum2;
-			break;
-		case 161:
-			meta->processFunc = &lofar_udp_raw_udp_useful_stokes_sum2;
-			break;
-
-		// 4x decimation
-		case 102:
-			meta->processFunc = &lofar_udp_raw_udp_stokesI_sum4;
-			break;
-		case 112:
-			meta->processFunc = &lofar_udp_raw_udp_stokesQ_sum4;
-			break;
-		case 122:
-			meta->processFunc = &lofar_udp_raw_udp_stokesU_sum4;
-			break;
-		case 132:
-			meta->processFunc = &lofar_udp_raw_udp_stokesV_sum4;
-			break;
-		case 152:
-			meta->processFunc = &lofar_udp_raw_udp_full_stokes_sum4;
-			break;
-		case 162:
-			meta->processFunc = &lofar_udp_raw_udp_useful_stokes_sum4;
-			break;
-
-		// 8x decimation
-		case 103:
-			meta->processFunc = &lofar_udp_raw_udp_stokesI_sum8;
-			break;
-		case 113:
-			meta->processFunc = &lofar_udp_raw_udp_stokesQ_sum8;
-			break;
-		case 123:
-			meta->processFunc = &lofar_udp_raw_udp_stokesU_sum8;
-			break;
-		case 133:
-			meta->processFunc = &lofar_udp_raw_udp_stokesV_sum8;
-			break;
-		case 153:
-			meta->processFunc = &lofar_udp_raw_udp_full_stokes_sum8;
-			break;
-		case 163:
-			meta->processFunc = &lofar_udp_raw_udp_useful_stokes_sum8;
-			break;
-
-		// 16x decimation
-		case 104:
-			meta->processFunc = &lofar_udp_raw_udp_stokesI_sum16;
-			break;
-		case 114:
-			meta->processFunc = &lofar_udp_raw_udp_stokesQ_sum16;
-			break;
-		case 124:
-			meta->processFunc = &lofar_udp_raw_udp_stokesU_sum16;
-			break;
-		case 134:
-			meta->processFunc = &lofar_udp_raw_udp_stokesV_sum16;
-			break;
-		case 154:
-			meta->processFunc = &lofar_udp_raw_udp_full_stokes_sum16;
-			break;
-		case 164:
-			meta->processFunc = &lofar_udp_raw_udp_useful_stokes_sum16;
+		case 10 ... 11:
+		case 20 ... 21:
+		case 30 ... 32:
+		case 100 ... 104:
+		case 110 ... 114:
+		case 120 ... 124:
+		case 130 ... 134:
+		case 150 ... 154:
+		case 160 ... 164:
 			break;
 
 		default:
@@ -1169,7 +1064,7 @@ int lofar_udp_reader_cleanup_f(lofar_udp_reader *reader, const int closeFiles) {
  * @param[in]  port         The port (file) to read data from
  * @param      targetArray  The storage array
  * @param[in]  nchars       The number of chars (bytes) to read in
- * @param[in]  knownOffset  the compressed known offset
+ * @param[in]  knownOffset  The compressed reader's known offset
  *
  * @return     long: bytes read
  */
@@ -1707,6 +1602,11 @@ int lofar_udp_shift_remainder_packets(lofar_udp_reader *reader, const int shiftP
 
 
 		VERBOSE(if (meta->VERBOSE) printf("shift_remainder: Port %d packet shift %d padding %d\n", port, packetShift, handlePadding));
+
+		if (packetShift > reader->packetsPerIteration) {
+			fprintf(stderr, "\nWARNING: Requested packet shift is larger than the size of our input buffer. Adjusting port %d from %d to %ld.\n", port, packetShift, reader->packetsPerIteration);
+			packetShift = reader->packetsPerIteration;
+		}
 
  		// If we have packet shift or want to copy the final packet for future refernece
 		if (packetShift > 0 || handlePadding == 1 || (handlePadding == 1 && fixBuffer == 1)) {

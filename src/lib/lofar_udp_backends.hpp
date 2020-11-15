@@ -22,58 +22,22 @@ extern const char bitmodeConversion[256][2];
 #endif
 
 
+// Define SIMD operations
 float stokesI(float Xr, float Xi, float Yr, float Yi);
 float stokesQ(float Xr, float Xi, float Yr, float Yi);
 float stokesU(float Xr, float Xi, float Yr, float Yi);
 float stokesV(float Xr, float Xi, float Yr, float Yi);
+float calibrateSample(float c_1, float c_2, float c_3, float c_4, float c_5, float c_6, float c_7, float c_8);
 
-int lofar_udp_raw_udp_copy_cpp(lofar_udp_meta *meta);
+// Jones matrix size for calibration
+#define JONESMATSIZE 8
 
 
 // Define the C-access interfaces
 #ifdef __cplusplus
 extern "C" {
 #endif
-int lofar_udp_raw_udp_copy(lofar_udp_meta *meta);
-int lofar_udp_raw_udp_copy_nohdr(lofar_udp_meta *meta);
-int lofar_udp_raw_udp_copy_split_pols(lofar_udp_meta *meta);
-int lofar_udp_raw_udp_channel_major(lofar_udp_meta *meta);
-int lofar_udp_raw_udp_channel_major_split_pols(lofar_udp_meta *meta);
-int lofar_udp_raw_udp_reversed_channel_major(lofar_udp_meta *meta);
-int lofar_udp_raw_udp_reversed_channel_major_split_pols(lofar_udp_meta *meta);
-int lofar_udp_raw_udp_time_major(lofar_udp_meta *meta);
-int lofar_udp_raw_udp_time_major_split_pols(lofar_udp_meta *meta);
-int lofar_udp_raw_udp_time_major_dual_pols(lofar_udp_meta *meta);
-int lofar_udp_raw_udp_stokesI(lofar_udp_meta *meta);
-int lofar_udp_raw_udp_stokesQ(lofar_udp_meta *meta);
-int lofar_udp_raw_udp_stokesU(lofar_udp_meta *meta);
-int lofar_udp_raw_udp_stokesV(lofar_udp_meta *meta);
-int lofar_udp_raw_udp_stokesI_sum2(lofar_udp_meta *meta);
-int lofar_udp_raw_udp_stokesQ_sum2(lofar_udp_meta *meta);
-int lofar_udp_raw_udp_stokesU_sum2(lofar_udp_meta *meta);
-int lofar_udp_raw_udp_stokesV_sum2(lofar_udp_meta *meta);
-int lofar_udp_raw_udp_stokesI_sum4(lofar_udp_meta *meta);
-int lofar_udp_raw_udp_stokesQ_sum4(lofar_udp_meta *meta);
-int lofar_udp_raw_udp_stokesU_sum4(lofar_udp_meta *meta);
-int lofar_udp_raw_udp_stokesV_sum4(lofar_udp_meta *meta);
-int lofar_udp_raw_udp_stokesI_sum8(lofar_udp_meta *meta);
-int lofar_udp_raw_udp_stokesQ_sum8(lofar_udp_meta *meta);
-int lofar_udp_raw_udp_stokesU_sum8(lofar_udp_meta *meta);
-int lofar_udp_raw_udp_stokesV_sum8(lofar_udp_meta *meta);
-int lofar_udp_raw_udp_stokesI_sum16(lofar_udp_meta *meta);
-int lofar_udp_raw_udp_stokesQ_sum16(lofar_udp_meta *meta);
-int lofar_udp_raw_udp_stokesU_sum16(lofar_udp_meta *meta);
-int lofar_udp_raw_udp_stokesV_sum16(lofar_udp_meta *meta);
-int lofar_udp_raw_udp_full_stokes(lofar_udp_meta *meta);
-int lofar_udp_raw_udp_full_stokes_sum2(lofar_udp_meta *meta);
-int lofar_udp_raw_udp_full_stokes_sum4(lofar_udp_meta *meta);
-int lofar_udp_raw_udp_full_stokes_sum8(lofar_udp_meta *meta);
-int lofar_udp_raw_udp_full_stokes_sum16(lofar_udp_meta *meta);
-int lofar_udp_raw_udp_useful_stokes(lofar_udp_meta *meta);
-int lofar_udp_raw_udp_useful_stokes_sum2(lofar_udp_meta *meta);
-int lofar_udp_raw_udp_useful_stokes_sum4(lofar_udp_meta *meta);
-int lofar_udp_raw_udp_useful_stokes_sum8(lofar_udp_meta *meta);
-int lofar_udp_raw_udp_useful_stokes_sum16(lofar_udp_meta *meta);
+int lofar_udp_cpp_loop_interface(lofar_udp_meta *meta);
 #ifdef __cplusplus
 }
 #endif
@@ -99,10 +63,20 @@ void inline udp_copyNoHdr(long iLoop, char *inputPortData, O **outputData, int p
 }
 
 
-template <typename I, typename O>
-void inline udp_copySplitPols(long iLoop, char *inputPortData, O **outputData, long lastInputPacketOffset, long packetOutputLength, int timeStepSize, int upperBeamlet, int cumulativeBeamlets, int baseBeamlet) {
+template <typename I, typename O, const int calibrateData>
+void inline udp_copySplitPols(long iLoop, char *inputPortData, O **outputData, long lastInputPacketOffset, long packetOutputLength, int timeStepSize, int upperBeamlet, int cumulativeBeamlets, int baseBeamlet, float *jonesMatrix) {
 	long outputPacketOffset = iLoop * packetOutputLength / sizeof(O);
 	long tsInOffset, tsOutOffset;
+	
+	#pragma GCC diagnostic push
+	#pragma GCC diagnostic ignored "-Wunused-variable"
+	#pragma GCC diagnostic ignored "-Wunused-but-set-variable"
+	#pragma GCC diagnostic push
+	#pragma GCC diagnostic push
+	O Xr, Xi, Yr, Yi;
+	float *beamletJones;
+	#pragma GCC diagnostic pop
+	#pragma GCC diagnostic pop
 
 	
 	#ifdef __INTEL_COMPILER
@@ -113,17 +87,48 @@ void inline udp_copySplitPols(long iLoop, char *inputPortData, O **outputData, l
 	for (int beamlet = baseBeamlet; beamlet < upperBeamlet; beamlet++) {
 		tsInOffset = lastInputPacketOffset + beamlet * UDPNTIMESLICE * UDPNPOL * timeStepSize;
 		tsOutOffset = outputPacketOffset + (beamlet - baseBeamlet + cumulativeBeamlets) * UDPNTIMESLICE;
-
+		
+		if constexpr (calibrateData) {
+			beamletJones = &(jonesMatrix[(cumulativeBeamlets + beamlet - baseBeamlet) * JONESMATSIZE]);
+		}
+		
 		#ifdef __INTEL_COMPILER
 		#pragma omp simd
 		#else
 		#pragma GCC unroll 16
 		#endif
 		for (int ts = 0; ts < UDPNTIMESLICE; ts++) {
-			outputData[0][tsOutOffset] = *((I*) &(inputPortData[tsInOffset])); // Xr
-			outputData[1][tsOutOffset] = *((I*) &(inputPortData[tsInOffset + 1 * timeStepSize])); // Xi
-			outputData[2][tsOutOffset] = *((I*) &(inputPortData[tsInOffset + 2 * timeStepSize])); // Yr
-			outputData[3][tsOutOffset] = *((I*) &(inputPortData[tsInOffset + 3 * timeStepSize])); // Yi
+			if constexpr (calibrateData) {
+				Xr = calibrateSample(	beamletJones[0], *((I*) &(inputPortData[tsInOffset])), \
+										-1.0 * beamletJones[1], *((I*) &(inputPortData[tsInOffset + 1 * timeStepSize])), \
+										beamletJones[2], *((I*) &(inputPortData[tsInOffset + 2 * timeStepSize])), \
+										-1.0 * beamletJones[3], *((I*) &(inputPortData[tsInOffset + 3 * timeStepSize])));
+
+				Xi = calibrateSample(	beamletJones[0], *((I*) &(inputPortData[tsInOffset + 1 * timeStepSize])), \
+										beamletJones[1], *((I*) &(inputPortData[tsInOffset])), \
+										beamletJones[2], *((I*) &(inputPortData[tsInOffset + 3 * timeStepSize])), \
+										beamletJones[3], *((I*) &(inputPortData[tsInOffset + 2 * timeStepSize])));
+
+				Yr = calibrateSample(	beamletJones[4], *((I*) &(inputPortData[tsInOffset])), \
+										-1.0 * beamletJones[5], *((I*) &(inputPortData[tsInOffset + 1 * timeStepSize])), \
+										beamletJones[6], *((I*) &(inputPortData[tsInOffset + 2 * timeStepSize])), \
+										-1.0 * beamletJones[7], *((I*) &(inputPortData[tsInOffset + 3 * timeStepSize])));
+
+				Yi = calibrateSample(	beamletJones[4], *((I*) &(inputPortData[tsInOffset + 1 * timeStepSize])), \
+										beamletJones[5], *((I*) &(inputPortData[tsInOffset])), \
+										beamletJones[6], *((I*) &(inputPortData[tsInOffset + 3 * timeStepSize])), \
+										beamletJones[7], *((I*) &(inputPortData[tsInOffset + 2 * timeStepSize])));
+
+				outputData[0][tsOutOffset] = Xr;
+				outputData[1][tsOutOffset] = Xi;
+				outputData[2][tsOutOffset] = Yr;
+				outputData[3][tsOutOffset] = Yi;
+			} else {
+				outputData[0][tsOutOffset] = *((I*) &(inputPortData[tsInOffset])); // Xr
+				outputData[1][tsOutOffset] = *((I*) &(inputPortData[tsInOffset + 1 * timeStepSize])); // Xi
+				outputData[2][tsOutOffset] = *((I*) &(inputPortData[tsInOffset + 2 * timeStepSize])); // Yr
+				outputData[3][tsOutOffset] = *((I*) &(inputPortData[tsInOffset + 3 * timeStepSize])); // Yi
+			}
 
 			tsInOffset += 4 * timeStepSize;
 			tsOutOffset += 1;
@@ -132,10 +137,20 @@ void inline udp_copySplitPols(long iLoop, char *inputPortData, O **outputData, l
 }
 
 
-template <typename I, typename O>
-void inline udp_channelMajor(long iLoop, char *inputPortData, O **outputData, long lastInputPacketOffset, long packetOutputLength, int timeStepSize, int totalBeamlets, int upperBeamlet, int cumulativeBeamlets, int baseBeamlet) {
+template <typename I, typename O, const int calibrateData>
+void inline udp_channelMajor(long iLoop, char *inputPortData, O **outputData, long lastInputPacketOffset, long packetOutputLength, int timeStepSize, int totalBeamlets, int upperBeamlet, int cumulativeBeamlets, int baseBeamlet, float *jonesMatrix) {
 	long outputPacketOffset = iLoop * packetOutputLength / sizeof(O);
 	long tsInOffset, tsOutOffset;
+	
+	#pragma GCC diagnostic push
+	#pragma GCC diagnostic ignored "-Wunused-variable"
+	#pragma GCC diagnostic ignored "-Wunused-but-set-variable"
+	#pragma GCC diagnostic push
+	#pragma GCC diagnostic push
+	O Xr, Xi, Yr, Yi;
+	float *beamletJones;
+	#pragma GCC diagnostic pop
+	#pragma GCC diagnostic pop
 
 	
 	#ifdef __INTEL_COMPILER
@@ -146,17 +161,48 @@ void inline udp_channelMajor(long iLoop, char *inputPortData, O **outputData, lo
 	for (int beamlet = baseBeamlet; beamlet < upperBeamlet; beamlet++) {
 		tsInOffset = lastInputPacketOffset + beamlet * UDPNTIMESLICE * UDPNPOL * timeStepSize;
 		tsOutOffset = outputPacketOffset + (beamlet - baseBeamlet + cumulativeBeamlets) * UDPNPOL;
-
+		
+		if constexpr (calibrateData) {
+			beamletJones = &(jonesMatrix[(cumulativeBeamlets + beamlet - baseBeamlet) * JONESMATSIZE]);
+		}
+		
 		#ifdef __INTEL_COMPILER
 		#pragma omp simd
 		#else
 		#pragma GCC unroll 16
 		#endif
 		for (int ts = 0; ts < UDPNTIMESLICE; ts++) {
-			outputData[0][tsOutOffset] = *((I*) &(inputPortData[tsInOffset])); // Xr
-			outputData[0][tsOutOffset + 1] = *((I*) &(inputPortData[tsInOffset + 1 * timeStepSize])); // Xi
-			outputData[0][tsOutOffset + 2] = *((I*) &(inputPortData[tsInOffset + 2 * timeStepSize])); // Yr
-			outputData[0][tsOutOffset + 3] = *((I*) &(inputPortData[tsInOffset + 3 * timeStepSize])); // Yi
+			if constexpr (calibrateData) {
+				Xr = calibrateSample(	beamletJones[0], *((I*) &(inputPortData[tsInOffset])), \
+										-1.0 * beamletJones[1], *((I*) &(inputPortData[tsInOffset + 1 * timeStepSize])), \
+										beamletJones[2], *((I*) &(inputPortData[tsInOffset + 2 * timeStepSize])), \
+										-1.0 * beamletJones[3], *((I*) &(inputPortData[tsInOffset + 3 * timeStepSize])));
+
+				Xi = calibrateSample(	beamletJones[0], *((I*) &(inputPortData[tsInOffset + 1 * timeStepSize])), \
+										beamletJones[1], *((I*) &(inputPortData[tsInOffset])), \
+										beamletJones[2], *((I*) &(inputPortData[tsInOffset + 3 * timeStepSize])), \
+										beamletJones[3], *((I*) &(inputPortData[tsInOffset + 2 * timeStepSize])));
+
+				Yr = calibrateSample(	beamletJones[4], *((I*) &(inputPortData[tsInOffset])), \
+										-1.0 * beamletJones[5], *((I*) &(inputPortData[tsInOffset + 1 * timeStepSize])), \
+										beamletJones[6], *((I*) &(inputPortData[tsInOffset + 2 * timeStepSize])), \
+										-1.0 * beamletJones[7], *((I*) &(inputPortData[tsInOffset + 3 * timeStepSize])));
+
+				Yi = calibrateSample(	beamletJones[4], *((I*) &(inputPortData[tsInOffset + 1 * timeStepSize])), \
+										beamletJones[5], *((I*) &(inputPortData[tsInOffset])), \
+										beamletJones[6], *((I*) &(inputPortData[tsInOffset + 3 * timeStepSize])), \
+										beamletJones[7], *((I*) &(inputPortData[tsInOffset + 2 * timeStepSize])));
+
+				outputData[0][tsOutOffset] = Xr;
+				outputData[0][tsOutOffset + 1] = Xi;
+				outputData[0][tsOutOffset + 2] = Yr;
+				outputData[0][tsOutOffset + 3] = Yi;
+			} else {
+				outputData[0][tsOutOffset] = *((I*) &(inputPortData[tsInOffset])); // Xr
+				outputData[0][tsOutOffset + 1] = *((I*) &(inputPortData[tsInOffset + 1 * timeStepSize])); // Xi
+				outputData[0][tsOutOffset + 2] = *((I*) &(inputPortData[tsInOffset + 2 * timeStepSize])); // Yr
+				outputData[0][tsOutOffset + 3] = *((I*) &(inputPortData[tsInOffset + 3 * timeStepSize])); // Yi
+			}
 
 			tsInOffset += 4 * timeStepSize;
 			tsOutOffset += totalBeamlets * UDPNPOL;
@@ -164,10 +210,20 @@ void inline udp_channelMajor(long iLoop, char *inputPortData, O **outputData, lo
 	}
 }
 
-template <typename I, typename O>
-void inline udp_channelMajorSplitPols(long iLoop, char *inputPortData, O **outputData, long lastInputPacketOffset, long packetOutputLength, int timeStepSize, int totalBeamlets, int upperBeamlet, int cumulativeBeamlets, int baseBeamlet) {
+template <typename I, typename O, const int calibrateData>
+void inline udp_channelMajorSplitPols(long iLoop, char *inputPortData, O **outputData, long lastInputPacketOffset, long packetOutputLength, int timeStepSize, int totalBeamlets, int upperBeamlet, int cumulativeBeamlets, int baseBeamlet, float *jonesMatrix) {
 	long outputPacketOffset = iLoop * packetOutputLength / sizeof(O);
 	long tsInOffset, tsOutOffset;
+	
+	#pragma GCC diagnostic push
+	#pragma GCC diagnostic ignored "-Wunused-variable"
+	#pragma GCC diagnostic ignored "-Wunused-but-set-variable"
+	#pragma GCC diagnostic push
+	#pragma GCC diagnostic push
+	O Xr, Xi, Yr, Yi;
+	float *beamletJones;
+	#pragma GCC diagnostic pop
+	#pragma GCC diagnostic pop
 
 	
 	#ifdef __INTEL_COMPILER
@@ -178,17 +234,48 @@ void inline udp_channelMajorSplitPols(long iLoop, char *inputPortData, O **outpu
 	for (int beamlet = baseBeamlet; beamlet < upperBeamlet; beamlet++) {
 		tsInOffset = lastInputPacketOffset + beamlet * UDPNTIMESLICE * UDPNPOL * timeStepSize;
 		tsOutOffset = outputPacketOffset + beamlet - baseBeamlet + cumulativeBeamlets;
-
+		
+		if constexpr (calibrateData) {
+			beamletJones = &(jonesMatrix[(cumulativeBeamlets + beamlet - baseBeamlet) * JONESMATSIZE]);
+		}
+		
 		#ifdef __INTEL_COMPILER
 		#pragma omp simd
 		#else
 		#pragma GCC unroll 16
 		#endif
 		for (int ts = 0; ts < UDPNTIMESLICE; ts++) {
-			outputData[0][tsOutOffset] = *((I*) &(inputPortData[tsInOffset])); // Xr
-			outputData[1][tsOutOffset] = *((I*) &(inputPortData[tsInOffset + 1 * timeStepSize])); // Xi
-			outputData[2][tsOutOffset] = *((I*) &(inputPortData[tsInOffset + 2 * timeStepSize])); // Yr
-			outputData[3][tsOutOffset] = *((I*) &(inputPortData[tsInOffset + 3 * timeStepSize])); // Yi
+			if constexpr (calibrateData) {
+				Xr = calibrateSample(	beamletJones[0], *((I*) &(inputPortData[tsInOffset])), \
+										-1.0 * beamletJones[1], *((I*) &(inputPortData[tsInOffset + 1 * timeStepSize])), \
+										beamletJones[2], *((I*) &(inputPortData[tsInOffset + 2 * timeStepSize])), \
+										-1.0 * beamletJones[3], *((I*) &(inputPortData[tsInOffset + 3 * timeStepSize])));
+
+				Xi = calibrateSample(	beamletJones[0], *((I*) &(inputPortData[tsInOffset + 1 * timeStepSize])), \
+										beamletJones[1], *((I*) &(inputPortData[tsInOffset])), \
+										beamletJones[2], *((I*) &(inputPortData[tsInOffset + 3 * timeStepSize])), \
+										beamletJones[3], *((I*) &(inputPortData[tsInOffset + 2 * timeStepSize])));
+
+				Yr = calibrateSample(	beamletJones[4], *((I*) &(inputPortData[tsInOffset])), \
+										-1.0 * beamletJones[5], *((I*) &(inputPortData[tsInOffset + 1 * timeStepSize])), \
+										beamletJones[6], *((I*) &(inputPortData[tsInOffset + 2 * timeStepSize])), \
+										-1.0 * beamletJones[7], *((I*) &(inputPortData[tsInOffset + 3 * timeStepSize])));
+
+				Yi = calibrateSample(	beamletJones[4], *((I*) &(inputPortData[tsInOffset + 1 * timeStepSize])), \
+										beamletJones[5], *((I*) &(inputPortData[tsInOffset])), \
+										beamletJones[6], *((I*) &(inputPortData[tsInOffset + 3 * timeStepSize])), \
+										beamletJones[7], *((I*) &(inputPortData[tsInOffset + 2 * timeStepSize])));
+
+				outputData[0][tsOutOffset] = Xr;
+				outputData[1][tsOutOffset] = Xi;
+				outputData[2][tsOutOffset] = Yr;
+				outputData[3][tsOutOffset] = Yi;
+			} else {
+				outputData[0][tsOutOffset] = *((I*) &(inputPortData[tsInOffset])); // Xr
+				outputData[1][tsOutOffset] = *((I*) &(inputPortData[tsInOffset + 1 * timeStepSize])); // Xi
+				outputData[2][tsOutOffset] = *((I*) &(inputPortData[tsInOffset + 2 * timeStepSize])); // Yr
+				outputData[3][tsOutOffset] = *((I*) &(inputPortData[tsInOffset + 3 * timeStepSize])); // Yi
+			}
 
 			tsInOffset += 4 * timeStepSize;
 			tsOutOffset += totalBeamlets;
@@ -196,10 +283,20 @@ void inline udp_channelMajorSplitPols(long iLoop, char *inputPortData, O **outpu
 	}
 }
 
-template <typename I, typename O>
-void inline udp_reversedChannelMajor(long iLoop, char *inputPortData, O **outputData, long lastInputPacketOffset, long packetOutputLength, int timeStepSize, int totalBeamlets, int upperBeamlet, int cumulativeBeamlets, int baseBeamlet) {
+template <typename I, typename O, const int calibrateData>
+void inline udp_reversedChannelMajor(long iLoop, char *inputPortData, O **outputData, long lastInputPacketOffset, long packetOutputLength, int timeStepSize, int totalBeamlets, int upperBeamlet, int cumulativeBeamlets, int baseBeamlet, float *jonesMatrix) {
 	long outputPacketOffset = iLoop * packetOutputLength / sizeof(O);
 	long tsInOffset, tsOutOffset;
+	
+	#pragma GCC diagnostic push
+	#pragma GCC diagnostic ignored "-Wunused-variable"
+	#pragma GCC diagnostic ignored "-Wunused-but-set-variable"
+	#pragma GCC diagnostic push
+	#pragma GCC diagnostic push
+	O Xr, Xi, Yr, Yi;
+	float *beamletJones;
+	#pragma GCC diagnostic pop
+	#pragma GCC diagnostic pop
 
 	
 	#ifdef __INTEL_COMPILER
@@ -210,17 +307,48 @@ void inline udp_reversedChannelMajor(long iLoop, char *inputPortData, O **output
 	for (int beamlet = baseBeamlet; beamlet < upperBeamlet; beamlet++) {
 		tsInOffset = lastInputPacketOffset + beamlet * UDPNTIMESLICE * UDPNPOL * timeStepSize;
 		tsOutOffset = outputPacketOffset + (totalBeamlets - 1 - (beamlet - baseBeamlet + cumulativeBeamlets)) * UDPNPOL;
-
+	
+		if constexpr (calibrateData) {
+			beamletJones = &(jonesMatrix[(cumulativeBeamlets + beamlet - baseBeamlet) * JONESMATSIZE]);
+		}
+	
 		#ifdef __INTEL_COMPILER
 		#pragma omp simd
 		#else
 		#pragma GCC unroll 16
 		#endif
 		for (int ts = 0; ts < UDPNTIMESLICE; ts++) {
-			outputData[0][tsOutOffset] = *((I*) &(inputPortData[tsInOffset])); // Xr
-			outputData[0][tsOutOffset + 1] = *((I*) &(inputPortData[tsInOffset + 1 * timeStepSize])); // Xi
-			outputData[0][tsOutOffset + 2] = *((I*) &(inputPortData[tsInOffset + 2 * timeStepSize])); // Yr
-			outputData[0][tsOutOffset + 3] = *((I*) &(inputPortData[tsInOffset + 3 * timeStepSize])); // Yi
+			if constexpr (calibrateData) {
+				Xr = calibrateSample(	beamletJones[0], *((I*) &(inputPortData[tsInOffset])), \
+										-1.0 * beamletJones[1], *((I*) &(inputPortData[tsInOffset + 1 * timeStepSize])), \
+										beamletJones[2], *((I*) &(inputPortData[tsInOffset + 2 * timeStepSize])), \
+										-1.0 * beamletJones[3], *((I*) &(inputPortData[tsInOffset + 3 * timeStepSize])));
+
+				Xi = calibrateSample(	beamletJones[0], *((I*) &(inputPortData[tsInOffset + 1 * timeStepSize])), \
+										beamletJones[1], *((I*) &(inputPortData[tsInOffset])), \
+										beamletJones[2], *((I*) &(inputPortData[tsInOffset + 3 * timeStepSize])), \
+										beamletJones[3], *((I*) &(inputPortData[tsInOffset + 2 * timeStepSize])));
+
+				Yr = calibrateSample(	beamletJones[4], *((I*) &(inputPortData[tsInOffset])), \
+										-1.0 * beamletJones[5], *((I*) &(inputPortData[tsInOffset + 1 * timeStepSize])), \
+										beamletJones[6], *((I*) &(inputPortData[tsInOffset + 2 * timeStepSize])), \
+										-1.0 * beamletJones[7], *((I*) &(inputPortData[tsInOffset + 3 * timeStepSize])));
+
+				Yi = calibrateSample(	beamletJones[4], *((I*) &(inputPortData[tsInOffset + 1 * timeStepSize])), \
+										beamletJones[5], *((I*) &(inputPortData[tsInOffset])), \
+										beamletJones[6], *((I*) &(inputPortData[tsInOffset + 3 * timeStepSize])), \
+										beamletJones[7], *((I*) &(inputPortData[tsInOffset + 2 * timeStepSize])));
+
+				outputData[0][tsOutOffset] = Xr;
+				outputData[0][tsOutOffset + 1] = Xi;
+				outputData[0][tsOutOffset + 2] = Yr;
+				outputData[0][tsOutOffset + 3] = Yi;
+			} else {
+				outputData[0][tsOutOffset] = *((I*) &(inputPortData[tsInOffset])); // Xr
+				outputData[0][tsOutOffset + 1] = *((I*) &(inputPortData[tsInOffset + 1 * timeStepSize])); // Xi
+				outputData[0][tsOutOffset + 2] = *((I*) &(inputPortData[tsInOffset + 2 * timeStepSize])); // Yr
+				outputData[0][tsOutOffset + 3] = *((I*) &(inputPortData[tsInOffset + 3 * timeStepSize])); // Yi
+			}
 
 			tsInOffset += 4 * timeStepSize;
 			tsOutOffset += totalBeamlets * UDPNPOL;
@@ -228,10 +356,20 @@ void inline udp_reversedChannelMajor(long iLoop, char *inputPortData, O **output
 	}
 }
 
-template <typename I, typename O>
-void inline udp_reversedChannelMajorSplitPols(long iLoop, char *inputPortData, O **outputData, long lastInputPacketOffset, long packetOutputLength, int timeStepSize, int totalBeamlets, int upperBeamlet, int cumulativeBeamlets, int baseBeamlet) {
+template <typename I, typename O, const int calibrateData>
+void inline udp_reversedChannelMajorSplitPols(long iLoop, char *inputPortData, O **outputData, long lastInputPacketOffset, long packetOutputLength, int timeStepSize, int totalBeamlets, int upperBeamlet, int cumulativeBeamlets, int baseBeamlet, float *jonesMatrix) {
 	long outputPacketOffset = iLoop * packetOutputLength / sizeof(O);
 	long tsInOffset, tsOutOffset;
+	
+	#pragma GCC diagnostic push
+	#pragma GCC diagnostic ignored "-Wunused-variable"
+	#pragma GCC diagnostic ignored "-Wunused-but-set-variable"
+	#pragma GCC diagnostic push
+	#pragma GCC diagnostic push
+	O Xr, Xi, Yr, Yi;
+	float *beamletJones;
+	#pragma GCC diagnostic pop
+	#pragma GCC diagnostic pop
 
 	
 	#ifdef __INTEL_COMPILER
@@ -242,17 +380,48 @@ void inline udp_reversedChannelMajorSplitPols(long iLoop, char *inputPortData, O
 	for (int beamlet = baseBeamlet; beamlet < upperBeamlet; beamlet++) {
 		tsInOffset = lastInputPacketOffset + beamlet * UDPNTIMESLICE * UDPNPOL * timeStepSize;
 		tsOutOffset = outputPacketOffset + (totalBeamlets - 1 - beamlet + baseBeamlet - cumulativeBeamlets);
-		
+	
+		if constexpr (calibrateData) {
+			beamletJones = &(jonesMatrix[(cumulativeBeamlets + beamlet - baseBeamlet) * JONESMATSIZE]);
+		}	
+	
 		#ifdef __INTEL_COMPILER
 		#pragma omp simd
 		#else
 		#pragma GCC unroll 16
 		#endif
 		for (int ts = 0; ts < UDPNTIMESLICE; ts++) {
-			outputData[0][tsOutOffset] = *((I*) &(inputPortData[tsInOffset])); // Xr
-			outputData[1][tsOutOffset] = *((I*) &(inputPortData[tsInOffset + 1 * timeStepSize])); // Xi
-			outputData[2][tsOutOffset] = *((I*) &(inputPortData[tsInOffset + 2 * timeStepSize])); // Yr
-			outputData[3][tsOutOffset] = *((I*) &(inputPortData[tsInOffset + 3 * timeStepSize])); // Yi
+			if constexpr (calibrateData) {
+				Xr = calibrateSample(	beamletJones[0], *((I*) &(inputPortData[tsInOffset])), \
+										-1.0 * beamletJones[1], *((I*) &(inputPortData[tsInOffset + 1 * timeStepSize])), \
+										beamletJones[2], *((I*) &(inputPortData[tsInOffset + 2 * timeStepSize])), \
+										-1.0 * beamletJones[3], *((I*) &(inputPortData[tsInOffset + 3 * timeStepSize])));
+
+				Xi = calibrateSample(	beamletJones[0], *((I*) &(inputPortData[tsInOffset + 1 * timeStepSize])), \
+										beamletJones[1], *((I*) &(inputPortData[tsInOffset])), \
+										beamletJones[2], *((I*) &(inputPortData[tsInOffset + 3 * timeStepSize])), \
+										beamletJones[3], *((I*) &(inputPortData[tsInOffset + 2 * timeStepSize])));
+
+				Yr = calibrateSample(	beamletJones[4], *((I*) &(inputPortData[tsInOffset])), \
+										-1.0 * beamletJones[5], *((I*) &(inputPortData[tsInOffset + 1 * timeStepSize])), \
+										beamletJones[6], *((I*) &(inputPortData[tsInOffset + 2 * timeStepSize])), \
+										-1.0 * beamletJones[7], *((I*) &(inputPortData[tsInOffset + 3 * timeStepSize])));
+
+				Yi = calibrateSample(	beamletJones[4], *((I*) &(inputPortData[tsInOffset + 1 * timeStepSize])), \
+										beamletJones[5], *((I*) &(inputPortData[tsInOffset])), \
+										beamletJones[6], *((I*) &(inputPortData[tsInOffset + 3 * timeStepSize])), \
+										beamletJones[7], *((I*) &(inputPortData[tsInOffset + 2 * timeStepSize])));
+
+				outputData[0][tsOutOffset] = Xr;
+				outputData[1][tsOutOffset] = Xi;
+				outputData[2][tsOutOffset] = Yr;
+				outputData[3][tsOutOffset] = Yi;
+			} else {
+				outputData[0][tsOutOffset] = *((I*) &(inputPortData[tsInOffset])); // Xr
+				outputData[1][tsOutOffset] = *((I*) &(inputPortData[tsInOffset + 1 * timeStepSize])); // Xi
+				outputData[2][tsOutOffset] = *((I*) &(inputPortData[tsInOffset + 2 * timeStepSize])); // Yr
+				outputData[3][tsOutOffset] = *((I*) &(inputPortData[tsInOffset + 3 * timeStepSize])); // Yi
+			}
 
 			tsInOffset += 4 * timeStepSize;
 			tsOutOffset += totalBeamlets;
@@ -260,12 +429,22 @@ void inline udp_reversedChannelMajorSplitPols(long iLoop, char *inputPortData, O
 	}
 }
 
-template <typename I, typename O>
-void inline udp_timeMajor(long iLoop, char *inputPortData, O **outputData, long lastInputPacketOffset, int timeStepSize, int upperBeamlet, int cumulativeBeamlets, long packetsPerIteration, int baseBeamlet) {
+template <typename I, typename O, const int calibrateData>
+void inline udp_timeMajor(long iLoop, char *inputPortData, O **outputData, long lastInputPacketOffset, int timeStepSize, int upperBeamlet, int cumulativeBeamlets, long packetsPerIteration, int baseBeamlet, float *jonesMatrix) {
 	long outputTimeIdx = iLoop * UDPNTIMESLICE / sizeof(O);
 	long tsInOffset, tsOutOffset;
 
-	
+	#pragma GCC diagnostic push
+	#pragma GCC diagnostic ignored "-Wunused-variable"
+	#pragma GCC diagnostic ignored "-Wunused-but-set-variable"
+	#pragma GCC diagnostic push
+	#pragma GCC diagnostic push
+	O Xr, Xi, Yr, Yi;
+	float *beamletJones;
+	#pragma GCC diagnostic pop
+	#pragma GCC diagnostic pop
+
+
 	#ifdef __INTEL_COMPILER
 	#pragma omp simd
 	#else
@@ -274,29 +453,69 @@ void inline udp_timeMajor(long iLoop, char *inputPortData, O **outputData, long 
 	for (int beamlet = baseBeamlet; beamlet < upperBeamlet; beamlet++) {
 		tsInOffset = lastInputPacketOffset + beamlet * UDPNTIMESLICE * UDPNPOL * timeStepSize;
 		tsOutOffset = 4 * (((beamlet - baseBeamlet + cumulativeBeamlets) * packetsPerIteration * UDPNTIMESLICE ) + outputTimeIdx);
-		
+
+		if constexpr (calibrateData) {
+			beamletJones = &(jonesMatrix[(cumulativeBeamlets + beamlet - baseBeamlet) * JONESMATSIZE]);
+		}	
+
 		#ifdef __INTEL_COMPILER
 		#pragma omp simd
 		#else
 		#pragma GCC unroll 16
 		#endif
 		for (int ts = 0; ts < UDPNTIMESLICE; ts++) {
-			outputData[0][tsOutOffset] = *((I*) &(inputPortData[tsInOffset])); // Xr
-			outputData[0][tsOutOffset + 1] = *((I*) &(inputPortData[tsInOffset + 1 * timeStepSize])); // Xi
-			outputData[0][tsOutOffset + 2] = *((I*) &(inputPortData[tsInOffset + 2 * timeStepSize])); // Yr
-			outputData[0][tsOutOffset + 3] = *((I*) &(inputPortData[tsInOffset + 3 * timeStepSize])); // Yi
+			if constexpr (calibrateData) {
+				Xr = calibrateSample(	beamletJones[0], *((I*) &(inputPortData[tsInOffset])), \
+										-1.0 * beamletJones[1], *((I*) &(inputPortData[tsInOffset + 1 * timeStepSize])), \
+										beamletJones[2], *((I*) &(inputPortData[tsInOffset + 2 * timeStepSize])), \
+										-1.0 * beamletJones[3], *((I*) &(inputPortData[tsInOffset + 3 * timeStepSize])));
 
+				Xi = calibrateSample(	beamletJones[0], *((I*) &(inputPortData[tsInOffset + 1 * timeStepSize])), \
+										beamletJones[1], *((I*) &(inputPortData[tsInOffset])), \
+										beamletJones[2], *((I*) &(inputPortData[tsInOffset + 3 * timeStepSize])), \
+										beamletJones[3], *((I*) &(inputPortData[tsInOffset + 2 * timeStepSize])));
+
+				Yr = calibrateSample(	beamletJones[4], *((I*) &(inputPortData[tsInOffset])), \
+										-1.0 * beamletJones[5], *((I*) &(inputPortData[tsInOffset + 1 * timeStepSize])), \
+										beamletJones[6], *((I*) &(inputPortData[tsInOffset + 2 * timeStepSize])), \
+										-1.0 * beamletJones[7], *((I*) &(inputPortData[tsInOffset + 3 * timeStepSize])));
+
+				Yi = calibrateSample(	beamletJones[4], *((I*) &(inputPortData[tsInOffset + 1 * timeStepSize])), \
+										beamletJones[5], *((I*) &(inputPortData[tsInOffset])), \
+										beamletJones[6], *((I*) &(inputPortData[tsInOffset + 3 * timeStepSize])), \
+										beamletJones[7], *((I*) &(inputPortData[tsInOffset + 2 * timeStepSize])));
+
+				outputData[0][tsOutOffset] = Xr; 
+				outputData[0][tsOutOffset + 1] = Xi;
+				outputData[0][tsOutOffset + 2] = Yr;
+				outputData[0][tsOutOffset + 3] = Yi;
+			} else {
+				outputData[0][tsOutOffset] = *((I*) &(inputPortData[tsInOffset])); // Xr
+				outputData[0][tsOutOffset + 1] = *((I*) &(inputPortData[tsInOffset + 1 * timeStepSize])); // Xi
+				outputData[0][tsOutOffset + 2] = *((I*) &(inputPortData[tsInOffset + 2 * timeStepSize])); // Yr
+				outputData[0][tsOutOffset + 3] = *((I*) &(inputPortData[tsInOffset + 3 * timeStepSize])); // Yi
+			}
 			tsInOffset += 4 * timeStepSize;
 			tsOutOffset += 4;
 		}
 	}
 }
 
-template <typename I, typename O>
-void inline udp_timeMajorSplitPols(long iLoop, char *inputPortData, O **outputData, long lastInputPacketOffset, int timeStepSize, int upperBeamlet, int cumulativeBeamlets, long packetsPerIteration, int baseBeamlet) {
+template <typename I, typename O, const int calibrateData>
+void inline udp_timeMajorSplitPols(long iLoop, char *inputPortData, O **outputData, long lastInputPacketOffset, int timeStepSize, int upperBeamlet, int cumulativeBeamlets, long packetsPerIteration, int baseBeamlet, float *jonesMatrix) {
 	long outputTimeIdx = iLoop * UDPNTIMESLICE / sizeof(O);
 	long tsInOffset, tsOutOffset;
-
+	
+	#pragma GCC diagnostic push
+	#pragma GCC diagnostic ignored "-Wunused-variable"
+	#pragma GCC diagnostic ignored "-Wunused-but-set-variable"
+	#pragma GCC diagnostic push
+	#pragma GCC diagnostic push
+	O Xr, Xi, Yr, Yi;
+	float *beamletJones;
+	#pragma GCC diagnostic pop
+	#pragma GCC diagnostic pop
+	
 	
 	#ifdef __INTEL_COMPILER
 	#pragma omp simd
@@ -306,17 +525,48 @@ void inline udp_timeMajorSplitPols(long iLoop, char *inputPortData, O **outputDa
 	for (int beamlet = baseBeamlet; beamlet < upperBeamlet; beamlet++) {
 		tsInOffset = lastInputPacketOffset + beamlet * UDPNTIMESLICE * UDPNPOL * timeStepSize;
 		tsOutOffset = ((beamlet - baseBeamlet + cumulativeBeamlets) * packetsPerIteration * UDPNTIMESLICE ) + outputTimeIdx;
-		
+
+		if constexpr (calibrateData) {
+			beamletJones = &(jonesMatrix[(cumulativeBeamlets + beamlet - baseBeamlet) * JONESMATSIZE]);
+		}	
+
 		#ifdef __INTEL_COMPILER
 		#pragma omp simd
 		#else
 		#pragma GCC unroll 16
 		#endif
 		for (int ts = 0; ts < UDPNTIMESLICE; ts++) {
-			outputData[0][tsOutOffset] = *((I*) &(inputPortData[tsInOffset])); // Xr
-			outputData[1][tsOutOffset] = *((I*) &(inputPortData[tsInOffset + 1 * timeStepSize])); // Xi
-			outputData[1][tsOutOffset] = *((I*) &(inputPortData[tsInOffset + 2 * timeStepSize])); // Yr
-			outputData[3][tsOutOffset] = *((I*) &(inputPortData[tsInOffset + 3 * timeStepSize])); // Yi
+			if constexpr (calibrateData) {
+				Xr = calibrateSample(	beamletJones[0], *((I*) &(inputPortData[tsInOffset])), \
+										-1.0 * beamletJones[1], *((I*) &(inputPortData[tsInOffset + 1 * timeStepSize])), \
+										beamletJones[2], *((I*) &(inputPortData[tsInOffset + 2 * timeStepSize])), \
+										-1.0 * beamletJones[3], *((I*) &(inputPortData[tsInOffset + 3 * timeStepSize])));
+
+				Xi = calibrateSample(	beamletJones[0], *((I*) &(inputPortData[tsInOffset + 1 * timeStepSize])), \
+										beamletJones[1], *((I*) &(inputPortData[tsInOffset])), \
+										beamletJones[2], *((I*) &(inputPortData[tsInOffset + 3 * timeStepSize])), \
+										beamletJones[3], *((I*) &(inputPortData[tsInOffset + 2 * timeStepSize])));
+
+				Yr = calibrateSample(	beamletJones[4], *((I*) &(inputPortData[tsInOffset])), \
+										-1.0 * beamletJones[5], *((I*) &(inputPortData[tsInOffset + 1 * timeStepSize])), \
+										beamletJones[6], *((I*) &(inputPortData[tsInOffset + 2 * timeStepSize])), \
+										-1.0 * beamletJones[7], *((I*) &(inputPortData[tsInOffset + 3 * timeStepSize])));
+
+				Yi = calibrateSample(	beamletJones[4], *((I*) &(inputPortData[tsInOffset + 1 * timeStepSize])), \
+										beamletJones[5], *((I*) &(inputPortData[tsInOffset])), \
+										beamletJones[6], *((I*) &(inputPortData[tsInOffset + 3 * timeStepSize])), \
+										beamletJones[7], *((I*) &(inputPortData[tsInOffset + 2 * timeStepSize])));
+				
+				outputData[0][tsOutOffset] = Xr;
+				outputData[1][tsOutOffset] = Xi;
+				outputData[1][tsOutOffset] = Yr;
+				outputData[3][tsOutOffset] = Yi;
+			} else {
+				outputData[0][tsOutOffset] = *((I*) &(inputPortData[tsInOffset])); // Xr
+				outputData[1][tsOutOffset] = *((I*) &(inputPortData[tsInOffset + 1 * timeStepSize])); // Xi
+				outputData[1][tsOutOffset] = *((I*) &(inputPortData[tsInOffset + 2 * timeStepSize])); // Yr
+				outputData[3][tsOutOffset] = *((I*) &(inputPortData[tsInOffset + 3 * timeStepSize])); // Yi
+			}
 
 			tsInOffset += 4 * timeStepSize;
 			tsOutOffset += 1;
@@ -326,10 +576,20 @@ void inline udp_timeMajorSplitPols(long iLoop, char *inputPortData, O **outputDa
 
 
 // FFTW format
-template <typename I, typename O>
-void inline udp_timeMajorDualPols(long iLoop, char *inputPortData, O **outputData, long lastInputPacketOffset, int timeStepSize, int upperBeamlet, int cumulativeBeamlets, long packetsPerIteration, int baseBeamlet) {
+template <typename I, typename O, const int calibrateData>
+void inline udp_timeMajorDualPols(long iLoop, char *inputPortData, O **outputData, long lastInputPacketOffset, int timeStepSize, int upperBeamlet, int cumulativeBeamlets, long packetsPerIteration, int baseBeamlet, float *jonesMatrix) {
 	long outputTimeIdx = iLoop * UDPNTIMESLICE / sizeof(O);
 	long tsInOffset, tsOutOffset;
+	
+	#pragma GCC diagnostic push
+	#pragma GCC diagnostic ignored "-Wunused-variable"
+	#pragma GCC diagnostic ignored "-Wunused-but-set-variable"
+	#pragma GCC diagnostic push
+	#pragma GCC diagnostic push
+	O Xr, Xi, Yr, Yi;
+	float *beamletJones;
+	#pragma GCC diagnostic pop
+	#pragma GCC diagnostic pop
 
 	
 	#ifdef __INTEL_COMPILER
@@ -340,17 +600,48 @@ void inline udp_timeMajorDualPols(long iLoop, char *inputPortData, O **outputDat
 	for (int beamlet = baseBeamlet; beamlet < upperBeamlet; beamlet++) {
 		tsInOffset = lastInputPacketOffset + beamlet * UDPNTIMESLICE * UDPNPOL * timeStepSize;
 		tsOutOffset = 2 * ((beamlet - baseBeamlet + cumulativeBeamlets) * packetsPerIteration * UDPNTIMESLICE + outputTimeIdx);
-		
+	
+		if constexpr (calibrateData) {
+			beamletJones = &(jonesMatrix[(cumulativeBeamlets + beamlet - baseBeamlet) * JONESMATSIZE]);
+		}	
+	
 		#ifdef __INTEL_COMPILER
 		#pragma omp simd
 		#else
 		#pragma GCC unroll 16
 		#endif
 		for (int ts = 0; ts < UDPNTIMESLICE; ts++) {
-			outputData[0][tsOutOffset] = *((I*) &(inputPortData[tsInOffset])); // Xr
-			outputData[0][tsOutOffset + 1] = *((I*) &(inputPortData[tsInOffset + 1 * timeStepSize])); // Xi
-			outputData[1][tsOutOffset] = *((I*) &(inputPortData[tsInOffset + 2 * timeStepSize])); // Yr
-			outputData[1][tsOutOffset + 1] = *((I*) &(inputPortData[tsInOffset + 3 * timeStepSize])); // Yi
+			if constexpr (calibrateData) {
+				Xr = calibrateSample(	beamletJones[0], *((I*) &(inputPortData[tsInOffset])), \
+										-1.0 * beamletJones[1], *((I*) &(inputPortData[tsInOffset + 1 * timeStepSize])), \
+										beamletJones[2], *((I*) &(inputPortData[tsInOffset + 2 * timeStepSize])), \
+										-1.0 * beamletJones[3], *((I*) &(inputPortData[tsInOffset + 3 * timeStepSize])));
+
+				Xi = calibrateSample(	beamletJones[0], *((I*) &(inputPortData[tsInOffset + 1 * timeStepSize])), \
+										beamletJones[1], *((I*) &(inputPortData[tsInOffset])), \
+										beamletJones[2], *((I*) &(inputPortData[tsInOffset + 3 * timeStepSize])), \
+										beamletJones[3], *((I*) &(inputPortData[tsInOffset + 2 * timeStepSize])));
+
+				Yr = calibrateSample(	beamletJones[4], *((I*) &(inputPortData[tsInOffset])), \
+										-1.0 * beamletJones[5], *((I*) &(inputPortData[tsInOffset + 1 * timeStepSize])), \
+										beamletJones[6], *((I*) &(inputPortData[tsInOffset + 2 * timeStepSize])), \
+										-1.0 * beamletJones[7], *((I*) &(inputPortData[tsInOffset + 3 * timeStepSize])));
+
+				Yi = calibrateSample(	beamletJones[4], *((I*) &(inputPortData[tsInOffset + 1 * timeStepSize])), \
+										beamletJones[5], *((I*) &(inputPortData[tsInOffset])), \
+										beamletJones[6], *((I*) &(inputPortData[tsInOffset + 3 * timeStepSize])), \
+										beamletJones[7], *((I*) &(inputPortData[tsInOffset + 2 * timeStepSize])));
+
+				outputData[0][tsOutOffset] = Xr;
+				outputData[0][tsOutOffset + 1] = Xi; 
+				outputData[1][tsOutOffset] = Yr;
+				outputData[1][tsOutOffset + 1] = Yi;
+			} else {
+				outputData[0][tsOutOffset] = *((I*) &(inputPortData[tsInOffset])); // Xr
+				outputData[0][tsOutOffset + 1] = *((I*) &(inputPortData[tsInOffset + 1 * timeStepSize])); // Xi
+				outputData[1][tsOutOffset] = *((I*) &(inputPortData[tsInOffset + 2 * timeStepSize])); // Yr
+				outputData[1][tsOutOffset + 1] = *((I*) &(inputPortData[tsInOffset + 3 * timeStepSize])); // Yi
+			}
 
 			tsInOffset += 4 * timeStepSize;
 			tsOutOffset += 2;
@@ -359,10 +650,20 @@ void inline udp_timeMajorDualPols(long iLoop, char *inputPortData, O **outputDat
 }
 
 
-template <typename I, typename O, StokesFuncType stokesFunc>
-void inline udp_stokes(long iLoop, char *inputPortData, O **outputData,  long lastInputPacketOffset, long packetOutputLength, int timeStepSize, int totalBeamlets, int upperBeamlet, int cumulativeBeamlets, int baseBeamlet) {
+template <typename I, typename O, StokesFuncType stokesFunc, const int calibrateData>
+void inline udp_stokes(long iLoop, char *inputPortData, O **outputData,  long lastInputPacketOffset, long packetOutputLength, int timeStepSize, int totalBeamlets, int upperBeamlet, int cumulativeBeamlets, int baseBeamlet, float *jonesMatrix) {
 	long outputPacketOffset = iLoop * packetOutputLength / sizeof(O);
 	long tsInOffset, tsOutOffset;
+	
+	#pragma GCC diagnostic push
+	#pragma GCC diagnostic ignored "-Wunused-variable"
+	#pragma GCC diagnostic ignored "-Wunused-but-set-variable"
+	#pragma GCC diagnostic push
+	#pragma GCC diagnostic push
+	O Xr, Xi, Yr, Yi;
+	float *beamletJones;
+	#pragma GCC diagnostic pop
+	#pragma GCC diagnostic pop
 
 	
 	#ifdef __INTEL_COMPILER
@@ -374,13 +675,41 @@ void inline udp_stokes(long iLoop, char *inputPortData, O **outputData,  long la
 		tsInOffset = lastInputPacketOffset + beamlet * UDPNTIMESLICE * UDPNPOL * timeStepSize;
 		tsOutOffset = outputPacketOffset + (totalBeamlets - 1 - beamlet + baseBeamlet - cumulativeBeamlets);
 
+		if constexpr (calibrateData) {
+			beamletJones = &(jonesMatrix[(cumulativeBeamlets + beamlet - baseBeamlet) * JONESMATSIZE]);
+		}
+	
 		#ifdef __INTEL_COMPILER
 		#pragma omp simd
 		#else
 		#pragma GCC unroll 16
 		#endif
 		for (int ts = 0; ts < UDPNTIMESLICE; ts++) {
-			outputData[0][tsOutOffset] = (*stokesFunc)(*((I*) &(inputPortData[tsInOffset])), *((I*) &(inputPortData[tsInOffset + 1 * timeStepSize])), *((I*) &(inputPortData[tsInOffset + 2 * timeStepSize])), *((I*) &(inputPortData[tsInOffset + 3 * timeStepSize])));
+			if constexpr (calibrateData) {
+				Xr = calibrateSample(	beamletJones[0], *((I*) &(inputPortData[tsInOffset])), \
+										-1.0 * beamletJones[1], *((I*) &(inputPortData[tsInOffset + 1 * timeStepSize])), \
+										beamletJones[2], *((I*) &(inputPortData[tsInOffset + 2 * timeStepSize])), \
+										-1.0 * beamletJones[3], *((I*) &(inputPortData[tsInOffset + 3 * timeStepSize])));
+
+				Xi = calibrateSample(	beamletJones[0], *((I*) &(inputPortData[tsInOffset + 1 * timeStepSize])), \
+										beamletJones[1], *((I*) &(inputPortData[tsInOffset])), \
+										beamletJones[2], *((I*) &(inputPortData[tsInOffset + 3 * timeStepSize])), \
+										beamletJones[3], *((I*) &(inputPortData[tsInOffset + 2 * timeStepSize])));
+
+				Yr = calibrateSample(	beamletJones[4], *((I*) &(inputPortData[tsInOffset])), \
+										-1.0 * beamletJones[5], *((I*) &(inputPortData[tsInOffset + 1 * timeStepSize])), \
+										beamletJones[6], *((I*) &(inputPortData[tsInOffset + 2 * timeStepSize])), \
+										-1.0 * beamletJones[7], *((I*) &(inputPortData[tsInOffset + 3 * timeStepSize])));
+
+				Yi = calibrateSample(	beamletJones[4], *((I*) &(inputPortData[tsInOffset + 1 * timeStepSize])), \
+										beamletJones[5], *((I*) &(inputPortData[tsInOffset])), \
+										beamletJones[6], *((I*) &(inputPortData[tsInOffset + 3 * timeStepSize])), \
+										beamletJones[7], *((I*) &(inputPortData[tsInOffset + 2 * timeStepSize])));
+
+				outputData[0][tsOutOffset] = (*stokesFunc)(Xr, Xi, Yr, Yi);
+			} else {
+				outputData[0][tsOutOffset] = (*stokesFunc)(*((I*) &(inputPortData[tsInOffset])), *((I*) &(inputPortData[tsInOffset + 1 * timeStepSize])), *((I*) &(inputPortData[tsInOffset + 2 * timeStepSize])), *((I*) &(inputPortData[tsInOffset + 3 * timeStepSize])));
+			}
 
 			tsInOffset += 4 * timeStepSize;
 			tsOutOffset += totalBeamlets;
@@ -388,12 +717,21 @@ void inline udp_stokes(long iLoop, char *inputPortData, O **outputData,  long la
 	}
 }
 
-template <typename I, typename O, StokesFuncType stokesFunc, int factor>
-void inline udp_stokesDecimation(long iLoop, char *inputPortData, O **outputData, long lastInputPacketOffset, long packetOutputLength, int timeStepSize, int totalBeamlets, int upperBeamlet, int cumulativeBeamlets, int baseBeamlet) {
+template <typename I, typename O, StokesFuncType stokesFunc, const int factor, const int calibrateData>
+void inline udp_stokesDecimation(long iLoop, char *inputPortData, O **outputData, long lastInputPacketOffset, long packetOutputLength, int timeStepSize, int totalBeamlets, int upperBeamlet, int cumulativeBeamlets, int baseBeamlet, float *jonesMatrix) {
 	long outputPacketOffset = iLoop * packetOutputLength / sizeof(O);
 	long tsInOffset, tsOutOffset;
 	O tempVal;
 
+	#pragma GCC diagnostic push
+	#pragma GCC diagnostic ignored "-Wunused-variable"
+	#pragma GCC diagnostic ignored "-Wunused-but-set-variable"
+	#pragma GCC diagnostic push
+	#pragma GCC diagnostic push
+	O Xr, Xi, Yr, Yi;
+	float *beamletJones;
+	#pragma GCC diagnostic pop
+	#pragma GCC diagnostic pop
 	
 	#ifdef __INTEL_COMPILER
 	#pragma omp simd
@@ -403,7 +741,10 @@ void inline udp_stokesDecimation(long iLoop, char *inputPortData, O **outputData
 	for (int beamlet = baseBeamlet; beamlet < upperBeamlet; beamlet++) {
 		tsInOffset = lastInputPacketOffset + beamlet * UDPNTIMESLICE * UDPNPOL * timeStepSize;
 		tsOutOffset = outputPacketOffset + (totalBeamlets - 1 - beamlet + baseBeamlet - cumulativeBeamlets);
-		tempVal = 0.0;
+	
+		if constexpr (calibrateData) {
+			beamletJones = &(jonesMatrix[(cumulativeBeamlets + beamlet - baseBeamlet) * JONESMATSIZE]);
+		}	tempVal = 0.0;
 
 		#ifdef __INTEL_COMPILER
 		#pragma omp simd
@@ -411,7 +752,31 @@ void inline udp_stokesDecimation(long iLoop, char *inputPortData, O **outputData
 		#pragma GCC unroll 16
 		#endif
 		for (int ts = 0; ts < UDPNTIMESLICE; ts++) {
-			tempVal += (*stokesFunc)(*((I*) &(inputPortData[tsInOffset])), *((I*) &(inputPortData[tsInOffset + 1 * timeStepSize])), *((I*) &(inputPortData[tsInOffset + 2 * timeStepSize])), *((I*) &(inputPortData[tsInOffset + 3 * timeStepSize])));
+			if constexpr (calibrateData) {
+				Xr = calibrateSample(	beamletJones[0], *((I*) &(inputPortData[tsInOffset])), \
+										-1.0 * beamletJones[1], *((I*) &(inputPortData[tsInOffset + 1 * timeStepSize])), \
+										beamletJones[2], *((I*) &(inputPortData[tsInOffset + 2 * timeStepSize])), \
+										-1.0 * beamletJones[3], *((I*) &(inputPortData[tsInOffset + 3 * timeStepSize])));
+
+				Xi = calibrateSample(	beamletJones[0], *((I*) &(inputPortData[tsInOffset + 1 * timeStepSize])), \
+										beamletJones[1], *((I*) &(inputPortData[tsInOffset])), \
+										beamletJones[2], *((I*) &(inputPortData[tsInOffset + 3 * timeStepSize])), \
+										beamletJones[3], *((I*) &(inputPortData[tsInOffset + 2 * timeStepSize])));
+
+				Yr = calibrateSample(	beamletJones[4], *((I*) &(inputPortData[tsInOffset])), \
+										-1.0 * beamletJones[5], *((I*) &(inputPortData[tsInOffset + 1 * timeStepSize])), \
+										beamletJones[6], *((I*) &(inputPortData[tsInOffset + 2 * timeStepSize])), \
+										-1.0 * beamletJones[7], *((I*) &(inputPortData[tsInOffset + 3 * timeStepSize])));
+
+				Yi = calibrateSample(	beamletJones[4], *((I*) &(inputPortData[tsInOffset + 1 * timeStepSize])), \
+										beamletJones[5], *((I*) &(inputPortData[tsInOffset])), \
+										beamletJones[6], *((I*) &(inputPortData[tsInOffset + 3 * timeStepSize])), \
+										beamletJones[7], *((I*) &(inputPortData[tsInOffset + 2 * timeStepSize])));
+
+				tempVal += (*stokesFunc)(Xr, Xi, Yr, Yi);
+			} else {
+				tempVal += (*stokesFunc)(*((I*) &(inputPortData[tsInOffset])), *((I*) &(inputPortData[tsInOffset + 1 * timeStepSize])), *((I*) &(inputPortData[tsInOffset + 2 * timeStepSize])), *((I*) &(inputPortData[tsInOffset + 3 * timeStepSize])));
+			}
 
 			tsInOffset += 4 * timeStepSize;
 			if ((ts + 1) % factor == 0) {
@@ -423,12 +788,21 @@ void inline udp_stokesDecimation(long iLoop, char *inputPortData, O **outputData
 	}
 }
 
-template <typename I, typename O>
-void inline udp_fullStokes(long iLoop, char *inputPortData, O **outputData,  long lastInputPacketOffset, long packetOutputLength, int timeStepSize, int totalBeamlets, int upperBeamlet, int cumulativeBeamlets, int baseBeamlet) {
+template <typename I, typename O, const int calibrateData>
+void inline udp_fullStokes(long iLoop, char *inputPortData, O **outputData,  long lastInputPacketOffset, long packetOutputLength, int timeStepSize, int totalBeamlets, int upperBeamlet, int cumulativeBeamlets, int baseBeamlet, float *jonesMatrix) {
 	long outputPacketOffset = iLoop * packetOutputLength / sizeof(O);
 	long tsInOffset, tsOutOffset;
-
 	
+	#pragma GCC diagnostic push
+	#pragma GCC diagnostic ignored "-Wunused-variable"
+	#pragma GCC diagnostic ignored "-Wunused-but-set-variable"
+	#pragma GCC diagnostic push
+	#pragma GCC diagnostic push
+	O Xr, Xi, Yr, Yi;
+	float *beamletJones;
+	#pragma GCC diagnostic pop
+	#pragma GCC diagnostic pop
+
 	#ifdef __INTEL_COMPILER
 	#pragma omp simd
 	#else
@@ -437,17 +811,49 @@ void inline udp_fullStokes(long iLoop, char *inputPortData, O **outputData,  lon
 	for (int beamlet = baseBeamlet; beamlet < upperBeamlet; beamlet++) {
 		tsInOffset = lastInputPacketOffset + beamlet * UDPNTIMESLICE * UDPNPOL * timeStepSize;
 		tsOutOffset = outputPacketOffset + (totalBeamlets - 1 - beamlet + baseBeamlet - cumulativeBeamlets);
-
+	
+		if constexpr (calibrateData) {
+			beamletJones = &(jonesMatrix[(cumulativeBeamlets + beamlet - baseBeamlet) * JONESMATSIZE]);
+		}
+	
 		#ifdef __INTEL_COMPILER
 		#pragma omp simd
 		#else
 		#pragma GCC unroll 16
 		#endif
 		for (int ts = 0; ts < UDPNTIMESLICE; ts++) {
-			outputData[0][tsOutOffset] = stokesI(*((I*) &(inputPortData[tsInOffset])), *((I*) &(inputPortData[tsInOffset + 1 * timeStepSize])), *((I*) &(inputPortData[tsInOffset + 2 * timeStepSize])), *((I*) &(inputPortData[tsInOffset + 3 * timeStepSize])));
-			outputData[1][tsOutOffset] = stokesQ(*((I*) &(inputPortData[tsInOffset])), *((I*) &(inputPortData[tsInOffset + 1 * timeStepSize])), *((I*) &(inputPortData[tsInOffset + 2 * timeStepSize])), *((I*) &(inputPortData[tsInOffset + 3 * timeStepSize])));
-			outputData[2][tsOutOffset] = stokesU(*((I*) &(inputPortData[tsInOffset])), *((I*) &(inputPortData[tsInOffset + 1 * timeStepSize])), *((I*) &(inputPortData[tsInOffset + 2 * timeStepSize])), *((I*) &(inputPortData[tsInOffset + 3 * timeStepSize])));
-			outputData[3][tsOutOffset] = stokesV(*((I*) &(inputPortData[tsInOffset])), *((I*) &(inputPortData[tsInOffset + 1 * timeStepSize])), *((I*) &(inputPortData[tsInOffset + 2 * timeStepSize])), *((I*) &(inputPortData[tsInOffset + 3 * timeStepSize])));
+			if constexpr (calibrateData) {
+				Xr = calibrateSample(	beamletJones[0], *((I*) &(inputPortData[tsInOffset])), \
+										-1.0 * beamletJones[1], *((I*) &(inputPortData[tsInOffset + 1 * timeStepSize])), \
+										beamletJones[2], *((I*) &(inputPortData[tsInOffset + 2 * timeStepSize])), \
+										-1.0 * beamletJones[3], *((I*) &(inputPortData[tsInOffset + 3 * timeStepSize])));
+
+				Xi = calibrateSample(	beamletJones[0], *((I*) &(inputPortData[tsInOffset + 1 * timeStepSize])), \
+										beamletJones[1], *((I*) &(inputPortData[tsInOffset])), \
+										beamletJones[2], *((I*) &(inputPortData[tsInOffset + 3 * timeStepSize])), \
+										beamletJones[3], *((I*) &(inputPortData[tsInOffset + 2 * timeStepSize])));
+
+				Yr = calibrateSample(	beamletJones[4], *((I*) &(inputPortData[tsInOffset])), \
+										-1.0 * beamletJones[5], *((I*) &(inputPortData[tsInOffset + 1 * timeStepSize])), \
+										beamletJones[6], *((I*) &(inputPortData[tsInOffset + 2 * timeStepSize])), \
+										-1.0 * beamletJones[7], *((I*) &(inputPortData[tsInOffset + 3 * timeStepSize])));
+
+				Yi = calibrateSample(	beamletJones[4], *((I*) &(inputPortData[tsInOffset + 1 * timeStepSize])), \
+										beamletJones[5], *((I*) &(inputPortData[tsInOffset])), \
+										beamletJones[6], *((I*) &(inputPortData[tsInOffset + 3 * timeStepSize])), \
+										beamletJones[7], *((I*) &(inputPortData[tsInOffset + 2 * timeStepSize])));
+
+				outputData[0][tsOutOffset] = stokesI(Xr, Xi, Yr, Yi);
+				outputData[1][tsOutOffset] = stokesQ(Xr, Xi, Yr, Yi);
+				outputData[2][tsOutOffset] = stokesU(Xr, Xi, Yr, Yi);
+				outputData[3][tsOutOffset] = stokesV(Xr, Xi, Yr, Yi);
+
+			 } else {
+				outputData[0][tsOutOffset] = stokesI(*((I*) &(inputPortData[tsInOffset])), *((I*) &(inputPortData[tsInOffset + 1 * timeStepSize])), *((I*) &(inputPortData[tsInOffset + 2 * timeStepSize])), *((I*) &(inputPortData[tsInOffset + 3 * timeStepSize])));
+				outputData[1][tsOutOffset] = stokesQ(*((I*) &(inputPortData[tsInOffset])), *((I*) &(inputPortData[tsInOffset + 1 * timeStepSize])), *((I*) &(inputPortData[tsInOffset + 2 * timeStepSize])), *((I*) &(inputPortData[tsInOffset + 3 * timeStepSize])));
+				outputData[2][tsOutOffset] = stokesU(*((I*) &(inputPortData[tsInOffset])), *((I*) &(inputPortData[tsInOffset + 1 * timeStepSize])), *((I*) &(inputPortData[tsInOffset + 2 * timeStepSize])), *((I*) &(inputPortData[tsInOffset + 3 * timeStepSize])));
+				outputData[3][tsOutOffset] = stokesV(*((I*) &(inputPortData[tsInOffset])), *((I*) &(inputPortData[tsInOffset + 1 * timeStepSize])), *((I*) &(inputPortData[tsInOffset + 2 * timeStepSize])), *((I*) &(inputPortData[tsInOffset + 3 * timeStepSize])));
+			}
 
 			tsInOffset += 4 * timeStepSize;
 			tsOutOffset += totalBeamlets;
@@ -455,12 +861,21 @@ void inline udp_fullStokes(long iLoop, char *inputPortData, O **outputData,  lon
 	}
 }
 
-template <typename I, typename O, int factor>
-void inline udp_fullStokesDecimation(long iLoop, char *inputPortData, O **outputData, long lastInputPacketOffset, long packetOutputLength, int timeStepSize, int totalBeamlets, int upperBeamlet, int cumulativeBeamlets, int baseBeamlet) {
+template <typename I, typename O, const int factor, const int calibrateData>
+void inline udp_fullStokesDecimation(long iLoop, char *inputPortData, O **outputData, long lastInputPacketOffset, long packetOutputLength, int timeStepSize, int totalBeamlets, int upperBeamlet, int cumulativeBeamlets, int baseBeamlet, float *jonesMatrix) {
 	long outputPacketOffset = iLoop * packetOutputLength / sizeof(O);
 	long tsInOffset, tsOutOffset;
 	O tempValI, tempValQ, tempValU, tempValV;
 
+	#pragma GCC diagnostic push
+	#pragma GCC diagnostic ignored "-Wunused-variable"
+	#pragma GCC diagnostic ignored "-Wunused-but-set-variable"
+	#pragma GCC diagnostic push
+	#pragma GCC diagnostic push
+	O Xr, Xi, Yr, Yi;
+	float *beamletJones;
+	#pragma GCC diagnostic pop
+	#pragma GCC diagnostic pop
 	
 	#ifdef __INTEL_COMPILER
 	#pragma omp simd
@@ -470,7 +885,10 @@ void inline udp_fullStokesDecimation(long iLoop, char *inputPortData, O **output
 	for (int beamlet = baseBeamlet; beamlet < upperBeamlet; beamlet++) {
 		tsInOffset = lastInputPacketOffset + beamlet * UDPNTIMESLICE * UDPNPOL * timeStepSize;
 		tsOutOffset = outputPacketOffset + (totalBeamlets - 1 - beamlet + baseBeamlet - cumulativeBeamlets);
-
+	
+		if constexpr (calibrateData) {
+			beamletJones = &(jonesMatrix[(cumulativeBeamlets + beamlet - baseBeamlet) * JONESMATSIZE]);
+		}
 
 		// This is split into 2 inner loops as ICC generates garbage outputs when the loop is run on the full inner loop.
 		// Should still be relatively efficient as 16 time samples fit inside one cache line on REALTA, so they should never be dropped
@@ -483,8 +901,33 @@ void inline udp_fullStokesDecimation(long iLoop, char *inputPortData, O **output
 		#pragma GCC unroll 16
 		#endif
 		for (int ts = 0; ts < UDPNTIMESLICE; ts++) {
-			tempValI += stokesI(*((I*) &(inputPortData[tsInOffset])), *((I*) &(inputPortData[tsInOffset + 1 * timeStepSize])), *((I*) &(inputPortData[tsInOffset + 2 * timeStepSize])), *((I*) &(inputPortData[tsInOffset + 3 * timeStepSize])));
-			tempValQ += stokesQ(*((I*) &(inputPortData[tsInOffset])), *((I*) &(inputPortData[tsInOffset + 1 * timeStepSize])), *((I*) &(inputPortData[tsInOffset + 2 * timeStepSize])), *((I*) &(inputPortData[tsInOffset + 3 * timeStepSize])));
+			if constexpr (calibrateData) {
+				Xr = calibrateSample(	beamletJones[0], *((I*) &(inputPortData[tsInOffset])), \
+										-1.0 * beamletJones[1], *((I*) &(inputPortData[tsInOffset + 1 * timeStepSize])), \
+										beamletJones[2], *((I*) &(inputPortData[tsInOffset + 2 * timeStepSize])), \
+										-1.0 * beamletJones[3], *((I*) &(inputPortData[tsInOffset + 3 * timeStepSize])));
+
+				Xi = calibrateSample(	beamletJones[0], *((I*) &(inputPortData[tsInOffset + 1 * timeStepSize])), \
+										beamletJones[1], *((I*) &(inputPortData[tsInOffset])), \
+										beamletJones[2], *((I*) &(inputPortData[tsInOffset + 3 * timeStepSize])), \
+										beamletJones[3], *((I*) &(inputPortData[tsInOffset + 2 * timeStepSize])));
+
+				Yr = calibrateSample(	beamletJones[4], *((I*) &(inputPortData[tsInOffset])), \
+										-1.0 * beamletJones[5], *((I*) &(inputPortData[tsInOffset + 1 * timeStepSize])), \
+										beamletJones[6], *((I*) &(inputPortData[tsInOffset + 2 * timeStepSize])), \
+										-1.0 * beamletJones[7], *((I*) &(inputPortData[tsInOffset + 3 * timeStepSize])));
+
+				Yi = calibrateSample(	beamletJones[4], *((I*) &(inputPortData[tsInOffset + 1 * timeStepSize])), \
+										beamletJones[5], *((I*) &(inputPortData[tsInOffset])), \
+										beamletJones[6], *((I*) &(inputPortData[tsInOffset + 3 * timeStepSize])), \
+										beamletJones[7], *((I*) &(inputPortData[tsInOffset + 2 * timeStepSize])));
+
+				tempValI += stokesI(Xr, Xi, Yr, Yi);
+				tempValQ += stokesQ(Xr, Xi, Yr, Yi);
+			} else {
+				tempValI += stokesI(*((I*) &(inputPortData[tsInOffset])), *((I*) &(inputPortData[tsInOffset + 1 * timeStepSize])), *((I*) &(inputPortData[tsInOffset + 2 * timeStepSize])), *((I*) &(inputPortData[tsInOffset + 3 * timeStepSize])));
+				tempValQ += stokesQ(*((I*) &(inputPortData[tsInOffset])), *((I*) &(inputPortData[tsInOffset + 1 * timeStepSize])), *((I*) &(inputPortData[tsInOffset + 2 * timeStepSize])), *((I*) &(inputPortData[tsInOffset + 3 * timeStepSize])));
+			}
 
 			tsInOffset += 4 * timeStepSize;
 			if ((ts + 1) % factor == 0) {
@@ -508,8 +951,33 @@ void inline udp_fullStokesDecimation(long iLoop, char *inputPortData, O **output
 		#pragma GCC unroll 16
 		#endif
 		for (int ts = 0; ts < UDPNTIMESLICE; ts++) {
-			tempValU += stokesU(*((I*) &(inputPortData[tsInOffset])), *((I*) &(inputPortData[tsInOffset + 1 * timeStepSize])), *((I*) &(inputPortData[tsInOffset + 2 * timeStepSize])), *((I*) &(inputPortData[tsInOffset + 3 * timeStepSize])));
-			tempValV += stokesV(*((I*) &(inputPortData[tsInOffset])), *((I*) &(inputPortData[tsInOffset + 1 * timeStepSize])), *((I*) &(inputPortData[tsInOffset + 2 * timeStepSize])), *((I*) &(inputPortData[tsInOffset + 3 * timeStepSize])));
+			if constexpr (calibrateData) {
+				Xr = calibrateSample(	beamletJones[0], *((I*) &(inputPortData[tsInOffset])), \
+										-1.0 * beamletJones[1], *((I*) &(inputPortData[tsInOffset + 1 * timeStepSize])), \
+										beamletJones[2], *((I*) &(inputPortData[tsInOffset + 2 * timeStepSize])), \
+										-1.0 * beamletJones[3], *((I*) &(inputPortData[tsInOffset + 3 * timeStepSize])));
+
+				Xi = calibrateSample(	beamletJones[0], *((I*) &(inputPortData[tsInOffset + 1 * timeStepSize])), \
+										beamletJones[1], *((I*) &(inputPortData[tsInOffset])), \
+										beamletJones[2], *((I*) &(inputPortData[tsInOffset + 3 * timeStepSize])), \
+										beamletJones[3], *((I*) &(inputPortData[tsInOffset + 2 * timeStepSize])));
+
+				Yr = calibrateSample(	beamletJones[4], *((I*) &(inputPortData[tsInOffset])), \
+										-1.0 * beamletJones[5], *((I*) &(inputPortData[tsInOffset + 1 * timeStepSize])), \
+										beamletJones[6], *((I*) &(inputPortData[tsInOffset + 2 * timeStepSize])), \
+										-1.0 * beamletJones[7], *((I*) &(inputPortData[tsInOffset + 3 * timeStepSize])));
+
+				Yi = calibrateSample(	beamletJones[4], *((I*) &(inputPortData[tsInOffset + 1 * timeStepSize])), \
+										beamletJones[5], *((I*) &(inputPortData[tsInOffset])), \
+										beamletJones[6], *((I*) &(inputPortData[tsInOffset + 3 * timeStepSize])), \
+										beamletJones[7], *((I*) &(inputPortData[tsInOffset + 2 * timeStepSize])));
+
+				tempValU += stokesU(Xr, Xi, Yr, Yi);
+				tempValV += stokesV(Xr, Xi, Yr, Yi);
+			} else {
+				tempValU += stokesU(*((I*) &(inputPortData[tsInOffset])), *((I*) &(inputPortData[tsInOffset + 1 * timeStepSize])), *((I*) &(inputPortData[tsInOffset + 2 * timeStepSize])), *((I*) &(inputPortData[tsInOffset + 3 * timeStepSize])));
+				tempValV += stokesV(*((I*) &(inputPortData[tsInOffset])), *((I*) &(inputPortData[tsInOffset + 1 * timeStepSize])), *((I*) &(inputPortData[tsInOffset + 2 * timeStepSize])), *((I*) &(inputPortData[tsInOffset + 3 * timeStepSize])));
+			}
 
 			tsInOffset += 4 * timeStepSize;
 			if ((ts + 1) % factor == 0) {
@@ -528,10 +996,20 @@ void inline udp_fullStokesDecimation(long iLoop, char *inputPortData, O **output
 
 }
 
-template <typename I, typename O>
-void inline udp_usefulStokes(long iLoop, char *inputPortData, O **outputData,  long lastInputPacketOffset, long packetOutputLength, int timeStepSize, int totalBeamlets, int upperBeamlet, int cumulativeBeamlets, int baseBeamlet) {
+template <typename I, typename O, const int calibrateData>
+void inline udp_usefulStokes(long iLoop, char *inputPortData, O **outputData,  long lastInputPacketOffset, long packetOutputLength, int timeStepSize, int totalBeamlets, int upperBeamlet, int cumulativeBeamlets, int baseBeamlet, float *jonesMatrix) {
 	long outputPacketOffset = iLoop * packetOutputLength / sizeof(O);
 	long tsInOffset, tsOutOffset;
+	
+	#pragma GCC diagnostic push
+	#pragma GCC diagnostic ignored "-Wunused-variable"
+	#pragma GCC diagnostic ignored "-Wunused-but-set-variable"
+	#pragma GCC diagnostic push
+	#pragma GCC diagnostic push
+	O Xr, Xi, Yr, Yi;
+	float* beamletJones;
+	#pragma GCC diagnostic pop
+	#pragma GCC diagnostic pop
 
 	
 	#ifdef __INTEL_COMPILER
@@ -542,15 +1020,44 @@ void inline udp_usefulStokes(long iLoop, char *inputPortData, O **outputData,  l
 	for (int beamlet = baseBeamlet; beamlet < upperBeamlet; beamlet++) {
 		tsInOffset = lastInputPacketOffset + beamlet * UDPNTIMESLICE * UDPNPOL * timeStepSize;
 		tsOutOffset = outputPacketOffset + (totalBeamlets - 1 - beamlet + baseBeamlet - cumulativeBeamlets);
-
+		
+		if constexpr (calibrateData) {
+			beamletJones = &(jonesMatrix[(cumulativeBeamlets + beamlet - baseBeamlet) * JONESMATSIZE]);
+		}
+		
 		#ifdef __INTEL_COMPILER
 		#pragma omp simd
 		#else
 		#pragma GCC unroll 16
 		#endif
 		for (int ts = 0; ts < UDPNTIMESLICE; ts++) {
-			outputData[0][tsOutOffset] = stokesI(*((I*) &(inputPortData[tsInOffset])), *((I*) &(inputPortData[tsInOffset + 1 * timeStepSize])), *((I*) &(inputPortData[tsInOffset + 2 * timeStepSize])), *((I*) &(inputPortData[tsInOffset + 3 * timeStepSize])));
-			outputData[1][tsOutOffset] = stokesV(*((I*) &(inputPortData[tsInOffset])), *((I*) &(inputPortData[tsInOffset + 1 * timeStepSize])), *((I*) &(inputPortData[tsInOffset + 2 * timeStepSize])), *((I*) &(inputPortData[tsInOffset + 3 * timeStepSize])));
+			if constexpr (calibrateData) {
+				Xr = calibrateSample(	beamletJones[0], *((I*) &(inputPortData[tsInOffset])), \
+										-1.0 * beamletJones[1], *((I*) &(inputPortData[tsInOffset + 1 * timeStepSize])), \
+										beamletJones[2], *((I*) &(inputPortData[tsInOffset + 2 * timeStepSize])), \
+										-1.0 * beamletJones[3], *((I*) &(inputPortData[tsInOffset + 3 * timeStepSize])));
+
+				Xi = calibrateSample(	beamletJones[0], *((I*) &(inputPortData[tsInOffset + 1 * timeStepSize])), \
+										beamletJones[1], *((I*) &(inputPortData[tsInOffset])), \
+										beamletJones[2], *((I*) &(inputPortData[tsInOffset + 3 * timeStepSize])), \
+										beamletJones[3], *((I*) &(inputPortData[tsInOffset + 2 * timeStepSize])));
+
+				Yr = calibrateSample(	beamletJones[4], *((I*) &(inputPortData[tsInOffset])), \
+										-1.0 * beamletJones[5], *((I*) &(inputPortData[tsInOffset + 1 * timeStepSize])), \
+										beamletJones[6], *((I*) &(inputPortData[tsInOffset + 2 * timeStepSize])), \
+										-1.0 * beamletJones[7], *((I*) &(inputPortData[tsInOffset + 3 * timeStepSize])));
+
+				Yi = calibrateSample(	beamletJones[4], *((I*) &(inputPortData[tsInOffset + 1 * timeStepSize])), \
+										beamletJones[5], *((I*) &(inputPortData[tsInOffset])), \
+										beamletJones[6], *((I*) &(inputPortData[tsInOffset + 3 * timeStepSize])), \
+										beamletJones[7], *((I*) &(inputPortData[tsInOffset + 2 * timeStepSize])));
+
+				outputData[0][tsOutOffset] = stokesI(Xr, Xi, Yr, Yi);
+				outputData[1][tsOutOffset] = stokesV(Xr, Xi, Yr, Yi);
+			} else {
+				outputData[0][tsOutOffset] = stokesI(*((I*) &(inputPortData[tsInOffset])), *((I*) &(inputPortData[tsInOffset + 1 * timeStepSize])), *((I*) &(inputPortData[tsInOffset + 2 * timeStepSize])), *((I*) &(inputPortData[tsInOffset + 3 * timeStepSize])));
+				outputData[1][tsOutOffset] = stokesV(*((I*) &(inputPortData[tsInOffset])), *((I*) &(inputPortData[tsInOffset + 1 * timeStepSize])), *((I*) &(inputPortData[tsInOffset + 2 * timeStepSize])), *((I*) &(inputPortData[tsInOffset + 3 * timeStepSize])));
+			}
 
 			tsInOffset += 4 * timeStepSize;
 			tsOutOffset += totalBeamlets;
@@ -559,12 +1066,21 @@ void inline udp_usefulStokes(long iLoop, char *inputPortData, O **outputData,  l
 	}
 }
 
-template <typename I, typename O, int factor>
-void inline udp_usefulStokesDecimation(long iLoop, char *inputPortData, O **outputData, long lastInputPacketOffset, long packetOutputLength, int timeStepSize, int totalBeamlets, int upperBeamlet, int cumulativeBeamlets, int baseBeamlet) {
+template <typename I, typename O, const int factor, const int calibrateData>
+void inline udp_usefulStokesDecimation(long iLoop, char *inputPortData, O **outputData, long lastInputPacketOffset, long packetOutputLength, int timeStepSize, int totalBeamlets, int upperBeamlet, int cumulativeBeamlets, int baseBeamlet, float *jonesMatrix) {
 	long outputPacketOffset = iLoop * packetOutputLength / sizeof(O);
 	long tsInOffset, tsOutOffset;
 	O tempValI, tempValV;
 
+	#pragma GCC diagnostic push
+	#pragma GCC diagnostic ignored "-Wunused-variable"
+	#pragma GCC diagnostic ignored "-Wunused-but-set-variable"
+	#pragma GCC diagnostic push
+	#pragma GCC diagnostic push
+	O Xr, Xi, Yr, Yi;
+	float *beamletJones;
+	#pragma GCC diagnostic pop
+	#pragma GCC diagnostic pop
 	
 	#ifdef __INTEL_COMPILER
 	#pragma omp simd
@@ -574,6 +1090,11 @@ void inline udp_usefulStokesDecimation(long iLoop, char *inputPortData, O **outp
 	for (int beamlet = baseBeamlet; beamlet < upperBeamlet; beamlet++) {
 		tsInOffset = lastInputPacketOffset + beamlet * UDPNTIMESLICE * UDPNPOL * timeStepSize;
 		tsOutOffset = outputPacketOffset + (totalBeamlets - 1 - beamlet + baseBeamlet - cumulativeBeamlets);
+	
+		if constexpr (calibrateData) {
+			beamletJones = &(jonesMatrix[(cumulativeBeamlets + beamlet - baseBeamlet) * JONESMATSIZE]);
+		}
+
 		tempValI = 0.0;
 		tempValV = 0.0;
 
@@ -583,8 +1104,33 @@ void inline udp_usefulStokesDecimation(long iLoop, char *inputPortData, O **outp
 		#pragma GCC unroll 16
 		#endif
 		for (int ts = 0; ts < UDPNTIMESLICE; ts++) {
-			tempValI += stokesI(*((I*) &(inputPortData[tsInOffset])), *((I*) &(inputPortData[tsInOffset + 1 * timeStepSize])), *((I*) &(inputPortData[tsInOffset + 2 * timeStepSize])), *((I*) &(inputPortData[tsInOffset + 3 * timeStepSize])));
-			tempValV += stokesV(*((I*) &(inputPortData[tsInOffset])), *((I*) &(inputPortData[tsInOffset + 1 * timeStepSize])), *((I*) &(inputPortData[tsInOffset + 2 * timeStepSize])), *((I*) &(inputPortData[tsInOffset + 3 * timeStepSize])));
+			if constexpr (calibrateData) {
+				Xr = calibrateSample(	beamletJones[0], *((I*) &(inputPortData[tsInOffset])), \
+										-1.0 * beamletJones[1], *((I*) &(inputPortData[tsInOffset + 1 * timeStepSize])), \
+										beamletJones[2], *((I*) &(inputPortData[tsInOffset + 2 * timeStepSize])), \
+										-1.0 * beamletJones[3], *((I*) &(inputPortData[tsInOffset + 3 * timeStepSize])));
+
+				Xi = calibrateSample(	beamletJones[0], *((I*) &(inputPortData[tsInOffset + 1 * timeStepSize])), \
+										beamletJones[1], *((I*) &(inputPortData[tsInOffset])), \
+										beamletJones[2], *((I*) &(inputPortData[tsInOffset + 3 * timeStepSize])), \
+										beamletJones[3], *((I*) &(inputPortData[tsInOffset + 2 * timeStepSize])));
+
+				Yr = calibrateSample(	beamletJones[4], *((I*) &(inputPortData[tsInOffset])), \
+										-1.0 * beamletJones[5], *((I*) &(inputPortData[tsInOffset + 1 * timeStepSize])), \
+										beamletJones[6], *((I*) &(inputPortData[tsInOffset + 2 * timeStepSize])), \
+										-1.0 * beamletJones[7], *((I*) &(inputPortData[tsInOffset + 3 * timeStepSize])));
+
+				Yi = calibrateSample(	beamletJones[4], *((I*) &(inputPortData[tsInOffset + 1 * timeStepSize])), \
+										beamletJones[5], *((I*) &(inputPortData[tsInOffset])), \
+										beamletJones[6], *((I*) &(inputPortData[tsInOffset + 3 * timeStepSize])), \
+										beamletJones[7], *((I*) &(inputPortData[tsInOffset + 2 * timeStepSize])));
+
+				tempValI += stokesI(Xr, Xi, Yr, Yi);
+				tempValV += stokesV(Xr, Xi, Yr, Yi);
+			} else {
+				tempValI += stokesI(*((I*) &(inputPortData[tsInOffset])), *((I*) &(inputPortData[tsInOffset + 1 * timeStepSize])), *((I*) &(inputPortData[tsInOffset + 2 * timeStepSize])), *((I*) &(inputPortData[tsInOffset + 3 * timeStepSize])));
+				tempValV += stokesV(*((I*) &(inputPortData[tsInOffset])), *((I*) &(inputPortData[tsInOffset + 1 * timeStepSize])), *((I*) &(inputPortData[tsInOffset + 2 * timeStepSize])), *((I*) &(inputPortData[tsInOffset + 3 * timeStepSize])));
+			}
 
 			tsInOffset += 4 * timeStepSize;
 			if ((ts + 1) % factor == 0) {
@@ -601,7 +1147,7 @@ void inline udp_usefulStokesDecimation(long iLoop, char *inputPortData, O **outp
 
 
 // Define the main processing loop
-template <typename I, typename O, const int state>
+template <typename I, typename O, const int state, const int calibrateData>
 int lofar_udp_raw_loop(lofar_udp_meta *meta) {
 	// Setup return variable
 	int packetLoss = 0;
@@ -674,11 +1220,25 @@ int lofar_udp_raw_loop(lofar_udp_meta *meta) {
 		#pragma GCC diagnostic ignored "-Wunused-but-set-variable"
 		#pragma GCC diagnostic push
 		#pragma GCC diagnostic push
+
+		// Select beamlet parameters
 		const int baseBeamlet = meta->baseBeamlets[port];
 		const int upperBeamlet = meta->upperBeamlets[port];
 
 		const int cumulativeBeamlets = meta->portCumulativeBeamlets[port];
 		const int totalBeamlets = meta->totalProcBeamlets;
+
+
+		// Select Jones Matrix if performing Calibration
+		float *jonesMatrix;
+		if constexpr (calibrateData) {
+			jonesMatrix = (float*) calloc((upperBeamlet - baseBeamlet) * JONESMATSIZE, sizeof(float));
+			for (int i = 0; i < (upperBeamlet - baseBeamlet); i++) {
+				for (int j = 0; j < JONESMATSIZE; j++) {
+					jonesMatrix[i * JONESMATSIZE + j] = meta->jonesMatrices[meta->numIters][(cumulativeBeamlets + i) * JONESMATSIZE + j];
+				}
+			}
+		}
 
 		// Get the length of packets on the current port and reset the last packet variable encase
 		// 	there is packet loss on the first packet
@@ -821,7 +1381,7 @@ int lofar_udp_raw_loop(lofar_udp_meta *meta) {
 					inputPortData[idx * 2 + 1] = result[1];
 				}
 
-				VERBOSE(if (verbose && port == 0 && iLoop == 0) {
+				VERBOSE(if (verbose == 2 && port == 0 && iLoop == 0) {
 					for (int i = 0; i < numSamples - UDPHDRLEN; i++)
 						printf("%d, ", inputPortData[i]);
 					printf("\n");
@@ -837,65 +1397,65 @@ int lofar_udp_raw_loop(lofar_udp_meta *meta) {
 			} else if constexpr (trueState == 1) {
 				udp_copyNoHdr<char, char>(iLoop, inputPortData, (char**) outputData, port, lastInputPacketOffset, packetOutputLength);
 			} else if constexpr (trueState == 2) {
-				udp_copySplitPols<I, O>(iLoop, inputPortData, outputData, lastInputPacketOffset, packetOutputLength, timeStepSize, upperBeamlet, cumulativeBeamlets, baseBeamlet);
+				udp_copySplitPols<I, O, calibrateData>(iLoop, inputPortData, outputData, lastInputPacketOffset, packetOutputLength, timeStepSize, upperBeamlet, cumulativeBeamlets, baseBeamlet, jonesMatrix);
 			
 
 
 
 			} else if constexpr (trueState == 10) {
-				udp_channelMajor<I, O>(iLoop, inputPortData, outputData, lastInputPacketOffset, packetOutputLength, timeStepSize, totalBeamlets, upperBeamlet, cumulativeBeamlets, baseBeamlet);
+				udp_channelMajor<I, O, calibrateData>(iLoop, inputPortData, outputData, lastInputPacketOffset, packetOutputLength, timeStepSize, totalBeamlets, upperBeamlet, cumulativeBeamlets, baseBeamlet, jonesMatrix);
 			} else if constexpr (trueState == 11) {
-				udp_channelMajorSplitPols<I, O>(iLoop, inputPortData, outputData, lastInputPacketOffset, packetOutputLength, timeStepSize, totalBeamlets, upperBeamlet, cumulativeBeamlets, baseBeamlet);
+				udp_channelMajorSplitPols<I, O, calibrateData>(iLoop, inputPortData, outputData, lastInputPacketOffset, packetOutputLength, timeStepSize, totalBeamlets, upperBeamlet, cumulativeBeamlets, baseBeamlet, jonesMatrix);
 			
 
 
 
 			} else if constexpr (trueState == 20) {
-				udp_reversedChannelMajor<I, O>(iLoop, inputPortData, outputData, lastInputPacketOffset, packetOutputLength, timeStepSize, totalBeamlets, upperBeamlet, cumulativeBeamlets, baseBeamlet);
+				udp_reversedChannelMajor<I, O, calibrateData>(iLoop, inputPortData, outputData, lastInputPacketOffset, packetOutputLength, timeStepSize, totalBeamlets, upperBeamlet, cumulativeBeamlets, baseBeamlet, jonesMatrix);
 			} else if constexpr (trueState == 21) {
-				udp_reversedChannelMajorSplitPols<I, O>(iLoop, inputPortData, outputData, lastInputPacketOffset, packetOutputLength, timeStepSize, totalBeamlets, upperBeamlet, cumulativeBeamlets, baseBeamlet);
+				udp_reversedChannelMajorSplitPols<I, O, calibrateData>(iLoop, inputPortData, outputData, lastInputPacketOffset, packetOutputLength, timeStepSize, totalBeamlets, upperBeamlet, cumulativeBeamlets, baseBeamlet, jonesMatrix);
 			
 
 
 
 			} else if constexpr (trueState == 30) {
-				udp_timeMajor<I, O>(iLoop, inputPortData, outputData, lastInputPacketOffset, timeStepSize, upperBeamlet, cumulativeBeamlets, packetsPerIteration, baseBeamlet);
+				udp_timeMajor<I, O, calibrateData>(iLoop, inputPortData, outputData, lastInputPacketOffset, timeStepSize, upperBeamlet, cumulativeBeamlets, packetsPerIteration, baseBeamlet, jonesMatrix);
 			} else if constexpr (trueState == 31) {
-				udp_timeMajorSplitPols<I, O>(iLoop, inputPortData, outputData, lastInputPacketOffset, timeStepSize, upperBeamlet, cumulativeBeamlets, packetsPerIteration, baseBeamlet);
+				udp_timeMajorSplitPols<I, O, calibrateData>(iLoop, inputPortData, outputData, lastInputPacketOffset, timeStepSize, upperBeamlet, cumulativeBeamlets, packetsPerIteration, baseBeamlet, jonesMatrix);
 			} else if constexpr (trueState == 32) {
-				udp_timeMajorDualPols<I, O>(iLoop, inputPortData, outputData, lastInputPacketOffset, timeStepSize, upperBeamlet, cumulativeBeamlets, packetsPerIteration, baseBeamlet);
+				udp_timeMajorDualPols<I, O, calibrateData>(iLoop, inputPortData, outputData, lastInputPacketOffset, timeStepSize, upperBeamlet, cumulativeBeamlets, packetsPerIteration, baseBeamlet, jonesMatrix);
 			
 
 
 
 			} else if constexpr (trueState == 100) {
-				udp_stokes<I, O, stokesI>(iLoop, inputPortData, outputData, lastInputPacketOffset, packetOutputLength, timeStepSize, totalBeamlets, upperBeamlet, cumulativeBeamlets, baseBeamlet);
+				udp_stokes<I, O, stokesI, calibrateData>(iLoop, inputPortData, outputData, lastInputPacketOffset, packetOutputLength, timeStepSize, totalBeamlets, upperBeamlet, cumulativeBeamlets, baseBeamlet, jonesMatrix);
 			} else if constexpr (trueState == 110) {
-				udp_stokes<I, O, stokesQ>(iLoop, inputPortData, outputData, lastInputPacketOffset, packetOutputLength, timeStepSize, totalBeamlets, upperBeamlet, cumulativeBeamlets, baseBeamlet);
+				udp_stokes<I, O, stokesQ, calibrateData>(iLoop, inputPortData, outputData, lastInputPacketOffset, packetOutputLength, timeStepSize, totalBeamlets, upperBeamlet, cumulativeBeamlets, baseBeamlet, jonesMatrix);
 			} else if constexpr (trueState == 120) {
-				udp_stokes<I, O, stokesU>(iLoop, inputPortData, outputData, lastInputPacketOffset, packetOutputLength, timeStepSize, totalBeamlets, upperBeamlet, cumulativeBeamlets, baseBeamlet);
+				udp_stokes<I, O, stokesU, calibrateData>(iLoop, inputPortData, outputData, lastInputPacketOffset, packetOutputLength, timeStepSize, totalBeamlets, upperBeamlet, cumulativeBeamlets, baseBeamlet, jonesMatrix);
 			} else if constexpr (trueState == 130) {
-				udp_stokes<I, O, stokesV>(iLoop, inputPortData, outputData, lastInputPacketOffset, packetOutputLength, timeStepSize, totalBeamlets, upperBeamlet, cumulativeBeamlets, baseBeamlet);
+				udp_stokes<I, O, stokesV, calibrateData>(iLoop, inputPortData, outputData, lastInputPacketOffset, packetOutputLength, timeStepSize, totalBeamlets, upperBeamlet, cumulativeBeamlets, baseBeamlet, jonesMatrix);
 			} else if constexpr (trueState == 150) {
-				udp_fullStokes<I, O>(iLoop, inputPortData, outputData, lastInputPacketOffset, packetOutputLength, timeStepSize, totalBeamlets, upperBeamlet, cumulativeBeamlets, baseBeamlet);
+				udp_fullStokes<I, O, calibrateData>(iLoop, inputPortData, outputData, lastInputPacketOffset, packetOutputLength, timeStepSize, totalBeamlets, upperBeamlet, cumulativeBeamlets, baseBeamlet, jonesMatrix);
 			} else if constexpr (trueState == 160) {
-				udp_usefulStokes<I, O>(iLoop, inputPortData, outputData, lastInputPacketOffset, packetOutputLength, timeStepSize, totalBeamlets, upperBeamlet, cumulativeBeamlets, baseBeamlet);
+				udp_usefulStokes<I, O, calibrateData>(iLoop, inputPortData, outputData, lastInputPacketOffset, packetOutputLength, timeStepSize, totalBeamlets, upperBeamlet, cumulativeBeamlets, baseBeamlet, jonesMatrix);
 
 
 
 
 			} else if constexpr (trueState >= 101 && trueState <= 104) {
-				udp_stokesDecimation<I, O, stokesI, decimation>(iLoop, inputPortData, outputData, lastInputPacketOffset, packetOutputLength, timeStepSize, totalBeamlets, upperBeamlet, cumulativeBeamlets, baseBeamlet);
+				udp_stokesDecimation<I, O, stokesI, decimation, calibrateData>(iLoop, inputPortData, outputData, lastInputPacketOffset, packetOutputLength, timeStepSize, totalBeamlets, upperBeamlet, cumulativeBeamlets, baseBeamlet, jonesMatrix);
 			} else if constexpr (trueState >= 111 && trueState <= 114) {
-				udp_stokesDecimation<I, O, stokesQ, decimation>(iLoop, inputPortData, outputData, lastInputPacketOffset, packetOutputLength, timeStepSize, totalBeamlets, upperBeamlet, cumulativeBeamlets, baseBeamlet);
+				udp_stokesDecimation<I, O, stokesQ, decimation, calibrateData>(iLoop, inputPortData, outputData, lastInputPacketOffset, packetOutputLength, timeStepSize, totalBeamlets, upperBeamlet, cumulativeBeamlets, baseBeamlet, jonesMatrix);
 			} else if constexpr (trueState >= 121 && trueState <= 124) {
-				udp_stokesDecimation<I, O, stokesU, decimation>(iLoop, inputPortData, outputData, lastInputPacketOffset, packetOutputLength, timeStepSize, totalBeamlets, upperBeamlet, cumulativeBeamlets, baseBeamlet);
+				udp_stokesDecimation<I, O, stokesU, decimation, calibrateData>(iLoop, inputPortData, outputData, lastInputPacketOffset, packetOutputLength, timeStepSize, totalBeamlets, upperBeamlet, cumulativeBeamlets, baseBeamlet, jonesMatrix);
 			} else if constexpr (trueState >= 131 && trueState <= 134) {
-				udp_stokesDecimation<I, O, stokesV, decimation>(iLoop, inputPortData, outputData, lastInputPacketOffset, packetOutputLength, timeStepSize, totalBeamlets, upperBeamlet, cumulativeBeamlets, baseBeamlet);
+				udp_stokesDecimation<I, O, stokesV, decimation, calibrateData>(iLoop, inputPortData, outputData, lastInputPacketOffset, packetOutputLength, timeStepSize, totalBeamlets, upperBeamlet, cumulativeBeamlets, baseBeamlet, jonesMatrix);
 			} else if constexpr (trueState >= 151 && trueState <= 154) {
-				udp_fullStokesDecimation<I, O, decimation>(iLoop, inputPortData, outputData, lastInputPacketOffset, packetOutputLength, timeStepSize, totalBeamlets, upperBeamlet, cumulativeBeamlets, baseBeamlet);
+				udp_fullStokesDecimation<I, O, decimation, calibrateData>(iLoop, inputPortData, outputData, lastInputPacketOffset, packetOutputLength, timeStepSize, totalBeamlets, upperBeamlet, cumulativeBeamlets, baseBeamlet, jonesMatrix);
 			} else if constexpr (trueState >= 161 && trueState <= 164) {
-				udp_usefulStokesDecimation<I, O, decimation>(iLoop, inputPortData, outputData, lastInputPacketOffset, packetOutputLength, timeStepSize, totalBeamlets, upperBeamlet, cumulativeBeamlets, baseBeamlet);
+				udp_usefulStokesDecimation<I, O, decimation, calibrateData>(iLoop, inputPortData, outputData, lastInputPacketOffset, packetOutputLength, timeStepSize, totalBeamlets, upperBeamlet, cumulativeBeamlets, baseBeamlet, jonesMatrix);
 			
 
 
@@ -953,6 +1513,7 @@ int lofar_udp_raw_loop(lofar_udp_meta *meta) {
 	// Update the input/output states
 	meta->inputDataReady = 0;
 	meta->outputDataReady = 1;
+	meta->numIters += 1;
 
 
 	// If needed, free the 4-bit workspace
@@ -968,6 +1529,7 @@ int lofar_udp_raw_loop(lofar_udp_meta *meta) {
 
 	return packetLoss;
 }
+
 
 #endif
 #endif
