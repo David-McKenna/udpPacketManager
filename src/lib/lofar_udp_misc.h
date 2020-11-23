@@ -89,6 +89,10 @@ typedef struct __attribute__((__packed__)) lofar_source_bytes {
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+// Define the list of station codes
+//extern const char stationCodes[][5];
+
 //long lowestBufferMultiple(int zstdBuffSize, long targetBufferSize);
 //long maximumBuffer(int zstdBuffSize, int udpPacketSize, long maximumBufferSize);
 
@@ -97,6 +101,7 @@ long lofar_get_packet_number(char *inputData);
 unsigned int lofar_get_next_packet_sequence(char *inputData);
 double lofar_get_packet_time(char *inputData);
 double lofar_get_packet_time_mjd(char *inputData);
+int lofar_get_station_code(int stationID, char *stationCode);
 
 #ifdef __cplusplus
 }

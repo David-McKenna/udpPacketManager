@@ -170,6 +170,9 @@ typedef struct lofar_udp_meta {
 	long lastPacket;
 	int numIters;
 
+	// Other metadata
+	int stationID;
+
 	// Configuration: verbosity of processing
 	#ifdef ALLOW_VERBOSE
 	int VERBOSE;

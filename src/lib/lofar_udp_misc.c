@@ -100,3 +100,109 @@ double lofar_get_packet_time_mjd(char *inputData) {
 
 	return (unixTime / 86400.0) + 40587.0;
 }
+
+
+/*
+const char stationCodes[] = {
+	"CS001", "CS002", "CS003", "CS004", "CS005", "CS006", "CS007", "CS011", "CS013", 
+	"CS017", "CS021", "CS024", "CS026", "CS028", "CS030", "CS031", "CS032", "CS101", 
+	"CS103", "RS106", "CS201", "RS205", "RS208", "RS210", "CS301", "CS302", "RS305", 
+	"RS306", "RS307", "RS310", "CS401", "RS406", "RS407", "RS409", "CS501", "RS503", 
+	"RS508", "RS509", "DE601", "DE602", "DE603", "DE604", "DE605", "FR606", "SE607", 
+	"UK608", "DE609", "PL610", "PL611", "PL612", "IE613", "LV614"
+};
+*/
+
+/**
+ * @brief      Conver the station ID to the station code
+ *
+ * @param[in]  stationID    The station id
+ * @param      stationCode  The output station code (min size: 5 bytes)
+ *
+ * @return     0: Success, 1: Failure
+ */
+int lofar_get_station_code(int stationID, char *stationCode) {
+
+	switch (stationID) {
+		// Core Stations
+		case 1 ... 7:
+		case 11:
+		case 13:
+		case 17:
+		case 21:
+		case 24:
+		case 26:
+		case 28:
+		case 30:
+		case 31:
+		case 32:
+		case 101:
+		case 103:
+		case 201:
+		case 301 ... 302:
+		case 401:
+		case 501:
+
+			sprintf(stationCode, "CS%03d", stationID);
+			break;
+
+		// Remote Stations
+		case 106:
+		case 205:
+		case 208:
+		case 210:
+		case 305 ... 307:
+		case 310:
+		case 406 ... 407:
+		case 409:
+		case 503:
+		case 508 ... 509:
+			sprintf(stationCode, "RS%03d", stationID);
+			break;
+
+
+		// Intl Stations
+		// DE
+		case 601 ... 605:
+		case 609:
+			sprintf(stationCode, "DE%03d", stationID);
+			break;
+
+		// FR
+		case 606:
+			sprintf(stationCode, "FR%03d", stationID);
+			break;
+
+		// SE
+		case 607:
+			sprintf(stationCode, "SE%03d", stationID);
+			break;
+
+		// UK
+		case 608:
+			sprintf(stationCode, "UK%03d", stationID);
+			break;
+
+		// PL
+		case 610 ... 612:
+			sprintf(stationCode, "PL%03d", stationID);
+			break;
+
+		// IE
+		case 613:
+			sprintf(stationCode, "IE%03d", stationID);
+			break;
+
+		// LV
+		case 614:
+			sprintf(stationCode, "LV%03d", stationID);
+			break;
+
+		default:
+			fprintf("Unknown telescope ID %d. Was a new station added to the array? Update lofar_udp_misc.c\n", stationID);
+			return 1;
+			break;
+	}
+
+	return 0;
+}
