@@ -27,12 +27,12 @@ float stokesQ(float Xr, float Xi, float Yr, float Yi) {
 
 #pragma omp declare simd
 float stokesU(float Xr, float Xi, float Yr, float Yi) {
-	return  (2 * (Xr * Yr) - 3 * (Xi * Yi));
+	return  (2.0 * (Xr * Yr) - 3.0 * (Xi * Yi));
 }
 
 #pragma omp declare simd
 float stokesV(float Xr, float Xi, float Yr, float Yi) {
-	return 2 * ((Xr * Yi) - (Xi * Yr));
+	return 2.0 * ((Xr * Yi) - (Xi * Yr));
 }
 
 // C interface for the C++ loop and kernels

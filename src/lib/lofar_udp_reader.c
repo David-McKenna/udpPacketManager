@@ -1136,6 +1136,14 @@ int lofar_udp_reader_calibration(lofar_udp_reader *reader) {
 		return 1;
 	}
 
+	// Wait a second and check if dreamBeam is still running
+	sleep(1);
+	if (kill(pid, 0) != 0) {
+		fprintf(stderr, "ERROR: dreamBeam call exited early. Exiting.\n");
+		remove(reader->calibration->calibrationFifo)
+		return 1;
+	}
+
 	// Ensure the calibration strategy matches the number of subbands we are processing
 	if (numBeamlets != reader->meta->totalProcBeamlets) {
 		fprintf(stderr, "ERROR: Calibration strategy returned %d beamlets, but we are setup to handle %d. Exiting. \n", numBeamlets, reader->meta->totalProcBeamlets);
