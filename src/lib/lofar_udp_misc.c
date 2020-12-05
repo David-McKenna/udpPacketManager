@@ -199,7 +199,7 @@ int lofar_get_station_code(int stationID, char *stationCode) {
 			break;
 
 		default:
-			fprintf("Unknown telescope ID %d. Was a new station added to the array? Update lofar_udp_misc.c\n", stationID);
+			fprintf(stderr, "Unknown telescope ID %d. Was a new station added to the array? Update lofar_udp_misc.c\n", stationID);
 			return 1;
 			break;
 	}

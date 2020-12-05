@@ -4,6 +4,21 @@
 
 
 // Define a set of default structs
+
+// Calibration default
+// While in here we default to enbling calibration, the overall default is read from
+// the lofar_udp_config and overwrites the value in here.
+lofar_udp_calibration lofar_udp_calibration_default = {
+	.calibrationStep = 0,
+	.calibrationStepsGenerated = 0,
+	.calibrationFifo = "/tmp/udp_calibation_pipe",
+	.calibrationSubbands = "HBA,12:499",
+	.calibrationDuration = 3600.0,
+	.calibrationPointing = { 0.0, 0.7853982 },
+	.calibrationPointingBasis = "AZELGO"
+};
+
+// Configuration default
 lofar_udp_config lofar_udp_config_default = {
 	.inputFiles = NULL,
 	.numPorts = 4,
@@ -15,7 +30,8 @@ lofar_udp_config lofar_udp_config_default = {
 	.packetsReadMax = -1,
 	.compressedReader = 0,
 	.beamletLimits = { 0, 0 },
-	.calibrateData = 0
+	.calibrateData = 0,
+	.calibrationConfiguration = &lofar_udp_calibration_default
 };
 
 
@@ -100,6 +116,15 @@ int lofar_udp_parse_headers(lofar_udp_meta *meta, char header[MAX_NUM_PORTS][UDP
 			fprintf(stderr, "Input header on port %d appears malformed (our replay packet warning bit is set), continuing with caution...\n", port);
 		}
 
+		if (port != 0 && meta->clockBit != ((lofar_source_bytes*) &source)->clockBit) {
+			fprintf(stderr, "ERROR: Input files contain a mixutre of 200MHz clock and 160MHz clock (port %d differs), please process these observaiton separately. Exiting.\n", port);
+			return 1;
+		} else {
+			meta->clockBit = ((lofar_source_bytes*) &source)->clockBit;
+		}
+
+		// Extract the station ID
+		meta->stationID = *((short*) &(header[port][4]));
 
 		// Determine the number of beamlets on the port
 		VERBOSE(printf("port %d, bitMode %d, beamlets %d (%u)\n", port, ((lofar_source_bytes*) &source)->bitMode, (int) ((unsigned char) header[port][6]), (unsigned char) header[port][6]););
@@ -852,7 +877,7 @@ lofar_udp_reader* lofar_udp_meta_file_reader_setup_struct(lofar_udp_config *conf
 	for (int port = 0; port < meta.numPorts; port++) {
 		
 		if (config->compressedReader)  {
-			readlen = fread_temp_ZSTD(&(inputHeaders[port]), sizeof(char), 16, config->inputFiles[port], 1);
+			readlen = fread_temp_ZSTD(&(inputHeaders[port][0]), sizeof(char), 16, config->inputFiles[port], 1);
 		} else  {
 			readlen = fread(&(inputHeaders[port]), sizeof(char), 16, config->inputFiles[port]);
 			fseek(config->inputFiles[port], -16, SEEK_CUR);
@@ -912,7 +937,8 @@ lofar_udp_reader* lofar_udp_meta_file_reader_setup_struct(lofar_udp_config *conf
 				// Shift input files down
 				for (int port = lowerPort; port <= upperPort; port++) {
 					config->inputFiles[port - lowerPort] = config->inputFiles[port];
-					memcpy(inputHeaders[port - lowerPort], inputHeaders[port], UDPHDRLEN);
+					// GCC 10 has a warning abot this line. Why?
+					memcpy(&(inputHeaders[port - lowerPort][0]), &(inputHeaders[port][0]), UDPHDRLEN);
 				}
 
 				// Close unneeded files
@@ -1050,6 +1076,149 @@ int lofar_udp_reader_cleanup_f(lofar_udp_reader *reader, const int closeFiles) {
 			}
 		}
 	}
+
+	return 0;
+}
+
+
+
+/**
+ * @brief      Generate the inverted Jones matrix to calibrate the observed data
+ *
+ * @param      reader  The lofar_udp_reader
+ *
+ * @return     int: 0: Success, 1: Failure
+ */
+int lofar_udp_reader_calibration(lofar_udp_reader *reader) {
+	FILE *fifo;
+	int numBeamlets, numTimesamples, returnVal;
+	// Ensure we are meant to be calibrating data
+	if (!reader->meta->calibrateData) {
+		fprintf(stderr, "ERROR: Requested calibration while calibration is disabled. Exiting.\n");
+		return 1;
+	}
+
+
+	// Make a FIFO pipe to communicate with dreamBeam
+	returnVal = mkfifo(reader->calibration->calibrationFifo, 0666);
+	if (returnVal < 0) {
+		fprintf(stderr, "ERROR: Unable to create FIFO pipe at %s (%d). Exiting.\n", reader->calibration->calibrationFifo, errno);
+		return 1;
+	}
+
+	fifo = fopen(reader->calibration->calibrationFifo, "r");
+
+	// Call dreamBeam to generate calibration
+	// dreamBeamJonesGenerator.py --stn STNID --sub ANT,SBL:SBU --time TIME --dur DUR --int INT --pnt P0,P1,BASIS --pipe /tmp/pipe 
+	char stationID[5], unixTime[16], duration[16], integration[16], pointing[512];
+	
+	lofar_get_station_code(reader->meta->stationID, stationID);
+	sprintf(unixTime, "%d", (int) (reader->meta->inputData[0][8]));
+	sprintf(duration, "%15.4f", reader->calibration->calibrationDuration);
+	sprintf(integration, "%15.10f", reader->packetsPerIteration * UDPNTIMESLICE / (clock200MHzSample * reader->meta->clockBit + clock160MHzSample * (1 - reader->meta->clockBit)));
+	sprintf(pointing, "%f,%f,%s", reader->calibration->calibrationPointing[0], reader->calibration->calibrationPointing[1], reader->calibration->calibrationPointingBasis);
+
+	char *argv[] = { "dreamBeamJonesGenerator.py", "--stn", stationID,  "--time", unixTime, "--sub", reader->calibration->calibrationSubbands, "--dur", duration, "--int", integration, "--pnt",  pointing, "--pipe", reader->calibration->calibrationFifo, NULL };
+	pid_t pid = fork();
+
+	if (pid == 0) {
+		execvp(argv[0], &(argv[1]));
+		execvp( argv[0], argv );
+		_exit(1);
+	} else  if (pid < 0) {
+		fprintf(stderr, "ERROR: Unable to create child process to call dreamBeam. Exiting.\n");
+		return 1;
+	}
+	// Get the number of time steps and frequency channles 
+	returnVal = fscanf(fifo, "%d,%d\n", &numTimesamples, &numBeamlets);
+	if (returnVal < 0) {
+		fprintf(stderr, "ERROR: Failed to parse number of beamlets and time samples from dreamBeam. Exiting.\n");
+		return 1;
+	}
+
+	// Ensure the calibration strategy matches the number of subbands we are processing
+	if (numBeamlets != reader->meta->totalProcBeamlets) {
+		fprintf(stderr, "ERROR: Calibration strategy returned %d beamlets, but we are setup to handle %d. Exiting. \n", numBeamlets, reader->meta->totalProcBeamlets);
+		return 1;
+	}
+
+
+	// Check if we already allocated storage for the calibration data, re-use already alloc'd data where possible
+	if (reader->meta->jonesMatrices == NULL) {
+		// Allocate numTimesamples * numBeamlets * (4 pmatrix elements) * (2 complex values per element)
+		reader->meta->jonesMatrices = malloc(numTimesamples * sizeof(float*));
+		for (int timeIdx = 0; timeIdx < numTimesamples; timeIdx += 1) {
+			reader->meta->jonesMatrices[timeIdx] = calloc(numBeamlets * 8, sizeof(float));
+		}
+	// If we returned more time samples than last time, reallocate the array
+	} else if (numTimesamples > reader->calibration->calibrationStepsGenerated) {
+		// Free the old data
+		for (int timeIdx = 0; timeIdx < reader->calibration->calibrationStepsGenerated; timeIdx += 1) {
+			free(reader->meta->jonesMatrices[timeIdx]);
+		}
+		free(reader->meta->jonesMatrices);
+
+		// Reallocate the data
+		reader->meta->jonesMatrices = malloc(numTimesamples * sizeof(float*));
+		for (int timeIdx = 0; timeIdx < numTimesamples; timeIdx += 1) {
+			reader->meta->jonesMatrices[timeIdx] = calloc(numBeamlets * 8, sizeof(float));
+		}
+	// If less time samples, free the remaining steps and re-use the array
+	} else if (numTimesamples < reader->calibration->calibrationStepsGenerated) {
+		// Free the extra time steps
+		for (int timeIdx = reader->calibration->calibrationStepsGenerated; timeIdx < numTimesamples; timeIdx += 1) {
+			free(reader->meta->jonesMatrices[timeIdx]);
+		}
+	}
+
+
+	// Index into the jonesMatrices array
+	long baseOffset = 0;
+	for (int timeIdx = 0; timeIdx < numTimesamples; timeIdx += 1) {
+		baseOffset = 0;
+		for (int freqIdx = 0; freqIdx < numBeamlets - 1; freqIdx += 1) {
+			// parse the FIFO to get the data
+			returnVal = fscanf(fifo, "%f,%f,%f,%f,%f,%f,%f,%f,", 	&reader->meta->jonesMatrices[timeIdx][baseOffset], \
+														&reader->meta->jonesMatrices[timeIdx][baseOffset + 1], \
+														&reader->meta->jonesMatrices[timeIdx][baseOffset + 2], \
+														&reader->meta->jonesMatrices[timeIdx][baseOffset + 3], \
+														&reader->meta->jonesMatrices[timeIdx][baseOffset + 4], \
+														&reader->meta->jonesMatrices[timeIdx][baseOffset + 5], \
+														&reader->meta->jonesMatrices[timeIdx][baseOffset + 6], \
+														&reader->meta->jonesMatrices[timeIdx][baseOffset + 7]);
+
+			if (returnVal < 0) {
+				fprintf(stderr, "ERROR: unable to parse main pipe from dreamBeam (%d, %d). Exiting.\n", timeIdx, freqIdx);
+			}
+
+			baseOffset += 8;
+		}
+
+		// Parse the final beamlet sample, confirm it ends with a | to signify the end of the time sample
+		returnVal = fscanf(fifo, "%f,%f,%f,%f,%f,%f,%f,%f|", 	&reader->meta->jonesMatrices[timeIdx][baseOffset], \
+													&reader->meta->jonesMatrices[timeIdx][baseOffset + 1], \
+													&reader->meta->jonesMatrices[timeIdx][baseOffset + 2], \
+													&reader->meta->jonesMatrices[timeIdx][baseOffset + 3], \
+													&reader->meta->jonesMatrices[timeIdx][baseOffset + 4], \
+													&reader->meta->jonesMatrices[timeIdx][baseOffset + 5], \
+													&reader->meta->jonesMatrices[timeIdx][baseOffset + 6], \
+													&reader->meta->jonesMatrices[timeIdx][baseOffset + 7]);
+		if (returnVal < 0) {
+			fprintf(stderr, "ERROR: unable to parse final pipe from dreamBeam (%d). Exiting.\n", timeIdx);
+		}
+
+	}
+
+	// Close and remove the pipe
+	fclose(fifo);
+	if (remove(reader->calibration->calibrationFifo) != 0) {
+		fprintf(stderr, "ERROR: Unable to remove claibration FIFO (%d). Exiting.\n", errno);
+		return 1;
+	}
+
+	// Update the calibration state
+	reader->calibration->calibrationStep = 0;
+	reader->calibration->calibrationStepsGenerated = numTimesamples;
 
 	return 0;
 }
@@ -1269,7 +1438,9 @@ int lofar_udp_reader_step_timed(lofar_udp_reader *reader, double timing[2]) {
 	// Make sure there is a new input data set before running
 	// On the setup iteration, the output data is marked as ready to prevent this occurring until the first read step is called
 	if (reader->meta->outputDataReady != 1 && reader->meta->packetsPerIteration > 0) {
-		if ((stepReturnVal = (reader->meta->processFunc)(reader->meta)) > 0) return stepReturnVal;
+		if ((stepReturnVal = lofar_udp_cpp_loop_interface(reader->meta)) > 0) {
+			return stepReturnVal;
+		}
 		reader->meta->packetsRead += reader->meta->packetsPerIteration;
 		reader->meta->inputDataReady = 0;
 	}

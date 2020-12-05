@@ -1,28 +1,6 @@
 #include "lofar_udp_backends.hpp"
 
 
-// Declare the Stokes Vector Functions
-#pragma omp declare simd
-float stokesI(float Xr, float Xi, float Yr, float Yi) {
-	return  (1.0 * (Xr * Xr) + 1.0 * (Xi * Xi) + 1.0 * (Yr * Yr) + 1.0 * (Yi * Yi));
-}
-
-#pragma omp declare simd
-float stokesQ(float Xr, float Xi, float Yr, float Yi) {
-	return  (1.0 * (Xr * Xr) + 1.0 * (Xi * Xi) - 1.0 * (Yr * Yr) - 1.0 * (Yi * Yi));
-}
-
-#pragma omp declare simd
-float stokesU(float Xr, float Xi, float Yr, float Yi) {
-	return  (2.0 * (Xr * Yr) - 3.0 * (Xi * Yi));
-}
-
-#pragma omp declare simd
-float stokesV(float Xr, float Xi, float Yr, float Yi) {
-	return 2.0 * ((Xr * Yi) + (-1.0 * Xi * Yr));
-}
-
-
 // Declare the function to calculate a calibrated sample
 // Calculates one output component of:
 // [(x_1, y_1i), (x_2, y_2i)] . [(s_1, s_2i)] = J . (X,Y).T
@@ -34,6 +12,27 @@ float stokesV(float Xr, float Xi, float Yr, float Yi) {
 #pragma omp declare simd
 float calibrateSample(float c_1, float c_2, float c_3, float c_4, float c_5, float c_6, float c_7, float c_8) {
 	return (c_1 * c_2) + (c_3 * c_4) + (c_5 * c_6) + (c_7 * c_8);
+}
+
+// Declare the Stokes Vector Functions
+#pragma omp declare simd
+float stokesI(float Xr, float Xi, float Yr, float Yi) {
+	return  (Xr * Xr) + (Xi * Xi) + (Yr * Yr) + (Yi * Yi);
+}
+
+#pragma omp declare simd
+float stokesQ(float Xr, float Xi, float Yr, float Yi) {
+	return  ((Xr * Xr) + (Xi * Xi) - (Yr * Yr) - (Yi * Yi));
+}
+
+#pragma omp declare simd
+float stokesU(float Xr, float Xi, float Yr, float Yi) {
+	return  (2 * (Xr * Yr) - 3 * (Xi * Yi));
+}
+
+#pragma omp declare simd
+float stokesV(float Xr, float Xi, float Yr, float Yi) {
+	return 2 * ((Xr * Yi) - (Xi * Yr));
 }
 
 // C interface for the C++ loop and kernels

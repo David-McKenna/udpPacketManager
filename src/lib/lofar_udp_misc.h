@@ -1,3 +1,6 @@
+// Normal includes
+#include <stdio.h>
+
 #ifndef __LOFAR_COMPILE_CONSTANTS
 #define __LOFAR_COMPILE_CONSTANTS
 
@@ -31,7 +34,6 @@
 #define __LOFAR_UDP_VERBOSE_MACRO
 
 #ifdef ALLOW_VERBOSE
-#include <stdio.h>
 #define VERBOSE(MSG) MSG;
 #else
 #define VERBOSE(MSG) while(0) {};

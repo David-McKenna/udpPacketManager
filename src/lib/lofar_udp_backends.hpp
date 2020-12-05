@@ -1,8 +1,6 @@
 #ifndef LOFAR_UDP_BACKENDS_H
 #define LOFAR_UDP_BACKENDS_H
 
-typedef float(StokesFuncType)(float, float, float, float);
-
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -21,19 +19,32 @@ extern "C" {
 extern const char bitmodeConversion[256][2];
 #endif
 
-
-// Define SIMD operations
-float stokesI(float Xr, float Xi, float Yr, float Yi);
-float stokesQ(float Xr, float Xi, float Yr, float Yi);
-float stokesU(float Xr, float Xi, float Yr, float Yi);
-float stokesV(float Xr, float Xi, float Yr, float Yi);
-float calibrateSample(float c_1, float c_2, float c_3, float c_4, float c_5, float c_6, float c_7, float c_8);
-
 // Jones matrix size for calibration
 #define JONESMATSIZE 8
 
 
+#ifndef __LOFAR_UDP_VOLTAGE_MANIP
+#define __LOFAR_UDP_VOLTAGE_MANIP
+#ifdef __cplusplus
+extern "C" {
+#endif
+// Include CPP functions
+float calibrateSample(float c_1, float c_2, float c_3, float c_4, float c_5, float c_6, float c_7, float c_8);
+// Declare the Stokes Vector Functions
+typedef float(StokesFuncType)(float, float, float, float);
+float stokesI(float Xr, float Xi, float Yr, float Yi);
+float stokesQ(float Xr, float Xi, float Yr, float Yi);
+float stokesU(float Xr, float Xi, float Yr, float Yi);
+float stokesV(float Xr, float Xi, float Yr, float Yi);
+
+#ifdef __cplusplus
+}
+#endif
+#endif
+
 // Define the C-access interfaces
+#ifndef __LOFAR_UDP_CPPBRIDGE
+#define __LOFAR_UDP_CPPBRIDGE
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -41,7 +52,7 @@ int lofar_udp_cpp_loop_interface(lofar_udp_meta *meta);
 #ifdef __cplusplus
 }
 #endif
-
+#endif
 #endif
 
 // Setup templates for each processing mode
@@ -52,7 +63,7 @@ int lofar_udp_cpp_loop_interface(lofar_udp_meta *meta);
 
 // Apply the calibration from a Jones matrix to a set of X/Y samples
 template<typename I, typename O>
-void inline calibrateData(O *Xr, O *Xi, O *Yr, O *Yi, float *beamletJones, char *inputPortData, long tsInOffset, char timeStepSize) {
+void inline calibrateDataFunc(O *Xr, O *Xi, O *Yr, O *Yi, float *beamletJones, char *inputPortData, long tsInOffset, char timeStepSize) {
 	(*Xr) = calibrateSample(beamletJones[0], *((I*) &(inputPortData[tsInOffset])), \
 							-1.0 * beamletJones[1], *((I*) &(inputPortData[tsInOffset + 1 * timeStepSize])), \
 							beamletJones[2], *((I*) &(inputPortData[tsInOffset + 2 * timeStepSize])), \
@@ -115,7 +126,7 @@ void inline udp_copySplitPols(long iLoop, char *inputPortData, O **outputData, l
 	#ifdef __INTEL_COMPILER
 	#pragma omp simd
 	#else
-	#pragma GCC unroll 61
+	//#pragma GCC unroll 16
 	#endif
 	for (int beamlet = baseBeamlet; beamlet < upperBeamlet; beamlet++) {
 		tsInOffset = lastInputPacketOffset + beamlet * UDPNTIMESLICE * UDPNPOL * timeStepSize;
@@ -132,7 +143,7 @@ void inline udp_copySplitPols(long iLoop, char *inputPortData, O **outputData, l
 		#endif
 		for (int ts = 0; ts < UDPNTIMESLICE; ts++) {
 			if constexpr (calibrateData) {
-				calibrateData<I, O>(&Xr, &Xi, &Yr, &Yi, beamletJones, inputPortData, tsInOffset, timeStepSize);
+				calibrateDataFunc<I, O>(&Xr, &Xi, &Yr, &Yi, beamletJones, inputPortData, tsInOffset, timeStepSize);
 
 				outputData[0][tsOutOffset] = Xr;
 				outputData[1][tsOutOffset] = Xi;
@@ -172,7 +183,7 @@ void inline udp_channelMajor(long iLoop, char *inputPortData, O **outputData, lo
 	#ifdef __INTEL_COMPILER
 	#pragma omp simd
 	#else
-	#pragma GCC unroll 61
+	//#pragma GCC unroll 16
 	#endif
 	for (int beamlet = baseBeamlet; beamlet < upperBeamlet; beamlet++) {
 		tsInOffset = lastInputPacketOffset + beamlet * UDPNTIMESLICE * UDPNPOL * timeStepSize;
@@ -189,7 +200,7 @@ void inline udp_channelMajor(long iLoop, char *inputPortData, O **outputData, lo
 		#endif
 		for (int ts = 0; ts < UDPNTIMESLICE; ts++) {
 			if constexpr (calibrateData) {
-				calibrateData<I, O>(&Xr, &Xi, &Yr, &Yi, beamletJones, inputPortData, tsInOffset, timeStepSize);
+				calibrateDataFunc<I, O>(&Xr, &Xi, &Yr, &Yi, beamletJones, inputPortData, tsInOffset, timeStepSize);
 
 				outputData[0][tsOutOffset] = Xr;
 				outputData[0][tsOutOffset + 1] = Xi;
@@ -228,7 +239,7 @@ void inline udp_channelMajorSplitPols(long iLoop, char *inputPortData, O **outpu
 	#ifdef __INTEL_COMPILER
 	#pragma omp simd
 	#else
-	#pragma GCC unroll 61
+	//#pragma GCC unroll 16
 	#endif
 	for (int beamlet = baseBeamlet; beamlet < upperBeamlet; beamlet++) {
 		tsInOffset = lastInputPacketOffset + beamlet * UDPNTIMESLICE * UDPNPOL * timeStepSize;
@@ -245,7 +256,7 @@ void inline udp_channelMajorSplitPols(long iLoop, char *inputPortData, O **outpu
 		#endif
 		for (int ts = 0; ts < UDPNTIMESLICE; ts++) {
 			if constexpr (calibrateData) {
-				calibrateData<I, O>(&Xr, &Xi, &Yr, &Yi, beamletJones, inputPortData, tsInOffset, timeStepSize);
+				calibrateDataFunc<I, O>(&Xr, &Xi, &Yr, &Yi, beamletJones, inputPortData, tsInOffset, timeStepSize);
 
 				outputData[0][tsOutOffset] = Xr;
 				outputData[1][tsOutOffset] = Xi;
@@ -283,7 +294,7 @@ void inline udp_reversedChannelMajor(long iLoop, char *inputPortData, O **output
 	#ifdef __INTEL_COMPILER
 	#pragma omp simd
 	#else
-	#pragma GCC unroll 61
+	//#pragma GCC unroll 16
 	#endif
 	for (int beamlet = baseBeamlet; beamlet < upperBeamlet; beamlet++) {
 		tsInOffset = lastInputPacketOffset + beamlet * UDPNTIMESLICE * UDPNPOL * timeStepSize;
@@ -300,7 +311,7 @@ void inline udp_reversedChannelMajor(long iLoop, char *inputPortData, O **output
 		#endif
 		for (int ts = 0; ts < UDPNTIMESLICE; ts++) {
 			if constexpr (calibrateData) {
-				calibrateData<I, O>(&Xr, &Xi, &Yr, &Yi, beamletJones, inputPortData, tsInOffset, timeStepSize);
+				calibrateDataFunc<I, O>(&Xr, &Xi, &Yr, &Yi, beamletJones, inputPortData, tsInOffset, timeStepSize);
 
 				outputData[0][tsOutOffset] = Xr;
 				outputData[0][tsOutOffset + 1] = Xi;
@@ -338,7 +349,7 @@ void inline udp_reversedChannelMajorSplitPols(long iLoop, char *inputPortData, O
 	#ifdef __INTEL_COMPILER
 	#pragma omp simd
 	#else
-	#pragma GCC unroll 61
+	//#pragma GCC unroll 16
 	#endif
 	for (int beamlet = baseBeamlet; beamlet < upperBeamlet; beamlet++) {
 		tsInOffset = lastInputPacketOffset + beamlet * UDPNTIMESLICE * UDPNPOL * timeStepSize;
@@ -355,7 +366,7 @@ void inline udp_reversedChannelMajorSplitPols(long iLoop, char *inputPortData, O
 		#endif
 		for (int ts = 0; ts < UDPNTIMESLICE; ts++) {
 			if constexpr (calibrateData) {
-				calibrateData<I, O>(&Xr, &Xi, &Yr, &Yi, beamletJones, inputPortData, tsInOffset, timeStepSize);
+				calibrateDataFunc<I, O>(&Xr, &Xi, &Yr, &Yi, beamletJones, inputPortData, tsInOffset, timeStepSize);
 
 				outputData[0][tsOutOffset] = Xr;
 				outputData[1][tsOutOffset] = Xi;
@@ -393,7 +404,7 @@ void inline udp_timeMajor(long iLoop, char *inputPortData, O **outputData, long 
 	#ifdef __INTEL_COMPILER
 	#pragma omp simd
 	#else
-	#pragma GCC unroll 61
+	//#pragma GCC unroll 16
 	#endif
 	for (int beamlet = baseBeamlet; beamlet < upperBeamlet; beamlet++) {
 		tsInOffset = lastInputPacketOffset + beamlet * UDPNTIMESLICE * UDPNPOL * timeStepSize;
@@ -410,7 +421,7 @@ void inline udp_timeMajor(long iLoop, char *inputPortData, O **outputData, long 
 		#endif
 		for (int ts = 0; ts < UDPNTIMESLICE; ts++) {
 			if constexpr (calibrateData) {
-				calibrateData<I, O>(&Xr, &Xi, &Yr, &Yi, beamletJones, inputPortData, tsInOffset, timeStepSize);
+				calibrateDataFunc<I, O>(&Xr, &Xi, &Yr, &Yi, beamletJones, inputPortData, tsInOffset, timeStepSize);
 
 				outputData[0][tsOutOffset] = Xr; 
 				outputData[0][tsOutOffset + 1] = Xi;
@@ -447,7 +458,7 @@ void inline udp_timeMajorSplitPols(long iLoop, char *inputPortData, O **outputDa
 	#ifdef __INTEL_COMPILER
 	#pragma omp simd
 	#else
-	#pragma GCC unroll 61
+	//#pragma GCC unroll 16
 	#endif
 	for (int beamlet = baseBeamlet; beamlet < upperBeamlet; beamlet++) {
 		tsInOffset = lastInputPacketOffset + beamlet * UDPNTIMESLICE * UDPNPOL * timeStepSize;
@@ -464,7 +475,7 @@ void inline udp_timeMajorSplitPols(long iLoop, char *inputPortData, O **outputDa
 		#endif
 		for (int ts = 0; ts < UDPNTIMESLICE; ts++) {
 			if constexpr (calibrateData) {
-				calibrateData<I, O>(&Xr, &Xi, &Yr, &Yi, beamletJones, inputPortData, tsInOffset, timeStepSize);
+				calibrateDataFunc<I, O>(&Xr, &Xi, &Yr, &Yi, beamletJones, inputPortData, tsInOffset, timeStepSize);
 				
 				outputData[0][tsOutOffset] = Xr;
 				outputData[1][tsOutOffset] = Xi;
@@ -504,7 +515,7 @@ void inline udp_timeMajorDualPols(long iLoop, char *inputPortData, O **outputDat
 	#ifdef __INTEL_COMPILER
 	#pragma omp simd
 	#else
-	#pragma GCC unroll 61
+	//#pragma GCC unroll 16
 	#endif
 	for (int beamlet = baseBeamlet; beamlet < upperBeamlet; beamlet++) {
 		tsInOffset = lastInputPacketOffset + beamlet * UDPNTIMESLICE * UDPNPOL * timeStepSize;
@@ -521,7 +532,7 @@ void inline udp_timeMajorDualPols(long iLoop, char *inputPortData, O **outputDat
 		#endif
 		for (int ts = 0; ts < UDPNTIMESLICE; ts++) {
 			if constexpr (calibrateData) {
-				calibrateData<I, O>(&Xr, &Xi, &Yr, &Yi, beamletJones, inputPortData, tsInOffset, timeStepSize);
+				calibrateDataFunc<I, O>(&Xr, &Xi, &Yr, &Yi, beamletJones, inputPortData, tsInOffset, timeStepSize);
 
 				outputData[0][tsOutOffset] = Xr;
 				outputData[0][tsOutOffset + 1] = Xi; 
@@ -541,7 +552,7 @@ void inline udp_timeMajorDualPols(long iLoop, char *inputPortData, O **outputDat
 }
 
 
-template <typename I, typename O, StokesFuncType stokesFunc, const int calibrateData>
+template <typename I, typename O, const StokesFuncType stokesFunc, const int calibrateData>
 void inline udp_stokes(long iLoop, char *inputPortData, O **outputData,  long lastInputPacketOffset, long packetOutputLength, char timeStepSize, int totalBeamlets, int upperBeamlet, int cumulativeBeamlets, int baseBeamlet, float *jonesMatrix) {
 	long outputPacketOffset = iLoop * packetOutputLength / sizeof(O);
 	long tsInOffset, tsOutOffset;
@@ -560,7 +571,7 @@ void inline udp_stokes(long iLoop, char *inputPortData, O **outputData,  long la
 	#ifdef __INTEL_COMPILER
 	#pragma omp simd
 	#else
-	#pragma GCC unroll 61
+	//#pragma GCC unroll 16
 	#endif
 	for (int beamlet = baseBeamlet; beamlet < upperBeamlet; beamlet++) {
 		tsInOffset = lastInputPacketOffset + beamlet * UDPNTIMESLICE * UDPNPOL * timeStepSize;
@@ -577,7 +588,7 @@ void inline udp_stokes(long iLoop, char *inputPortData, O **outputData,  long la
 		#endif
 		for (int ts = 0; ts < UDPNTIMESLICE; ts++) {
 			if constexpr (calibrateData) {
-				calibrateData<I, O>(&Xr, &Xi, &Yr, &Yi, beamletJones, inputPortData, tsInOffset, timeStepSize);
+				calibrateDataFunc<I, O>(&Xr, &Xi, &Yr, &Yi, beamletJones, inputPortData, tsInOffset, timeStepSize);
 
 				outputData[0][tsOutOffset] = (*stokesFunc)(Xr, Xi, Yr, Yi);
 			} else {
@@ -590,7 +601,7 @@ void inline udp_stokes(long iLoop, char *inputPortData, O **outputData,  long la
 	}
 }
 
-template <typename I, typename O, StokesFuncType stokesFunc, const int factor, const int calibrateData>
+template <typename I, typename O, const StokesFuncType stokesFunc, const int factor, const int calibrateData>
 void inline udp_stokesDecimation(long iLoop, char *inputPortData, O **outputData, long lastInputPacketOffset, long packetOutputLength, char timeStepSize, int totalBeamlets, int upperBeamlet, int cumulativeBeamlets, int baseBeamlet, float *jonesMatrix) {
 	long outputPacketOffset = iLoop * packetOutputLength / sizeof(O);
 	long tsInOffset, tsOutOffset;
@@ -609,7 +620,7 @@ void inline udp_stokesDecimation(long iLoop, char *inputPortData, O **outputData
 	#ifdef __INTEL_COMPILER
 	#pragma omp simd
 	#else
-	#pragma GCC unroll 61
+	//#pragma GCC unroll 16
 	#endif
 	for (int beamlet = baseBeamlet; beamlet < upperBeamlet; beamlet++) {
 		tsInOffset = lastInputPacketOffset + beamlet * UDPNTIMESLICE * UDPNPOL * timeStepSize;
@@ -626,12 +637,13 @@ void inline udp_stokesDecimation(long iLoop, char *inputPortData, O **outputData
 		#endif
 		for (int ts = 0; ts < UDPNTIMESLICE; ts++) {
 			if constexpr (calibrateData) {
-				calibrateData<I, O>(&Xr, &Xi, &Yr, &Yi, beamletJones, inputPortData, tsInOffset, timeStepSize);
+				calibrateDataFunc<I, O>(&Xr, &Xi, &Yr, &Yi, beamletJones, inputPortData, tsInOffset, timeStepSize);
 
 				tempVal += (*stokesFunc)(Xr, Xi, Yr, Yi);
 			} else {
 				tempVal += (*stokesFunc)(*((I*) &(inputPortData[tsInOffset])), *((I*) &(inputPortData[tsInOffset + 1 * timeStepSize])), *((I*) &(inputPortData[tsInOffset + 2 * timeStepSize])), *((I*) &(inputPortData[tsInOffset + 3 * timeStepSize])));
 			}
+
 
 			tsInOffset += 4 * timeStepSize;
 			if ((ts + 1) % factor == 0) {
@@ -661,7 +673,7 @@ void inline udp_fullStokes(long iLoop, char *inputPortData, O **outputData,  lon
 	#ifdef __INTEL_COMPILER
 	#pragma omp simd
 	#else
-	#pragma GCC unroll 61
+	//#pragma GCC unroll 16
 	#endif
 	for (int beamlet = baseBeamlet; beamlet < upperBeamlet; beamlet++) {
 		tsInOffset = lastInputPacketOffset + beamlet * UDPNTIMESLICE * UDPNPOL * timeStepSize;
@@ -678,7 +690,7 @@ void inline udp_fullStokes(long iLoop, char *inputPortData, O **outputData,  lon
 		#endif
 		for (int ts = 0; ts < UDPNTIMESLICE; ts++) {
 			if constexpr (calibrateData) {
-				calibrateData<I, O>(&Xr, &Xi, &Yr, &Yi, beamletJones, inputPortData, tsInOffset, timeStepSize);
+				calibrateDataFunc<I, O>(&Xr, &Xi, &Yr, &Yi, beamletJones, inputPortData, tsInOffset, timeStepSize);
 
 				outputData[0][tsOutOffset] = stokesI(Xr, Xi, Yr, Yi);
 				outputData[1][tsOutOffset] = stokesQ(Xr, Xi, Yr, Yi);
@@ -717,7 +729,7 @@ void inline udp_fullStokesDecimation(long iLoop, char *inputPortData, O **output
 	#ifdef __INTEL_COMPILER
 	#pragma omp simd
 	#else
-	#pragma GCC unroll 61
+	//#pragma GCC unroll 16
 	#endif
 	for (int beamlet = baseBeamlet; beamlet < upperBeamlet; beamlet++) {
 		tsInOffset = lastInputPacketOffset + beamlet * UDPNTIMESLICE * UDPNPOL * timeStepSize;
@@ -729,6 +741,7 @@ void inline udp_fullStokesDecimation(long iLoop, char *inputPortData, O **output
 
 		// This is split into 2 inner loops as ICC generates garbage outputs when the loop is run on the full inner loop.
 		// Should still be relatively efficient as 16 time samples fit inside one cache line on REALTA, so they should never be dropped
+		// But we'll slow down when we are claibrating the data.
 		tempValI = 0.0;
 		tempValQ = 0.0;
 
@@ -739,7 +752,7 @@ void inline udp_fullStokesDecimation(long iLoop, char *inputPortData, O **output
 		#endif
 		for (int ts = 0; ts < UDPNTIMESLICE; ts++) {
 			if constexpr (calibrateData) {
-				calibrateData<I, O>(&Xr, &Xi, &Yr, &Yi, beamletJones, inputPortData, tsInOffset, timeStepSize);
+				calibrateDataFunc<I, O>(&Xr, &Xi, &Yr, &Yi, beamletJones, inputPortData, tsInOffset, timeStepSize);
 
 				tempValI += stokesI(Xr, Xi, Yr, Yi);
 				tempValQ += stokesQ(Xr, Xi, Yr, Yi);
@@ -771,7 +784,7 @@ void inline udp_fullStokesDecimation(long iLoop, char *inputPortData, O **output
 		#endif
 		for (int ts = 0; ts < UDPNTIMESLICE; ts++) {
 			if constexpr (calibrateData) {
-				calibrateData<I, O>(&Xr, &Xi, &Yr, &Yi, beamletJones, inputPortData, tsInOffset, timeStepSize);
+				calibrateDataFunc<I, O>(&Xr, &Xi, &Yr, &Yi, beamletJones, inputPortData, tsInOffset, timeStepSize);
 
 				tempValU += stokesU(Xr, Xi, Yr, Yi);
 				tempValV += stokesV(Xr, Xi, Yr, Yi);
@@ -816,7 +829,7 @@ void inline udp_usefulStokes(long iLoop, char *inputPortData, O **outputData,  l
 	#ifdef __INTEL_COMPILER
 	#pragma omp simd
 	#else
-	#pragma GCC unroll 61
+	//#pragma GCC unroll 16
 	#endif
 	for (int beamlet = baseBeamlet; beamlet < upperBeamlet; beamlet++) {
 		tsInOffset = lastInputPacketOffset + beamlet * UDPNTIMESLICE * UDPNPOL * timeStepSize;
@@ -833,7 +846,7 @@ void inline udp_usefulStokes(long iLoop, char *inputPortData, O **outputData,  l
 		#endif
 		for (int ts = 0; ts < UDPNTIMESLICE; ts++) {
 			if constexpr (calibrateData) {
-				calibrateData<I, O>(&Xr, &Xi, &Yr, &Yi, beamletJones, inputPortData, tsInOffset, timeStepSize);
+				calibrateDataFunc<I, O>(&Xr, &Xi, &Yr, &Yi, beamletJones, inputPortData, tsInOffset, timeStepSize);
 
 				outputData[0][tsOutOffset] = stokesI(Xr, Xi, Yr, Yi);
 				outputData[1][tsOutOffset] = stokesV(Xr, Xi, Yr, Yi);
@@ -868,7 +881,7 @@ void inline udp_usefulStokesDecimation(long iLoop, char *inputPortData, O **outp
 	#ifdef __INTEL_COMPILER
 	#pragma omp simd
 	#else
-	#pragma GCC unroll 61
+	//#pragma GCC unroll 16
 	#endif
 	for (int beamlet = baseBeamlet; beamlet < upperBeamlet; beamlet++) {
 		tsInOffset = lastInputPacketOffset + beamlet * UDPNTIMESLICE * UDPNPOL * timeStepSize;
@@ -888,7 +901,7 @@ void inline udp_usefulStokesDecimation(long iLoop, char *inputPortData, O **outp
 		#endif
 		for (int ts = 0; ts < UDPNTIMESLICE; ts++) {
 			if constexpr (calibrateData) {
-				calibrateData<I, O>(&Xr, &Xi, &Yr, &Yi, beamletJones, inputPortData, tsInOffset, timeStepSize);
+				calibrateDataFunc<I, O>(&Xr, &Xi, &Yr, &Yi, beamletJones, inputPortData, tsInOffset, timeStepSize);
 
 				tempValI += stokesI(Xr, Xi, Yr, Yi);
 				tempValV += stokesV(Xr, Xi, Yr, Yi);
