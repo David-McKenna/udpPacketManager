@@ -8,10 +8,12 @@
 #include <time.h>
 #include <malloc.h>
 #include <errno.h>
-// FIFO
+// Calibration requirements
 #include <unistd.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <sys/types.h>
+#include <signal.h>
 
 #ifndef __LOFAR_COMPILE_CONSTANTS
 #define __LOFAR_COMPILE_CONSTANTS
