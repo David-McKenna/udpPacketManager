@@ -1140,7 +1140,7 @@ int lofar_udp_reader_calibration(lofar_udp_reader *reader) {
 	sleep(1);
 	if (kill(pid, 0) != 0) {
 		fprintf(stderr, "ERROR: dreamBeam call exited early. Exiting.\n");
-		returnvVal = remove(reader->calibration->calibrationFifo);
+		returnVal = remove(reader->calibration->calibrationFifo);
 		return 1;
 	}
 
