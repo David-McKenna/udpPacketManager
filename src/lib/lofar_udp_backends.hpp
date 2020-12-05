@@ -552,7 +552,7 @@ void inline udp_timeMajorDualPols(long iLoop, char *inputPortData, O **outputDat
 }
 
 
-template <typename I, typename O, const StokesFuncType stokesFunc, const int calibrateData>
+template <typename I, typename O, StokesFuncType stokesFunc, const int calibrateData>
 void inline udp_stokes(long iLoop, char *inputPortData, O **outputData,  long lastInputPacketOffset, long packetOutputLength, char timeStepSize, int totalBeamlets, int upperBeamlet, int cumulativeBeamlets, int baseBeamlet, float *jonesMatrix) {
 	long outputPacketOffset = iLoop * packetOutputLength / sizeof(O);
 	long tsInOffset, tsOutOffset;
@@ -601,7 +601,7 @@ void inline udp_stokes(long iLoop, char *inputPortData, O **outputData,  long la
 	}
 }
 
-template <typename I, typename O, const StokesFuncType stokesFunc, const int factor, const int calibrateData>
+template <typename I, typename O, StokesFuncType stokesFunc, const int factor, const int calibrateData>
 void inline udp_stokesDecimation(long iLoop, char *inputPortData, O **outputData, long lastInputPacketOffset, long packetOutputLength, char timeStepSize, int totalBeamlets, int upperBeamlet, int cumulativeBeamlets, int baseBeamlet, float *jonesMatrix) {
 	long outputPacketOffset = iLoop * packetOutputLength / sizeof(O);
 	long tsInOffset, tsOutOffset;
