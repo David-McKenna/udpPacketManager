@@ -40,9 +40,14 @@ lofar_udp_reader lofar_udp_reader_default = {
 	.inBuffer = { NULL }
 };
 
+
 lofar_udp_meta lofar_udp_meta_default = {
 	.inputData = { NULL },
 	.outputData = { NULL },
+	.packetsRead = 0,
+	.inputDataReady = 0,
+	.outputDataReady = 0,
+	.jonesMatrices = NULL,
 	.calibrationStep = 0
 };
 
@@ -853,7 +858,7 @@ lofar_udp_reader* lofar_udp_meta_file_reader_setup_struct(lofar_udp_config *conf
 	}
 
 	// Setup the metadata struct and a few variables we'll need
-	static lofar_udp_meta meta = { .packetsRead = 0, .inputDataReady = 0, .outputDataReady = 0, .calibrationStep = 0 };
+	static lofar_udp_meta meta = lofar_udp_meta_default;
 	char inputHeaders[MAX_NUM_PORTS][UDPHDRLEN];
 	int readlen, bufferSize;
 	long localMaxPackets = config->packetsReadMax;
@@ -1225,6 +1230,8 @@ int lofar_udp_reader_calibration(lofar_udp_reader *reader) {
 		}
 
 	}
+
+	printf("%f, %f, %f, %f... %f, %f, %f, %f\n", reader->meta->jonesMatrices[0][0], reader->meta->jonesMatrices[0][1], reader->meta->jonesMatrices[0][2], reader->meta->jonesMatrices[0][3], reader->meta->jonesMatrices[0][baseOffset], reader->meta->jonesMatrices[0][baseOffset + 1], reader->meta->jonesMatrices[0][baseOffset + 2], reader->meta->jonesMatrices[0][baseOffset + 3]);
 
 
 	printf("Cleanup\n");
