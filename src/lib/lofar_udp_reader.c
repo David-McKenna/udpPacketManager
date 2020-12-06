@@ -996,7 +996,7 @@ lofar_udp_reader* lofar_udp_meta_file_reader_setup_struct(lofar_udp_config *conf
 		VERBOSE(if(meta.VERBOSE) printf("calloc at %p for %ld +(%d) bytes\n", meta.inputData[port] - (meta.portPacketLength[port] * 2), meta.portPacketLength[port] * (meta.packetsPerIteration + 2) + bufferSize * config->compressedReader - meta.portPacketLength[port] * 2, meta.portPacketLength[port] * 2););
 
 		// Allocate an array of packet indices to work on
-		meta.workingPacketIndices[port] = (long*) calloc(meta->packetsPerIteration, sizeof(long));
+		meta.workingPacketIndices[port] = (long*) calloc(meta.packetsPerIteration, sizeof(long));
 
 		// Initalise these arrays while we're looping
 		meta.inputDataOffset[port] = 0;
