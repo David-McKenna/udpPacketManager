@@ -1127,7 +1127,7 @@ int lofar_udp_reader_calibration(lofar_udp_reader *reader) {
 
 	// Call dreamBeam to generate calibration
 	// dreamBeamJonesGenerator.py --stn STNID --sub ANT,SBL:SBU --time TIME --dur DUR --int INT --pnt P0,P1,BASIS --pipe /tmp/pipe 
-	char stationID[5] = "", unixTime[16] = "", duration[16] = "", integration[16] = "", pointing[512] = "";
+	char stationID[16] = "", unixTime[16] = "", duration[16] = "", integration[16] = "", pointing[512] = "";
 	
 
 	lofar_get_station_name(reader->meta->stationID, &(stationID[0]));
