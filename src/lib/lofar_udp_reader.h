@@ -145,7 +145,6 @@ typedef struct lofar_udp_meta {
 	// Input/Output data storage
 	char *inputData[MAX_NUM_PORTS];
 	char *outputData[MAX_OUTPUT_DIMS];
-	long *workingPacketIndices[MAX_NUM_PORTS];
 	long inputDataOffset[MAX_NUM_PORTS]; // Account for data shifts
 
 	// Checks for data quality (reset on steps)

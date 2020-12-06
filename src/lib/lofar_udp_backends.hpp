@@ -977,7 +977,6 @@ int lofar_udp_raw_loop(lofar_udp_meta *meta) {
 		VERBOSE(if (verbose) printf("Port: %d on thread %d\n", port, omp_get_thread_num()));
 
 		long lastPortPacket, currentPortPacket, inputPacketOffset, lastInputPacketOffset, iWork, iLoop;
-		long *workingPacketIndices = meta->workingPacketIndices[port];
 
 		// On GCC, keep a cache of the last inputPacketOffset while operating in 4-bit mode
 		#ifndef __INTEL_COMPILER
@@ -1129,17 +1128,10 @@ int lofar_udp_raw_loop(lofar_udp_meta *meta) {
 
 			}
 
-			workingPacketIndices[iLoop] = lastInputPacketOffset;
-
-
-			if (iLoop == packetsPerIteration - 1) {
-				#pragma omp parallel for schedule(static, 2048)
-				for (iLoop = 0; iLoop < packetsPerIteration; iLoop++) {
-					lastInputPacketOffset = workingPacketIndices[iLoop];
 
 			// Use firstprivate to lock 4-bit variables in a task, create a cache variable otherwise
 			#ifdef __INTEL_COMPILER
-			//#pragma omp task firstprivate(iLoop, lastInputPacketOffset, inputPortData) shared(byteWorkspace, outputData)
+			#pragma omp task firstprivate(iLoop, lastInputPacketOffset, inputPortData) shared(byteWorkspace, outputData)
 			{
 			#else
 				LIPOCache = lastInputPacketOffset;
@@ -1263,11 +1255,6 @@ int lofar_udp_raw_loop(lofar_udp_meta *meta) {
 				lastInputPacketOffset = LIPOCache;
 			}
 			#endif
-
-				}
-
-				iLoop = packetsPerIteration - 1;
-			}
 		}
 		// Update the overall dropped packet count for this port
 
