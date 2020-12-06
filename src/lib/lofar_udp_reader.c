@@ -1142,7 +1142,7 @@ int lofar_udp_reader_calibration(lofar_udp_reader *reader) {
 	}
 
 	printf("OpeningFifo\n");
-	fifo = fopen(reader->calibration->calibrationFifo, "r");
+	fifo = fopen(reader->calibration->calibrationFifo, "rb");
 
 	// Get the number of time steps and frequency channles 
 	returnVal = fscanf(fifo, "%d,%d\n", &numTimesamples, &numBeamlets);
