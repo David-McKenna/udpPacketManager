@@ -1013,7 +1013,7 @@ int lofar_udp_raw_loop(lofar_udp_meta *meta) {
 			jonesMatrix = (float*) calloc((upperBeamlet - baseBeamlet) * JONESMATSIZE, sizeof(float));
 			for (int i = 0; i < (upperBeamlet - baseBeamlet); i++) {
 				for (int j = 0; j < JONESMATSIZE; j++) {
-					jonesMatrix[i * JONESMATSIZE + j] = meta->jonesMatrices[meta->numIters][(cumulativeBeamlets + i) * JONESMATSIZE + j];
+					jonesMatrix[i * JONESMATSIZE + j] = meta->jonesMatrices[meta->calibrationStep][(cumulativeBeamlets + i) * JONESMATSIZE + j];
 				}
 			}
 		}
@@ -1291,7 +1291,7 @@ int lofar_udp_raw_loop(lofar_udp_meta *meta) {
 	// Update the input/output states
 	meta->inputDataReady = 0;
 	meta->outputDataReady = 1;
-	meta->numIters += 1;
+	meta->calibrationStep += 1;
 
 
 	// If needed, free the 4-bit workspace

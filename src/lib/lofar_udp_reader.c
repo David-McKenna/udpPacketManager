@@ -44,7 +44,7 @@ lofar_udp_reader lofar_udp_reader_default = {
 lofar_udp_meta lofar_udp_meta_default = {
 	.inputData = { NULL },
 	.outputData = { NULL },
-	.numIters = 0
+	.calibrationStep = 0
 };
 
 /**
@@ -511,6 +511,7 @@ int lofar_udp_file_reader_reuse(lofar_udp_reader *reader, const long startingPac
 	reader->meta->packetsRead = 0;
 	reader->meta->packetsReadMax = startingPacket - reader->meta->lastPacket + 2 * reader->packetsPerIteration;
 	reader->meta->lastPacket = startingPacket;
+	reader->meta->calibrationStep = reader->calibrationConfiguration->calibrationStepsGenerated;
 
 	for (int port = 0; port < reader->meta->numPorts; port++) {
 		reader->meta->inputDataOffset[port] = 0;
@@ -1225,7 +1226,7 @@ int lofar_udp_reader_calibration(lofar_udp_reader *reader) {
 	}
 
 	// Update the calibration state
-	reader->calibration->calibrationStep = 0;
+	reader->meta->calibrationStep = 0;
 	reader->calibration->calibrationStepsGenerated = numTimesamples;
 
 	return 0;
@@ -1422,6 +1423,13 @@ int lofar_udp_reader_step_timed(lofar_udp_reader *reader, double timing[2]) {
 	int readReturnVal = 0, stepReturnVal = 0;
 	struct timespec tick0, tick1, tock0, tock1;
 	const int time = !(timing[0] == -1.0);
+
+	if (reader->meta->calibrateData && reader->meta->calibrationStep >= reader->calibrationConfiguration->calibrationStepsGenerated) {
+		VERBOSE(if (reader->meta->VERBOSE) printf("Calibration buffer has run out, generating new Jones matrices.\n"));
+		if ((readReturnVal > lofar_udp_reader_calibration(reader))) {
+			return readReturnVal;
+		}
+	}
 
 	// Start the reader clock
 	if (time) clock_gettime(CLOCK_MONOTONIC_RAW, &tick0);

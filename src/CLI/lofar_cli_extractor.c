@@ -18,7 +18,9 @@ void helpMessages() {
 	printf("-e: <fileName>	Specify a file of events to extract; newline separated start time and durations in seconds. Events must not overlap.\n");
 	printf("-p: <mode>		Processing mode, options listed below (default: 0)\n");
 	printf("-r:		Replay the previous packet when a dropped packet is detected (default: pad with 0 values)\n");
-	printf("-c:		Change to the alternative clock used for modes 4/6 (160MHz clock) (default: False)\n");
+	printf("-c:		Calibrate the data with the given strategy (default: disabled, eg 'HBA,12:499'). Will not run without -d\n");
+	printf("-d:		Calibrate the data with the given pointing (default: disabled, eg '0.1,0.2,J2000'). Will not run without -c\n");
+	printf("-z:		Change to the alternative clock used for modes 4/6 (160MHz clock) (default: False)\n");
 	printf("-q:		Enable silent mode for the CLI, don't print any information outside of library error messes (default: False)\n");
 	printf("-a: <args>		Call mockHeader with the specific flags to prefix output files with a header (default: False)\n");
 	printf("-f:		Append files if they already exist (default: False, exit if exists)\n");
@@ -38,7 +40,7 @@ int main(int argc, char  *argv[]) {
 	float seconds = 0.0;
 	double sampleTime = 0.0;
 	char inputFormat[256] = "./%d", outputFormat[256] = "./output%d_%s_%ld", inputTime[256] = "", eventsFile[256] = "", stringBuff[128], mockHdrArg[2048] = "", mockHdrCmd[4096] = "";
-	int silent = 0, appendMode = 0, eventCount = 0, returnCounter = 0, callMockHdr = 0, basePort = 0;
+	int silent = 0, appendMode = 0, eventCount = 0, returnCounter = 0, callMockHdr = 0, basePort = 0, calPoint = 0, calStrat = 0;
 	long maxPackets = -1, startingPacket = -1;
 	unsigned int clock200MHz = 1;
 	FILE *eventsFilePtr;
@@ -61,7 +63,7 @@ int main(int argc, char  *argv[]) {
 	char **dateStr; // Sub elements need to be free'd too.
 
 	// Standard ugly input flags parser
-	while((inputOpt = getopt(argc, argv, "rcqfvVi:o:m:u:t:s:e:p:a:n:b:")) != -1) {
+	while((inputOpt = getopt(argc, argv, "zrqfvVi:o:m:u:t:s:e:p:a:n:b:c:")) != -1) {
 		input = 1;
 		switch(inputOpt) {
 			
@@ -116,7 +118,17 @@ int main(int argc, char  *argv[]) {
 				break;
 
 			case 'c':
-				clock200MHz = 0;
+				calPoint = 1;
+				strcpy(config.calibrationConfig->calibrationStrategy, optarg);
+				break;
+
+			case 'd':
+				calStrat = 1;
+				sscanf(optarg, "%f,%f,%s", &(config.calibrationConfig->calibrationPointing[0]), &(config.calibrationConfig->calibrationPointing[1]), &(config.calibrationConfig->calibrationPointingBasis));
+				break;
+
+			case 'z':
+				clock200MHz = 1;
 				break;
 
 			case 'q':
@@ -165,6 +177,21 @@ int main(int argc, char  *argv[]) {
 	if (input == 0) {
 		helpMessages();
 		return 1;
+	}
+
+	if (calPoint || calStrat) {
+		if (calPoint && calStrat) {
+			config.calibrateData = 1;
+		} else {
+			fprintf(stderr, "ERROR: Calibration not fully initialised. You only provided the ");
+			if (calPoint) {
+				fprintf(stderr, "pointing. ");
+			} else {
+				fprintf(stderr, "strategy. ");
+			}
+			fprintf(stderr, "Exiting.\n");
+			return 1;
+		}
 	}
 
 	char workingString[1024];

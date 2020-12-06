@@ -119,7 +119,6 @@ typedef struct __attribute__((__packed__)) lofar_source_bytes {
 
 typedef struct lofar_udp_calibration {
 	// The current calibration step we are on and the amount that have been generated
-	int calibrationStep;
 	int calibrationStepsGenerated;
 
 	// Location to generate the FIFO pipe to communicate with dreamBeam
@@ -171,6 +170,7 @@ typedef struct lofar_udp_meta {
 
 	// Calibration data
 	int calibrateData;
+	int calibrationStep;
 	float **jonesMatrices;
 
 
@@ -195,7 +195,6 @@ typedef struct lofar_udp_meta {
 	long packetsReadMax;
 	long leadingPacket;
 	long lastPacket;
-	int numIters;
 
 	// Other metadata
 	int stationID;
