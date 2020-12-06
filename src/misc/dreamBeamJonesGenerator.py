@@ -88,7 +88,7 @@ if __name__ == '__main__':
 	parser.add_argument('--int', dest = 'inte', default = defaultInt, type = float, help = "Integration time per step")
 	parser.add_argument('--pnt', dest = 'pnt', required = True, help = "Pointing of the source, eg '0.1,0.3,J2000")
 	parser.add_argument('--pipe', dest = 'pipe', default = '/tmp/udp_pipe', help = "Where to pipe the output data")
-	parser.add_argument('--silent', dest = 'silent', default = False, action = 'store_true', help = "Silence all outputs.")
+	parser.add_argument('--silent', dest = 'silent', default = True, action = 'store_false', help = "Don't silence all outputs.")
 	args = parser.parse_args()
 
 	# Determine if both HBA and LBAs are needed
