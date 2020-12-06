@@ -1126,7 +1126,7 @@ int lofar_udp_reader_calibration(lofar_udp_reader *reader) {
 	lofar_get_station_name(reader->meta->stationID, &(stationID[0]));
 	sprintf(unixTime, "%d", *((int*) &(reader->meta->inputData[0][8])));
 	sprintf(duration, "%15.4f", reader->calibration->calibrationDuration);
-	sprintf(integration, "%15.10f", (float) (reader->packetsPerIteration * UDPNTIMESLICE) / (float) (clock200MHzSample * reader->meta->clockBit + clock160MHzSample * (1 - reader->meta->clockBit)));
+	sprintf(integration, "%15.10f", (float) (reader->packetsPerIteration * UDPNTIMESLICE) * (float) (clock200MHzSample * reader->meta->clockBit + clock160MHzSample * (1 - reader->meta->clockBit)));
 	sprintf(pointing, "%f,%f,%s", reader->calibration->calibrationPointing[0], reader->calibration->calibrationPointing[1], reader->calibration->calibrationPointingBasis);
 	printf("Calling dreamBeam: %s %s %s %s %s %s %s\n", stationID, unixTime, reader->calibration->calibrationSubbands, duration, integration, pointing, reader->calibration->calibrationFifo);
 	char *argv[] = { "dreamBeamJonesGenerator.py", "--stn", stationID,  "--time", unixTime, "--sub", reader->calibration->calibrationSubbands, "--dur", duration, "--int", integration, "--pnt",  pointing, "--pipe", reader->calibration->calibrationFifo, NULL };
