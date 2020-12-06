@@ -138,7 +138,7 @@ int lofar_get_station_code(int stationID, char *stationCode) {
 			break;
 
 		case 141 ... 142:
-			sprintf(stationCode, "CS%03d", 301 + (sationID % 141));
+			sprintf(stationCode, "CS%03d", 301 + (stationID % 141));
 			break;
 
 		case 161:
