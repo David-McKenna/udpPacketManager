@@ -124,7 +124,7 @@ int main(int argc, char  *argv[]) {
 
 			case 'd':
 				calStrat = 1;
-				sscanf(optarg, "%f,%f,%128s", &(config.calibrationConfiguration->calibrationPointing[0]), &(config.calibrationConfiguration->calibrationPointing[1]), &(config.calibrationConfiguration->calibrationPointingBasis));
+				sscanf(optarg, "%f,%f,%128s", &(config.calibrationConfiguration->calibrationPointing[0]), &(config.calibrationConfiguration->calibrationPointing[1]), &(config.calibrationConfiguration->calibrationPointingBasis[0]));
 				break;
 
 			case 'z':
