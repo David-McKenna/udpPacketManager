@@ -1134,7 +1134,7 @@ int lofar_udp_reader_calibration(lofar_udp_reader *reader) {
 
 	printf("Fork\n");
 	if (pid == 0) {
-		execvp(argv[0], argv[0]);
+		execvp(argv[0], argv);
 		_exit(1);
 	} else  if (pid < 0) {
 		fprintf(stderr, "ERROR: Unable to create child process to call dreamBeam. Exiting.\n");
