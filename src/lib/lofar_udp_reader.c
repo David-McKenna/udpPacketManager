@@ -1012,7 +1012,7 @@ lofar_udp_reader* lofar_udp_meta_file_reader_setup_struct(lofar_udp_config *conf
 
 
 	// Form a reader using the given metadata and input files
-	return lofar_udp_file_reader_setup(config->inputFiles, &meta, config->compressedReader, &(config->calibrationConfiguration));
+	return lofar_udp_file_reader_setup(config->inputFiles, &meta, config->compressedReader, config->calibrationConfiguration);
 }
 
 

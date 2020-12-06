@@ -119,12 +119,12 @@ int main(int argc, char  *argv[]) {
 
 			case 'c':
 				calPoint = 1;
-				strcpy(config.calibrationConfig->calibrationStrategy, optarg);
+				strcpy(config.calibrationConfiguration->calibrationStrategy, optarg);
 				break;
 
 			case 'd':
 				calStrat = 1;
-				sscanf(optarg, "%f,%f,%s", &(config.calibrationConfig->calibrationPointing[0]), &(config.calibrationConfig->calibrationPointing[1]), &(config.calibrationConfig->calibrationPointingBasis));
+				sscanf(optarg, "%f,%f,%s", &(config.calibrationConfiguration->calibrationPointing[0]), &(config.calibrationConfiguration->calibrationPointing[1]), &(config.calibrationConfiguration->calibrationPointingBasis));
 				break;
 
 			case 'z':
