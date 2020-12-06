@@ -421,6 +421,7 @@ int lofar_udp_skip_to_packet(lofar_udp_reader *reader) {
 lofar_udp_reader* lofar_udp_file_reader_setup(FILE **inputFiles, lofar_udp_meta *meta, const int compressedReader, lofar_udp_calibration *calibration) {
 	int returnVal, bufferSize;
 	static lofar_udp_reader reader;
+	reader = lofar_udp_reader_default;
 
 	// Initialise the reader struct as needed
 	reader.compressedReader = compressedReader;
@@ -858,7 +859,8 @@ lofar_udp_reader* lofar_udp_meta_file_reader_setup_struct(lofar_udp_config *conf
 	}
 
 	// Setup the metadata struct and a few variables we'll need
-	static lofar_udp_meta meta = lofar_udp_meta_default;
+	static lofar_udp_meta meta;
+	meta = lofar_udp_meta_default;
 	char inputHeaders[MAX_NUM_PORTS][UDPHDRLEN];
 	int readlen, bufferSize;
 	long localMaxPackets = config->packetsReadMax;
