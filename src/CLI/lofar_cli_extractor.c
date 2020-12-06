@@ -157,7 +157,7 @@ int main(int argc, char  *argv[]) {
 
 			// Handle edge/error cases
 			case '?':
-				if ((optopt == 'i') || (optopt == 'o') || (optopt == 'm') || (optopt == 'u') || (optopt == 't') || (optopt == 's') || (optopt == 'e') || (optopt == 'p') || (optopt == 'a')) {
+				if ((optopt == 'i') || (optopt == 'o') || (optopt == 'm') || (optopt == 'u') || (optopt == 't') || (optopt == 's') || (optopt == 'e') || (optopt == 'p') || (optopt == 'a') || (optopt == 'c') || (optopt == 'd')) {
 					fprintf(stderr, "Option '%c' requires an argument.\n", optopt);
 				} else {
 					fprintf(stderr, "Option '%c' is unknown or encountered an error.\n", optopt);
