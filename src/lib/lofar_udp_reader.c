@@ -1109,9 +1109,6 @@ int lofar_udp_reader_calibration(lofar_udp_reader *reader) {
 		return 1;
 	}
 
-	printf("OpeningFifo\n");
-	fifo = fopen(reader->calibration->calibrationFifo, "r");
-
 	// Call dreamBeam to generate calibration
 	// dreamBeamJonesGenerator.py --stn STNID --sub ANT,SBL:SBU --time TIME --dur DUR --int INT --pnt P0,P1,BASIS --pipe /tmp/pipe 
 	char stationID[5], unixTime[16], duration[16], integration[16], pointing[512];
@@ -1135,6 +1132,10 @@ int lofar_udp_reader_calibration(lofar_udp_reader *reader) {
 		fprintf(stderr, "ERROR: Unable to create child process to call dreamBeam. Exiting.\n");
 		return 1;
 	}
+
+	printf("OpeningFifo\n");
+	fifo = fopen(reader->calibration->calibrationFifo, "r");
+
 	// Get the number of time steps and frequency channles 
 	returnVal = fscanf(fifo, "%d,%d\n", &numTimesamples, &numBeamlets);
 	if (returnVal < 0) {
@@ -1142,15 +1143,6 @@ int lofar_udp_reader_calibration(lofar_udp_reader *reader) {
 		return 1;
 	}
 
-	printf("Sleep and check\n");
-	// Wait a second and check if dreamBeam is still running
-	sleep(1);
-	printf("Check\n");
-	if (kill(pid, 0) != 0) {
-		fprintf(stderr, "ERROR: dreamBeam call exited early. Exiting.\n");
-		returnVal = remove(reader->calibration->calibrationFifo);
-		return 1;
-	}
 
 	printf("beamlets\n");
 	// Ensure the calibration strategy matches the number of subbands we are processing
