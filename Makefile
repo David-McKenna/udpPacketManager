@@ -105,9 +105,9 @@ install-local: all
 calibrate:
 	if [ 1 -eq $(CALIBRATION) ]; then \
 	# Install the python dependencies \
-	pip3 install lofarantpos python-casacore astropy; \
+	pip3 install lofarantpos python-casacore astropy git+https://github.com/2baOrNot2ba/AntPat.git git+https://github.com/2baOrNot2ba/dreamBeam.git; \
 	# Get the base casacore-data \
-	apt-get install --upgrade casacore-data; \
+	apt-get install --upgrade rsync casacore-data; \
 	# Update the out-of-date components of casacore-data \
 	rsync -avz rsync://casa-rsync.nrao.edu/casa-data/ephemerides rsync://casa-rsync.nrao.edu/casa-data/geodetic $(CASACOREDIR); \
 	wget ftp://ftp.astron.nl/outgoing/Measures/WSRT_Measures.ztar -O $(CASACOREDIR)WSRT_Measures.ztar; \

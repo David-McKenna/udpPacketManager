@@ -102,19 +102,11 @@ double lofar_get_packet_time_mjd(char *inputData) {
 }
 
 
-/*
-const char stationCodes[] = {
-	"CS001", "CS002", "CS003", "CS004", "CS005", "CS006", "CS007", "CS011", "CS013", 
-	"CS017", "CS021", "CS024", "CS026", "CS028", "CS030", "CS031", "CS032", "CS101", 
-	"CS103", "RS106", "CS201", "RS205", "RS208", "RS210", "CS301", "CS302", "RS305", 
-	"RS306", "RS307", "RS310", "CS401", "RS406", "RS407", "RS409", "CS501", "RS503", 
-	"RS508", "RS509", "DE601", "DE602", "DE603", "DE604", "DE605", "FR606", "SE607", 
-	"UK608", "DE609", "PL610", "PL611", "PL612", "IE613", "LV614"
-};
-*/
-
 /**
- * @brief      Conver the station ID to the station code
+ * @brief      Convert the station ID to the station code
+ * 				RSP station ID != intll station ID. See
+ * 				https://git.astron.nl/ro/lofar/-/raw/master/MAC/Deployment/data/StaticMetaData/StationInfo.dat
+ * 				RSP hdr byte 4 reports 32 * ID code in result above. Divide by 32 on any port to round down to target code.
  *
  * @param[in]  stationID    The station id
  * @param      stationCode  The output station code (min size: 5 bytes)
@@ -138,64 +130,98 @@ int lofar_get_station_code(int stationID, char *stationCode) {
 		case 32:
 		case 101:
 		case 103:
-		case 201:
-		case 301 ... 302:
-		case 401:
-		case 501:
-
 			sprintf(stationCode, "CS%03d", stationID);
 			break;
 
+		case 121:
+			sprintf(stationCode, "CS201");
+			break;
+
+		case 141 ... 142:
+			sprintf(stationCode, "CS%03d", 301 + (sationID % 141));
+			break;
+
+		case 161:
+			sprintf(stationCode, "CS401");
+			break;
+
+		case 181:
+			sprintf(stationCode, "CS501");
+			break;
+
+
 		// Remote Stations
 		case 106:
-		case 205:
-		case 208:
-		case 210:
-		case 305 ... 307:
-		case 310:
-		case 406 ... 407:
-		case 409:
-		case 503:
-		case 508 ... 509:
 			sprintf(stationCode, "RS%03d", stationID);
+			break;
+
+		case 125:
+		case 128:
+		case 130:
+			sprintf(stationCode, "RS%03d", 205 + (stationID % 125));
+			break;
+
+		case 145 ... 147:
+		case 150:
+			sprintf(stationCode, "RS%03d", 305 + (stationID % 145));
+			break;
+
+		case 166 ... 167:
+		case 169:
+			sprintf(stationCode, "RS%03d", 406 + (stationID % 166));
+			break;
+
+		case 183:
+		case 188 ... 189:
+			sprintf(stationCode, "RS%03d", 503 + (stationID % 183));
+			break;
+
 			break;
 
 
 		// Intl Stations
 		// DE
-		case 601 ... 605:
-		case 609:
-			sprintf(stationCode, "DE%03d", stationID);
+		case 201 ... 205:
+			sprintf(stationCode, "DE%03d", 601 + (stationID % 201));
 			break;
 
+		case 210:
+			sprintf(stationCode, "DE609");
+			break;
+
+
 		// FR
-		case 606:
-			sprintf(stationCode, "FR%03d", stationID);
+		case 206:
+			sprintf(stationCode, "FR606");
 			break;
 
 		// SE
-		case 607:
-			sprintf(stationCode, "SE%03d", stationID);
+		case 207:
+			sprintf(stationCode, "SE207");
 			break;
 
 		// UK
-		case 608:
-			sprintf(stationCode, "UK%03d", stationID);
+		case 208:
+			sprintf(stationCode, "UK208");
 			break;
 
 		// PL
-		case 610 ... 612:
-			sprintf(stationCode, "PL%03d", stationID);
+		case 211 ... 213:
+			sprintf(stationCode, "PL%03d", 610 + (stationID % 211));
 			break;
 
 		// IE
-		case 613:
-			sprintf(stationCode, "IE%03d", stationID);
+		case 214:
+			sprintf(stationCode, "IE613");
 			break;
 
 		// LV
-		case 614:
-			sprintf(stationCode, "LV%03d", stationID);
+		case 215:
+			sprintf(stationCode, "LV614");
+			break;
+
+		case 901:
+			sprintf(stationCode, "FI901");
 			break;
 
 		default:

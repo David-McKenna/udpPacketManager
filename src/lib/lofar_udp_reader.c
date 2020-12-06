@@ -123,7 +123,8 @@ int lofar_udp_parse_headers(lofar_udp_meta *meta, char header[MAX_NUM_PORTS][UDP
 		}
 
 		// Extract the station ID
-		meta->stationID = *((short*) &(header[port][4]));
+		// Divide by 32 to convert from (my current guess based on SE607 / IE613 codes) RSP IDs to station codes
+		meta->stationID = *((short*) &(header[port][4])) / 32;
 
 		// Determine the number of beamlets on the port
 		VERBOSE(printf("port %d, bitMode %d, beamlets %d (%u)\n", port, ((lofar_source_bytes*) &source)->bitMode, (int) ((unsigned char) header[port][6]), (unsigned char) header[port][6]););
@@ -1103,7 +1104,15 @@ int lofar_udp_reader_calibration(lofar_udp_reader *reader) {
 
 	// Make a FIFO pipe to communicate with dreamBeam
 	printf("Making fifio\n");
+	if (access(reader->calibration->calibrationFifo, F_OK) != -1) {
+		if (remove(reader->calibration->calibrationFifo) != 0) {
+			fprintf(stderr, "ERROR: Unable to cleanup old claibration FIFO (%d). Exiting.\n", errno);
+			return 1;
+		}
+	}
+
 	returnVal = mkfifo(reader->calibration->calibrationFifo, 0666);
+
 	if (returnVal < 0) {
 		fprintf(stderr, "ERROR: Unable to create FIFO pipe at %s (%d). Exiting.\n", reader->calibration->calibrationFifo, errno);
 		return 1;
