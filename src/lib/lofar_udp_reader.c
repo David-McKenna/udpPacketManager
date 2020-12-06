@@ -1120,13 +1120,13 @@ int lofar_udp_reader_calibration(lofar_udp_reader *reader) {
 
 	// Call dreamBeam to generate calibration
 	// dreamBeamJonesGenerator.py --stn STNID --sub ANT,SBL:SBU --time TIME --dur DUR --int INT --pnt P0,P1,BASIS --pipe /tmp/pipe 
-	char stationID[5], unixTime[16], duration[16], integration[16], pointing[512];
+	char stationID[5] = "", unixTime[16] = "", duration[16] = "", integration[16] = "", pointing[512] = "";
 	
 
-	lofar_get_station_code(reader->meta->stationID, stationID);
-	sprintf(unixTime, "%d", (int) (reader->meta->inputData[0][8]));
+	lofar_get_station_name(reader->meta->stationID, &(stationID[0]));
+	sprintf(unixTime, "%d", *((int*) &(reader->meta->inputData[0][8])));
 	sprintf(duration, "%15.4f", reader->calibration->calibrationDuration);
-	sprintf(integration, "%15.10f", reader->packetsPerIteration * UDPNTIMESLICE / (clock200MHzSample * reader->meta->clockBit + clock160MHzSample * (1 - reader->meta->clockBit)));
+	sprintf(integration, "%15.10f", (float) (reader->packetsPerIteration * UDPNTIMESLICE) / (float) (clock200MHzSample * reader->meta->clockBit + clock160MHzSample * (1 - reader->meta->clockBit)));
 	sprintf(pointing, "%f,%f,%s", reader->calibration->calibrationPointing[0], reader->calibration->calibrationPointing[1], reader->calibration->calibrationPointingBasis);
 	printf("Calling dreamBeam: %s %s %s %s %s %s %s\n", stationID, unixTime, reader->calibration->calibrationSubbands, duration, integration, pointing, reader->calibration->calibrationFifo);
 	char *argv[] = { "dreamBeamJonesGenerator.py", "--stn", stationID,  "--time", unixTime, "--sub", reader->calibration->calibrationSubbands, "--dur", duration, "--int", integration, "--pnt",  pointing, "--pipe", reader->calibration->calibrationFifo, NULL };
@@ -1134,8 +1134,7 @@ int lofar_udp_reader_calibration(lofar_udp_reader *reader) {
 
 	printf("Fork\n");
 	if (pid == 0) {
-		execvp(argv[0], &(argv[1]));
-		execvp( argv[0], argv );
+		execvp(argv[0], argv[0]);
 		_exit(1);
 	} else  if (pid < 0) {
 		fprintf(stderr, "ERROR: Unable to create child process to call dreamBeam. Exiting.\n");

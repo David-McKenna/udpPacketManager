@@ -113,7 +113,7 @@ double lofar_get_packet_time_mjd(char *inputData) {
  *
  * @return     0: Success, 1: Failure
  */
-int lofar_get_station_code(int stationID, char *stationCode) {
+int lofar_get_station_name(int stationID, char *stationCode) {
 
 	switch (stationID) {
 		// Core Stations

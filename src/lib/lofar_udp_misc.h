@@ -103,7 +103,7 @@ long lofar_get_packet_number(char *inputData);
 unsigned int lofar_get_next_packet_sequence(char *inputData);
 double lofar_get_packet_time(char *inputData);
 double lofar_get_packet_time_mjd(char *inputData);
-int lofar_get_station_code(int stationID, char *stationCode);
+int lofar_get_station_name(int stationID, char *stationCode);
 
 #ifdef __cplusplus
 }
