@@ -292,7 +292,7 @@ extern "C" {
 // Reader/meta struct initialisation
 lofar_udp_reader* lofar_udp_meta_file_reader_setup(FILE **inputFiles, const int numPorts, const int replayDroppedPackets, const int processingMode, const int verbose, const long packetsPerIteration, const long startingPacket, const long packetsReadMax, const int compressedReader);
 lofar_udp_reader* lofar_udp_meta_file_reader_setup_struct(lofar_udp_config *config);
-lofar_udp_reader* lofar_udp_file_reader_setup(FILE **inputFiles, lofar_udp_meta *meta, const int compressedReader);
+lofar_udp_reader* lofar_udp_file_reader_setup(FILE **inputFiles, lofar_udp_meta *meta, const int compressedReader, lofar_udp_calibration *calibration);
 int lofar_udp_file_reader_reuse(lofar_udp_reader *reader, const long startingPacket, const long packetsReadMax);
 
 // Initialisation helpers
