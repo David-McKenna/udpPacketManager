@@ -37,7 +37,7 @@ float stokesV(float Xr, float Xi, float Yr, float Yi) {
 
 // C interface for the C++ loop and kernels
 int lofar_udp_cpp_loop_interface(lofar_udp_meta *meta) {
-	VERBOSE(if (meta->VERBOSE) printf("Entered C++ call for %d (%d, %d)\n", meta->processingMode, meta->calibrateData, meta->bitMode));
+	VERBOSE(if (meta->VERBOSE) printf("Entered C++ call for %d (%d, %d)\n", meta->processingMode, meta->calibrateData, meta->inputBitMode));
 
 	const int calibrateData = meta->calibrateData;
 	const int inputBitMode = meta->inputBitMode;
