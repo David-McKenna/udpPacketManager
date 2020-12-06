@@ -413,7 +413,7 @@ int lofar_udp_skip_to_packet(lofar_udp_reader *reader) {
  *
  * @return     lofar_udp_reader ptr, or NULL on error
  */
-lofar_udp_reader* lofar_udp_file_reader_setup(FILE **inputFiles, lofar_udp_meta *meta, const int compressedReader) {
+lofar_udp_reader* lofar_udp_file_reader_setup(FILE **inputFiles, lofar_udp_meta *meta, const int compressedReader, lofar_udp_calibration *calibration) {
 	int returnVal, bufferSize;
 	static lofar_udp_reader reader;
 
@@ -421,6 +421,7 @@ lofar_udp_reader* lofar_udp_file_reader_setup(FILE **inputFiles, lofar_udp_meta 
 	reader.compressedReader = compressedReader;
 	reader.packetsPerIteration = meta->packetsPerIteration;
 	reader.meta = meta;
+	reader.calibation = calibration;
 
 	for (int port = 0; port < meta->numPorts; port++) {
 		reader.fileRef[port] = inputFiles[port];
@@ -511,7 +512,7 @@ int lofar_udp_file_reader_reuse(lofar_udp_reader *reader, const long startingPac
 	reader->meta->packetsRead = 0;
 	reader->meta->packetsReadMax = startingPacket - reader->meta->lastPacket + 2 * reader->packetsPerIteration;
 	reader->meta->lastPacket = startingPacket;
-	reader->meta->calibrationStep = reader->calibrationConfiguration->calibrationStepsGenerated;
+	reader->meta->calibrationStep = reader->calibration->calibrationStepsGenerated;
 
 	for (int port = 0; port < reader->meta->numPorts; port++) {
 		reader->meta->inputDataOffset[port] = 0;
@@ -1012,7 +1013,7 @@ lofar_udp_reader* lofar_udp_meta_file_reader_setup_struct(lofar_udp_config *conf
 
 
 	// Form a reader using the given metadata and input files
-	return lofar_udp_file_reader_setup(config->inputFiles, &meta, config->compressedReader);
+	return lofar_udp_file_reader_setup(config->inputFiles, &meta, config->compressedReader, &(config->lofar_udp_calibration));
 }
 
 
@@ -1424,7 +1425,7 @@ int lofar_udp_reader_step_timed(lofar_udp_reader *reader, double timing[2]) {
 	struct timespec tick0, tick1, tock0, tock1;
 	const int time = !(timing[0] == -1.0);
 
-	if (reader->meta->calibrateData && reader->meta->calibrationStep >= reader->calibrationConfiguration->calibrationStepsGenerated) {
+	if (reader->meta->calibrateData && reader->meta->calibrationStep >= reader->calibration->calibrationStepsGenerated) {
 		VERBOSE(if (reader->meta->VERBOSE) printf("Calibration buffer has run out, generating new Jones matrices.\n"));
 		if ((readReturnVal > lofar_udp_reader_calibration(reader))) {
 			return readReturnVal;
