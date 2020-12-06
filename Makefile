@@ -68,7 +68,7 @@ CASACOREDIR = /usr/share/casacore/data/
 	$(CXX) -c $(CXXFLAGS) -o ./$@ $< $(LFLAGS)
 
 # CLI -> link with C++
-all: $(CLI_OBJECTS) library
+all: calibrate $(CLI_OBJECTS) library
 	$(CXX) $(CXXFLAGS) src/CLI/lofar_cli_extractor.o $(CLI_META_OBJECTS) $(LIBRARY_TARGET)  -o ./lofar_udp_extractor $(LFLAGS)
 	$(CXX) $(CXXFLAGS) src/CLI/lofar_cli_guppi_raw.o $(CLI_META_OBJECTS) $(LIBRARY_TARGET) -o ./lofar_udp_guppi_raw $(LFLAGS)
 
@@ -82,6 +82,7 @@ install: all
 	mkdir -p $(PREFIX)/bin/ && mkdir -p $(PREFIX)/include/
 	cp ./lofar_udp_extractor $(PREFIX)/bin/
 	cp ./lofar_udp_guppi_raw $(PREFIX)/bin/
+	cp ./src/misc/dreamBeamJonesGenerator.py $(PREFIX)/bin/
 	cp ./src/lib/*.h $(PREFIX)/include/
 	cp ./src/lib/*.hpp $(PREFIX)/include/
 	cp -P ./*.a* ${PREFIX}/lib/
@@ -93,6 +94,7 @@ install-local: all
 	mkdir -p ~/.local/bin/ && mkdir -p ~/.local/include/
 	cp ./lofar_udp_extractor ~/.local/bin/
 	cp ./lofar_udp_guppi_raw ~/.local/bin/
+	cp ./src/misc/dreamBeamJonesGenerator.py ~/.local/bin/
 	cp ./src/lib/*.h ~/.local/include/
 	cp ./src/lib/*.hpp ~/.local/include/
 	cp -P ./*.a* ~/.local/lib/
@@ -101,16 +103,16 @@ install-local: all
 
 
 calibrate:
-	ifeq(1,$(CALIBRATION))
-	# Install the python dependencies
-	pip3 install lofarantpos python-casacore astropy
-	# Get the base casacore-data
-	apt-get install --upgrade casacore-data
-	# Update the out-of-date components of casacore-data
-	rsync -avz rsync://casa-rsync.nrao.edu/casa-data/ephemerides rsync://casa-rsync.nrao.edu/casa-data/geodetic $(CASACOREDIR)
-	wget ftp://ftp.astron.nl/outgoing/Measures/WSRT_Measures.ztar -O $(CASACOREDIR)WSRT_Measures.ztar
-	tar -xzvf $(CASACOREDIR)WSRT_Measures.ztar -C /usr/share/casacore/data/
-	endif
+	if [ 1 -eq $(CALIBRATION) ]; then \
+	# Install the python dependencies \
+	pip3 install lofarantpos python-casacore astropy; \
+	# Get the base casacore-data \
+	apt-get install --upgrade casacore-data; \
+	# Update the out-of-date components of casacore-data \
+	rsync -avz rsync://casa-rsync.nrao.edu/casa-data/ephemerides rsync://casa-rsync.nrao.edu/casa-data/geodetic $(CASACOREDIR); \
+	wget ftp://ftp.astron.nl/outgoing/Measures/WSRT_Measures.ztar -O $(CASACOREDIR)WSRT_Measures.ztar; \
+	tar -xzvf $(CASACOREDIR)WSRT_Measures.ztar -C /usr/share/casacore/data/; \
+	fi
 
 # Remove local build arifacts
 clean:
@@ -127,6 +129,7 @@ clean:
 remove:
 	rm $(PREFIX)/bin/lofar_udp_extractor
 	rm $(PREFIX)/bin/lofar_udp_guppi_raw
+	rm $(PREFIX)/bin/dreamBeamJonesGenerator.py
 	cd src/lib/; find . -name "*.hpp" -exec rm $(PREFIX)/include/{} \;
 	cd src/lib/; find . -name "*.h" -exec rm $(PREFIX)/include/{} \;
 	find . -name "*.a" -exec rm $(PREFIX)/lib/{} \;
@@ -137,6 +140,7 @@ remove:
 remove-local:
 	rm ~/.local/bin/lofar_udp_extractor
 	rm ~/.local/bin/lofar_udp_guppi_raw
+	rm ~/.local/bin/dreamBeamJonesGenerator.py
 	cd src/lib/; find . -name "*.hpp" -exec rm ~/.local/include/{} \;
 	cd src/lib/; find . -name "*.h" -exec rm ~/.local/include/{} \;
 	find . -name "*.a" -exec rm ~/.local/lib/{} \;

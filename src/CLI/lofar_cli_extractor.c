@@ -63,7 +63,7 @@ int main(int argc, char  *argv[]) {
 	char **dateStr; // Sub elements need to be free'd too.
 
 	// Standard ugly input flags parser
-	while((inputOpt = getopt(argc, argv, "zrqfvVi:o:m:u:t:s:e:p:a:n:b:c:")) != -1) {
+	while((inputOpt = getopt(argc, argv, "zrqfvVi:o:m:u:t:s:e:p:a:n:b:c:d:")) != -1) {
 		input = 1;
 		switch(inputOpt) {
 			
