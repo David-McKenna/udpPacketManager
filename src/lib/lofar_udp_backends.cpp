@@ -44,6 +44,7 @@ int lofar_udp_cpp_loop_interface(lofar_udp_meta *meta) {
 	const int processingMode = meta->processingMode;
 	// Interfaces to calibrateData cases
 	if (calibrateData == 1) {
+		printf("Calibrating...\n");
 		// Bit-mode dependant inputs
 		if (inputBitMode == 4) {
 			if (processingMode == 2) {
@@ -166,6 +167,7 @@ int lofar_udp_cpp_loop_interface(lofar_udp_meta *meta) {
 
 
 		} else if (inputBitMode == 8) {
+			printf("Bitmode 8...\n");
 			if (processingMode == 2) {
 				return lofar_udp_raw_loop<signed char, float, 2, 1>(meta);
 			
@@ -220,6 +222,7 @@ int lofar_udp_cpp_loop_interface(lofar_udp_meta *meta) {
 			} else if (processingMode == 103) {
 				return lofar_udp_raw_loop<signed char, float, 103, 1>(meta);
 			} else if (processingMode == 104) {
+				printf("Stokes 104...\n");
 				return lofar_udp_raw_loop<signed char, float, 104, 1>(meta);
 
 
