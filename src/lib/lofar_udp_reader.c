@@ -852,7 +852,7 @@ lofar_udp_reader* lofar_udp_meta_file_reader_setup_struct(lofar_udp_config *conf
 	}
 
 	// Setup the metadata struct and a few variables we'll need
-	static lofar_udp_meta meta = { .packetsRead = 0, .inputDataReady = 0, .outputDataReady = 0 };
+	static lofar_udp_meta meta = { .packetsRead = 0, .inputDataReady = 0, .outputDataReady = 0, .calibrationStep = 0 };
 	char inputHeaders[MAX_NUM_PORTS][UDPHDRLEN];
 	int readlen, bufferSize;
 	long localMaxPackets = config->packetsReadMax;
@@ -867,6 +867,7 @@ lofar_udp_reader* lofar_udp_meta_file_reader_setup_struct(lofar_udp_config *conf
 	meta.packetsPerIteration = config->packetsPerIteration;
 	meta.packetsReadMax = localMaxPackets;
 	meta.lastPacket = config->startingPacket;
+	meta.calibrateData = config->calibrateData;
 	
 	VERBOSE(meta.VERBOSE = config->verbose);
 	#ifndef ALLOW_VERBOSE
@@ -1433,7 +1434,7 @@ int lofar_udp_reader_step_timed(lofar_udp_reader *reader, double timing[2]) {
 	struct timespec tick0, tick1, tock0, tock1;
 	const int time = !(timing[0] == -1.0);
 
-	printf("Check cal\n");
+	printf("Check cal %d, %d\n", reader->meta->calibrationStep, reader->calibration->calibrationStepsGenerated);
 	if (reader->meta->calibrateData && reader->meta->calibrationStep >= reader->calibration->calibrationStepsGenerated) {
 		printf("Start cal\n");
 		VERBOSE(if (reader->meta->VERBOSE) printf("Calibration buffer has run out, generating new Jones matrices.\n"));
