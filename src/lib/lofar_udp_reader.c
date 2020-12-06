@@ -9,7 +9,6 @@
 // While in here we default to enbling calibration, the overall default is read from
 // the lofar_udp_config and overwrites the value in here.
 lofar_udp_calibration lofar_udp_calibration_default = {
-	.calibrationStep = 0,
 	.calibrationStepsGenerated = 0,
 	.calibrationFifo = "/tmp/udp_calibation_pipe",
 	.calibrationSubbands = "HBA,12:499",
@@ -421,7 +420,7 @@ lofar_udp_reader* lofar_udp_file_reader_setup(FILE **inputFiles, lofar_udp_meta 
 	reader.compressedReader = compressedReader;
 	reader.packetsPerIteration = meta->packetsPerIteration;
 	reader.meta = meta;
-	reader.calibation = calibration;
+	reader.calibration = calibration;
 
 	for (int port = 0; port < meta->numPorts; port++) {
 		reader.fileRef[port] = inputFiles[port];
@@ -1013,7 +1012,7 @@ lofar_udp_reader* lofar_udp_meta_file_reader_setup_struct(lofar_udp_config *conf
 
 
 	// Form a reader using the given metadata and input files
-	return lofar_udp_file_reader_setup(config->inputFiles, &meta, config->compressedReader, &(config->lofar_udp_calibration));
+	return lofar_udp_file_reader_setup(config->inputFiles, &meta, config->compressedReader, &(config->calibrationConfiguration));
 }
 
 
