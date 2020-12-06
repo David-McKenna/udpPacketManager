@@ -29,6 +29,7 @@ extern const char bitmodeConversion[256][2];
 extern "C" {
 #endif
 // Include CPP functions
+float calibrateSample(float c_1, float c_2, float c_3, float c_4, float c_5, float c_6, float c_7, float c_8);
 // Declare the Stokes Vector Functions
 typedef float(StokesFuncType)(float, float, float, float);
 float stokesI(float Xr, float Xi, float Yr, float Yi);
