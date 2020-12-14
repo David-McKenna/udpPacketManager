@@ -15,6 +15,10 @@ long beamformed_packno(unsigned int timestamp, unsigned int sequence, unsigned i
 }
 
 
+// Shorthand note: 
+//*((unsigned int*) &(inputData[8])) == unsigned int at 8 bytes from the header offset (packet number)
+//*((unsigned int*) &(inputData[12])) == unsigned int at 12 bytes from the header offset (sequence ID)
+
 
 /**
  * @brief      Get the packet number corresponding to the data of an input
@@ -25,14 +29,7 @@ long beamformed_packno(unsigned int timestamp, unsigned int sequence, unsigned i
  * @return     The packet number
  */
 long lofar_get_packet_number(char *inputData) {
-	union char_unsigned_int ts;
-	union char_unsigned_int seq;
-
-	ts.c[0] = inputData[8]; ts.c[1] = inputData[9]; ts.c[2] = inputData[10]; ts.c[3] = inputData[11];
-	seq.c[0] = inputData[12]; seq.c[1] = inputData[13]; seq.c[2] = inputData[14]; seq.c[3] = inputData[15];
-
-	//VERBOSE(printf("Packet search: %d %d %d\n", ts.ui, seq.ui, ((lofar_source_bytes*) &(inputData[1]))->clockBit));
-	return beamformed_packno(ts.ui, seq.ui, ((lofar_source_bytes*) &(inputData[1]))->clockBit);
+	return beamformed_packno(*((unsigned int*) &(inputData[UDPHDROFF + 8])), *((unsigned int*) &(inputData[UDPHDROFF + 12])), ((lofar_source_bytes*) &(inputData[UDPHDROFF + 1]))->clockBit);
 }
 
 /**
@@ -45,13 +42,9 @@ long lofar_get_packet_number(char *inputData) {
  * @return     The suggested sequence value
  */
 unsigned int lofar_get_next_packet_sequence(char *inputData) {
-	union char_unsigned_int ts;
-	union char_unsigned_int seq;
-
-	ts.c[0] = inputData[8]; ts.c[1] = inputData[9]; ts.c[2] = inputData[10]; ts.c[3] = inputData[11];
-	seq.c[0] = inputData[12]; seq.c[1] = inputData[13]; seq.c[2] = inputData[14]; seq.c[3] = inputData[15];
-
-	return (unsigned int) ((16 * (beamformed_packno(ts.ui, seq.ui, ((lofar_source_bytes*) &(inputData[1]))->clockBit) + 1)) - (ts.ui*1000000l*200+512)/1024);
+	return (unsigned int) ((16 * \
+			(beamformed_packno(*((unsigned int*) &(inputData[UDPHDROFF + 8])), *((unsigned int*) &(inputData[UDPHDROFF + 12])), ((lofar_source_bytes*) &(inputData[UDPHDROFF + 1]))->clockBit) + 1)) 
+			- (*((unsigned int*) &(inputData[UDPHDROFF + 8]))*1000000l*200+512)/1024);
 }
 
 /**
@@ -65,9 +58,7 @@ unsigned int lofar_get_next_packet_sequence(char *inputData) {
  * @return     Packet delta
  */
 long lofar_get_packet_difference(unsigned int ts, long packetNumber, unsigned int clock200MHz) {
-
 	return beamformed_packno(ts, 0, clock200MHz) - packetNumber;
-
 }
 
 /**
@@ -78,14 +69,7 @@ long lofar_get_packet_difference(unsigned int ts, long packetNumber, unsigned in
  * @return     Unix time double
  */
 double lofar_get_packet_time(char *inputData) {
-	union char_unsigned_int ts;
-	union char_unsigned_int seq;
-
-	ts.c[0] = inputData[8]; ts.c[1] = inputData[9]; ts.c[2] = inputData[10]; ts.c[3] = inputData[11];
-	seq.c[0] = inputData[12]; seq.c[1] = inputData[13]; seq.c[2] = inputData[14]; seq.c[3] = inputData[15];
-
-
-	return (double) ts.ui + ((double) seq.ui / (clock160MHzSteps + clockStepsDelta * ((lofar_source_bytes*) &(inputData[1]))->clockBit));
+	return (double) *((unsigned int*) &(inputData[UDPHDROFF + 8])) + ((double) *((unsigned int*) &(inputData[UDPHDROFF + 12])) / (clock160MHzSteps + clockStepsDelta * ((lofar_source_bytes*) &(inputData[UDPHDROFF + 1]))->clockBit));
 }
 
 /**
@@ -220,8 +204,14 @@ int lofar_get_station_name(int stationID, char *stationCode) {
 			sprintf(stationCode, "LV614");
 			break;
 
+		// KAIRA
 		case 901:
 			sprintf(stationCode, "FI901");
+			break;
+
+		// LOFAR4SW test station
+		case 902:
+			sprintf(stationCode, "UK902");
 			break;
 
 		default:

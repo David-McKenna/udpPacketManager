@@ -92,11 +92,6 @@ typedef struct __attribute__((__packed__)) lofar_source_bytes {
 extern "C" {
 #endif
 
-// Define the list of station codes
-//extern const char stationCodes[][5];
-
-//long lowestBufferMultiple(int zstdBuffSize, long targetBufferSize);
-//long maximumBuffer(int zstdBuffSize, int udpPacketSize, long maximumBufferSize);
 
 long beamformed_packno(unsigned int timestamp, unsigned int sequence, unsigned int clock200MHz);
 long lofar_get_packet_number(char *inputData);
