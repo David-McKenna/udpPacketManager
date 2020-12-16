@@ -26,7 +26,7 @@ CALIBRATION = 1
 # Detemrine the max threads per socket to speed up execution via OpenMP with ICC (GCC falls over if we set too many)
 THREADS = $(shell cat /proc/cpuinfo | uniq | grep -m 2 "siblings" | cut -d ":" -f 2 | sort --numeric --unique | awk '{printf("%d", $$1);}')
 
-CFLAGS 	+= -W -Wall -Ofast -march=native -fPIC -funswitch-loops
+CFLAGS 	+= -W -Wall -Ofast -march=native -fPIC
 CFLAGS  += -DVERSION=$(LIB_VER) -DVERSIONCLI=$(CLI_VER) -DCLIBRATION=$(CALIBRATION)  
 #CFLAGS  += -fsanitize=address -DALLOW_VERBOSE -g # -DBENCHMARKING -g -DALLOW_VERBOSE #-D__SLOWDOWN
 # -fopt-info-missed=compiler_report_missed.log -fopt-info-vec=compiler_report_vec.log -fopt-info-loop=compiler_report_loop.log -fopt-info-inline=compiler_report_inline.log -fopt-info-omp=compiler_report_omp.log
@@ -38,7 +38,7 @@ CFLAGS += -fast -static -static-intel -qopenmp-link=static -DOMP_THREADS=$(THREA
 LFLAGS += -fopenmp
 else
 AR = ar
-CFLAGS += -DOMP_THREADS=$(THREADS)
+CFLAGS += -static -DOMP_THREADS=$(THREADS) -funswitch-loops
 LFLAGS += -fopenmp-simd
 endif
 

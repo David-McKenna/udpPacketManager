@@ -810,7 +810,8 @@ int lofar_udp_setup_processing(lofar_udp_meta *meta) {
  * @return     lofar_udp_reader ptr, or NULL on error
  */
 lofar_udp_reader* lofar_udp_meta_file_reader_setup(FILE **inputFiles, const int numPorts, const int replayDroppedPackets, const int processingMode, const int verbose, const long packetsPerIteration, const long startingPacket, const long packetsReadMax, const int compressedReader) {
-	static lofar_udp_config config = lofar_udp_config_default;
+	static lofar_udp_config config;
+	config = lofar_udp_config_default;
 	config.inputFiles = inputFiles;
 	config.numPorts = numPorts;
 	config.replayDroppedPackets = replayDroppedPackets;
