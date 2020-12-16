@@ -35,15 +35,17 @@ CFLAGS  += -DVERSION=$(LIB_VER) -DVERSIONCLI=$(CLI_VER) -DCLIBRATION=$(CALIBRATI
 ifeq ($(CC), icc)
 AR = xiar
 CFLAGS += -fast -static -static-intel -qopenmp-link=static -DOMP_THREADS=$(THREADS)
+LFLAGS += -fopenmp
 else
 AR = ar
 CFLAGS += -DOMP_THREADS=$(THREADS)
+LFLAGS += -fopenmp-simd
 endif
 
 # Ensure we're using C++17
 CXXFLAGS += $(CFLAGS) -std=c++17
 
-LFLAGS 	+= -I./src -I./src/lib -I./src/CLI -I/usr/include/ -lzstd -fopenmp-simd #-lefence
+LFLAGS 	+= -I./src -I./src/lib -I./src/CLI -I/usr/include/ -lzstd #-lefence
 
 # Define our general build targets
 OBJECTS = src/lib/lofar_udp_reader.o src/lib/lofar_udp_misc.o src/lib/lofar_udp_backends.o
