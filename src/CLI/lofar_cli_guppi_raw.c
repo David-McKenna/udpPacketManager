@@ -236,8 +236,8 @@ int main(int argc, char  *argv[]) {
 			return 1;
 		}
 
-		inputFiles[port] = fopen(workingString, "r");
-		if (inputFiles[port] == NULL) {
+		inputFiles[port - basePort] = fopen(workingString, "r");
+		if (inputFiles[port - basePort] == NULL) {
 			fprintf(stderr, "Input file at %s does not exist, exiting.\n", workingString);
 			return 1;
 		}

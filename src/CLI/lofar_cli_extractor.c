@@ -346,8 +346,8 @@ int main(int argc, char  *argv[]) {
 
 		VERBOSE(if (config.verbose) printf("Opening file at %s\n", workingString));
 
-		inputFiles[port] = fopen(workingString, "r");
-		if (inputFiles[port] == NULL) {
+		inputFiles[port - basePort] = fopen(workingString, "r");
+		if (inputFiles[port - basePort] == NULL) {
 			fprintf(stderr, "Input file at %s does not exist, exiting.\n", workingString);
 			return 1;
 		}
