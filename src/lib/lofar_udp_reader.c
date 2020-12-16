@@ -1171,7 +1171,7 @@ int lofar_udp_reader_calibration(lofar_udp_reader *reader) {
 		// Allocate numTimesamples * numBeamlets * (4 pmatrix elements) * (2 complex values per element)
 		reader->meta->jonesMatrices = malloc(numTimesamples * sizeof(float*));
 		for (int timeIdx = 0; timeIdx < numTimesamples; timeIdx += 1) {
-			reader->meta->jonesMatrices[timeIdx] = _aligned_malloc(numBeamlets * 8 * sizeof(float), 8);
+			reader->meta->jonesMatrices[timeIdx] = (float*) _aligned_malloc(numBeamlets * 8 * sizeof(float), 8);
 		}
 	// If we returned more time samples than last time, reallocate the array
 	} else if (numTimesamples > reader->calibration->calibrationStepsGenerated) {
@@ -1184,7 +1184,7 @@ int lofar_udp_reader_calibration(lofar_udp_reader *reader) {
 		// Reallocate the data
 		reader->meta->jonesMatrices = malloc(numTimesamples * sizeof(float*));
 		for (int timeIdx = 0; timeIdx < numTimesamples; timeIdx += 1) {
-			reader->meta->jonesMatrices[timeIdx] = _aligned_malloc(numBeamlets * 8 * sizeof(float), 8);
+			reader->meta->jonesMatrices[timeIdx] = (float*) _aligned_malloc(numBeamlets * 8 * sizeof(float), 8);
 		}
 	// If less time samples, free the remaining steps and re-use the array
 	} else if (numTimesamples < reader->calibration->calibrationStepsGenerated) {
