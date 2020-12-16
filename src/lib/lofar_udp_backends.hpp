@@ -890,6 +890,7 @@ int lofar_udp_raw_loop(lofar_udp_meta *meta) {
 	// Silence compiler warnings about byteSpace being unitialised for other bitmodes
 	#pragma GCC diagnostic push
 	#pragma GCC diagnostic ignored "-Wuninitialized"
+	#pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
 	#pragma GCC diagnostic push
 	#pragma GCC diagnostic push
 
