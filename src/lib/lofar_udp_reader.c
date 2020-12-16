@@ -100,7 +100,7 @@ int lofar_udp_parse_headers(lofar_udp_meta *meta, char header[MAX_NUM_PORTS][UDP
 			return 1;
 		}
 
-		source = &(header[port][1]);
+		source = (lofar_source_bytes*) &(header[port][1]);
 		if (source->padding0 != 0) {
 			fprintf(stderr, "Input header on port %d appears malformed (padding bit (0) is set), exiting.\n", port);
 			return 1;
