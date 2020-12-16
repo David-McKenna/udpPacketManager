@@ -62,6 +62,9 @@ lofar_udp_meta lofar_udp_meta_default = {
  * @return     0: Success, 1: Fatal error
  */
 int lofar_udp_parse_headers(lofar_udp_meta *meta, char header[MAX_NUM_PORTS][UDPHDRLEN], const int beamletLimits[2]) {
+
+	lofar_source_bytes *source;
+
 	float bitMul;
 	int cacheBitMode = 0;
 	meta->totalRawBeamlets = 0;
@@ -97,28 +100,28 @@ int lofar_udp_parse_headers(lofar_udp_meta *meta, char header[MAX_NUM_PORTS][UDP
 			return 1;
 		}
 
-		source.c[0] = header[port][1]; source.c[1] = header[port][2];
-		if (((lofar_source_bytes*) &source)->padding0 != 0) {
+		source = &(header[port][1]);
+		if (source->padding0 != 0) {
 			fprintf(stderr, "Input header on port %d appears malformed (padding bit (0) is set), exiting.\n", port);
 			return 1;
-		} else if (((lofar_source_bytes*) &source)->errorBit != 0) {
+		} else if (source->errorBit != 0) {
 			fprintf(stderr, "Input header on port %d appears malformed (error bit is set), exiting.\n", port);
 			return 1;
-		} else if (((lofar_source_bytes*) &source)->bitMode == 3) {
+		} else if (source->bitMode == 3) {
 			fprintf(stderr, "Input header on port %d appears malformed (BM of 3 doesn't exist), exiting.\n", port);
 			return 1;
-		} else if (((lofar_source_bytes*) &source)->padding1 > 1) {
+		} else if (source->padding1 > 1) {
 			fprintf(stderr, "Input header on port %d appears malformed (padding bits (1) are set), exiting.\n", port);
 			return 1;
-		} else if (((lofar_source_bytes*) &source)->padding1 == 1) {
+		} else if (source->padding1 == 1) {
 			fprintf(stderr, "Input header on port %d appears malformed (our replay packet warning bit is set), continuing with caution...\n", port);
 		}
 
-		if (port != 0 && meta->clockBit != ((lofar_source_bytes*) &source)->clockBit) {
+		if (port != 0 && meta->clockBit != source->clockBit) {
 			fprintf(stderr, "ERROR: Input files contain a mixutre of 200MHz clock and 160MHz clock (port %d differs), please process these observaiton separately. Exiting.\n", port);
 			return 1;
 		} else {
-			meta->clockBit = ((lofar_source_bytes*) &source)->clockBit;
+			meta->clockBit = source->clockBit;
 		}
 
 		// Extract the station ID
@@ -126,7 +129,7 @@ int lofar_udp_parse_headers(lofar_udp_meta *meta, char header[MAX_NUM_PORTS][UDP
 		meta->stationID = *((short*) &(header[port][4])) / 32;
 
 		// Determine the number of beamlets on the port
-		VERBOSE(printf("port %d, bitMode %d, beamlets %d (%u)\n", port, ((lofar_source_bytes*) &source)->bitMode, (int) ((unsigned char) header[port][6]), (unsigned char) header[port][6]););
+		VERBOSE(printf("port %d, bitMode %d, beamlets %d (%u)\n", port, source->bitMode, (int) ((unsigned char) header[port][6]), (unsigned char) header[port][6]););
 		meta->portRawBeamlets[port] = (int) ((unsigned char) header[port][6]);
 
 		// Assume we are processing all beamlets by default
@@ -160,7 +163,7 @@ int lofar_udp_parse_headers(lofar_udp_meta *meta, char header[MAX_NUM_PORTS][UDP
 		}
 
 		// Check the bitmode on the port
-		switch (((lofar_source_bytes*) &source)->bitMode) {
+		switch (source->bitMode) {
 			case 0:
 				meta->inputBitMode = 16;
 				break;
