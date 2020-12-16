@@ -886,9 +886,21 @@ int lofar_udp_raw_loop(lofar_udp_meta *meta) {
 	const int packetsPerIteration = meta->packetsPerIteration;
 	const int replayDroppedPackets = meta->replayDroppedPackets;
 
+
+	// Silence compiler warnings about byteSpace being unitialised for other bitmodes
+	#pragma GCC diagnostic push
+	#pragma GCC diagnostic ignored "-Wuninitialized"
+	#pragma GCC diagnostic push
+	#pragma GCC diagnostic push
+
 	// For each port of data provided,
 	#pragma omp parallel for 
 	for (int port = 0; port < meta->numPorts; port++) {
+
+
+	#pragma GCC diagnostic pop
+	#pragma GCC diagnostic pop
+
 		VERBOSE(if (verbose) printf("Port: %d on thread %d\n", port, omp_get_thread_num()));
 
 		long lastPortPacket, currentPortPacket, inputPacketOffset, lastInputPacketOffset, iWork, iLoop;

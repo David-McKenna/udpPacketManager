@@ -32,12 +32,14 @@ CFLAGS  += -DVERSION=$(LIB_VER) -DVERSIONCLI=$(CLI_VER) -DCLIBRATION=$(CALIBRATI
 # -fopt-info-missed=compiler_report_missed.log -fopt-info-vec=compiler_report_vec.log -fopt-info-loop=compiler_report_loop.log -fopt-info-inline=compiler_report_inline.log -fopt-info-omp=compiler_report_omp.log
 
 # Adjust flags based on the compiler
+# GCC has negative scaling when the number of threads is greater than twice the number of ports
+# ICC will take everything you throw at it.
 ifeq ($(CC), icc)
 AR = xiar
 CFLAGS += -fast -static -static-intel -qopenmp-link=static -DOMP_THREADS=$(THREADS)
 else
 AR = ar
-CFLAGS += -static -DOMP_THREADS=$(THREADS) -funswitch-loops
+CFLAGS += -static -DOMP_THREADS=8 -funswitch-loops
 LFLAGS += -fopenmp-simd
 endif
 
