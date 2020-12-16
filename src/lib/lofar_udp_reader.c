@@ -811,6 +811,7 @@ int lofar_udp_setup_processing(lofar_udp_meta *meta) {
  */
 lofar_udp_reader* lofar_udp_meta_file_reader_setup(FILE **inputFiles, const int numPorts, const int replayDroppedPackets, const int processingMode, const int verbose, const long packetsPerIteration, const long startingPacket, const long packetsReadMax, const int compressedReader) {
 	static lofar_udp_config config;
+	// GCC is fine with assignment at definition, icc is not.
 	config = lofar_udp_config_default;
 	config.inputFiles = inputFiles;
 	config.numPorts = numPorts;
