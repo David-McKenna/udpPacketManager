@@ -9,7 +9,7 @@ const double clock160MHzSample = 1.0 / CLOCK160MHZ;
 
 
 // Taken from Olaf Wucknitz' VBLI recorder, with modifiedcations for aribtrary input data
-long beamformed_packno(unsigned int timestamp, unsigned int sequence, unsigned int clock200MHz) {
+long inline beamformed_packno(unsigned int timestamp, unsigned int sequence, unsigned int clock200MHz) {
  	//VERBOSE(printf("Packetno: %d, %d, %d\n", timestamp, sequence, clock200MHz););
 	return ((timestamp*1000000l*(160+40*clock200MHz)+512)/1024+sequence)/16;
 }
@@ -28,7 +28,7 @@ long beamformed_packno(unsigned int timestamp, unsigned int sequence, unsigned i
  *
  * @return     The packet number
  */
-long lofar_get_packet_number(char *inputData) {
+long inline lofar_get_packet_number(char *inputData) {
 	return beamformed_packno(*((unsigned int*) &(inputData[UDPHDROFF + 8])), *((unsigned int*) &(inputData[UDPHDROFF + 12])), ((lofar_source_bytes*) &(inputData[UDPHDROFF + 1]))->clockBit);
 }
 
