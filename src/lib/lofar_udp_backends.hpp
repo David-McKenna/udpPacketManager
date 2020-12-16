@@ -573,7 +573,9 @@ void inline udp_stokesDecimation(long iLoop, char *inputPortData, O **outputData
 	
 		if constexpr (calibrateData) {
 			beamletJones = &(jonesMatrix[(beamlet - baseBeamlet) * JONESMATSIZE]);
-		}	tempVal = 0.0;
+		}
+
+		tempVal = (float) 0.0;
 
 		#pragma omp simd
 		for (int ts = 0; ts < UDPNTIMESLICE; ts++) {
@@ -589,7 +591,7 @@ void inline udp_stokesDecimation(long iLoop, char *inputPortData, O **outputData
 			tsInOffset += 4 * timeStepSize;
 			if ((ts + 1) % factor == 0) {
 				outputData[0][tsOutOffset] = tempVal;
-				tempVal = 0.0;
+				tempVal = (float) 0.0;
 				tsOutOffset += totalBeamlets;
 			}
 		}
@@ -675,8 +677,8 @@ void inline udp_fullStokesDecimation(long iLoop, char *inputPortData, O **output
 		// This is split into 2 inner loops as ICC generates garbage outputs when the loop is run on the full inner loop.
 		// Should still be relatively efficient as 16 time samples fit inside one cache line on REALTA, so they should never be dropped
 		// But we'll slow down when we are claibrating the data.
-		tempValI = 0.0;
-		tempValQ = 0.0;
+		tempValI = (float) 0.0;
+		tempValQ = (float) 0.0;
 
 		#pragma omp simd
 		for (int ts = 0; ts < UDPNTIMESLICE; ts++) {
@@ -694,8 +696,8 @@ void inline udp_fullStokesDecimation(long iLoop, char *inputPortData, O **output
 			if ((ts + 1) % factor == 0) {
 				outputData[0][tsOutOffset] = tempValI;
 				outputData[1][tsOutOffset] = tempValQ;
-				tempValI = 0.0;
-				tempValQ = 0.0;
+				tempValI = (float) 0.0;
+				tempValQ = (float) 0.0;
 
 				tsOutOffset += totalBeamlets;
 			}
@@ -703,8 +705,8 @@ void inline udp_fullStokesDecimation(long iLoop, char *inputPortData, O **output
 
 		tsInOffset = lastInputPacketOffset + beamlet * UDPNTIMESLICE * UDPNPOL * timeStepSize;
 		tsOutOffset = outputPacketOffset + (totalBeamlets - 1 - beamlet + baseBeamlet - cumulativeBeamlets);
-		tempValU = 0.0;
-		tempValV = 0.0;
+		tempValU = (float) 0.0;
+		tempValV = (float) 0.0;
 
 		#pragma omp simd
 		for (int ts = 0; ts < UDPNTIMESLICE; ts++) {
@@ -722,8 +724,8 @@ void inline udp_fullStokesDecimation(long iLoop, char *inputPortData, O **output
 			if ((ts + 1) % factor == 0) {
 				outputData[2][tsOutOffset] = tempValU;
 				outputData[3][tsOutOffset] = tempValV;
-				tempValU = 0.0;
-				tempValV = 0.0;
+				tempValU = (float) 0.0;
+				tempValV = (float) 0.0;
 
 				tsOutOffset += totalBeamlets;
 			}
@@ -808,8 +810,8 @@ void inline udp_usefulStokesDecimation(long iLoop, char *inputPortData, O **outp
 			beamletJones = &(jonesMatrix[(beamlet - baseBeamlet) * JONESMATSIZE]);
 		}
 
-		tempValI = 0.0;
-		tempValV = 0.0;
+		tempValI = (float) 0.0;
+		tempValV = (float) 0.0;
 
 		#pragma omp simd
 		for (int ts = 0; ts < UDPNTIMESLICE; ts++) {
@@ -827,8 +829,8 @@ void inline udp_usefulStokesDecimation(long iLoop, char *inputPortData, O **outp
 			if ((ts + 1) % factor == 0) {
 				outputData[0][tsOutOffset] = tempValI;
 				outputData[1][tsOutOffset] = tempValV;
-				tempValI = 0.0;
-				tempValV = 0.0;
+				tempValI = (float) 0.0;
+				tempValV = (float) 0.0;
 
 				tsOutOffset += totalBeamlets;
 			}
