@@ -1046,7 +1046,7 @@ int lofar_udp_raw_loop(lofar_udp_meta *meta) {
 				// Ensure we don't attempt to access unallocated memory
 				if (iLoop != packetsPerIteration - 1) {
 					// Speedup: add 4 to the sequence, check if accurate. Doesn't work at rollover.
-					if  (((char_unsigned_int*) &(inputPortData[inputPacketOffset + 12]))->ui  == (((char_unsigned_int*) &(inputPortData[lastInputPacketOffset -4])))->ui + 16)  {
+					if  (*((unsigned int*) &(inputPortData[inputPacketOffset + 12]))  == (*((unsigned int*) &(inputPortData[lastInputPacketOffset -4]))) + 16)  {
 						currentPortPacket += 1;
 					} else {
 						currentPortPacket = lofar_get_packet_number(&(inputPortData[inputPacketOffset]));
