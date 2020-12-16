@@ -62,10 +62,6 @@ lofar_udp_meta lofar_udp_meta_default = {
  * @return     0: Success, 1: Fatal error
  */
 int lofar_udp_parse_headers(lofar_udp_meta *meta, char header[MAX_NUM_PORTS][UDPHDRLEN], const int beamletLimits[2]) {
-
-	union char_unsigned_int tsseq;
-	union char_short source;
-
 	float bitMul;
 	int cacheBitMode = 0;
 	meta->totalRawBeamlets = 0;
@@ -81,15 +77,13 @@ int lofar_udp_parse_headers(lofar_udp_meta *meta, char header[MAX_NUM_PORTS][UDP
 			return 1;
 		}
 
-		tsseq.c[0] = header[port][8]; tsseq.c[1] = header[port][9]; tsseq.c[2] = header[port][10];  tsseq.c[3] = header[port][11];
-		if (tsseq.ui <  LFREPOCH) {
+		if (*((unsigned int *) &(header[port][8])) <  LFREPOCH) {
 			fprintf(stderr, "Input header on port %d appears malformed (data timestamp before 2008), exiting.\n", port);
 			return 1;
 		}
 
-		tsseq .c[0] = header[port][12]; tsseq.c[1] = header[port][13]; tsseq.c[2] = header[port][14]; tsseq.c[3] = header[port][15];
-		if (tsseq.ui > RSPMAXSEQ) {
-			fprintf(stderr, "Input header on port %d appears malformed (sequence higher than 200MHz clock maximum, %d), exiting.\n", port, tsseq.ui);
+		if (*((unsigned int *) &(header[port][12])) > RSPMAXSEQ) {
+			fprintf(stderr, "Input header on port %d appears malformed (sequence higher than 200MHz clock maximum, %d), exiting.\n", port, *((unsigned int *) &(header[port][12])));
 			return 1;
 		}
 

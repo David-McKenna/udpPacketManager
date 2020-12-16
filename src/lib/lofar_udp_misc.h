@@ -22,8 +22,8 @@ extern const double clock160MHzSample;
 extern "C" {
 #endif
 
-long inline beamformed_packno(unsigned int timestamp, unsigned int sequence, unsigned int clock200MHz);
-long inline lofar_get_packet_number(char *inputData);
+inline long beamformed_packno(unsigned int timestamp, unsigned int sequence, unsigned int clock200MHz);
+inline long lofar_get_packet_number(char *inputData);
 unsigned int lofar_get_next_packet_sequence(char *inputData);
 double lofar_get_packet_time(char *inputData);
 double lofar_get_packet_time_mjd(char *inputData);
