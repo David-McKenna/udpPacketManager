@@ -173,11 +173,7 @@ void inline udp_channelMajor(long iLoop, char *inputPortData, O **outputData, lo
 	#pragma GCC diagnostic pop
 
 	
-	`#ifdef __INTEL_COMPILER
 	#pragma omp simd
-	#else
-	//#pragma GCC unroll 16
-	#endif
 	for (int beamlet = baseBeamlet; beamlet < upperBeamlet; beamlet++) {
 		tsInOffset = lastInputPacketOffset + beamlet * UDPNTIMESLICE * UDPNPOL * timeStepSize;
 		tsOutOffset = outputPacketOffset + (beamlet - baseBeamlet + cumulativeBeamlets) * UDPNPOL;

@@ -26,23 +26,24 @@ CALIBRATION = 1
 # Detemrine the max threads per socket to speed up execution via OpenMP with ICC (GCC falls over if we set too many)
 THREADS = $(shell cat /proc/cpuinfo | uniq | grep -m 2 "siblings" | cut -d ":" -f 2 | sort --numeric --unique | awk '{printf("%d", $$1);}')
 
-CFLAGS 	+= -W -Wall -Ofast -march=native -DVERSION=$(LIB_VER) -DVERSIONCLI=$(CLI_VER) -DCLIBRATION=$(CALIBRATION) -fPIC #-fsanitize=address -DALLOW_VERBOSE -g # -DBENCHMARKING -g -DALLOW_VERBOSE #-D__SLOWDOWN
+CFLAGS 	+= -W -Wall -Ofast -march=native -fPIC -funswitch-loops
+CFLAGS  += -DVERSION=$(LIB_VER) -DVERSIONCLI=$(CLI_VER) -DCLIBRATION=$(CALIBRATION)  
+#CFLAGS  += -fsanitize=address -DALLOW_VERBOSE -g # -DBENCHMARKING -g -DALLOW_VERBOSE #-D__SLOWDOWN
 # -fopt-info-missed=compiler_report_missed.log -fopt-info-vec=compiler_report_vec.log -fopt-info-loop=compiler_report_loop.log -fopt-info-inline=compiler_report_inline.log -fopt-info-omp=compiler_report_omp.log
 
-# Adjust flaged based on the compiler
-# ICC has a different code path and can use more threads as a result
+# Adjust flags based on the compiler
 ifeq ($(CC), icc)
 AR = xiar
 CFLAGS += -fast -static -static-intel -qopenmp-link=static -DOMP_THREADS=$(THREADS)
 else
 AR = ar
-CFLAGS += -funswitch-loops -DOMP_THREADS=5
+CFLAGS += -DOMP_THREADS=$(THREADS)
 endif
 
 # Ensure we're using C++17
 CXXFLAGS += $(CFLAGS) -std=c++17
 
-LFLAGS 	+= -I./src -I./src/lib -I./src/CLI -I/usr/include/ -lzstd -fopenmp #-lefence
+LFLAGS 	+= -I./src -I./src/lib -I./src/CLI -I/usr/include/ -lzstd -fopenmp-simd #-lefence
 
 # Define our general build targets
 OBJECTS = src/lib/lofar_udp_reader.o src/lib/lofar_udp_misc.o src/lib/lofar_udp_backends.o
@@ -68,7 +69,7 @@ CASACOREDIR = /usr/share/casacore/data/
 	$(CXX) -c $(CXXFLAGS) -o ./$@ $< $(LFLAGS)
 
 # CLI -> link with C++
-all: calibrate $(CLI_OBJECTS) library
+all: $(CLI_OBJECTS) library
 	$(CXX) $(CXXFLAGS) src/CLI/lofar_cli_extractor.o $(CLI_META_OBJECTS) $(LIBRARY_TARGET)  -o ./lofar_udp_extractor $(LFLAGS)
 	$(CXX) $(CXXFLAGS) src/CLI/lofar_cli_guppi_raw.o $(CLI_META_OBJECTS) $(LIBRARY_TARGET) -o ./lofar_udp_guppi_raw $(LFLAGS)
 
@@ -102,12 +103,11 @@ install-local: all
 	-cp ./mockHeader/mockHeader ~/.local/bin/
 
 
-calibrate:
-	if [ 1 -eq $(CALIBRATION) ]; then \
+calibration-prep:
 	# Install the python dependencies \
 	#pip3 install lofarantpos python-casacore astropy git+https://github.com/2baOrNot2ba/AntPat.git git+https://github.com/2baOrNot2ba/dreamBeam.git; \
 	# Get the base casacore-data \
-	apt-get install --upgrade rsync casacore-data; \
+	apt-get install -y --upgrade rsync casacore-data; \
 	# Update the out-of-date components of casacore-data \
 	rsync -avz rsync://casa-rsync.nrao.edu/casa-data/ephemerides rsync://casa-rsync.nrao.edu/casa-data/geodetic $(CASACOREDIR); \
 	wget ftp://ftp.astron.nl/outgoing/Measures/WSRT_Measures.ztar -O $(CASACOREDIR)WSRT_Measures.ztar; \

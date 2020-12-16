@@ -10,6 +10,7 @@
 
 // CEP packet reference values
 #define UDPHDRLEN 16
+#define UDPHDROFF 0
 #define UDPCURVER 3
 #define UDPMAXBEAM 244
 #define UDPNPOL 4

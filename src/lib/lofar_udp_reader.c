@@ -810,22 +810,22 @@ int lofar_udp_setup_processing(lofar_udp_meta *meta) {
  * @return     lofar_udp_reader ptr, or NULL on error
  */
 lofar_udp_reader* lofar_udp_meta_file_reader_setup(FILE **inputFiles, const int numPorts, const int replayDroppedPackets, const int processingMode, const int verbose, const long packetsPerIteration, const long startingPacket, const long packetsReadMax, const int compressedReader) {
-		static lofar_udp_config config;
-		config.inputFiles = inputFiles;
-		config.numPorts = numPorts;
-		config.replayDroppedPackets = replayDroppedPackets;
-		config.processingMode = processingMode;
-		config.verbose = verbose;
-		config.packetsPerIteration = packetsPerIteration;
-		config.startingPacket = startingPacket;
-		config.packetsReadMax = packetsReadMax;
-		config.compressedReader = compressedReader;
+	static lofar_udp_config config = lofar_udp_config_default;
+	config.inputFiles = inputFiles;
+	config.numPorts = numPorts;
+	config.replayDroppedPackets = replayDroppedPackets;
+	config.processingMode = processingMode;
+	config.verbose = verbose;
+	config.packetsPerIteration = packetsPerIteration;
+	config.startingPacket = startingPacket;
+	config.packetsReadMax = packetsReadMax;
+	config.compressedReader = compressedReader;
 
-		// Old call did not support beamlet limits, don't update.
-		config.beamletLimits[0] = 0;
-		config.beamletLimits[1] = 0;
-		
-		return lofar_udp_meta_file_reader_setup_struct(&config);
+	// Old call did not support beamlet limits, don't update.
+	config.beamletLimits[0] = 0;
+	config.beamletLimits[1] = 0;
+	
+	return lofar_udp_meta_file_reader_setup_struct(&config);
 }
 
 /**
