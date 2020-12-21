@@ -20,14 +20,11 @@ LIB_VER = 0.5
 LIB_VER_MINOR = 0
 CLI_VER = 0.3
 
-# Install calibration software or not
-CALIBRATION = 1
-
 # Detemrine the max threads per socket to speed up execution via OpenMP with ICC (GCC falls over if we set too many)
 THREADS = $(shell cat /proc/cpuinfo | uniq | grep -m 2 "siblings" | cut -d ":" -f 2 | sort --numeric --unique | awk '{printf("%d", $$1);}')
 
 CFLAGS 	+= -W -Wall -Ofast -march=native -fPIC
-CFLAGS  += -DVERSION=$(LIB_VER) -DVERSIONCLI=$(CLI_VER) -DCLIBRATION=$(CALIBRATION)  
+CFLAGS  += -DVERSION=$(LIB_VER) -DVERSIONCLI=$(CLI_VER) 
 #CFLAGS  += -fsanitize=address -DALLOW_VERBOSE -g # -DBENCHMARKING -g -DALLOW_VERBOSE #-D__SLOWDOWN
 # -fopt-info-missed=compiler_report_missed.log -fopt-info-vec=compiler_report_vec.log -fopt-info-loop=compiler_report_loop.log -fopt-info-inline=compiler_report_inline.log -fopt-info-omp=compiler_report_omp.log
 
@@ -108,14 +105,13 @@ install-local: all
 
 calibration-prep:
 	# Install the python dependencies \
-	#pip3 install lofarantpos python-casacore astropy git+https://github.com/2baOrNot2ba/AntPat.git git+https://github.com/2baOrNot2ba/dreamBeam.git; \
+	pip3 install lofarantpos python-casacore astropy git+https://github.com/2baOrNot2ba/AntPat.git git+https://github.com/2baOrNot2ba/dreamBeam.git; \
 	# Get the base casacore-data \
 	apt-get install -y --upgrade rsync casacore-data; \
 	# Update the out-of-date components of casacore-data \
 	rsync -avz rsync://casa-rsync.nrao.edu/casa-data/ephemerides rsync://casa-rsync.nrao.edu/casa-data/geodetic $(CASACOREDIR); \
 	wget ftp://ftp.astron.nl/outgoing/Measures/WSRT_Measures.ztar -O $(CASACOREDIR)WSRT_Measures.ztar; \
 	tar -xzvf $(CASACOREDIR)WSRT_Measures.ztar -C /usr/share/casacore/data/; \
-	fi
 
 # Remove local build arifacts
 clean:
