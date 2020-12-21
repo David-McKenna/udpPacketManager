@@ -118,7 +118,7 @@ void inline udp_copySplitPols(long iLoop, char *inputPortData, O **outputData, l
 	#pragma GCC diagnostic push
 	#pragma GCC diagnostic push
 	O Xr, Xi, Yr, Yi;
-	__assume_aligned(jonesMatrix, 8);
+	__assume_aligned(jonesMatrix, 8 * sizeof(float));
 	float *beamletJones;
 	#pragma GCC diagnostic pop
 	#pragma GCC diagnostic pop
@@ -171,7 +171,7 @@ void inline udp_channelMajor(long iLoop, char *inputPortData, O **outputData, lo
 	#pragma GCC diagnostic push
 	#pragma GCC diagnostic push
 	O Xr, Xi, Yr, Yi;
-	__assume_aligned(jonesMatrix, 8);
+	__assume_aligned(jonesMatrix, 8 * sizeof(float));
 	float *beamletJones;
 	#pragma GCC diagnostic pop
 	#pragma GCC diagnostic pop
@@ -222,7 +222,7 @@ void inline udp_channelMajorSplitPols(long iLoop, char *inputPortData, O **outpu
 	#pragma GCC diagnostic push
 	#pragma GCC diagnostic push
 	O Xr, Xi, Yr, Yi;
-	__assume_aligned(jonesMatrix, 8);
+	__assume_aligned(jonesMatrix, 8 * sizeof(float));
 	float *beamletJones;
 	#pragma GCC diagnostic pop
 	#pragma GCC diagnostic pop
@@ -272,7 +272,7 @@ void inline udp_reversedChannelMajor(long iLoop, char *inputPortData, O **output
 	#pragma GCC diagnostic push
 	#pragma GCC diagnostic push
 	O Xr, Xi, Yr, Yi;
-	__assume_aligned(jonesMatrix, 8);
+	__assume_aligned(jonesMatrix, 8 * sizeof(float));
 	float *beamletJones;
 	#pragma GCC diagnostic pop
 	#pragma GCC diagnostic pop
@@ -322,7 +322,7 @@ void inline udp_reversedChannelMajorSplitPols(long iLoop, char *inputPortData, O
 	#pragma GCC diagnostic push
 	#pragma GCC diagnostic push
 	O Xr, Xi, Yr, Yi;
-	__assume_aligned(jonesMatrix, 8);
+	__assume_aligned(jonesMatrix, 8 * sizeof(float));
 	float *beamletJones;
 	#pragma GCC diagnostic pop
 	#pragma GCC diagnostic pop
@@ -372,7 +372,7 @@ void inline udp_timeMajor(long iLoop, char *inputPortData, O **outputData, long 
 	#pragma GCC diagnostic push
 	#pragma GCC diagnostic push
 	O Xr, Xi, Yr, Yi;
-	__assume_aligned(jonesMatrix, 8);
+	__assume_aligned(jonesMatrix, 8 * sizeof(float));
 	float *beamletJones;
 	#pragma GCC diagnostic pop
 	#pragma GCC diagnostic pop
@@ -421,7 +421,7 @@ void inline udp_timeMajorSplitPols(long iLoop, char *inputPortData, O **outputDa
 	#pragma GCC diagnostic push
 	#pragma GCC diagnostic push
 	O Xr, Xi, Yr, Yi;
-	__assume_aligned(jonesMatrix, 8);
+	__assume_aligned(jonesMatrix, 8 * sizeof(float));
 	float *beamletJones;
 	#pragma GCC diagnostic pop
 	#pragma GCC diagnostic pop
@@ -473,7 +473,7 @@ void inline udp_timeMajorDualPols(long iLoop, char *inputPortData, O **outputDat
 	#pragma GCC diagnostic push
 	#pragma GCC diagnostic push
 	O Xr, Xi, Yr, Yi;
-	__assume_aligned(jonesMatrix, 8);
+	__assume_aligned(jonesMatrix, 8 * sizeof(float));
 	float *beamletJones;
 	#pragma GCC diagnostic pop
 	#pragma GCC diagnostic pop
@@ -524,7 +524,7 @@ void inline udp_stokes(long iLoop, char *inputPortData, O **outputData,  long la
 	#pragma GCC diagnostic push
 	#pragma GCC diagnostic push
 	O Xr, Xi, Yr, Yi;
-	__assume_aligned(jonesMatrix, 8);
+	__assume_aligned(jonesMatrix, 8 * sizeof(float));
 	float *beamletJones;
 	#pragma GCC diagnostic pop
 	#pragma GCC diagnostic pop
@@ -569,7 +569,7 @@ void inline udp_stokesDecimation(long iLoop, char *inputPortData, O **outputData
 	#pragma GCC diagnostic push
 	#pragma GCC diagnostic push
 	O Xr, Xi, Yr, Yi;
-	__assume_aligned(jonesMatrix, 8);
+	__assume_aligned(jonesMatrix, 8 * sizeof(float));
 	float *beamletJones;
 	#pragma GCC diagnostic pop
 	#pragma GCC diagnostic pop
@@ -619,7 +619,7 @@ void inline udp_fullStokes(long iLoop, char *inputPortData, O **outputData,  lon
 	#pragma GCC diagnostic push
 	#pragma GCC diagnostic push
 	O Xr, Xi, Yr, Yi;
-	__assume_aligned(jonesMatrix, 8);
+	__assume_aligned(jonesMatrix, 8 * sizeof(float));
 	float *beamletJones;
 	#pragma GCC diagnostic pop
 	#pragma GCC diagnostic pop
@@ -670,7 +670,7 @@ void inline udp_fullStokesDecimation(long iLoop, char *inputPortData, O **output
 	#pragma GCC diagnostic push
 	#pragma GCC diagnostic push
 	O Xr, Xi, Yr, Yi;
-	__assume_aligned(jonesMatrix, 8);
+	__assume_aligned(jonesMatrix, 8 * sizeof(float));
 	float *beamletJones;
 	#pragma GCC diagnostic pop
 	#pragma GCC diagnostic pop
@@ -760,7 +760,8 @@ void inline udp_usefulStokes(long iLoop, char *inputPortData, O **outputData,  l
 	#pragma GCC diagnostic push
 	#pragma GCC diagnostic push
 	O Xr, Xi, Yr, Yi;
-	float* beamletJones;
+	__assume_aligned(jonesMatrix, 8 * sizeof(float));
+	float *beamletJones;
 	#pragma GCC diagnostic pop
 	#pragma GCC diagnostic pop
 
@@ -807,7 +808,7 @@ void inline udp_usefulStokesDecimation(long iLoop, char *inputPortData, O **outp
 	#pragma GCC diagnostic push
 	#pragma GCC diagnostic push
 	O Xr, Xi, Yr, Yi;
-	__assume_aligned(jonesMatrix, 8);
+	__assume_aligned(jonesMatrix, 8 * sizeof(float));
 	float *beamletJones;
 	#pragma GCC diagnostic pop
 	#pragma GCC diagnostic pop
