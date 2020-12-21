@@ -1175,7 +1175,10 @@ int lofar_udp_raw_loop(lofar_udp_meta *meta) {
 		}
 
 		// Perform analysis of iteration, cleanup and wait for tasks to end.
-		free(jonesMatrix);
+		if constexpr (calibrateData) {
+			printf("Free'ing calibration Jones\n");
+			free(jonesMatrix);
+		}
 
 		meta->portLastDroppedPackets[port] = currentPacketsDropped;
 		meta->portTotalDroppedPackets[port] += currentPacketsDropped;
