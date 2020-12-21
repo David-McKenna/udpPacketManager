@@ -939,7 +939,7 @@ int lofar_udp_raw_loop(lofar_udp_meta *meta) {
 		float *jonesMatrix;
 		if constexpr (calibrateData) {
 			printf("Beamlets %d: %d, %d\n", port, baseBeamlet, upperBeamlet);
-			jonesMatrix = (float*) aligned_alloc((upperBeamlet - baseBeamlet) * JONESMATSIZE * sizeof(float), sizeof(float) * JONESMATSIZE);
+			jonesMatrix = (float*) aligned_alloc((upperBeamlet - baseBeamlet) * JONESMATSIZE * sizeof(float), sizeof(float) * 2);
 			for (int i = 0; i < (upperBeamlet - baseBeamlet); i++) {
 				for (int j = 0; j < JONESMATSIZE; j++) {
 					jonesMatrix[i * JONESMATSIZE + j] = meta->jonesMatrices[meta->calibrationStep][(cumulativeBeamlets + i) * JONESMATSIZE + j];
