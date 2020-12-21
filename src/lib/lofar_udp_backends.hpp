@@ -1170,10 +1170,12 @@ int lofar_udp_raw_loop(lofar_udp_meta *meta) {
 			}
 
 
-			// End ICC task block, update cached variables as needed
+			// End task block, update cached variables as needed
 			}
 		}
-		// Update the overall dropped packet count for this port
+
+		// Perform analysis of iteration, cleanup and wait for tasks to end.
+		free(jonesMatrix);
 
 		meta->portLastDroppedPackets[port] = currentPacketsDropped;
 		meta->portTotalDroppedPackets[port] += currentPacketsDropped;
