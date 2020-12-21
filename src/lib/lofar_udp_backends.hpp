@@ -132,7 +132,7 @@ void inline udp_copySplitPols(long iLoop, char *inputPortData, O **outputData, l
 		tsOutOffset = outputPacketOffset + (beamlet - baseBeamlet + cumulativeBeamlets) * UDPNTIMESLICE;
 		
 		if constexpr (calibrateData) {
-			beamletJones = __builtin_assume_aligned(&(jonesMatrix[(beamlet - baseBeamlet) * JONESMATSIZE]), sizeof(float) * 8);
+			beamletJones = &(jonesMatrix[(beamlet - baseBeamlet) * JONESMATSIZE]);
 		}
 
 		#pragma omp simd
@@ -183,7 +183,7 @@ void inline udp_channelMajor(long iLoop, char *inputPortData, O **outputData, lo
 		tsOutOffset = outputPacketOffset + (beamlet - baseBeamlet + cumulativeBeamlets) * UDPNPOL;
 		
 		if constexpr (calibrateData) {
-			beamletJones = __builtin_assume_aligned(&(jonesMatrix[(beamlet - baseBeamlet) * JONESMATSIZE]), sizeof(float) * 8);
+			beamletJones = &(jonesMatrix[(beamlet - baseBeamlet) * JONESMATSIZE]);
 		}
 
 		#pragma omp simd
@@ -233,7 +233,7 @@ void inline udp_channelMajorSplitPols(long iLoop, char *inputPortData, O **outpu
 		tsOutOffset = outputPacketOffset + beamlet - baseBeamlet + cumulativeBeamlets;
 		
 		if constexpr (calibrateData) {
-			beamletJones = __builtin_assume_aligned(&(jonesMatrix[(beamlet - baseBeamlet) * JONESMATSIZE]), sizeof(float) * 8);
+			beamletJones = &(jonesMatrix[(beamlet - baseBeamlet) * JONESMATSIZE]);
 		}
 
 		#pragma omp simd
@@ -282,7 +282,7 @@ void inline udp_reversedChannelMajor(long iLoop, char *inputPortData, O **output
 		tsOutOffset = outputPacketOffset + (totalBeamlets - 1 - (beamlet - baseBeamlet + cumulativeBeamlets)) * UDPNPOL;
 	
 		if constexpr (calibrateData) {
-			beamletJones = __builtin_assume_aligned(&(jonesMatrix[(beamlet - baseBeamlet) * JONESMATSIZE]), sizeof(float) * 8);
+			beamletJones = &(jonesMatrix[(beamlet - baseBeamlet) * JONESMATSIZE]);
 		}
 
 		#pragma omp simd
@@ -331,7 +331,7 @@ void inline udp_reversedChannelMajorSplitPols(long iLoop, char *inputPortData, O
 		tsOutOffset = outputPacketOffset + (totalBeamlets - 1 - beamlet + baseBeamlet - cumulativeBeamlets);
 	
 		if constexpr (calibrateData) {
-			beamletJones = __builtin_assume_aligned(&(jonesMatrix[(beamlet - baseBeamlet) * JONESMATSIZE]), sizeof(float) * 8);
+			beamletJones = &(jonesMatrix[(beamlet - baseBeamlet) * JONESMATSIZE]);
 		}	
 
 		#pragma omp simd
@@ -380,7 +380,7 @@ void inline udp_timeMajor(long iLoop, char *inputPortData, O **outputData, long 
 		tsOutOffset = 4 * (((beamlet - baseBeamlet + cumulativeBeamlets) * packetsPerIteration * UDPNTIMESLICE ) + outputTimeIdx);
 
 		if constexpr (calibrateData) {
-			beamletJones = __builtin_assume_aligned(&(jonesMatrix[(beamlet - baseBeamlet) * JONESMATSIZE]), sizeof(float) * 8);
+			beamletJones = &(jonesMatrix[(beamlet - baseBeamlet) * JONESMATSIZE]);
 		}	
 
 		#pragma omp simd
@@ -428,7 +428,7 @@ void inline udp_timeMajorSplitPols(long iLoop, char *inputPortData, O **outputDa
 		tsOutOffset = ((beamlet - baseBeamlet + cumulativeBeamlets) * packetsPerIteration * UDPNTIMESLICE ) + outputTimeIdx;
 
 		if constexpr (calibrateData) {
-			beamletJones = __builtin_assume_aligned(&(jonesMatrix[(beamlet - baseBeamlet) * JONESMATSIZE]), sizeof(float) * 8);
+			beamletJones = &(jonesMatrix[(beamlet - baseBeamlet) * JONESMATSIZE]);
 		}	
 
 		#pragma omp simd
@@ -479,7 +479,7 @@ void inline udp_timeMajorDualPols(long iLoop, char *inputPortData, O **outputDat
 		tsOutOffset = 2 * ((beamlet - baseBeamlet + cumulativeBeamlets) * packetsPerIteration * UDPNTIMESLICE + outputTimeIdx);
 	
 		if constexpr (calibrateData) {
-			beamletJones = __builtin_assume_aligned(&(jonesMatrix[(beamlet - baseBeamlet) * JONESMATSIZE]), sizeof(float) * 8);
+			beamletJones = &(jonesMatrix[(beamlet - baseBeamlet) * JONESMATSIZE]);
 		}	
 
 		#pragma omp simd
@@ -529,7 +529,7 @@ void inline udp_stokes(long iLoop, char *inputPortData, O **outputData,  long la
 		tsOutOffset = outputPacketOffset + (totalBeamlets - 1 - beamlet + baseBeamlet - cumulativeBeamlets);
 
 		if constexpr (calibrateData) {
-			beamletJones = __builtin_assume_aligned(&(jonesMatrix[(beamlet - baseBeamlet) * JONESMATSIZE]), sizeof(float) * 8);
+			beamletJones = &(jonesMatrix[(beamlet - baseBeamlet) * JONESMATSIZE]);
 		}
 
 		#pragma omp simd
@@ -572,7 +572,7 @@ void inline udp_stokesDecimation(long iLoop, char *inputPortData, O **outputData
 		tsOutOffset = outputPacketOffset + (totalBeamlets - 1 - beamlet + baseBeamlet - cumulativeBeamlets);
 	
 		if constexpr (calibrateData) {
-			beamletJones = __builtin_assume_aligned(&(jonesMatrix[(beamlet - baseBeamlet) * JONESMATSIZE]), sizeof(float) * 8);
+			beamletJones = &(jonesMatrix[(beamlet - baseBeamlet) * JONESMATSIZE]);
 		}
 
 		tempVal = (float) 0.0;
@@ -621,7 +621,7 @@ void inline udp_fullStokes(long iLoop, char *inputPortData, O **outputData,  lon
 		tsOutOffset = outputPacketOffset + (totalBeamlets - 1 - beamlet + baseBeamlet - cumulativeBeamlets);
 	
 		if constexpr (calibrateData) {
-			beamletJones = __builtin_assume_aligned(&(jonesMatrix[(beamlet - baseBeamlet) * JONESMATSIZE]), sizeof(float) * 8);
+			beamletJones = &(jonesMatrix[(beamlet - baseBeamlet) * JONESMATSIZE]);
 		}
 
 		#pragma omp simd
@@ -671,7 +671,7 @@ void inline udp_fullStokesDecimation(long iLoop, char *inputPortData, O **output
 		tsOutOffset = outputPacketOffset + (totalBeamlets - 1 - beamlet + baseBeamlet - cumulativeBeamlets);
 	
 		if constexpr (calibrateData) {
-			beamletJones = __builtin_assume_aligned(&(jonesMatrix[(beamlet - baseBeamlet) * JONESMATSIZE]), sizeof(float) * 8);
+			beamletJones = &(jonesMatrix[(beamlet - baseBeamlet) * JONESMATSIZE]);
 		}
 
 		// This is split into 2 inner loops as ICC generates garbage outputs when the loop is run on the full inner loop.
@@ -761,7 +761,7 @@ void inline udp_usefulStokes(long iLoop, char *inputPortData, O **outputData,  l
 		tsOutOffset = outputPacketOffset + (totalBeamlets - 1 - beamlet + baseBeamlet - cumulativeBeamlets);
 		
 		if constexpr (calibrateData) {
-			beamletJones = __builtin_assume_aligned(&(jonesMatrix[(beamlet - baseBeamlet) * JONESMATSIZE]), sizeof(float) * 8);
+			beamletJones = &(jonesMatrix[(beamlet - baseBeamlet) * JONESMATSIZE]);
 		}
 
 		#pragma omp simd
@@ -807,7 +807,7 @@ void inline udp_usefulStokesDecimation(long iLoop, char *inputPortData, O **outp
 		tsOutOffset = outputPacketOffset + (totalBeamlets - 1 - beamlet + baseBeamlet - cumulativeBeamlets);
 	
 		if constexpr (calibrateData) {
-			beamletJones = __builtin_assume_aligned(&(jonesMatrix[(beamlet - baseBeamlet) * JONESMATSIZE]), sizeof(float) * 8);
+			beamletJones = &(jonesMatrix[(beamlet - baseBeamlet) * JONESMATSIZE]);
 		}
 
 		tempValI = (float) 0.0;
@@ -939,7 +939,7 @@ int lofar_udp_raw_loop(lofar_udp_meta *meta) {
 		float *jonesMatrix;
 		if constexpr (calibrateData) {
 			printf("Beamlets %d: %d, %d\n", port, baseBeamlet, upperBeamlet);
-			jonesMatrix = (float*) calloc((upperBeamlet - baseBeamlet) * JONESMATSIZE, sizeof(float));
+			jonesMatrix = (float*) aligned_alloc((upperBeamlet - baseBeamlet) * JONESMATSIZE * sizeof(float), sizeof(float) * JONESMATSIZE);
 			for (int i = 0; i < (upperBeamlet - baseBeamlet); i++) {
 				for (int j = 0; j < JONESMATSIZE; j++) {
 					jonesMatrix[i * JONESMATSIZE + j] = meta->jonesMatrices[meta->calibrationStep][(cumulativeBeamlets + i) * JONESMATSIZE + j];
