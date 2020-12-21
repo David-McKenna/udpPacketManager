@@ -763,6 +763,11 @@ int lofar_udp_setup_processing(lofar_udp_meta *meta) {
 			return 1;
 	}
 
+	// If we are calibrating the data, the output bit mode is always 32.
+	if (meta->calibrateData == 1) {
+		meta->outputBitMode = 32;
+	}
+
 	if (equalIO) {
 		for (int port = 0; port < meta->numPorts; port++) {
 			meta->packetOutputLength[port] = hdrOffset + meta->portPacketLength[port];
