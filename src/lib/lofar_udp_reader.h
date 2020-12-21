@@ -25,7 +25,7 @@ typedef struct lofar_udp_calibration {
 	int calibrationStepsGenerated;
 
 	// Location to generate the FIFO pipe to communicate with dreamBeam
-	char *calibrationFifo;
+	char calibrationFifo[4096];
 
 	// Calibration strategy to use with dreamBeam (see documentation)
 	// Maximum length: both antenna set (2x 5), all 3-digit subbands (4 ea), in 4-bit mode (976 subbands)
