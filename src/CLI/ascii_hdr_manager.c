@@ -82,20 +82,22 @@ int parseHdrFile(char inputFile[], ascii_hdr *header) {
 	// I have no idea about the 10 offset though. getopt_long just seems to be
 	// refusing to parse the first 9-10 inputs. Just empty-string pad to work
 	// around it.
-	char *fargv[4 * HEADER_ARGS + 10] = { "", "", "", "", "", "", "", "", "", "", "" };
-	int fargc = 10;
+	char *fargv[4 * HEADER_ARGS + 1] = { "" };
+	int fargc = 1;
 
 	// Break up the input file into different words, store them in fargv
 	fargv[fargc] = strtok(fileData, " \n\r");
 	printf("%d: %s\n", fargc, fargv[fargc]);
 
-	while (fargc < (4 * HEADER_ARGS + 10) && fargv[fargc] != 0) {
+	while (fargc < (4 * HEADER_ARGS + 1) && fargv[fargc] != 0) {
 		fargc++;
 		fargv[fargc] = strtok(0, " \n\r");
 		VERBOSE(printf("%d: %s\n", fargc, fargv[fargc]));
 	}
 
 
+	// Reset optind as we likely used it in the GUPPI CLI and it needs to be reinitialised
+	optind = 1;
 	// Iterate over each work and update the header as needed.
 	int optIdx = 0;
 	char charVal;

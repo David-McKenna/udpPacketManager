@@ -1818,7 +1818,13 @@ int lofar_udp_shift_remainder_packets(lofar_udp_reader *reader, const int shiftP
 	// Shift the data on each port
 	for (int port = 0; port < meta->numPorts; port++) {
 		inputData = meta->inputData[port];
-		packetShift = shiftPackets[port];
+
+		// Work around a segfault, cap the size of a shift to the size of the input buffers.
+		if (shiftPackets[port] < reader->packetsPerIteration) {
+			packetShift = shiftPackets[port];
+		} else {
+			packetShift = reader->packetsPerIteration - 1;
+		}
 
 
 		VERBOSE(if (meta->VERBOSE) printf("shift_remainder: Port %d packet shift %d padding %d\n", port, packetShift, handlePadding));
