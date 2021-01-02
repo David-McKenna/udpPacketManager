@@ -160,11 +160,11 @@ if __name__ == '__main__':
 				args.pnt[ant] = [newPnt['m0']['value'], newPnt['m1']['value'], 'J2000']
 
 			if jointInvJones is None:
-				antJones = generateJones(subbands, antennaSet, args.stn, args.mdl, args.time.datetime, args.dur.datetime, args.inte.datetime, args.pnt, firstOutput = True)
+				antJones = generateJones(subbands, antennaSet, args.stn, args.mdl, obsTime.datetime, args.dur.datetime, args.inte.datetime, args.pnt, firstOutput = True)
 				jointInvJones = np.empty((numSamples, antJones.shape[0], 2, 4), dtype = antJones.dtype)
 				jointInvJones[i, ...] = antJones
 			else:
-				jointInvJones[i, ...] = generateJones(subbands, antennaSet, args.stn, args.mdl, args.time.datetime, args.dur.datetime, args.inte.datetime, args.pnt, firstOutput = True)
+				jointInvJones[i, ...] = generateJones(subbands, antennaSet, args.stn, args.mdl, obsTime.datetime, args.dur.datetime, args.inte.datetime, args.pnt, firstOutput = True)
 
 	else:
 		jointInvJones = generateJones(subbands, antennaSet, args.stn, args.mdl, args.time.datetime, args.dur.datetime, args.inte.datetime, args.pnt, firstOutput = False)
