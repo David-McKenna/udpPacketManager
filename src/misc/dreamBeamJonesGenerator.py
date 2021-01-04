@@ -101,7 +101,7 @@ if __name__ == '__main__':
 	args.pnt[1] = float(args.pnt[1])
 
 	# Convert the parameters to astropy Time-like objects
-	args.time = Time(args.time, format = 'unix')
+	args.time = Time(args.time, format = 'mjd')
 	args.dur = TimeDelta(args.dur, format = 'sec')
 	args.inte = TimeDelta(args.inte, format = 'sec')
 
@@ -165,6 +165,8 @@ if __name__ == '__main__':
 				jointInvJones[i, ...] = antJones
 			else:
 				jointInvJones[i, ...] = generateJones(subbands, antennaSet, args.stn, args.mdl, obsTime.datetime, args.dur.datetime, args.inte.datetime, args.pnt, firstOutput = True)
+
+		print(time)
 
 	else:
 		jointInvJones = generateJones(subbands, antennaSet, args.stn, args.mdl, args.time.datetime, args.dur.datetime, args.inte.datetime, args.pnt, firstOutput = False)
