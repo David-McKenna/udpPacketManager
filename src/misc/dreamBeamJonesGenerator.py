@@ -149,7 +149,7 @@ if __name__ == '__main__':
 		obsTime = args.time - args.inte / 2
 		numSamples = int(np.ceil(args.dur / args.inte).value)
 		for i in tqdm.trange(numSamples):
-			obsTime = args.time + args.inte
+			obsTime = obsTime + args.inte
 			time = dm.epoch('utc', f'{obsTime.mjd}d')
 			dm.do_frame(time)
 
