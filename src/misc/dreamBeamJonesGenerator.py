@@ -10,6 +10,8 @@ from astropy.time import Time, TimeDelta
 import lofarantpos.db
 import tqdm
 
+import sys
+
 def generateJones(subbands, antennaSet, stn, mdl, time, dur, inte, pnt, firstOutput = False):
 
 	results = {}
@@ -89,7 +91,20 @@ if __name__ == '__main__':
 	parser.add_argument('--pnt', dest = 'pnt', required = True, help = "Pointing of the source, eg '0.1,0.3,J2000")
 	parser.add_argument('--pipe', dest = 'pipe', default = '/tmp/udp_pipe', help = "Where to pipe the output data")
 	parser.add_argument('--silent', dest = 'silent', default = True, action = 'store_false', help = "Don't silence all outputs.")
-	args = parser.parse_args()
+
+	try:
+		args = parser.parse_args()
+
+	# If we failed while parsing, try to write out to the pipe before exiting.
+	except Exception e:
+		print(e)
+		if "--pipe" in sys.argv:
+			pipeInput = sys.argv.index('--pipe')
+
+			with open(sys.argv[pipeInput + 1], 'wb') as outPipe:
+				outPipe.write("-1,-1\n".encode("ascii"))
+
+		exit(1)
 
 	# Determine if both HBA and LBAs are needed
 	antennaSet = list(set([antSet.split(',')[0].upper() for antSet in args.sub]))

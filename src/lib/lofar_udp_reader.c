@@ -1173,9 +1173,11 @@ int lofar_udp_reader_calibration(lofar_udp_reader *reader) {
 	
 	printf("Calling dreamBeam: %s %s %s %s %s %s %s\n", stationID, mjdTime, reader->calibration->calibrationSubbands, duration, integration, pointing, fifoName);
 	
-	char *argv[] = { 	"--stn", stationID,  "--time", mjdTime, "--sub", reader->calibration->calibrationSubbands, 
+	char *argv[] = { "dreamBeamJonesGenerator.py", "--stn", stationID,  "--time", mjdTime, 
+						"--sub", reader->calibration->calibrationSubbands, 
 						"--dur", duration, "--int", integration, "--pnt",  pointing, 
-						"--pipe", fifoName, NULL };
+						"--pipe", fifoName, 
+						NULL };
 	
 	pid_t pid;
 	returnVal = posix_spawnp(&pid, "dreamBeamJonesGenerator.py", NULL, NULL, &(argv[0]), environ);
@@ -1191,9 +1193,6 @@ int lofar_udp_reader_calibration(lofar_udp_reader *reader) {
 	printf("OpeningFifo\n");
 	fifo = fopen(fifoName, "rb");
 
-	// Wait a second (python needs time to warm up + fail)
-	// and check if the child is still running.
-	sleep(1);
 	returnVal = (int) waitpid(pid, &returnVal, WNOHANG);
 	// Check if dreamBeam exited early
 	if (returnVal < 0) {
