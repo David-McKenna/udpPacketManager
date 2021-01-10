@@ -27,7 +27,7 @@ lofar_udp_config lofar_udp_config_default = {
 	.packetsPerIteration = 65536,
 	.startingPacket = -1,
 	.packetsReadMax = -1,
-	.compressedReader = 0,
+	.readerType = 0,
 	.beamletLimits = { 0, 0 },
 	.calibrateData = 0,
 	.calibrationConfiguration = &lofar_udp_calibration_default
@@ -820,12 +820,11 @@ int lofar_udp_setup_processing(lofar_udp_meta *meta) {
  *                                   number, not an offset)
  * @param[in]  packetsReadMax        The maximum number of packets to read over
  *                                   the lifetime of the object
- * @param[in]  compressedReader      Enable / disable zstandard decompression on
- *                                   the input data
+ * @param[in]  readerType      		 Set the reader type (see reader_t enum)
  *
  * @return     lofar_udp_reader ptr, or NULL on error
  */
-lofar_udp_reader* lofar_udp_meta_file_reader_setup(FILE **inputFiles, const int numPorts, const int replayDroppedPackets, const int processingMode, const int verbose, const long packetsPerIteration, const long startingPacket, const long packetsReadMax, const int compressedReader) {
+lofar_udp_reader* lofar_udp_meta_file_reader_setup(FILE **inputFiles, const int numPorts, const int replayDroppedPackets, const int processingMode, const int verbose, const long packetsPerIteration, const long startingPacket, const long packetsReadMax, const int readerType) {
 	static lofar_udp_config config;
 	// GCC is fine with assignment at definition, icc is not.
 	config = lofar_udp_config_default;
@@ -837,7 +836,7 @@ lofar_udp_reader* lofar_udp_meta_file_reader_setup(FILE **inputFiles, const int 
 	config.packetsPerIteration = packetsPerIteration;
 	config.startingPacket = startingPacket;
 	config.packetsReadMax = packetsReadMax;
-	config.compressedReader = compressedReader;
+	config.readerType = readerType;
 
 	// Old call did not support beamlet limits, don't update.
 	config.beamletLimits[0] = 0;
@@ -879,7 +878,7 @@ lofar_udp_reader* lofar_udp_meta_file_reader_setup_struct(lofar_udp_config *conf
 	// Setup the metadata struct and a few variables we'll need
 	static lofar_udp_meta meta;
 	meta = lofar_udp_meta_default;
-	char inputHeaders[MAX_NUM_PORTS][UDPHDRLEN];
+	char inputHeaders[MAX_NUM_PORTS][UDPHDRLEN + UDPHDROFF];
 	int readlen, bufferSize;
 	long localMaxPackets = config->packetsReadMax;
 
@@ -904,14 +903,18 @@ lofar_udp_reader* lofar_udp_meta_file_reader_setup_struct(lofar_udp_config *conf
 	// Scan in the first header on each port
 	for (int port = 0; port < meta.numPorts; port++) {
 		
-		if (config->compressedReader)  {
-			readlen = fread_temp_ZSTD(&(inputHeaders[port][0]), sizeof(char), 16, config->inputFiles[port], 1);
-		} else {
+		if (config->readerType == COMPRESSED)  {
+			readlen = fread_temp_ZSTD(&(inputHeaders[port][0]), sizeof(char), 16 + UDPHDROFF, config->inputFiles[port], 1);
+		} else if (config->readerType == NORMAL) {
 			readlen = fread(&(inputHeaders[port]), sizeof(char), 16, config->inputFiles[port]);
-			fseek(config->inputFiles[port], -16, SEEK_CUR);
+			fseek(config->inputFiles[port], -16 - UDPHDROFF, SEEK_CUR);
+		} else if (config->readerType == DADA) {
+
+		} else {
+			fprintf(stderr, "ERROR: Unknown reader type %d. Exiting\n", config->readerType);
 		}
 
-		if (readlen != 16) {
+		if (readlen < 16) {
 			fprintf(stderr, "Unable to read header on port %d, exiting.\n", port);
 			return NULL;
 		}
@@ -1010,8 +1013,8 @@ lofar_udp_reader* lofar_udp_meta_file_reader_setup_struct(lofar_udp_config *conf
 		// Ofset input by 2 for a zero/buffer packet on boundary
 		// If we have a compressed reader, align the length with the ZSTD buffer sizes
 		bufferSize = (meta.portPacketLength[port] * (meta.packetsPerIteration)) % ZSTD_DStreamOutSize();
-		meta.inputData[port] = calloc(meta.portPacketLength[port] * (meta.packetsPerIteration + 2) + bufferSize * config->compressedReader, sizeof(char)) + (meta.portPacketLength[port] * 2);
-		VERBOSE(if(meta.VERBOSE) printf("calloc at %p for %ld +(%d) bytes\n", meta.inputData[port] - (meta.portPacketLength[port] * 2), meta.portPacketLength[port] * (meta.packetsPerIteration + 2) + bufferSize * config->compressedReader - meta.portPacketLength[port] * 2, meta.portPacketLength[port] * 2););
+		meta.inputData[port] = calloc(meta.portPacketLength[port] * (meta.packetsPerIteration + 2) + bufferSize * (config->readerType == COMPRESSED), sizeof(char)) + (meta.portPacketLength[port] * 2);
+		VERBOSE(if(meta.VERBOSE) printf("calloc at %p for %ld +(%d) bytes\n", meta.inputData[port] - (meta.portPacketLength[port] * 2), meta.portPacketLength[port] * (meta.packetsPerIteration + 2) + bufferSize * (config->readerType == COMPRESSED) - meta.portPacketLength[port] * 2, meta.portPacketLength[port] * 2););
 
 		// Initalise these arrays while we're looping
 		meta.inputDataOffset[port] = 0;
@@ -1039,7 +1042,7 @@ lofar_udp_reader* lofar_udp_meta_file_reader_setup_struct(lofar_udp_config *conf
 
 
 	// Form a reader using the given metadata and input files
-	return lofar_udp_file_reader_setup(config->inputFiles, &meta, config->compressedReader, config->calibrationConfiguration);
+	return lofar_udp_file_reader_setup(config->inputFiles, &meta, config->readerType, config->calibrationConfiguration);
 }
 
 
