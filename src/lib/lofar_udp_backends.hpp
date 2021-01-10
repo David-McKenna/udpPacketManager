@@ -856,6 +856,10 @@ int lofar_udp_raw_loop(lofar_udp_meta *meta) {
 	#pragma GCC diagnostic push
 	#pragma GCC diagnostic ignored "-Wunused-variable"
 	#pragma GCC diagnostic ignored "-Wunused-but-set-variable"
+	#pragma GCC diagnostic ignored "-Wuninitialized"
+	#pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
+	#pragma GCC diagnostic push
+	#pragma GCC diagnostic push
 	#pragma GCC diagnostic push
 	#pragma GCC diagnostic push
 	constexpr int decimation = 1 << (state % 10);
@@ -877,7 +881,8 @@ int lofar_udp_raw_loop(lofar_udp_meta *meta) {
 	}
 	#pragma GCC diagnostic pop
 	#pragma GCC diagnostic pop
-
+	#pragma GCC diagnostic pop
+	#pragma GCC diagnostic pop
 
 
 	// Setup working variables	
@@ -886,30 +891,13 @@ int lofar_udp_raw_loop(lofar_udp_meta *meta) {
 	const int packetsPerIteration = meta->packetsPerIteration;
 	const int replayDroppedPackets = meta->replayDroppedPackets;
 
-
-	// Silence compiler warnings about byteSpace being unitialised for other bitmodes
-	#pragma GCC diagnostic push
-	#pragma GCC diagnostic ignored "-Wuninitialized"
-	#pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
-	#pragma GCC diagnostic push
-	#pragma GCC diagnostic push
-
 	// For each port of data provided,
 	#pragma omp parallel for 
 	for (int port = 0; port < meta->numPorts; port++) {
 
-
-	#pragma GCC diagnostic pop
-	#pragma GCC diagnostic pop
-
 		VERBOSE(if (verbose) printf("Port: %d on thread %d\n", port, omp_get_thread_num()));
 
 		long lastPortPacket, currentPortPacket, inputPacketOffset, lastInputPacketOffset, iWork, iLoop;
-
-		// On GCC, keep a cache of the last inputPacketOffset while operating in 4-bit mode
-		#ifndef __INTEL_COMPILER
-		long LIPOCache;
-		#endif
 
 		// Reset the dropped packets counter
 		meta->portLastDroppedPackets[port] = 0;

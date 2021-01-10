@@ -8,17 +8,29 @@
 #include <time.h>
 #include <malloc.h>
 #include <errno.h>
-// Calibration requirements
-#include <unistd.h>
-#include <sys/types.h>
+#include <sys/mman.h>
 #include <sys/stat.h>
+
+// Calibration extra requirements
 #include <sys/types.h>
+#include <sys/wait.h>
 #include <signal.h>
+#include <unistd.h>
+#include <spawn.h>
+// For posix_spawnp
+extern char **environ;
+
 
 #include "lofar_udp_general.h"
 
 #ifndef __LOFAR_UDP_READER_STRUCTS
 #define __LOFAR_UDP_READER_STRUCTS
+
+typedef enum {
+	NORMAL = 0,
+	COMPRESSED = 1,
+	DADA = 2
+} reader_t;
 
 typedef struct lofar_udp_calibration {
 	// The current calibration step we are on and the amount that have been generated
@@ -115,15 +127,12 @@ extern lofar_udp_meta lofar_udp_meta_default;
 typedef struct lofar_udp_reader {
 	FILE *fileRef[MAX_NUM_PORTS];
 
-	int compressedReader;
+	reader_t readerType;
 
 	// Setup ZSTD requirements
 	ZSTD_DStream *dstream[MAX_NUM_PORTS];
 	ZSTD_inBuffer readingTracker[MAX_NUM_PORTS];
 	ZSTD_outBuffer decompressionTracker[MAX_NUM_PORTS];
-
-	// ZSTD Raw data input buffer
-	char *inBuffer[MAX_NUM_PORTS];
 
 	// Cache the constant length for the arrays malloc'd by the reader, will be used to reset meta
 	long packetsPerIteration;
@@ -221,7 +230,7 @@ int lofar_udp_reader_cleanup_f(lofar_udp_reader *reader, const int closeFiles);
 
 // Maybe move this to misc?
 int fread_temp_ZSTD(void *outbuf, const size_t size, int num, FILE* inputFile, const int resetSeek);
-
+long fd_file_size(int fd);
 
 #ifdef __cplusplus
 }
