@@ -28,14 +28,18 @@ Requirements
 - Modern C and C++ compilers with OpenMP and C++17 support (gcc/g++-9 used for development, icc/icpc-2021.01 also tested and optimal)
 - Zstandard libary/development headers (ver > 1.3, libzstd-dev on Ubuntu 18.04+, libzstd1-dev on Ubuntu 16.04, may require the restricted toolchain PPA)
 
-While we support both gcc and icc, they have different execution paths. Due to differences in the OpenMP libraries between GOMP and Intel's OpenMP, the icc code path is up to a factor of 2.5 faster in non-stokes processing methods and advised as the compiler as a result. Some sample execution times for working on a 600 second block of compressed data using an Intel Xeon Gold 6130 on version 0.2.
+While we try to support both gcc and icc, they have different performance profiles. Due to differences in the OpenMP libraries between GCC GOMP and Intel's OpenMP , compiling with ICC (not icx) has demonstrated significant performance improvements and advised as the compiler as a result. Some sample execution times for working on a 1200 second block of compressed data using an Intel Xeon Gold 6130 on version 0.6 using processing mode 154 (Ful lStokes Vector, 16x decimation), with and without dreamBeam corrections applied to the data.
 ```
-icc-2021.01, mode 11: 	Total Read Time:        152.96          Total CPU Ops Time:     18.11
-icc-2021.01, mode 100:	Total Read Time:        151.91          Total CPU Ops Time:     16.01
+v0.6 GCC gcc version 9.3.0 (Ubuntu 9.3.0-11ubuntu0~18.04.1):
+dreamBeam: 		Total Read Time:	293.75		Total CPU Ops Time:	376.31	Total Write Time:	0.01
+No dreamBeam: 	Total Read Time:	282.78		Total CPU Ops Time:	164.26	Total Write Time:	0.01
 
-gcc-9, mode 11:			Total Read Time:        143.54          Total CPU Ops Time:     150.89
-gcc-9, mode 100:	 	Total Read Time:        144.49          Total CPU Ops Time:     77.24
+v0.6 ICC icc version 2021.1 Beta (gcc version 7.5.0 compatibility):
+dreamBeam:		Total Read Time:	290.89		Total CPU Ops Time:	66.14	Total Write Time:	0.01
+No dreamBeam:	Total Read Time:	285.35		Total CPU Ops Time:	49.42	Total Write Time:	0.01
 ```
+
+Performance can be improved in the GCC path by modifying the THREADS variable in the makefile to be between 8 and the number of raw cores (not including hyperthreads) per CPU installed in your machine, though including too many threads causes performance degregation extremely quickly.
 
 #### Using ICC build objects with GCC/NVCC
 While ICC offers significant performance improvements, if downstream objects cannot be compiled with ICC/ICPC, you will need to include extra flags to link in the Intel libraries as they cannot be statically included. As a result, these flagss need to be included. In the case of NVCC these need to be passed with "-Xlinker" so that the non-CUDA compiler is aware of them, or change the base compiler to the Intel C++ compiler.

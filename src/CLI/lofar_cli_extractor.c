@@ -205,7 +205,7 @@ int main(int argc, char  *argv[]) {
 
 	// Check if we have a compressed input file
 	if (strstr(inputFormat, "zst") != NULL) {
-		config.compressedReader = 1;
+		config.readerType = 1;
 	}
 
 	// Make sure mockHeader is on the path if we want to use it.
@@ -230,7 +230,7 @@ int main(int argc, char  *argv[]) {
 		printf("Input File:\t%s\nOutput File: %s\n\n", inputFormat, outputFormat);
 		printf("Packets/Gulp:\t%ld\t\t\tPorts:\t%d\n\n", config.packetsPerIteration, config.numPorts);
 		VERBOSE(printf("Verbose:\t%d\n", config.verbose););
-		printf("Proc Mode:\t%03d\t\t\tCompressed:\t%d\n\n", config.processingMode, config.compressedReader);
+		printf("Proc Mode:\t%03d\t\t\tCompressed:\t%d\n\n", config.processingMode, config.readerType);
 		printf("Beamlet limits:\t%d, %d\n\n", config.beamletLimits[0], config.beamletLimits[1]);
 	}
 

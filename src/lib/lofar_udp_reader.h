@@ -173,8 +173,8 @@ typedef struct lofar_udp_config {
 	// Index of the last packet to process
 	long packetsReadMax;
 
-	// Whether or not inputFiles are compressed files or raw packet captures
-	int compressedReader;
+	// Define the input type (see reader_t enums)
+	int readerType;
 
 	// Lower / Upper limits of beamlets to process
 	int beamletLimits[2];

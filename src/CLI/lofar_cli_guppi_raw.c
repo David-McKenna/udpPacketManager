@@ -181,7 +181,7 @@ int main(int argc, char  *argv[]) {
 
 	// Check if we have a compressed input file
 	if (strstr(inputFormat, "zst") != NULL) {
-		config.compressedReader = 1;
+		config.readerType = 1;
 	}
 
 	// Determine the clock time
@@ -194,7 +194,7 @@ int main(int argc, char  *argv[]) {
 		printf("Input File:\t%s\nOutput File: %s\n\n", inputFormat, outputFormat);
 		printf("Packets/Gulp:\t%ld\t\t\tPorts:\t%d\n\n", config.packetsPerIteration, config.numPorts);
 		VERBOSE(printf("Verbose:\t%d\n", config.verbose););
-		printf("Proc Mode:\t%03d\t\t\tCompressed:\t%d\n\n", 30, config.compressedReader);
+		printf("Proc Mode:\t%03d\t\t\tCompressed:\t%d\n\n", 30, config.readerType);
 		printf("Beamlet limits:\t%d, %d\n\n", config.beamletLimits[0], config.beamletLimits[1]);
 	}
 
