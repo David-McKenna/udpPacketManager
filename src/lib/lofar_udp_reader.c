@@ -444,7 +444,7 @@ lofar_udp_reader* lofar_udp_file_reader_setup(FILE **inputFiles, lofar_udp_meta 
 			ZSTD_initDStream(reader.dstream[port]);
 
 			// Setup the compressed data buffer/struct
-			reader.readingTracker[port].size = fileSize + (fileSize - fileSize % ZSTD_DStreamInSize());
+			reader.readingTracker[port].size = fileSize;
 			reader.readingTracker[port].pos = 0;
 			reader.readingTracker[port].src = mmap(NULL, fileSize, PROT_READ, MAP_PRIVATE, tmpFd, 0);
 
