@@ -1132,15 +1132,15 @@ int lofar_udp_reader_calibration(lofar_udp_reader *reader) {
 	}
 
 	// For security, add a few  random ASCII characters to the end of the suggested name
-	char *fifoName = calloc(strlen(reader->calibration->calibrationFifo) + 4, sizeof(char));
 	static int numRandomChars = 4;
+	char *fifoName = calloc(strlen(reader->calibration->calibrationFifo) + numRandomChars, sizeof(char));
 	char randomChars[numRandomChars];
 
 	for (int i = 0; i < numRandomChars; i++) {
 		// Offset to base of letters in ASCII (65) In the range of letters +(0  - 25), + 0.5 chance of +32 to switch between lower and upper case
 		randomChars[i] = (char) (65 + (rand() % 26) + (rand() % 2 * 32));
 	}
-	returnVal = sprintf(fifoName, "%s_%s", reader->calibration->calibrationFifo, randomChars); 
+	returnVal = sprintf(fifoName, "%s_%4s", reader->calibration->calibrationFifo, randomChars); 
 
 	if (returnVal < 0) {
 		fprintf(stderr, "ERROR: Failed to modify FIFO name (%s, %s, %d). Exiting.\n", reader->calibration->calibrationFifo, randomChars, errno);
@@ -1191,6 +1191,9 @@ int lofar_udp_reader_calibration(lofar_udp_reader *reader) {
 	printf("OpeningFifo\n");
 	fifo = fopen(fifoName, "rb");
 
+	// Wait a second (python needs time to warm up + fail)
+	// and check if the child is still running.
+	sleep(1);
 	returnVal = (int) waitpid(pid, &returnVal, WNOHANG);
 	// Check if dreamBeam exited early
 	if (returnVal < 0) {
