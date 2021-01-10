@@ -96,7 +96,7 @@ if __name__ == '__main__':
 		args = parser.parse_args()
 
 	# If we failed while parsing, try to write out to the pipe before exiting.
-	except Exception e:
+	except Exception as e:
 		print(e)
 		if "--pipe" in sys.argv:
 			pipeInput = sys.argv.index('--pipe')
