@@ -51,8 +51,10 @@ typedef struct __attribute__((__packed__)) lofar_source_bytes {
 
 #ifdef ALLOW_VERBOSE
 #define VERBOSE(MSG) MSG;
+#define VERBOSEP(...) printf("%s: %s", __func__, ##__VA_ARGS__);
 #else
 #define VERBOSE(MSG) while(0) {};
+#define VERBOSEP(...) while(0) {};
 #endif
 
 #endif

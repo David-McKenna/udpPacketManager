@@ -227,8 +227,7 @@ int lofar_udp_reader_cleanup(lofar_udp_reader *reader);
 int lofar_udp_reader_cleanup_f(lofar_udp_reader *reader, const int closeFiles);
 
 
-
-// Maybe move this to misc?
+// Maybe move these to misc?
 int fread_temp_ZSTD(void *outbuf, const size_t size, int num, FILE* inputFile, const int resetSeek);
 long fd_file_size(int fd);
 

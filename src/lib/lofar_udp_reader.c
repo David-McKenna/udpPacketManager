@@ -60,7 +60,7 @@ lofar_udp_meta lofar_udp_meta_default = {
  *
  * @return     0: Success, 1: Fatal error
  */
-int lofar_udp_parse_headers(lofar_udp_meta *meta, char header[MAX_NUM_PORTS][UDPHDRLEN], const int beamletLimits[2]) {
+int lofar_udp_parse_headers(lofar_udp_meta *meta, char header[MAX_NUM_PORTS][UDPHDROFF + UDPHDRLEN], const int beamletLimits[2]) {
 
 	lofar_source_bytes *source;
 
@@ -74,32 +74,32 @@ int lofar_udp_parse_headers(lofar_udp_meta *meta, char header[MAX_NUM_PORTS][UDP
 	for (int port = 0; port < meta->numPorts; port++) {
 		VERBOSE( if(meta->VERBOSE) printf("Port %d/%d\n", port, meta->numPorts - 1););
 		// Data integrity checks
-		if ((unsigned char) header[port][0] < UDPCURVER) {
+		if ((unsigned char) header[port][UDPHDROFF + 0] < UDPCURVER) {
 			fprintf(stderr, "Input header on port %d appears malformed (RSP Version less than 3), exiting.\n", port);
 			return 1;
 		}
 
-		if (*((unsigned int *) &(header[port][8])) <  LFREPOCH) {
+		if (*((unsigned int *) &(header[port][UDPHDROFF + 8])) <  LFREPOCH) {
 			fprintf(stderr, "Input header on port %d appears malformed (data timestamp before 2008), exiting.\n", port);
 			return 1;
 		}
 
-		if (*((unsigned int *) &(header[port][12])) > RSPMAXSEQ) {
-			fprintf(stderr, "Input header on port %d appears malformed (sequence higher than 200MHz clock maximum, %d), exiting.\n", port, *((unsigned int *) &(header[port][12])));
+		if (*((unsigned int *) &(header[port][UDPHDROFF + 12])) > RSPMAXSEQ) {
+			fprintf(stderr, "Input header on port %d appears malformed (sequence higher than 200MHz clock maximum, %d), exiting.\n", port, *((unsigned int *) &(header[port][UDPHDROFF + 12])));
 			return 1;
 		}
 
-		if ((unsigned char) header[port][6] > UDPMAXBEAM) {
-			fprintf(stderr, "Input header on port %d appears malformed (more than %d beamlets on a port, %d), exiting.\n", port, UDPMAXBEAM, header[port][6]);
+		if ((unsigned char) header[port][UDPHDROFF + 6] > UDPMAXBEAM) {
+			fprintf(stderr, "Input header on port %d appears malformed (more than %d beamlets on a port, %d), exiting.\n", port, UDPMAXBEAM, header[port][UDPHDROFF + 6]);
 			return 1;
 		}
 
-		if ((unsigned char) header[port][7] != UDPNTIMESLICE) {
-			fprintf(stderr, "Input header on port %d appears malformed (time slices are %d, not UDPNTIMESLICE), exiting.\n", port, header[port][7]);
+		if ((unsigned char) header[port][UDPHDROFF + 7] != UDPNTIMESLICE) {
+			fprintf(stderr, "Input header on port %d appears malformed (time slices are %d, not UDPNTIMESLICE), exiting.\n", port, header[port][UDPHDROFF + 7]);
 			return 1;
 		}
 
-		source = (lofar_source_bytes*) &(header[port][1]);
+		source = (lofar_source_bytes*) &(header[port][UDPHDROFF + 1]);
 		if (source->padding0 != 0) {
 			fprintf(stderr, "Input header on port %d appears malformed (padding bit (0) is set), exiting.\n", port);
 			return 1;
@@ -125,11 +125,11 @@ int lofar_udp_parse_headers(lofar_udp_meta *meta, char header[MAX_NUM_PORTS][UDP
 
 		// Extract the station ID
 		// Divide by 32 to convert from (my current guess based on SE607 / IE613 codes) RSP IDs to station codes
-		meta->stationID = *((short*) &(header[port][4])) / 32;
+		meta->stationID = *((short*) &(header[port][UDPHDROFF + 4])) / 32;
 
 		// Determine the number of beamlets on the port
-		VERBOSE(printf("port %d, bitMode %d, beamlets %d (%u)\n", port, source->bitMode, (int) ((unsigned char) header[port][6]), (unsigned char) header[port][6]););
-		meta->portRawBeamlets[port] = (int) ((unsigned char) header[port][6]);
+		VERBOSE(printf("port %d, bitMode %d, beamlets %d (%u)\n", port, source->bitMode, (int) ((unsigned char) header[port][UDPHDROFF + 6]), (unsigned char) header[port][UDPHDROFF + 6]););
+		meta->portRawBeamlets[port] = (int) ((unsigned char) header[port][UDPHDROFF + 6]);
 
 		// Assume we are processing all beamlets by default
 		meta->upperBeamlets[port] = meta->portRawBeamlets[port];
@@ -514,6 +514,8 @@ int lofar_udp_file_reader_reuse(lofar_udp_reader *reader, const long startingPac
 	long localMaxPackets = packetsReadMax;
 	if (packetsReadMax < 0) localMaxPackets = LONG_MAX;
 
+
+	// THIS SEEMS VERY WRONG -- VERIFY, NOT EVEN CHECKING FOR IF READER IS COMPRESSED....
 	// If we only had a partial read during the last iteration, finish filling the buffer
 	if (reader->packetsPerIteration != reader->meta->packetsPerIteration) {
 		#pragma omp parallel for
@@ -1130,7 +1132,7 @@ int lofar_udp_reader_calibration(lofar_udp_reader *reader) {
 	}
 
 	// For security, add a few  random ASCII characters to the end of the suggested name
-	char *fifoName = calloc(strlen(reader->calibration->calibrationFifo) + 5, sizeof(char));
+	char *fifoName = calloc(strlen(reader->calibration->calibrationFifo) + 4, sizeof(char));
 	static int numRandomChars = 4;
 	char randomChars[numRandomChars];
 
@@ -1176,7 +1178,7 @@ int lofar_udp_reader_calibration(lofar_udp_reader *reader) {
 						"--pipe", fifoName, NULL };
 	
 	pid_t pid;
-	returnVal = posix_spawnp(&pid, "dreamBeamJonesGenerator.py", NULL, NULL, argv, environ);
+	returnVal = posix_spawnp(&pid, "dreamBeamJonesGenerator.py", NULL, NULL, &(argv[0]), environ);
 
 	VERBOSE(printf("Fork\n"););
 	if (returnVal == 0) {
@@ -1358,7 +1360,7 @@ long lofar_udp_reader_nchars(lofar_udp_reader *reader, const int port, char *tar
 
 		// EOF: return everything we read
 		return  dataRead;
-		
+
 	} else if (reader->readerType == DADA) {
 		// Get data from the PSRDADA buffer
 
