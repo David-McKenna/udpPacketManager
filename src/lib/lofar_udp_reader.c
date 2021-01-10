@@ -1356,8 +1356,9 @@ long lofar_udp_reader_nchars(lofar_udp_reader *reader, const int port, char *tar
 			}
 		}
 
-		// Should be unreachable, error if reached.
-		return -1;
+		// EOF: return everything we read
+		return  dataRead;
+		
 	} else if (reader->readerType == DADA) {
 		// Get data from the PSRDADA buffer
 
