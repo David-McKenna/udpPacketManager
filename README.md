@@ -17,9 +17,6 @@ While using the library, do be aware
 
 Future work should not break the exiting load/process iteration loop, and may consist of
 - Creating a wrapper python library to allow for easer interfacing within python scripts rather than requiring a C program (CFFI if I can strip out ifdefs?)
-- Investigating [blosc](https://github.com/Blosc/) [(examples link)](https://github.com/Blosc/c-blosc2/tree/master/examples) as an option to speed up some processing modes
-- Integrate mscorpol/dreamBeam for pointing corrections
--- Complicated. If done, we'll need float outputs rather than char/shorts for many processing modes.
 
 Requirements
 ------------
@@ -28,7 +25,7 @@ Requirements
 - Modern C and C++ compilers with OpenMP and C++17 support (gcc/g++-9 used for development, icc/icpc-2021.01 also tested and optimal)
 - Zstandard libary/development headers (ver > 1.3, libzstd-dev on Ubuntu 18.04+, libzstd1-dev on Ubuntu 16.04, may require the restricted toolchain PPA)
 
-While we try to support both gcc and icc, they have different performance profiles. Due to differences in the OpenMP libraries between GCC GOMP and Intel's OpenMP , compiling with ICC (not icx) has demonstrated significant performance improvements and advised as the compiler as a result. Some sample execution times for working on a 1200 second block of compressed data using an Intel Xeon Gold 6130 on version 0.6 using processing mode 154 (Ful lStokes Vector, 16x decimation), with and without dreamBeam corrections applied to the data.
+While we try to ensure full support for both gcc and icc (LLVM derivatives are not tested at the moment), they have different performance profiles. Due to differences in the OpenMP libraries between GCC GOMP and Intel's OpenMP , compiling with ICC (not icx) has demonstrated significant performance improvements and advised as the compiler as a result. Some sample execution times for working on a 1200 second block of compressed data using an Intel Xeon Gold 6130 on version 0.6 using processing mode 154 (Full Stokes Vector, 16x decimation), with and without dreamBeam corrections applied to the data.
 ```
 v0.6 GCC gcc version 9.3.0 (Ubuntu 9.3.0-11ubuntu0~18.04.1):
 dreamBeam: 		Total Read Time:	293.75		Total CPU Ops Time:	376.31	Total Write Time:	0.01
