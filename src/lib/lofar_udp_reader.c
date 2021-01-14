@@ -444,7 +444,7 @@ lofar_udp_reader* lofar_udp_file_reader_setup(FILE **inputFiles, lofar_udp_meta 
 			reader.dstream[port] = ZSTD_createDStream();
 			ZSTD_initDStream(reader.dstream[port]);
 
-			tmpPtr = mmap(NULL, fileSize, PROT_READ, MAP_PRIVATE, tmpFd, 0);
+			tmpPtr = mmap(NULL, fileSize, PROT_READ, MAP_PRIVATE | MAP_POPULATE, tmpFd, 0);
 
 			// Setup the compressed data buffer/struct
 			reader.readingTracker[port].size = fileSize;
@@ -456,7 +456,7 @@ lofar_udp_reader* lofar_udp_file_reader_setup(FILE **inputFiles, lofar_udp_meta 
 				return NULL;
 			}
 
-			returnVal = madvise(tmpPtr, fileSize, 	MADV_SEQUENTIAL);
+			returnVal = madvise(tmpPtr, fileSize, MADV_SEQUENTIAL);
 
 			if (returnVal == -1) {
 				fprintf(stderr, "ERROR: Failed to advise the kernel on mmap read stratgy on port %d. Errno: %d. Exiting.\n", port, errno);
@@ -1108,6 +1108,8 @@ int lofar_udp_reader_cleanup_f(lofar_udp_reader *reader, const int closeFiles) {
 			if (reader->dstream[i] != NULL) {
 				VERBOSE(if(reader->meta->VERBOSE) printf("Freeing decompression buffers and ZSTD stream on port %d\n", i););
 				ZSTD_freeDStream(reader->dstream[i]);
+				void *tmpPtr = reader->readingTracker[i].src;
+				munmap(tmpPtr, reader->readingTracker[i].size);
 				reader->dstream[i] = NULL;
 			}
 
@@ -1342,6 +1344,7 @@ long lofar_udp_reader_nchars(lofar_udp_reader *reader, const int port, char *tar
 		long dataRead = 0;
 		size_t previousDecompressionPos = 0;
 		int byteDelta = 0, returnVal = 0;
+		void *tmpPtr;
 
 		// Ensure the decompression buffer has been updated
 		reader->decompressionTracker[port].pos = knownOffset;
@@ -1366,7 +1369,19 @@ long lofar_udp_reader_nchars(lofar_udp_reader *reader, const int port, char *tar
 			VERBOSE(if (dataRead >= nchars) {
 				if (reader->meta->VERBOSE) printf("Reader terminating: %ld read, %ld requested, %ld\n", dataRead, nchars, nchars - dataRead);
 			});
-			if (dataRead >= nchars) return dataRead;
+			
+			if (dataRead >= nchars) {
+				// Unmap data we don't need anymore
+				byteDelta = reader->readingTracker[port].pos - reader->readingTracker[port].pos % getpagesize();
+				tmpPtr = reader->readingTracker[port].src;
+				returnVal = munmap(tmpPtr, byteDelta);
+
+				printf("returnval: %d\n", returnVal);
+				reader->readingTracker[port].size -= byteDelta;
+				reader->readingTracker[port].pos -= byteDelta;
+				reader->readingTracker[port].src += byteDelta;
+				return dataRead;
+			}
 
 			if (reader->decompressionTracker[port].pos == reader->decompressionTracker[port].size) {
 				fprintf(stderr, "Failed to read %ld/%ld chars on port %d before filling the buffer. Attempting to continue...\n", dataRead, nchars, port);
