@@ -1371,15 +1371,6 @@ long lofar_udp_reader_nchars(lofar_udp_reader *reader, const int port, char *tar
 			});
 			
 			if (dataRead >= nchars) {
-				// Unmap data we don't need anymore
-				byteDelta = reader->readingTracker[port].pos - reader->readingTracker[port].pos % getpagesize();
-				tmpPtr = reader->readingTracker[port].src;
-				returnVal = munmap(tmpPtr, byteDelta);
-
-				printf("returnval: %d\n", returnVal);
-				reader->readingTracker[port].size -= byteDelta;
-				reader->readingTracker[port].pos -= byteDelta;
-				reader->readingTracker[port].src += byteDelta;
 				return dataRead;
 			}
 
