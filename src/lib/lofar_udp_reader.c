@@ -450,6 +450,14 @@ lofar_udp_reader* lofar_udp_file_reader_setup(FILE **inputFiles, lofar_udp_meta 
 
 			if (reader.readingTracker[port].src == MAP_FAILED) {
 				fprintf(stderr, "ERROR: Failed to create memory mapping for file on port %d. Errno: %d. Exiting.\n", port, errno);
+				return NULL;
+			}
+
+			returnVal = madvise(reader.readingTracker[port].src, fileSize, 	MADV_SEQUENTIAL);
+
+			if (returnVal == -1) {
+				fprintf(stderr, "ERROR: Failed to advise the kernel on mmap read stratgy on port %d. Errno: %d. Exiting.\n", port, errno);
+				return NULL;
 			}
 
 			// Setup the decompressed data buffer/struct
