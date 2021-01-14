@@ -415,6 +415,7 @@ int lofar_udp_skip_to_packet(lofar_udp_reader *reader) {
  */
 lofar_udp_reader* lofar_udp_file_reader_setup(FILE **inputFiles, lofar_udp_meta *meta, const int readerType, lofar_udp_calibration *calibration) {
 	int returnVal, bufferSize, tmpFd;
+	void *tmpPtr;
 	long fileSize;
 	static lofar_udp_reader reader;
 	reader = lofar_udp_reader_default;
@@ -443,17 +444,19 @@ lofar_udp_reader* lofar_udp_file_reader_setup(FILE **inputFiles, lofar_udp_meta 
 			reader.dstream[port] = ZSTD_createDStream();
 			ZSTD_initDStream(reader.dstream[port]);
 
+			tmpPtr = mmap(NULL, fileSize, PROT_READ, MAP_PRIVATE, tmpFd, 0);
+
 			// Setup the compressed data buffer/struct
 			reader.readingTracker[port].size = fileSize;
 			reader.readingTracker[port].pos = 0;
-			reader.readingTracker[port].src = mmap(NULL, fileSize, PROT_READ, MAP_PRIVATE, tmpFd, 0);
+			reader.readingTracker[port].src = tmpPtr;
 
-			if (reader.readingTracker[port].src == MAP_FAILED) {
+			if (tmpPtr == MAP_FAILED) {
 				fprintf(stderr, "ERROR: Failed to create memory mapping for file on port %d. Errno: %d. Exiting.\n", port, errno);
 				return NULL;
 			}
 
-			returnVal = madvise(reader.readingTracker[port].src, fileSize, 	MADV_SEQUENTIAL);
+			returnVal = madvise(tmpPtr, fileSize, 	MADV_SEQUENTIAL);
 
 			if (returnVal == -1) {
 				fprintf(stderr, "ERROR: Failed to advise the kernel on mmap read stratgy on port %d. Errno: %d. Exiting.\n", port, errno);
