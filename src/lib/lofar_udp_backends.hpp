@@ -846,6 +846,7 @@ int lofar_udp_raw_loop(lofar_udp_meta *meta) {
 	int packetLoss = 0;
 
 	VERBOSE(const int verbose = meta->VERBOSE);
+	// Calculate the true processing mode (4-bit -> +4000)
 	constexpr int trueState = state % 4000;
 
 	// Confirm number of OMP threads

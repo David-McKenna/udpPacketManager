@@ -16,7 +16,7 @@ int lofar_udp_raw_udp_my_new_kernel(lofar_udp_meta *meta);
 
 Here's an example of what mode 30 looks like in the function.
 ```
-int llofar_idp_cpp_loop_interface(lofar_udp_meta *meta) {
+int lofar_udp_cpp_loop_interface(lofar_udp_meta *meta) {
 	if (calibrateData == 1) {
 		// Bitmode dependant inputs
 		if (inputBitMode == 4) {

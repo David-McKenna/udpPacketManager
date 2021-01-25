@@ -35,7 +35,14 @@ float stokesV(float Xr, float Xi, float Yr, float Yi) {
 	return 2.0 * ((Xr * Yi) - (Xi * Yr));
 }
 
-// C interface for the C++ loop and kernels
+
+/**
+ * @brief      A bridge between the C++ and C components of the codebase
+ *
+ * @param      meta  The lofar_udp_meta struct
+ *
+ * @return     0 (Success) / -1 (Packet loss occurred) / 1 (ERROR: Unknown target or illegal configuration)
+ */
 int lofar_udp_cpp_loop_interface(lofar_udp_meta *meta) {
 	VERBOSE(if (meta->VERBOSE) printf("Entered C++ call for %d (%d, %d)\n", meta->processingMode, meta->calibrateData, meta->inputBitMode));
 
@@ -43,6 +50,13 @@ int lofar_udp_cpp_loop_interface(lofar_udp_meta *meta) {
 	const int inputBitMode = meta->inputBitMode;
 	const int processingMode = meta->processingMode;
 	// Interfaces to calibrateData cases
+
+	// This is a string of 3 nested statements:
+	// 		Are we calibrating data?
+	// 		What is out input bit mode?
+	// 		What is our processing modes?
+	// The target template is then used to process the data.
+	// See docs/newProcessingMode.md for more details
 	if (calibrateData == 1) {
 		printf("Calibrating...\n");
 		// Bit-mode dependant inputs
@@ -793,6 +807,8 @@ int lofar_udp_cpp_loop_interface(lofar_udp_meta *meta) {
 		}
 	}
 }
+
+
 // LUT for 4-bit data, faster than re-calculating upper/lower nibble for every sample.
 const char bitmodeConversion[256][2] = {
 		{ 0 , 0 }, { 0 , 1 }, { 0 , 2 }, { 0 , 3 }, { 0 , 4 }, 
@@ -847,5 +863,4 @@ const char bitmodeConversion[256][2] = {
 		{ -1 , 5 }, { -1 , 6 }, { -1 , 7 }, { -1 , -8 }, { -1 , -7 },
 		{ -1 , -6 }, { -1 , -5 }, { -1 , -4 }, { -1 , -3 }, { -1 , -2 }, 
 		{ -1 , -1 }
-
 };

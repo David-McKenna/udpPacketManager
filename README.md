@@ -62,6 +62,8 @@ If you are also installing the required components for polarmetric calibrations 
 
 https://casaguides.nrao.edu/index.php?title=Fixing_out_of_date_TAI_UTC_tables_%28missing_information_on_leap_seconds%29
 
+We have integrated this process, along with a few other quick fixes into the `make calibration-prep` target.
+
 
 Usage
 -----
@@ -70,4 +72,4 @@ Please see the [*README_INTEGRATION.md*](docs/README_INTEGRATION.md) file for a 
 
 Funding
 -------
-This project was written while the author was receiving funding from the Irish Research Council's Government of Ireland Postgraduate Scholarship Program.
+This project was written while the author was receiving funding from the Irish Research Council's Government of Ireland Postgraduate Scholarship Program (GOIPG/2019/2798).
