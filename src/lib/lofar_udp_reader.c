@@ -1108,7 +1108,7 @@ int lofar_udp_reader_cleanup_f(lofar_udp_reader *reader, const int closeFiles) {
 			if (reader->dstream[i] != NULL) {
 				VERBOSE(if(reader->meta->VERBOSE) printf("Freeing decompression buffers and ZSTD stream on port %d\n", i););
 				ZSTD_freeDStream(reader->dstream[i]);
-				void *tmpPtr = reader->readingTracker[i].src;
+				void *tmpPtr = (void* ) reader->readingTracker[i].src;
 				munmap(tmpPtr, reader->readingTracker[i].size);
 				reader->dstream[i] = NULL;
 			}
@@ -1344,7 +1344,6 @@ long lofar_udp_reader_nchars(lofar_udp_reader *reader, const int port, char *tar
 		long dataRead = 0;
 		size_t previousDecompressionPos = 0;
 		int byteDelta = 0, returnVal = 0;
-		void *tmpPtr;
 
 		// Ensure the decompression buffer has been updated
 		reader->decompressionTracker[port].pos = knownOffset;

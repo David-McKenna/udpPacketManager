@@ -210,6 +210,10 @@ int main(int argc, char  *argv[]) {
 
 	// Make sure mockHeader is on the path if we want to use it.
 	if (callMockHdr) {
+		if (config.processingMode < 99 || config.processingMode > 199) {
+			fprintf(stderr, "WARNING: Processing mode %d may not confirm to the Sigproc spec, but you requested a header. Continuing with caution...\n", config.processingMode);
+		}
+		
 		printf("Checking for mockHeader on system path... ");
 		callMockHdr += system("which mockHeader > /tmp/udp_reader_mockheader.log 2>&1"); // Add the return code (multiplied by 256 from bash return) to the execution variable, ensure it doesn't change
 		printf("\n");

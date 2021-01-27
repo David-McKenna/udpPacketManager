@@ -16,9 +16,9 @@ endif
 endif
 
 # Library versions
-LIB_VER = 0.5
+LIB_VER = 0.6
 LIB_VER_MINOR = 0
-CLI_VER = 0.3
+CLI_VER = 0.4
 
 # Detemrine the max threads per socket to speed up execution via OpenMP with ICC (GCC falls over if we set too many)
 THREADS = $(shell cat /proc/cpuinfo | uniq | grep -m 2 "siblings" | cut -d ":" -f 2 | sort --numeric --unique | awk '{printf("%d", $$1);}')
@@ -182,10 +182,13 @@ test: ./tests/obj-generated-$(LIB_VER).$(LIB_VER_MINOR)
 	done
 
 	for procMode in 100 110 120 130 150 160; do \
-		for offset in 0 1 2 3 4; do \
-			procModeStokes="`expr $$procMode + $$offset`"; \
-			echo "Running lofar_udp_extractor -i ./tests/udp_1613%d_sample.zst -o './tests/output_'$$procModeStokes'_%d' -p $$procModeStokes -m 501 -u 2"; \
-			lofar_udp_extractor -i ./tests/udp_1613%d_sample.zst -o './tests/output_'$$procModeStokes'_%d' -p $$procModeStokes -m 501 -u 2; \
+		for order in 0 100; do \
+			workingMode="`expr $$workingMode + $$offset`"; \
+			for offset in 0 1 2 3 4; do \
+				procModeStokes="`expr $$workingMode + $$offset`"; \
+				echo "Running lofar_udp_extractor -i ./tests/udp_1613%d_sample.zst -o './tests/output_'$$procModeStokes'_%d' -p $$procModeStokes -m 501 -u 2"; \
+				lofar_udp_extractor -i ./tests/udp_1613%d_sample.zst -o './tests/output_'$$procModeStokes'_%d' -p $$procModeStokes -m 501 -u 2; \
+			done; \
 		done; \
 	done
 
