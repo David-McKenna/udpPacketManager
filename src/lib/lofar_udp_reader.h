@@ -134,8 +134,6 @@ typedef struct lofar_udp_reader {
 	ZSTD_DStream *dstream[MAX_NUM_PORTS];
 	ZSTD_inBuffer readingTracker[MAX_NUM_PORTS];
 	ZSTD_outBuffer decompressionTracker[MAX_NUM_PORTS];
-	long lastUnmappedIdx[MAX_NUM_PORTS];
-	long pageSize;
 
 	// Cache the constant length for the arrays malloc'd by the reader, will be used to reset meta
 	long packetsPerIteration;

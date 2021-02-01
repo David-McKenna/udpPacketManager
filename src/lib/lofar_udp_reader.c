@@ -426,7 +426,6 @@ lofar_udp_reader* lofar_udp_file_reader_setup(FILE **inputFiles, lofar_udp_meta 
 	reader.meta = meta;
 	reader.calibration = calibration;
 
-	reader.pageSize = sysconf(_SC_PAGE_SIZE);
 	for (int port = 0; port < meta->numPorts; port++) {
 		reader.fileRef[port] = inputFiles[port];
 
@@ -458,7 +457,6 @@ lofar_udp_reader* lofar_udp_file_reader_setup(FILE **inputFiles, lofar_udp_meta 
 			}
 
 			returnVal = madvise(tmpPtr, fileSize, MADV_SEQUENTIAL);
-			reader.lastUnmappedIdx[port] = 0;
 
 			if (returnVal == -1) {
 				fprintf(stderr, "ERROR: Failed to advise the kernel on mmap read stratgy on port %d. Errno: %d. Exiting.\n", port, errno);
@@ -1510,26 +1508,15 @@ int lofar_udp_reader_step_timed(lofar_udp_reader *reader, double timing[2]) {
 		reader->meta->outputDataReady = 0;
 
 		if (reader->readerType == ZSTDCOMPRESSED) {
-			long pageAlignedIdx;
-
 			for (int i = 0; i < reader->meta->numPorts; i++) {
 				clock_gettime(CLOCK_MONOTONIC_RAW, &tick2);
-				pageAlignedIdx = reader->readingTracker[i].pos - (reader->readingTracker[i].pos % reader->pageSize);
-				if (madvise(((void*) reader->readingTracker[i].src) + reader->lastUnmappedIdx[i], pageAlignedIdx - reader->lastUnmappedIdx[i], MADV_DONTNEED) < 0) {
+				if (madvise(((void*) reader->readingTracker[i].src), reader->readingTracker[i].pos, MADV_DONTNEED) < 0) {
 					fprintf(stderr, "ERROR: Failed to apply MADV_DONTNEED after read operation on port %d (errno %d: %s).\n", i, errno, strerror(errno));
 				}
 
-				reader->lastUnmappedIdx[i] = pageAlignedIdx;
 				clock_gettime(CLOCK_MONOTONIC_RAW, &tock2);
-				clock_gettime(CLOCK_MONOTONIC_RAW, &tick3);
-				printf("%p, %ld\n", (void*) (reader->readingTracker[i].src) + pageAlignedIdx, (size_t) reader->packetsPerIteration * (size_t) reader->meta->portPacketLength[i]);
-				if (madvise(((void*) reader->readingTracker[i].src) + pageAlignedIdx, (size_t) reader->packetsPerIteration * (size_t) reader->meta->portPacketLength[i], MADV_WILLNEED) < 0) {
-					fprintf(stderr, "ERROR: Failed to apply MADV_WILLNEED after read operation on port %d (errno %d: %s).\n", i, errno, strerror(errno));
-				}
-				clock_gettime(CLOCK_MONOTONIC_RAW, &tock3);
 
 				madvTiming[0] += TICKTOCK(tick2, tock2);
-				madvTiming[1] += TICKTOCK(tick3, tock3);
 
 			}
 		}
