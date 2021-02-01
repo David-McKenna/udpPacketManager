@@ -1510,9 +1510,11 @@ int lofar_udp_reader_step_timed(lofar_udp_reader *reader, double timing[2]) {
 		if (reader->readerType == ZSTDCOMPRESSED) {
 			for (int i = 0; i < reader->meta->numPorts; i++) {
 				clock_gettime(CLOCK_MONOTONIC_RAW, &tick2);
-				if (madvise(((void*) reader->readingTracker[i].src), reader->readingTracker[i].pos, MADV_DONTNEED) < 0) {
+				if (madvise(((void*) reader->readingTracker[i].src) + reader->lastUnmappedIdx[i], reader->readingTracker[i].pos - reader->lastUnmappedIdx[i], MADV_DONTNEED) < 0) {
 					fprintf(stderr, "ERROR: Failed to apply MADV_DONTNEED after read operation on port %d.\n", i);
 				}
+
+				reader->lastUnmappedIdx[i] = reader->readingTracker[i].pos;
 				clock_gettime(CLOCK_MONOTONIC_RAW, &tock2);
 				clock_gettime(CLOCK_MONOTONIC_RAW, &tick3);
 				if (madvise(((void*) reader->readingTracker[i].src) + reader->readingTracker[i].pos, reader->packetsPerIteration * reader->meta->portPacketLength[i], MADV_WILLNEED) < 0) {
