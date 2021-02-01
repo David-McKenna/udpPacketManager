@@ -16,7 +16,8 @@ While using the library, do be aware
 - The provided python dummy data script tends to generate errors in the output after around 5,000 packets are generated
 
 Future work should not break the exiting load/process iteration loop, and may consist of
-- Creating a wrapper python library to allow for easer interfacing within python scripts rather than requiring a C program (CFFI if I can strip out ifdefs?)
+- Creating a wrapper python library to allow for easer interfacing within python scripts rather than requiring a C program (pybind11?)
+- Support more decompression algorithms (arbitrary reader input struct?)
 
 Requirements
 ------------
@@ -25,7 +26,7 @@ Requirements
 - Modern C and C++ compilers with OpenMP and C++17 support (gcc/g++-9 used for development, icc/icpc-2021.01 also tested and optimal)
 - Zstandard libary/development headers (ver > 1.3, libzstd-dev on Ubuntu 18.04+, libzstd1-dev on Ubuntu 16.04, may require the restricted toolchain PPA)
 
-While we try to ensure full support for both gcc and icc (LLVM derivatives are not tested at the moment), they have different performance profiles. Due to differences in the OpenMP libraries between GCC GOMP and Intel's OpenMP , compiling with ICC (not icx) has demonstrated significant performance improvements and advised as the compiler as a result. Some sample execution times for working on a 1200 second block of compressed data using an Intel Xeon Gold 6130 on version 0.6 using processing mode 154 (Full Stokes Vector, 16x decimation), with and without dreamBeam corrections applied to the data.
+While we try to ensure full support for both gcc and icc (LLVM derivatives are not tested at the moment), they have different performance profiles. Due to differences in the OpenMP libraries between GCC GOMP and Intel's Classic OpenMP, compiling with ICC (not icx) has demonstrated significant performance improvements and advised as the compiler as a result. Some sample execution times for working on a 1200 second block of compressed data using an Intel Xeon Gold 6130 on version 0.6 using processing mode 154 (Full Stokes Vector, 16x decimation), with and without dreamBeam corrections applied to the data.
 ```
 v0.6 GCC gcc version 9.3.0 (Ubuntu 9.3.0-11ubuntu0~18.04.1):
 dreamBeam: 		Total Read Time:	293.75		Total CPU Ops Time:	376.31	Total Write Time:	0.01
@@ -38,7 +39,7 @@ No dreamBeam:	Total Read Time:	285.35		Total CPU Ops Time:	49.42	Total Write Tim
 
 Performance can be improved in the GCC path by modifying the THREADS variable in the makefile to be between 8 and the number of raw cores (not including hyperthreads) per CPU installed in your machine, though including too many threads causes performance degregation extremely quickly.
 
-#### Using ICC build objects with GCC/NVCC
+#### Using ICC built objects with GCC/NVCC
 While ICC offers significant performance improvements, if downstream objects cannot be compiled with ICC/ICPC, you will need to include extra flags to link in the Intel libraries as they cannot be statically included. As a result, these flagss need to be included. In the case of NVCC these need to be passed with "-Xlinker" so that the non-CUDA compiler is aware of them, or change the base compiler to the Intel C++ compiler.
 ```
 gcc: -L$(ONEAPI_ROOT)/compiler/latest/linux/compiler/lib/intel64_lin/ -liomp5 -lirc

@@ -26,7 +26,7 @@ extern char **environ;
 #ifndef __LOFAR_UDP_READER_STRUCTS
 #define __LOFAR_UDP_READER_STRUCTS
 
-typedef enum {
+typedef enum reader_t {
 	NORMAL = 0,
 	ZSTDCOMPRESSED = 1,
 	DADA = 2,
