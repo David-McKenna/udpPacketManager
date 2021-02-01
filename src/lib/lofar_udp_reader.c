@@ -612,7 +612,7 @@ int fread_temp_ZSTD(void *outbuf, const size_t size, int num, FILE* inputFile, c
 	size_t output = ZSTD_decompressStream(dstreamTmp, &tmpDecom , &tmpRead);
 	VERBOSE(printf("Header decompression code: %ld, %s\n", output, ZSTD_getErrorName(output)));
 	if (ZSTD_isError(output)) {
-		printf("ZSTD enountered an error while doing temp read (code %ld, %s), returning 0 data.\n", output, ZSTD_getErrorName(output));
+		fprintf(stderr, "ZSTD enountered an error while doing temp read (code %ld, %s), returning 0 data.\n", output, ZSTD_getErrorName(output));
 		free(inBuff);
 		free(outBuff);
 		return 0;
@@ -1168,7 +1168,7 @@ int lofar_udp_reader_calibration(lofar_udp_reader *reader) {
 		fprintf(stderr, "ERROR: Failed to modify FIFO name (%s, %s, %d). Exiting.\n", reader->calibration->calibrationFifo, randomChars, errno);
 	}
 	// Make a FIFO pipe to communicate with dreamBeam
-	printf("Making fifio\n");
+	VERBOSE(printf("Making fifio\n"));
 	if (access(fifoName, F_OK) != -1) {
 		if (remove(fifoName) != 0) {
 			fprintf(stderr, "ERROR: Unable to cleanup old file on calibration FIFO path (%d). Exiting.\n", errno);
@@ -1193,7 +1193,7 @@ int lofar_udp_reader_calibration(lofar_udp_reader *reader) {
 	sprintf(integration, "%15.10f", (float) (reader->packetsPerIteration * UDPNTIMESLICE) * (float) (clock200MHzSample * reader->meta->clockBit + clock160MHzSample * (1 - reader->meta->clockBit)));
 	sprintf(pointing, "%f,%f,%s", reader->calibration->calibrationPointing[0], reader->calibration->calibrationPointing[1], reader->calibration->calibrationPointingBasis);
 	
-	printf("Calling dreamBeam: %s %s %s %s %s %s %s\n", stationID, mjdTime, reader->calibration->calibrationSubbands, duration, integration, pointing, fifoName);
+	VERBOSE(printf("Calling dreamBeam: %s %s %s %s %s %s %s\n", stationID, mjdTime, reader->calibration->calibrationSubbands, duration, integration, pointing, fifoName));
 	
 	char *argv[] = { "dreamBeamJonesGenerator.py", "--stn", stationID,  "--time", mjdTime, 
 						"--sub", reader->calibration->calibrationSubbands, 
@@ -1212,7 +1212,7 @@ int lofar_udp_reader_calibration(lofar_udp_reader *reader) {
 		return 1;
 	}
 
-	printf("OpeningFifo\n");
+	VERBOSE(printf("OpeningFifo\n"));
 	fifo = fopen(fifoName, "rb");
 
 	returnVal = (int) waitpid(pid, &returnVal, WNOHANG);
@@ -1229,14 +1229,14 @@ int lofar_udp_reader_calibration(lofar_udp_reader *reader) {
 	}
 
 
-	printf("beamlets\n");
+	VERBOSE(printf("beamlets\n"));
 	// Ensure the calibration strategy matches the number of subbands we are processing
 	if (numBeamlets != reader->meta->totalProcBeamlets) {
 		fprintf(stderr, "ERROR: Calibration strategy returned %d beamlets, but we are setup to handle %d. Exiting. \n", numBeamlets, reader->meta->totalProcBeamlets);
 		return 1;
 	}
 
-	printf("%d, %d\n", numTimesamples, numBeamlets);
+	VERBOSE(printf("%d, %d\n", numTimesamples, numBeamlets));
 	// Check if we already allocated storage for the calibration data, re-use already alloc'd data where possible
 	if (reader->meta->jonesMatrices == NULL) {
 		// Allocate numTimesamples * numBeamlets * (4 pmatrix elements) * (2 complex values per element)
@@ -1265,7 +1265,7 @@ int lofar_udp_reader_calibration(lofar_udp_reader *reader) {
 		}
 	}
 
-	printf("FIFO Parse\n");
+	VERBOSE(printf("FIFO Parse\n"));
 	// Index into the jonesMatrices array
 	long baseOffset = 0;
 	for (int timeIdx = 0; timeIdx < numTimesamples; timeIdx += 1) {
@@ -1489,14 +1489,12 @@ int lofar_udp_reader_read_step(lofar_udp_reader *reader) {
  */
 int lofar_udp_reader_step_timed(lofar_udp_reader *reader, double timing[2]) {
 	int readReturnVal = 0, stepReturnVal = 0;
-	struct timespec tick0, tick1, tock0, tock1, tick2, tick3, tock2, tock3;
+	struct timespec tick0, tick1, tock0, tock1;
 	const int time = !(timing[0] == -1.0);
-	double madvTiming[2] = { 0, 0 };
 
-	printf("Check cal %d, %d\n", reader->meta->calibrationStep, reader->calibration->calibrationStepsGenerated);
+
 	if (reader->meta->calibrateData && reader->meta->calibrationStep >= reader->calibration->calibrationStepsGenerated) {
-		printf("Start cal\n");
-		VERBOSE(if (reader->meta->VERBOSE) printf("Calibration buffer has run out, generating new Jones matrices.\n"));
+		if (reader->meta->VERBOSE) printf("Calibration buffer has run out, generating new Jones matrices.\n");
 		if ((readReturnVal > lofar_udp_reader_calibration(reader))) {
 			return readReturnVal;
 		}
@@ -1514,20 +1512,12 @@ int lofar_udp_reader_step_timed(lofar_udp_reader *reader, double timing[2]) {
 
 		if (reader->readerType == ZSTDCOMPRESSED) {
 			for (int i = 0; i < reader->meta->numPorts; i++) {
-				clock_gettime(CLOCK_MONOTONIC_RAW, &tick2);
 				if (madvise(((void*) reader->readingTracker[i].src), reader->readingTracker[i].pos, MADV_DONTNEED) < 0) {
 					fprintf(stderr, "ERROR: Failed to apply MADV_DONTNEED after read operation on port %d (errno %d: %s).\n", i, errno, strerror(errno));
 				}
-
-				clock_gettime(CLOCK_MONOTONIC_RAW, &tock2);
-
-				madvTiming[0] += TICKTOCK(tick2, tock2);
-
 			}
 		}
 	}
-
-	printf("madv: %lf, %lf\n", madvTiming[0], madvTiming[1]);
 
 
 	// End the I/O timer. start the processing timer
