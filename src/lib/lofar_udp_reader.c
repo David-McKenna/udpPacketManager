@@ -1660,7 +1660,7 @@ int lofar_udp_get_first_packet_alignment_meta(lofar_udp_reader *reader) {
 	long maxPacketNumber = -1;
 	long maxIndex[MAX_NUM_PORTS];
 
-	long portDelta, currentPacketNumber;
+	long portDelta, currentPacketNumber, nchars;
 	long trueDelta = 0;
 
 	// Determine the maximum port packet number, update the variables as neded
