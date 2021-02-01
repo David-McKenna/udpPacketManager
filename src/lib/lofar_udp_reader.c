@@ -430,7 +430,7 @@ lofar_udp_reader* lofar_udp_file_reader_setup(FILE **inputFiles, lofar_udp_meta 
 	for (int port = 0; port < meta->numPorts; port++) {
 		reader.fileRef[port] = inputFiles[port];
 
-		if (readerType) {
+		if (readerType == ZSTDCOMPRESSED) {
 
 			// Get the FILE*'s file descriptor (needed for mmap)'
 			tmpFd = fileno(inputFiles[port]);
@@ -458,6 +458,7 @@ lofar_udp_reader* lofar_udp_file_reader_setup(FILE **inputFiles, lofar_udp_meta 
 			}
 
 			returnVal = madvise(tmpPtr, fileSize, MADV_SEQUENTIAL);
+			reader.lastUnmappedIdx[port] = 0;
 
 			if (returnVal == -1) {
 				fprintf(stderr, "ERROR: Failed to advise the kernel on mmap read stratgy on port %d. Errno: %d. Exiting.\n", port, errno);
@@ -1510,6 +1511,7 @@ int lofar_udp_reader_step_timed(lofar_udp_reader *reader, double timing[2]) {
 
 		if (reader->readerType == ZSTDCOMPRESSED) {
 			long pageAlignedIdx;
+
 			for (int i = 0; i < reader->meta->numPorts; i++) {
 				clock_gettime(CLOCK_MONOTONIC_RAW, &tick2);
 				pageAlignedIdx = reader->readingTracker[i].pos - (reader->readingTracker[i].pos % reader->pageSize);
