@@ -1511,14 +1511,15 @@ int lofar_udp_reader_step_timed(lofar_udp_reader *reader, double timing[2]) {
 			for (int i = 0; i < reader->meta->numPorts; i++) {
 				clock_gettime(CLOCK_MONOTONIC_RAW, &tick2);
 				if (madvise(((void*) reader->readingTracker[i].src) + reader->lastUnmappedIdx[i], reader->readingTracker[i].pos - reader->lastUnmappedIdx[i], MADV_DONTNEED) < 0) {
-					fprintf(stderr, "ERROR: Failed to apply MADV_DONTNEED after read operation on port %d.\n", i);
+					fprintf(stderr, "ERROR: Failed to apply MADV_DONTNEED after read operation on port %d (errno %d: %s).\n", i, errno, strerror(errno));
 				}
 
 				reader->lastUnmappedIdx[i] = reader->readingTracker[i].pos;
 				clock_gettime(CLOCK_MONOTONIC_RAW, &tock2);
 				clock_gettime(CLOCK_MONOTONIC_RAW, &tick3);
-				if (madvise(((void*) reader->readingTracker[i].src) + reader->readingTracker[i].pos, reader->packetsPerIteration * reader->meta->portPacketLength[i], MADV_WILLNEED) < 0) {
-					fprintf(stderr, "ERROR: Failed to apply MADV_DONTNEED after read operation on port %d.\n", i);
+				printf("%ld, %ld\n", (void*) (reader->readingTracker[i].src) + reader->readingTracker[i].pos, (size_t) reader->packetsPerIteration * (size_t) reader->meta->portPacketLength[i]);
+				if (madvise(((void*) reader->readingTracker[i].src) + reader->readingTracker[i].pos, (size_t) reader->packetsPerIteration * (size_t) reader->meta->portPacketLength[i], MADV_WILLNEED) < 0) {
+					fprintf(stderr, "ERROR: Failed to apply MADV_WILLNEED after read operation on port %d (errno %d: %s).\n", i, errno, strerror(errno));
 				}
 				clock_gettime(CLOCK_MONOTONIC_RAW, &tock3);
 
