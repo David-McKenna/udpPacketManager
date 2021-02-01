@@ -920,7 +920,7 @@ lofar_udp_reader* lofar_udp_meta_file_reader_setup_struct(lofar_udp_config *conf
 		if (config->readerType == ZSTDCOMPRESSED)  {
 			readlen = fread_temp_ZSTD(&(inputHeaders[port][0]), sizeof(char), UDPHDRLEN + UDPHDROFF, config->inputFiles[port], 1);
 		} else if (config->readerType == NORMAL) {
-			readlen = fread(&(inputHeaders[port]), sizeof(char), UDPHDRLEN, config->inputFiles[port]);
+			readlen = fread(&(inputHeaders[port]), sizeof(char), UDPHDRLEN + UDPHDROFF, config->inputFiles[port]);
 			fseek(config->inputFiles[port], -UDPHDRLEN - UDPHDROFF, SEEK_CUR);
 		} else if (config->readerType == DADA) {
 
