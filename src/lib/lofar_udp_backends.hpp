@@ -1041,9 +1041,6 @@ int lofar_udp_raw_loop(lofar_udp_meta *meta) {
 	// Calculate the true processing mode (4-bit -> +4000)
 	constexpr int trueState = state % 4000;
 
-	// Confirm number of OMP threads
-	omp_set_num_threads(OMP_THREADS);
-
 	// Setup decimation factor, 4-bit workspaces if needed
 	// Silence compiler warnings as this variable is only needed for some processing modes
 	#pragma GCC diagnostic push

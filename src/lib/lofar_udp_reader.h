@@ -130,6 +130,8 @@ typedef struct lofar_udp_reader {
 
 	reader_t readerType;
 
+	int ompThreads;
+
 	// Setup ZSTD requirements
 	ZSTD_DStream *dstream[MAX_NUM_PORTS];
 	ZSTD_inBuffer readingTracker[MAX_NUM_PORTS];
@@ -185,6 +187,9 @@ typedef struct lofar_udp_config {
 
 	// Configure calibration parameters
 	lofar_udp_calibration *calibrationConfiguration;
+
+	// Number of OMP threads to use while processing
+	int ompThreads;
 
 } lofar_udp_config;
 extern lofar_udp_config lofar_udp_config_default;

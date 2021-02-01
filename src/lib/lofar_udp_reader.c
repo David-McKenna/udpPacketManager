@@ -30,13 +30,15 @@ lofar_udp_config lofar_udp_config_default = {
 	.readerType = 0,
 	.beamletLimits = { 0, 0 },
 	.calibrateData = 0,
-	.calibrationConfiguration = &lofar_udp_calibration_default
+	.calibrationConfiguration = &lofar_udp_calibration_default,
+	.ompThreads = OMP_THREADS
 };
 
 
 // Reader / meta with NULL-initialised values to help the cleanup function
 lofar_udp_reader lofar_udp_reader_default = {
-	.dstream = { NULL }
+	.dstream = { NULL },
+	.ompThreads = OMP_THREADS
 };
 
 
@@ -1052,8 +1054,12 @@ lofar_udp_reader* lofar_udp_meta_file_reader_setup_struct(lofar_udp_config *conf
 	}});
 
 
-	// Form a reader using the given metadata and input files
-	return lofar_udp_file_reader_setup(config->inputFiles, &meta, config->readerType, config->calibrationConfiguration);
+	// Form a reader using the given metadata and input files, setup OMP threads
+	omp_set_num_threads(config->ompThreads);
+	lofar_udp_reader *reader = lofar_udp_file_reader_setup(config->inputFiles, &meta, config->readerType, config->calibrationConfiguration);
+	reader->ompThreads = config->ompThreads;
+
+	return reader;
 }
 
 
@@ -1432,7 +1438,6 @@ int lofar_udp_reader_read_step(lofar_udp_reader *reader) {
 	//else if (checkReturnValue < 0) if(lofar_udp_realign_data(reader) > 0) return 1;
 	
 	// Read in the required new data
-	omp_set_num_threads(OMP_THREADS);
 	#pragma omp parallel for shared(returnVal)
 	for (int port = 0; port < reader->meta->numPorts; port++) {
 		long charsToRead, charsRead, packetPerIter;
@@ -1655,7 +1660,7 @@ int lofar_udp_get_first_packet_alignment_meta(lofar_udp_reader *reader) {
 	long maxPacketNumber = -1;
 	long maxIndex[MAX_NUM_PORTS];
 
-	long portDelta, currentPacketNumber, nchars;
+	long portDelta, currentPacketNumber;
 	long trueDelta = 0;
 
 	// Determine the maximum port packet number, update the variables as neded
