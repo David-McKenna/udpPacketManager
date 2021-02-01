@@ -1644,17 +1644,19 @@ int lofar_udp_get_first_packet_alignment(lofar_udp_reader *reader) {
  * @return     int 0: Success, -1: Some port shifting required, 1: Unable to
  *             align data
  */
-int lofar_udp_get_first_packet_alignment_meta(lofar_udp_meta *meta) {
+int lofar_udp_get_first_packet_alignment_meta(lofar_udp_reader *reader) {
 
 	// If we only have 1 ports, just return.
 	//if (meta->numPorts < 2) return 0;
+	lofar_udp_meta *meta = reader->meta;
 	int returnValue = 0;
 
 	long portStartingPacket[MAX_NUM_PORTS];
 	long maxPacketNumber = -1;
 	long maxIndex[MAX_NUM_PORTS];
 
-	long portDelta, trueDelta = 0, currentPacketNumber;
+	long portDelta, currentPacketNumber, nchars;
+	long trueDelta = 0;
 
 	// Determine the maximum port packet number, update the variables as neded
 	for (int port = 0; port < meta->numPorts; port++) {
@@ -1667,6 +1669,15 @@ int lofar_udp_get_first_packet_alignment_meta(lofar_udp_meta *meta) {
 			// Check if the maxPacketNumber needs to be updated
 			if (portStartingPacket[port] > maxPacketNumber) maxPacketNumber = portStartingPacket[port]; 
 
+	}
+
+	// If ports are severely out of sync, read until we find the lowst common packet
+	for (int port = 0; port < meta->numPorts; port++) {
+		while (portStartingPacket[port] =< maxPacketNumber) {
+			fprintf(stderr, "WARNING: Port %d is significantly below the target packet (%ld vs %ld), reading new block to syncronise the data.\n", portStartingPacket[port], maxPacketNumber);
+			nchars = lofar_udp_reader_nchars(reader, port, meta->inputData[port], meta->packetsPerIteration * meta->portPacketLength[port], 0);
+			portStartingPacket[port] = lofar_get_packet_number(&(meta->inputData[port][(meta->packetsPerIteration - 1) * meta->portPacketLength[port]]));
+		}
 	}
 
 	// Across each port,
