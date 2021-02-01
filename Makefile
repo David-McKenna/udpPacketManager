@@ -184,7 +184,7 @@ test: ./tests/obj-generated-$(LIB_VER).$(LIB_VER_MINOR)
 	for procMode in 100 110 120 130 150 160; do \
 		for order in 0; do \
 		#for order in 0 100; do \
-			workingMode="`expr $$procMode + $$offset`"; \
+			workingMode="`expr $$procMode + $$order`"; \
 			for offset in 0 1 2 3 4; do \
 				procModeStokes="`expr $$workingMode + $$offset`"; \
 				echo "Running lofar_udp_extractor -i ./tests/udp_1613%d_sample.zst -o './tests/output_'$$procModeStokes'_%d' -p $$procModeStokes -m 501 -u 2"; \
