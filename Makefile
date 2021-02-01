@@ -182,7 +182,8 @@ test: ./tests/obj-generated-$(LIB_VER).$(LIB_VER_MINOR)
 	done
 
 	for procMode in 100 110 120 130 150 160; do \
-		for order in 0 100; do \
+		for order in 0; do \
+		#for order in 0 100; do \
 			workingMode="`expr $$workingMode + $$offset`"; \
 			for offset in 0 1 2 3 4; do \
 				procModeStokes="`expr $$workingMode + $$offset`"; \
