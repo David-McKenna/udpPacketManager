@@ -4,3 +4,7 @@ Better approach to out of order packets?
 Test common outputs against eachother (100 vs 150 vs 160, etc)
 UDPHDROFF -- allow for extra header bytes, partially implemented.
 	-- _misc.c checked
+	-- _reader.c partically checked
+
+HDF5 CLI
+Make tsIn/Out offsets step indenednant to allow for unrolling (basoffset + ts * y vs += y), hopefully will improve throughput

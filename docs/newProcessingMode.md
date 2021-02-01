@@ -135,7 +135,7 @@ void inline udp_myNewKernel(params) {
 	#endif
 	for (int beamlet = baseBeamlet; beamlet < upperBeamlet; beamlet++) {
 		// Get the input data offset
-		tsInOffset = lastInputPacketOffset + beamlet * UDPNTIMESLICE * UDPNPOL * timeStepSize;
+		tsInOffset = input_offset_index(long lastInputPacketOffset, int beamlet, int timeStepSize);
 
 		// Determine an output data offset, this heavily depends on the output ordering you're trying to achieve
 		// Here's some samples
@@ -149,6 +149,11 @@ void inline udp_myNewKernel(params) {
 		// 3. Reversed-Order Channel Major Data
 		//	Perform #1, but reverse the channel order (for negative frequency ordering, needed by many filterbank/dedispersing programs)
 		//	tsOutOffset = outputPacketOffset + (totalBeamlets - 1 - beamlet + baseBeamlet - cumulativeBeamlets);
+
+		// The last two modes are now available via inline functions
+		// 		inline long frequency_major_index(long outputPacketOffset, int totalBeamlets, int beamlet, int baseBeamlet, int cumulativeBeamlets);
+		// 		inline long time_major_index(int beamlet, int baseBeamlet, int cumulativeBeamlets, long packetsPerIteration, long outputTimeIdx);
+
 
 		// If performing calibration, extract the Jones matrix for this frequency
 		if constexpr (calibrateData) {
