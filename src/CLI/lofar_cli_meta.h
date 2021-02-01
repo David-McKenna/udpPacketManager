@@ -6,12 +6,13 @@
 #define __USE_XOPEN
 #include <time.h>
 
-
 #include "lofar_udp_reader.h"
 #include "lofar_udp_misc.h"
 
 #ifndef __LOFAR_CLI_META
 #define __LOFAR_CLI_META
+
+// Define prototypes
 void helpMessages(void);
 void processingModes(void);
 long getStartingPacket(char inputTime[], const int clock200MHz);

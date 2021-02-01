@@ -4,6 +4,20 @@
 
 
 // Define a set of default structs
+
+// Calibration default
+// While in here we default to enbling calibration, the overall default is read from
+// the lofar_udp_config and overwrites the value in here.
+lofar_udp_calibration lofar_udp_calibration_default = {
+	.calibrationStepsGenerated = 0,
+	.calibrationFifo = "/tmp/udp_calibation_pipe",
+	.calibrationSubbands = "HBA,12:499",
+	.calibrationDuration = 3600.0,
+	.calibrationPointing = { 0.0, 0.7853982 },
+	.calibrationPointingBasis = "AZELGO"
+};
+
+// Configuration default
 lofar_udp_config lofar_udp_config_default = {
 	.inputFiles = NULL,
 	.numPorts = 4,
@@ -13,20 +27,29 @@ lofar_udp_config lofar_udp_config_default = {
 	.packetsPerIteration = 65536,
 	.startingPacket = -1,
 	.packetsReadMax = -1,
-	.compressedReader = 0,
-	.beamletLimits = { 0, 0 }
+	.readerType = 0,
+	.beamletLimits = { 0, 0 },
+	.calibrateData = 0,
+	.calibrationConfiguration = &lofar_udp_calibration_default,
+	.ompThreads = OMP_THREADS
 };
 
 
 // Reader / meta with NULL-initialised values to help the cleanup function
 lofar_udp_reader lofar_udp_reader_default = {
 	.dstream = { NULL },
-	.inBuffer = { NULL }
+	.ompThreads = OMP_THREADS
 };
+
 
 lofar_udp_meta lofar_udp_meta_default = {
 	.inputData = { NULL },
-	.outputData = { NULL }
+	.outputData = { NULL },
+	.packetsRead = 0,
+	.inputDataReady = 0,
+	.outputDataReady = 0,
+	.jonesMatrices = NULL,
+	.calibrationStep = 0
 };
 
 /**
@@ -39,10 +62,9 @@ lofar_udp_meta lofar_udp_meta_default = {
  *
  * @return     0: Success, 1: Fatal error
  */
-int lofar_udp_parse_headers(lofar_udp_meta *meta, char header[MAX_NUM_PORTS][UDPHDRLEN], const int beamletLimits[2]) {
+int lofar_udp_parse_headers(lofar_udp_meta *meta, char header[MAX_NUM_PORTS][UDPHDROFF + UDPHDRLEN], const int beamletLimits[2]) {
 
-	union char_unsigned_int tsseq;
-	union char_short source;
+	lofar_source_bytes *source;
 
 	float bitMul;
 	int cacheBitMode = 0;
@@ -54,54 +76,62 @@ int lofar_udp_parse_headers(lofar_udp_meta *meta, char header[MAX_NUM_PORTS][UDP
 	for (int port = 0; port < meta->numPorts; port++) {
 		VERBOSE( if(meta->VERBOSE) printf("Port %d/%d\n", port, meta->numPorts - 1););
 		// Data integrity checks
-		if ((unsigned char) header[port][0] < UDPCURVER) {
+		if ((unsigned char) header[port][UDPHDROFF + 0] < UDPCURVER) {
 			fprintf(stderr, "Input header on port %d appears malformed (RSP Version less than 3), exiting.\n", port);
 			return 1;
 		}
 
-		tsseq.c[0] = header[port][8]; tsseq.c[1] = header[port][9]; tsseq.c[2] = header[port][10];  tsseq.c[3] = header[port][11];
-		if (tsseq.ui <  LFREPOCH) {
+		if (*((unsigned int *) &(header[port][UDPHDROFF + 8])) <  LFREPOCH) {
 			fprintf(stderr, "Input header on port %d appears malformed (data timestamp before 2008), exiting.\n", port);
 			return 1;
 		}
 
-		tsseq .c[0] = header[port][12]; tsseq.c[1] = header[port][13]; tsseq.c[2] = header[port][14]; tsseq.c[3] = header[port][15];
-		if (tsseq.ui > RSPMAXSEQ) {
-			fprintf(stderr, "Input header on port %d appears malformed (sequence higher than 200MHz clock maximum, %d), exiting.\n", port, tsseq.ui);
+		if (*((unsigned int *) &(header[port][UDPHDROFF + 12])) > RSPMAXSEQ) {
+			fprintf(stderr, "Input header on port %d appears malformed (sequence higher than 200MHz clock maximum, %d), exiting.\n", port, *((unsigned int *) &(header[port][UDPHDROFF + 12])));
 			return 1;
 		}
 
-		if ((unsigned char) header[port][6] > UDPMAXBEAM) {
-			fprintf(stderr, "Input header on port %d appears malformed (more than %d beamlets on a port, %d), exiting.\n", port, UDPMAXBEAM, header[port][6]);
+		if ((unsigned char) header[port][UDPHDROFF + 6] > UDPMAXBEAM) {
+			fprintf(stderr, "Input header on port %d appears malformed (more than %d beamlets on a port, %d), exiting.\n", port, UDPMAXBEAM, header[port][UDPHDROFF + 6]);
 			return 1;
 		}
 
-		if ((unsigned char) header[port][7] != UDPNTIMESLICE) {
-			fprintf(stderr, "Input header on port %d appears malformed (time slices are %d, not UDPNTIMESLICE), exiting.\n", port, header[port][7]);
+		if ((unsigned char) header[port][UDPHDROFF + 7] != UDPNTIMESLICE) {
+			fprintf(stderr, "Input header on port %d appears malformed (time slices are %d, not UDPNTIMESLICE), exiting.\n", port, header[port][UDPHDROFF + 7]);
 			return 1;
 		}
 
-		source.c[0] = header[port][1]; source.c[1] = header[port][2];
-		if (((lofar_source_bytes*) &source)->padding0 != 0) {
+		source = (lofar_source_bytes*) &(header[port][UDPHDROFF + 1]);
+		if (source->padding0 != 0) {
 			fprintf(stderr, "Input header on port %d appears malformed (padding bit (0) is set), exiting.\n", port);
 			return 1;
-		} else if (((lofar_source_bytes*) &source)->errorBit != 0) {
+		} else if (source->errorBit != 0) {
 			fprintf(stderr, "Input header on port %d appears malformed (error bit is set), exiting.\n", port);
 			return 1;
-		} else if (((lofar_source_bytes*) &source)->bitMode == 3) {
+		} else if (source->bitMode == 3) {
 			fprintf(stderr, "Input header on port %d appears malformed (BM of 3 doesn't exist), exiting.\n", port);
 			return 1;
-		} else if (((lofar_source_bytes*) &source)->padding1 > 1) {
+		} else if (source->padding1 > 1) {
 			fprintf(stderr, "Input header on port %d appears malformed (padding bits (1) are set), exiting.\n", port);
 			return 1;
-		} else if (((lofar_source_bytes*) &source)->padding1 == 1) {
+		} else if (source->padding1 == 1) {
 			fprintf(stderr, "Input header on port %d appears malformed (our replay packet warning bit is set), continuing with caution...\n", port);
 		}
 
+		if (port != 0 && meta->clockBit != source->clockBit) {
+			fprintf(stderr, "ERROR: Input files contain a mixutre of 200MHz clock and 160MHz clock (port %d differs), please process these observaiton separately. Exiting.\n", port);
+			return 1;
+		} else {
+			meta->clockBit = source->clockBit;
+		}
+
+		// Extract the station ID
+		// Divide by 32 to convert from (my current guess based on SE607 / IE613 codes) RSP IDs to station codes
+		meta->stationID = *((short*) &(header[port][UDPHDROFF + 4])) / 32;
 
 		// Determine the number of beamlets on the port
-		VERBOSE(printf("port %d, bitMode %d, beamlets %d (%u)\n", port, ((lofar_source_bytes*) &source)->bitMode, (int) ((unsigned char) header[port][6]), (unsigned char) header[port][6]););
-		meta->portRawBeamlets[port] = (int) ((unsigned char) header[port][6]);
+		VERBOSE(printf("port %d, bitMode %d, beamlets %d (%u)\n", port, source->bitMode, (int) ((unsigned char) header[port][UDPHDROFF + 6]), (unsigned char) header[port][UDPHDROFF + 6]););
+		meta->portRawBeamlets[port] = (int) ((unsigned char) header[port][UDPHDROFF + 6]);
 
 		// Assume we are processing all beamlets by default
 		meta->upperBeamlets[port] = meta->portRawBeamlets[port];
@@ -134,7 +164,7 @@ int lofar_udp_parse_headers(lofar_udp_meta *meta, char header[MAX_NUM_PORTS][UDP
 		}
 
 		// Check the bitmode on the port
-		switch (((lofar_source_bytes*) &source)->bitMode) {
+		switch (source->bitMode) {
 			case 0:
 				meta->inputBitMode = 16;
 				break;
@@ -180,7 +210,7 @@ int lofar_udp_parse_headers(lofar_udp_meta *meta, char header[MAX_NUM_PORTS][UDP
 //TODO:
 /*
 int lofar_udp_skip_to_packet_meta(lofar_udp_reader *reader, long currentPacket, long targetPacket) {
-	if (reader->compressedReader) {
+	if (reader->readerType == ZSTDCOMPRESSED) {
 		// Standard search method
 	} else {
 		// fseek... then search
@@ -247,10 +277,21 @@ int lofar_udp_skip_to_packet(lofar_udp_reader *reader) {
 				VERBOSE(if (reader->meta->portLastDroppedPackets[portInner]) {
 					printf("%d: %d packets lost.\n", portInner, reader->meta->portLastDroppedPackets[portInner]);
 				});
+
+				if (reader->meta->portLastDroppedPackets[portInner] > reader->meta->packetsPerIteration) {
+					fprintf(stderr, "\n\nWARNING: Large amount of packets dropped on port %d during scan iteration (%d lost), attempting to continue...\n", port, reader->meta->portLastDroppedPackets[portInner]);
+					returnVal = -2;
+				}
 			}
 
 			// Get the new last packet
-			currentPacket += reader->meta->packetsPerIteration;
+			if (returnVal == -2) {
+				// If we have a large amount of packet loss, update directly
+				currentPacket = lofar_get_packet_number(&(reader->meta->inputData[0][lastPacketOffset]));
+			} else {
+				// Otherwise just add the number of iterations
+				currentPacket += reader->meta->packetsPerIteration;			
+			}
 
 			// Print a status update to the CLI
 			printf("\rScanning to packet %ld (~%.02f%% complete, currently at packet %ld on port %d, %ld to go)", reader->meta->lastPacket, (float) 100.0 -  (float) (reader->meta->lastPacket - currentPacket) / (packetDelta) * 100.0, currentPacket, port, reader->meta->lastPacket - currentPacket);
@@ -370,33 +411,59 @@ int lofar_udp_skip_to_packet(lofar_udp_reader *reader) {
  *
  * @param      inputFiles        The input files to process
  * @param      meta              The lofar_udp_meta struct to initialise
- * @param[in]  compressedReader  Enable / disable zstandard decompression on the
- *                               input data
+ * @param[in]  readerType  		 Set the input data type
  *
  * @return     lofar_udp_reader ptr, or NULL on error
  */
-lofar_udp_reader* lofar_udp_file_reader_setup(FILE **inputFiles, lofar_udp_meta *meta, const int compressedReader) {
-	int returnVal, bufferSize;
+lofar_udp_reader* lofar_udp_file_reader_setup(FILE **inputFiles, lofar_udp_meta *meta, const int readerType, lofar_udp_calibration *calibration) {
+	int returnVal, bufferSize, tmpFd;
+	void *tmpPtr;
+	long fileSize;
 	static lofar_udp_reader reader;
+	reader = lofar_udp_reader_default;
 
 	// Initialise the reader struct as needed
-	reader.compressedReader = compressedReader;
+	reader.readerType = (reader_t) readerType;
 	reader.packetsPerIteration = meta->packetsPerIteration;
 	reader.meta = meta;
+	reader.calibration = calibration;
 
 	for (int port = 0; port < meta->numPorts; port++) {
 		reader.fileRef[port] = inputFiles[port];
-		if (compressedReader) {
 
-			// Setup the stream
+		if (readerType == ZSTDCOMPRESSED) {
+
+			// Get the FILE*'s file descriptor (needed for mmap)'
+			tmpFd = fileno(inputFiles[port]);
+			// Find the file size (needed for mmap)
+			fileSize = fd_file_size(tmpFd);
+			// Ensure there wasn't an error
+			if (fileSize < 0) {
+				return NULL;
+			}
+
+			// Setup the decompression stream
 			reader.dstream[port] = ZSTD_createDStream();
 			ZSTD_initDStream(reader.dstream[port]);
 
+			tmpPtr = mmap(NULL, fileSize, PROT_READ, MAP_PRIVATE, tmpFd, 0);
+
 			// Setup the compressed data buffer/struct
-			reader.readingTracker[port].size = ZSTD_DStreamInSize() * ZSTD_BUFFERMUL;
-			reader.readingTracker[port].pos = reader.readingTracker[port].size;
-			reader.inBuffer[port] = calloc(reader.readingTracker[port].size, sizeof(char));
-			reader.readingTracker[port].src = reader.inBuffer[port];
+			reader.readingTracker[port].size = fileSize;
+			reader.readingTracker[port].pos = 0;
+			reader.readingTracker[port].src = tmpPtr;
+
+			if (tmpPtr == MAP_FAILED) {
+				fprintf(stderr, "ERROR: Failed to create memory mapping for file on port %d. Errno: %d. Exiting.\n", port, errno);
+				return NULL;
+			}
+
+			returnVal = madvise(tmpPtr, fileSize, MADV_SEQUENTIAL);
+
+			if (returnVal == -1) {
+				fprintf(stderr, "ERROR: Failed to advise the kernel on mmap read stratgy on port %d. Errno: %d. Exiting.\n", port, errno);
+				return NULL;
+			}
 
 			// Setup the decompressed data buffer/struct
 			bufferSize = meta->packetsPerIteration * meta->portPacketLength[port];
@@ -460,6 +527,8 @@ int lofar_udp_file_reader_reuse(lofar_udp_reader *reader, const long startingPac
 	long localMaxPackets = packetsReadMax;
 	if (packetsReadMax < 0) localMaxPackets = LONG_MAX;
 
+
+	// THIS SEEMS VERY WRONG -- VERIFY, NOT EVEN CHECKING FOR IF READER IS COMPRESSED....
 	// If we only had a partial read during the last iteration, finish filling the buffer
 	if (reader->packetsPerIteration != reader->meta->packetsPerIteration) {
 		#pragma omp parallel for
@@ -473,6 +542,8 @@ int lofar_udp_file_reader_reuse(lofar_udp_reader *reader, const long startingPac
 	reader->meta->packetsRead = 0;
 	reader->meta->packetsReadMax = startingPacket - reader->meta->lastPacket + 2 * reader->packetsPerIteration;
 	reader->meta->lastPacket = startingPacket;
+	// Ensure we are always recalculating the Jones matrix on reader re-use
+	reader->meta->calibrationStep = reader->calibration->calibrationStepsGenerated + 1;
 
 	for (int port = 0; port < reader->meta->numPorts; port++) {
 		reader->meta->inputDataOffset[port] = 0;
@@ -542,7 +613,7 @@ int fread_temp_ZSTD(void *outbuf, const size_t size, int num, FILE* inputFile, c
 	size_t output = ZSTD_decompressStream(dstreamTmp, &tmpDecom , &tmpRead);
 	VERBOSE(printf("Header decompression code: %ld, %s\n", output, ZSTD_getErrorName(output)));
 	if (ZSTD_isError(output)) {
-		printf("ZSTD enountered an error while doing temp read (code %ld, %s), returning 0 data.\n", output, ZSTD_getErrorName(output));
+		fprintf(stderr, "ZSTD enountered an error while doing temp read (code %ld, %s), returning 0 data.\n", output, ZSTD_getErrorName(output));
 		free(inBuff);
 		free(outBuff);
 		return 0;
@@ -579,141 +650,23 @@ int lofar_udp_setup_processing(lofar_udp_meta *meta) {
 	int workingData = 0;
 
 
-	// Define the processing function
+	// Sanity check the processing mode
 	switch (meta->processingMode) {
-		case 0:
-			meta->processFunc = &lofar_udp_raw_udp_copy;
-			break;
-		case 1:
-			meta->processFunc = &lofar_udp_raw_udp_copy_nohdr;
-			break;
-
+		case 0 ... 1:
+			if (meta->calibrateData) {
+				fprintf(stderr, "WARNING: Modes 0 and 1 cannot be calibrated, disabling calibration and continuing.\n");
+				meta->calibrateData = 0;
+			}
 		case 2:
-			meta->processFunc = &lofar_udp_raw_udp_copy_split_pols;
-			break;
-
-		case 10:
-			meta->processFunc = &lofar_udp_raw_udp_channel_major;
-			break;
-		case 11:
-			meta->processFunc = &lofar_udp_raw_udp_channel_major_split_pols;
-			break;
-
-		case 20:
-			meta->processFunc = &lofar_udp_raw_udp_reversed_channel_major;
-			break;
-		case 21:
-			meta->processFunc = &lofar_udp_raw_udp_reversed_channel_major_split_pols;
-			break;
-
-		case 30:
-			meta->processFunc = &lofar_udp_raw_udp_time_major;
-			break;
-		case 31:
-			meta->processFunc = &lofar_udp_raw_udp_time_major_split_pols;
-			break;
-		case 32:
-			meta->processFunc = &lofar_udp_raw_udp_time_major_dual_pols;
-			break;
-
-		// Base Stokes Methods
-		case 100:
-			meta->processFunc = &lofar_udp_raw_udp_stokesI;
-			break;
-		case 110:
-			meta->processFunc = &lofar_udp_raw_udp_stokesQ;
-			break;
-		case 120:
-			meta->processFunc = &lofar_udp_raw_udp_stokesU;
-			break;
-		case 130:
-			meta->processFunc = &lofar_udp_raw_udp_stokesV;
-			break;
-		case 150:
-			meta->processFunc = &lofar_udp_raw_udp_full_stokes;
-			break;
-		case 160:
-			meta->processFunc = &lofar_udp_raw_udp_useful_stokes;
-			break;
-
-		// 2x decimation
-		case 101:
-			meta->processFunc = &lofar_udp_raw_udp_stokesI_sum2;
-			break;
-		case 111:
-			meta->processFunc = &lofar_udp_raw_udp_stokesQ_sum2;
-			break;
-		case 121:
-			meta->processFunc = &lofar_udp_raw_udp_stokesU_sum2;
-			break;
-		case 131:
-			meta->processFunc = &lofar_udp_raw_udp_stokesV_sum2;
-			break;
-		case 151:
-			meta->processFunc = &lofar_udp_raw_udp_full_stokes_sum2;
-			break;
-		case 161:
-			meta->processFunc = &lofar_udp_raw_udp_useful_stokes_sum2;
-			break;
-
-		// 4x decimation
-		case 102:
-			meta->processFunc = &lofar_udp_raw_udp_stokesI_sum4;
-			break;
-		case 112:
-			meta->processFunc = &lofar_udp_raw_udp_stokesQ_sum4;
-			break;
-		case 122:
-			meta->processFunc = &lofar_udp_raw_udp_stokesU_sum4;
-			break;
-		case 132:
-			meta->processFunc = &lofar_udp_raw_udp_stokesV_sum4;
-			break;
-		case 152:
-			meta->processFunc = &lofar_udp_raw_udp_full_stokes_sum4;
-			break;
-		case 162:
-			meta->processFunc = &lofar_udp_raw_udp_useful_stokes_sum4;
-			break;
-
-		// 8x decimation
-		case 103:
-			meta->processFunc = &lofar_udp_raw_udp_stokesI_sum8;
-			break;
-		case 113:
-			meta->processFunc = &lofar_udp_raw_udp_stokesQ_sum8;
-			break;
-		case 123:
-			meta->processFunc = &lofar_udp_raw_udp_stokesU_sum8;
-			break;
-		case 133:
-			meta->processFunc = &lofar_udp_raw_udp_stokesV_sum8;
-			break;
-		case 153:
-			meta->processFunc = &lofar_udp_raw_udp_full_stokes_sum8;
-			break;
-		case 163:
-			meta->processFunc = &lofar_udp_raw_udp_useful_stokes_sum8;
-			break;
-
-		// 16x decimation
-		case 104:
-			meta->processFunc = &lofar_udp_raw_udp_stokesI_sum16;
-			break;
-		case 114:
-			meta->processFunc = &lofar_udp_raw_udp_stokesQ_sum16;
-			break;
-		case 124:
-			meta->processFunc = &lofar_udp_raw_udp_stokesU_sum16;
-			break;
-		case 134:
-			meta->processFunc = &lofar_udp_raw_udp_stokesV_sum16;
-			break;
-		case 154:
-			meta->processFunc = &lofar_udp_raw_udp_full_stokes_sum16;
-			break;
-		case 164:
-			meta->processFunc = &lofar_udp_raw_udp_useful_stokes_sum16;
+		case 10 ... 11:
+		case 20 ... 21:
+		case 30 ... 32:
+		case 100 ... 104:
+		case 110 ... 114:
+		case 120 ... 124:
+		case 130 ... 134:
+		case 150 ... 154:
+		case 160 ... 164:
 			break;
 
 		default:
@@ -838,6 +791,11 @@ int lofar_udp_setup_processing(lofar_udp_meta *meta) {
 			return 1;
 	}
 
+	// If we are calibrating the data, the output bit mode is always 32.
+	if (meta->calibrateData == 1) {
+		meta->outputBitMode = 32;
+	}
+
 	if (equalIO) {
 		for (int port = 0; port < meta->numPorts; port++) {
 			meta->packetOutputLength[port] = hdrOffset + meta->portPacketLength[port];
@@ -876,28 +834,29 @@ int lofar_udp_setup_processing(lofar_udp_meta *meta) {
  *                                   number, not an offset)
  * @param[in]  packetsReadMax        The maximum number of packets to read over
  *                                   the lifetime of the object
- * @param[in]  compressedReader      Enable / disable zstandard decompression on
- *                                   the input data
+ * @param[in]  readerType      		 Set the reader type (see reader_t enum)
  *
  * @return     lofar_udp_reader ptr, or NULL on error
  */
-lofar_udp_reader* lofar_udp_meta_file_reader_setup(FILE **inputFiles, const int numPorts, const int replayDroppedPackets, const int processingMode, const int verbose, const long packetsPerIteration, const long startingPacket, const long packetsReadMax, const int compressedReader) {
-		static lofar_udp_config config;
-		config.inputFiles = inputFiles;
-		config.numPorts = numPorts;
-		config.replayDroppedPackets = replayDroppedPackets;
-		config.processingMode = processingMode;
-		config.verbose = verbose;
-		config.packetsPerIteration = packetsPerIteration;
-		config.startingPacket = startingPacket;
-		config.packetsReadMax = packetsReadMax;
-		config.compressedReader = compressedReader;
+lofar_udp_reader* lofar_udp_meta_file_reader_setup(FILE **inputFiles, const int numPorts, const int replayDroppedPackets, const int processingMode, const int verbose, const long packetsPerIteration, const long startingPacket, const long packetsReadMax, const int readerType) {
+	static lofar_udp_config config;
+	// GCC is fine with assignment at definition, icc is not.
+	config = lofar_udp_config_default;
+	config.inputFiles = inputFiles;
+	config.numPorts = numPorts;
+	config.replayDroppedPackets = replayDroppedPackets;
+	config.processingMode = processingMode;
+	config.verbose = verbose;
+	config.packetsPerIteration = packetsPerIteration;
+	config.startingPacket = startingPacket;
+	config.packetsReadMax = packetsReadMax;
+	config.readerType = readerType;
 
-		// Old call did not support beamlet limits, don't update.
-		config.beamletLimits[0] = 0;
-		config.beamletLimits[1] = 0;
-		
-		return lofar_udp_meta_file_reader_setup_struct(&config);
+	// Old call did not support beamlet limits, don't update.
+	config.beamletLimits[0] = 0;
+	config.beamletLimits[1] = 0;
+	
+	return lofar_udp_meta_file_reader_setup_struct(&config);
 }
 
 /**
@@ -931,8 +890,9 @@ lofar_udp_reader* lofar_udp_meta_file_reader_setup_struct(lofar_udp_config *conf
 	}
 
 	// Setup the metadata struct and a few variables we'll need
-	static lofar_udp_meta meta = { .packetsRead = 0, .inputDataReady = 0, .outputDataReady = 0 };
-	char inputHeaders[MAX_NUM_PORTS][UDPHDRLEN];
+	static lofar_udp_meta meta;
+	meta = lofar_udp_meta_default;
+	char inputHeaders[MAX_NUM_PORTS][UDPHDRLEN + UDPHDROFF];
 	int readlen, bufferSize;
 	long localMaxPackets = config->packetsReadMax;
 
@@ -946,6 +906,7 @@ lofar_udp_reader* lofar_udp_meta_file_reader_setup_struct(lofar_udp_config *conf
 	meta.packetsPerIteration = config->packetsPerIteration;
 	meta.packetsReadMax = localMaxPackets;
 	meta.lastPacket = config->startingPacket;
+	meta.calibrateData = config->calibrateData;
 	
 	VERBOSE(meta.VERBOSE = config->verbose);
 	#ifndef ALLOW_VERBOSE
@@ -956,14 +917,18 @@ lofar_udp_reader* lofar_udp_meta_file_reader_setup_struct(lofar_udp_config *conf
 	// Scan in the first header on each port
 	for (int port = 0; port < meta.numPorts; port++) {
 		
-		if (config->compressedReader)  {
-			readlen = fread_temp_ZSTD(&(inputHeaders[port]), sizeof(char), 16, config->inputFiles[port], 1);
-		} else  {
-			readlen = fread(&(inputHeaders[port]), sizeof(char), 16, config->inputFiles[port]);
-			fseek(config->inputFiles[port], -16, SEEK_CUR);
+		if (config->readerType == ZSTDCOMPRESSED)  {
+			readlen = fread_temp_ZSTD(&(inputHeaders[port][0]), sizeof(char), UDPHDRLEN + UDPHDROFF, config->inputFiles[port], 1);
+		} else if (config->readerType == NORMAL) {
+			readlen = fread(&(inputHeaders[port]), sizeof(char), UDPHDRLEN, config->inputFiles[port]);
+			fseek(config->inputFiles[port], -UDPHDRLEN - UDPHDROFF, SEEK_CUR);
+		} else if (config->readerType == DADA) {
+
+		} else {
+			fprintf(stderr, "ERROR: Unknown reader type %d. Exiting\n", config->readerType);
 		}
 
-		if (readlen != 16) {
+		if (readlen < UDPHDRLEN) {
 			fprintf(stderr, "Unable to read header on port %d, exiting.\n", port);
 			return NULL;
 		}
@@ -1013,11 +978,12 @@ lofar_udp_reader* lofar_udp_meta_file_reader_setup_struct(lofar_udp_config *conf
 				return NULL;
 			}
 
-			if (lowerPort != 0) {
+			if (lowerPort > 0) {
 				// Shift input files down
 				for (int port = lowerPort; port <= upperPort; port++) {
 					config->inputFiles[port - lowerPort] = config->inputFiles[port];
-					memcpy(inputHeaders[port - lowerPort], inputHeaders[port], UDPHDRLEN);
+					// GCC 10 has a warning abot this line. Why?
+					memcpy(&(inputHeaders[port - lowerPort][0]), &(inputHeaders[port][0]), UDPHDRLEN);
 				}
 
 				// Close unneeded files
@@ -1061,8 +1027,8 @@ lofar_udp_reader* lofar_udp_meta_file_reader_setup_struct(lofar_udp_config *conf
 		// Ofset input by 2 for a zero/buffer packet on boundary
 		// If we have a compressed reader, align the length with the ZSTD buffer sizes
 		bufferSize = (meta.portPacketLength[port] * (meta.packetsPerIteration)) % ZSTD_DStreamOutSize();
-		meta.inputData[port] = calloc(meta.portPacketLength[port] * (meta.packetsPerIteration + 2) + bufferSize * config->compressedReader, sizeof(char)) + (meta.portPacketLength[port] * 2);
-		VERBOSE(if(meta.VERBOSE) printf("calloc at %p for %ld +(%d) bytes\n", meta.inputData[port] - (meta.portPacketLength[port] * 2), meta.portPacketLength[port] * (meta.packetsPerIteration + 2) + bufferSize * config->compressedReader - meta.portPacketLength[port] * 2, meta.portPacketLength[port] * 2););
+		meta.inputData[port] = calloc(meta.portPacketLength[port] * (meta.packetsPerIteration + 2) + bufferSize * (config->readerType == ZSTDCOMPRESSED), sizeof(char)) + (meta.portPacketLength[port] * 2);
+		VERBOSE(if(meta.VERBOSE) printf("calloc at %p for %ld +(%d) bytes\n", meta.inputData[port] - (meta.portPacketLength[port] * 2), meta.portPacketLength[port] * (meta.packetsPerIteration + 2) + bufferSize * (config->readerType == ZSTDCOMPRESSED) - meta.portPacketLength[port] * 2, meta.portPacketLength[port] * 2););
 
 		// Initalise these arrays while we're looping
 		meta.inputDataOffset[port] = 0;
@@ -1089,8 +1055,12 @@ lofar_udp_reader* lofar_udp_meta_file_reader_setup_struct(lofar_udp_config *conf
 	}});
 
 
-	// Form a reader using the given metadata and input files
-	return lofar_udp_file_reader_setup(config->inputFiles, &meta, config->compressedReader);
+	// Form a reader using the given metadata and input files, setup OMP threads
+	omp_set_num_threads(config->ompThreads);
+	lofar_udp_reader *reader = lofar_udp_file_reader_setup(config->inputFiles, &meta, config->readerType, config->calibrationConfiguration);
+	reader->ompThreads = config->ompThreads;
+
+	return reader;
 }
 
 
@@ -1134,28 +1104,220 @@ int lofar_udp_reader_cleanup_f(lofar_udp_reader *reader, const int closeFiles) {
 		}
 
 		// Close the input file
-		if (reader->fileRef[i] != NULL && closeFiles) {
+		if (reader->fileRef[i] != NULL && closeFiles && reader->readerType != DADA) {
 			VERBOSE(if(reader->meta->VERBOSE) printf("On port: %d closing file\n", i))
 			fclose(reader->fileRef[i]);
 			reader->fileRef[i] = NULL;
 		}
 
-		if (reader->compressedReader) {
+		if (reader->readerType == ZSTDCOMPRESSED) {
 			// Free the decomression stream
 			if (reader->dstream[i] != NULL) {
 				VERBOSE(if(reader->meta->VERBOSE) printf("Freeing decompression buffers and ZSTD stream on port %d\n", i););
 				ZSTD_freeDStream(reader->dstream[i]);
+				void *tmpPtr = (void* ) reader->readingTracker[i].src;
+				munmap(tmpPtr, reader->readingTracker[i].size);
 				reader->dstream[i] = NULL;
 			}
 
-			if (reader->inBuffer[i] != NULL) {
-				// Free the decompression input buffer
-				free(reader->inBuffer[i]);
-				reader->inBuffer[i] = NULL;
-			}
+		} else if (reader->readerType == DADA) {
+			// To be implemented
 		}
 	}
 
+	// Cleanup Jones matrices if they are allocated
+	if (reader->meta->jonesMatrices != NULL) {
+		for (int i = 0; i < reader->calibration->calibrationStepsGenerated; i++) {
+			free(reader->meta->jonesMatrices[i]);
+		}
+		free(reader->meta->jonesMatrices);	
+	}
+
+	return 0;
+}
+
+
+
+/**
+ * @brief      Generate the inverted Jones matrix to calibrate the observed data
+ *
+ * @param      reader  The lofar_udp_reader
+ *
+ * @return     int: 0: Success, 1: Failure
+ */
+int lofar_udp_reader_calibration(lofar_udp_reader *reader) {
+	FILE *fifo;
+	int numBeamlets, numTimesamples, returnVal;
+	// Ensure we are meant to be calibrating data
+	if (!reader->meta->calibrateData) {
+		fprintf(stderr, "ERROR: Requested calibration while calibration is disabled. Exiting.\n");
+		return 1;
+	}
+
+	// For security, add a few  random ASCII characters to the end of the suggested name
+	static int numRandomChars = 4;
+	char *fifoName = calloc(strlen(reader->calibration->calibrationFifo) + numRandomChars, sizeof(char));
+	char randomChars[numRandomChars];
+
+	for (int i = 0; i < numRandomChars; i++) {
+		// Offset to base of letters in ASCII (65) In the range of letters +(0  - 25), + 0.5 chance of +32 to switch between lower and upper case
+		randomChars[i] = (char) (65 + (rand() % 26) + (rand() % 2 * 32));
+	}
+	returnVal = sprintf(fifoName, "%s_%4s", reader->calibration->calibrationFifo, randomChars); 
+
+	if (returnVal < 0) {
+		fprintf(stderr, "ERROR: Failed to modify FIFO name (%s, %s, %d). Exiting.\n", reader->calibration->calibrationFifo, randomChars, errno);
+	}
+	// Make a FIFO pipe to communicate with dreamBeam
+	VERBOSE(printf("Making fifio\n"));
+	if (access(fifoName, F_OK) != -1) {
+		if (remove(fifoName) != 0) {
+			fprintf(stderr, "ERROR: Unable to cleanup old file on calibration FIFO path (%d). Exiting.\n", errno);
+			return 1;
+		}
+	}
+
+	returnVal = mkfifo(fifoName, 0666);
+	if (returnVal < 0) {
+		fprintf(stderr, "ERROR: Unable to create FIFO pipe at %s (%d). Exiting.\n", fifoName, errno);
+		return 1;
+	}
+
+	// Call dreamBeam to generate calibration
+	// dreamBeamJonesGenerator.py --stn STNID --sub ANT,SBL:SBU --time TIME --dur DUR --int INT --pnt P0,P1,BASIS --pipe /tmp/pipe 
+	char stationID[16] = "", mjdTime[32] = "", duration[32] = "", integration[32] = "", pointing[512] = "";
+	
+
+	lofar_get_station_name(reader->meta->stationID, &(stationID[0]));
+	sprintf(mjdTime, "%lf", lofar_get_packet_time_mjd(reader->meta->inputData[0]));
+	sprintf(duration, "%31.10f", reader->calibration->calibrationDuration);
+	sprintf(integration, "%15.10f", (float) (reader->packetsPerIteration * UDPNTIMESLICE) * (float) (clock200MHzSample * reader->meta->clockBit + clock160MHzSample * (1 - reader->meta->clockBit)));
+	sprintf(pointing, "%f,%f,%s", reader->calibration->calibrationPointing[0], reader->calibration->calibrationPointing[1], reader->calibration->calibrationPointingBasis);
+	
+	VERBOSE(printf("Calling dreamBeam: %s %s %s %s %s %s %s\n", stationID, mjdTime, reader->calibration->calibrationSubbands, duration, integration, pointing, fifoName));
+	
+	char *argv[] = { "dreamBeamJonesGenerator.py", "--stn", stationID,  "--time", mjdTime, 
+						"--sub", reader->calibration->calibrationSubbands, 
+						"--dur", duration, "--int", integration, "--pnt",  pointing, 
+						"--pipe", fifoName, 
+						NULL };
+	
+	pid_t pid;
+	returnVal = posix_spawnp(&pid, "dreamBeamJonesGenerator.py", NULL, NULL, &(argv[0]), environ);
+
+	VERBOSE(printf("Fork\n"););
+	if (returnVal == 0) {
+		VERBOSE(printf("dreamBeam called on pid %d\n"));
+	} else if (returnVal < 0) {
+		fprintf(stderr, "ERROR: Unable to create child process to call dreamBeam. Exiting.\n");
+		return 1;
+	}
+
+	VERBOSE(printf("OpeningFifo\n"));
+	fifo = fopen(fifoName, "rb");
+
+	returnVal = (int) waitpid(pid, &returnVal, WNOHANG);
+	// Check if dreamBeam exited early
+	if (returnVal < 0) {
+		return 1;
+	}
+
+	// Get the number of time steps and frequency channles 
+	returnVal = fscanf(fifo, "%d,%d\n", &numTimesamples, &numBeamlets);
+	if (returnVal < 0) {
+		fprintf(stderr, "ERROR: Failed to parse number of beamlets and time samples from dreamBeam. Exiting.\n");
+		return 1;
+	}
+
+
+	VERBOSE(printf("beamlets\n"));
+	// Ensure the calibration strategy matches the number of subbands we are processing
+	if (numBeamlets != reader->meta->totalProcBeamlets) {
+		fprintf(stderr, "ERROR: Calibration strategy returned %d beamlets, but we are setup to handle %d. Exiting. \n", numBeamlets, reader->meta->totalProcBeamlets);
+		return 1;
+	}
+
+	VERBOSE(printf("%d, %d\n", numTimesamples, numBeamlets));
+	// Check if we already allocated storage for the calibration data, re-use already alloc'd data where possible
+	if (reader->meta->jonesMatrices == NULL) {
+		// Allocate numTimesamples * numBeamlets * (4 pmatrix elements) * (2 complex values per element)
+		reader->meta->jonesMatrices = malloc(numTimesamples * sizeof(float*));
+		for (int timeIdx = 0; timeIdx < numTimesamples; timeIdx += 1) {
+			reader->meta->jonesMatrices[timeIdx] = calloc(numBeamlets * 8, sizeof(float));
+		}
+	// If we returned more time samples than last time, reallocate the array
+	} else if (numTimesamples > reader->calibration->calibrationStepsGenerated) {
+		// Free the old data
+		for (int timeIdx = 0; timeIdx < reader->calibration->calibrationStepsGenerated; timeIdx += 1) {
+			free(reader->meta->jonesMatrices[timeIdx]);
+		}
+		free(reader->meta->jonesMatrices);
+
+		// Reallocate the data
+		reader->meta->jonesMatrices = malloc(numTimesamples * sizeof(float*));
+		for (int timeIdx = 0; timeIdx < numTimesamples; timeIdx += 1) {
+			reader->meta->jonesMatrices[timeIdx] = calloc(numBeamlets * 8, sizeof(float));
+		}
+	// If less time samples, free the remaining steps and re-use the array
+	} else if (numTimesamples < reader->calibration->calibrationStepsGenerated) {
+		// Free the extra time steps
+		for (int timeIdx = reader->calibration->calibrationStepsGenerated; timeIdx < numTimesamples; timeIdx += 1) {
+			free(reader->meta->jonesMatrices[timeIdx]);
+		}
+	}
+
+	VERBOSE(printf("FIFO Parse\n"));
+	// Index into the jonesMatrices array
+	long baseOffset = 0;
+	for (int timeIdx = 0; timeIdx < numTimesamples; timeIdx += 1) {
+		baseOffset = 0;
+		for (int freqIdx = 0; freqIdx < numBeamlets - 1; freqIdx += 1) {
+			// parse the FIFO to get the data
+			returnVal = fscanf(fifo, "%f,%f,%f,%f,%f,%f,%f,%f,", 	&reader->meta->jonesMatrices[timeIdx][baseOffset], \
+														&reader->meta->jonesMatrices[timeIdx][baseOffset + 1], \
+														&reader->meta->jonesMatrices[timeIdx][baseOffset + 2], \
+														&reader->meta->jonesMatrices[timeIdx][baseOffset + 3], \
+														&reader->meta->jonesMatrices[timeIdx][baseOffset + 4], \
+														&reader->meta->jonesMatrices[timeIdx][baseOffset + 5], \
+														&reader->meta->jonesMatrices[timeIdx][baseOffset + 6], \
+														&reader->meta->jonesMatrices[timeIdx][baseOffset + 7]);
+
+			if (returnVal < 0) {
+				fprintf(stderr, "ERROR: unable to parse main pipe from dreamBeam (%d, %d). Exiting.\n", timeIdx, freqIdx);
+			}
+
+			baseOffset += 8;
+		}
+
+		// Parse the final beamlet sample, confirm it ends with a | to signify the end of the time sample
+		returnVal = fscanf(fifo, "%f,%f,%f,%f,%f,%f,%f,%f|", 	&reader->meta->jonesMatrices[timeIdx][baseOffset], \
+													&reader->meta->jonesMatrices[timeIdx][baseOffset + 1], \
+													&reader->meta->jonesMatrices[timeIdx][baseOffset + 2], \
+													&reader->meta->jonesMatrices[timeIdx][baseOffset + 3], \
+													&reader->meta->jonesMatrices[timeIdx][baseOffset + 4], \
+													&reader->meta->jonesMatrices[timeIdx][baseOffset + 5], \
+													&reader->meta->jonesMatrices[timeIdx][baseOffset + 6], \
+													&reader->meta->jonesMatrices[timeIdx][baseOffset + 7]);
+		if (returnVal < 0) {
+			fprintf(stderr, "ERROR: unable to parse final pipe from dreamBeam (%d). Exiting.\n", timeIdx);
+		}
+
+	}
+
+	VERBOSE(printf("%f, %f, %f, %f... %f, %f, %f, %f\n", reader->meta->jonesMatrices[0][0], reader->meta->jonesMatrices[0][1], reader->meta->jonesMatrices[0][2], reader->meta->jonesMatrices[0][3], reader->meta->jonesMatrices[0][baseOffset], reader->meta->jonesMatrices[0][baseOffset + 1], reader->meta->jonesMatrices[0][baseOffset + 2], reader->meta->jonesMatrices[0][baseOffset + 3]););
+
+	// Close and remove the pipe
+	fclose(fifo);
+	if (remove(fifoName) != 0) {
+		fprintf(stderr, "ERROR: Unable to remove claibration FIFO (%d). Exiting.\n", errno);
+		return 1;
+	}
+	free(fifoName);
+
+	// Update the calibration state
+	reader->meta->calibrationStep = 0;
+	reader->calibration->calibrationStepsGenerated = numTimesamples;
+	VERBOSE(printf("%s: Exit calibration.\n", __func__););
 	return 0;
 }
 
@@ -1163,13 +1325,13 @@ int lofar_udp_reader_cleanup_f(lofar_udp_reader *reader, const int closeFiles) {
 /**
  * @brief      Read a set amount of data to a given pointer on a given port.
  *             Supports standard files and decompressed files when
- *             reader->compressedReader == 1
+ *             reader->readerType== 1
  *
  * @param      reader       The lofar_udp_reader struct to process
  * @param[in]  port         The port (file) to read data from
  * @param      targetArray  The storage array
  * @param[in]  nchars       The number of chars (bytes) to read in
- * @param[in]  knownOffset  the compressed known offset
+ * @param[in]  knownOffset  The compressed reader's known offset
  *
  * @return     long: bytes read
  */
@@ -1177,84 +1339,65 @@ long lofar_udp_reader_nchars(lofar_udp_reader *reader, const int port, char *tar
 	// Return if we have nothing to do
 	if (nchars < 0) return -1;
 
-	if (reader->compressedReader) {
+	if (reader->readerType == NORMAL) {
+		// Decompressed file: Read and return the data as needed
+		VERBOSE(if (reader->meta->VERBOSE) printf("reader_nchars: Entering read request: %d, %ld\n", port, nchars));
+		return fread(targetArray, sizeof(char), nchars, reader->fileRef[port]);
+
+	} else if (reader->readerType == ZSTDCOMPRESSED) {
 		// Compressed file: Perform streaming decompression on a zstandard compressed file
 		VERBOSE(if (reader->meta->VERBOSE) printf("reader_nchars: Entering read request (compressed): %d, %ld, %ld\n", port, nchars, knownOffset));
 
 		long dataRead = 0;
 		size_t previousDecompressionPos = 0;
-		int compDataRead = 0, byteDelta = 0, returnVal = 0;
+		int byteDelta = 0, returnVal = 0;
 
 		// Ensure the decompression buffer has been updated
 		reader->decompressionTracker[port].pos = knownOffset;
 
+		VERBOSE(if (reader->meta->VERBOSE) printf("reader_nchars: start of read loop, %ld, %ld, %ld, %ld\n", reader->readingTracker[port].pos, reader->readingTracker[port].size, reader->decompressionTracker[port].pos, dataRead););
 
-		// Loop until we hit an exit criteria (EOF / zstd error / nchars)
-		// Suspicion after buffer changes: this might enter an infinite loop if the buffer isn't large enough to hold the data
-		while(1) {
-			VERBOSE(if (reader->meta->VERBOSE) printf("reader_nchars: start of read loop, %ld, %ld, %ld, %ld\n", reader->readingTracker[port].pos, reader->readingTracker[port].size, reader->decompressionTracker[port].pos, dataRead););
-
-			// Check the decompression stream for compressed data
-			if (reader->readingTracker[port].pos != reader->readingTracker[port].size) {
-				// Loop across while decompressing the data (zstd decompressed in frame iterations, so it may take a few iterations)
-				while (reader->readingTracker[port].pos < reader->readingTracker[port].size) {
-					previousDecompressionPos = reader->decompressionTracker[port].pos;
-					// zstd streaming decompression + check for errors
-					returnVal = ZSTD_decompressStream(reader->dstream[port], &(reader->decompressionTracker[port]), &(reader->readingTracker[port]));
-					if (ZSTD_isError(returnVal)) {
-						fprintf(stderr, "ZSTD encountered an error decompressing a frame (code %d, %s), exiting data read early.\n", returnVal, ZSTD_getErrorName(returnVal));
-						return dataRead;
-					}
-
-					// Determine how much data we just added to the buffer
-					byteDelta = ((long) reader->decompressionTracker[port].pos - (long) previousDecompressionPos);
-
-					// Update the total data read + check if we have reached our goal
-					dataRead += byteDelta;
-					VERBOSE(if (dataRead >= nchars) {
-						if (reader->meta->VERBOSE) printf("Reader terminating: %ld read, %ld requested, %ld\n", dataRead, nchars, nchars - dataRead);
-					});
-					if (dataRead >= nchars) return dataRead;
-
-					if (reader->decompressionTracker[port].pos == reader->decompressionTracker[port].size) {
-						fprintf(stderr, "Failed to read %ld/%ld chars on port %d before filling the buffer. Attempting to continue...\n", dataRead, nchars, port);
-						return dataRead;
-					}
-				}
+		// Loop across while decompressing the data (zstd decompressed in frame iterations, so it may take a few iterations)
+		while (reader->readingTracker[port].pos < reader->readingTracker[port].size) {
+			previousDecompressionPos = reader->decompressionTracker[port].pos;
+			// zstd streaming decompression + check for errors
+			returnVal = ZSTD_decompressStream(reader->dstream[port], &(reader->decompressionTracker[port]), &(reader->readingTracker[port]));
+			if (ZSTD_isError(returnVal)) {
+				fprintf(stderr, "ZSTD encountered an error decompressing a frame (code %d, %s), exiting data read early.\n", returnVal, ZSTD_getErrorName(returnVal));
+				return dataRead;
 			}
 
-			VERBOSE(if (reader->meta->VERBOSE) printf("reader>nchars: mdddle of read loop, %ld, %ld, %ld, %ld\n", reader->readingTracker[port].pos, reader->readingTracker[port].size, reader->decompressionTracker[port].pos, dataRead););
+			// Determine how much data we just added to the buffer
+			byteDelta = ((long) reader->decompressionTracker[port].pos - (long) previousDecompressionPos);
 
-			// Check if the input buffer has been fully used
-			if (reader->readingTracker[port].pos == reader->readingTracker[port].size) {
-				// Read in compressed data
-				compDataRead = fread(&(reader->inBuffer[port][0]), sizeof(char), reader->readingTracker[port].size, reader->fileRef[port]);
-
-				// If we loop back around after hitting EOF, exit
-				if (compDataRead == 0)  {
-					fprintf(stderr, "Unable to read sufficient data from compressed archive for port %d.\n", port);
-					return dataRead;
-				}
-
-				// If we don't read in enough data (also EOF)
-				if ((unsigned int)  compDataRead != reader->readingTracker[port].size) {
-					reader->readingTracker[port].size = compDataRead;
-				}
-
-				// Reset the input tracket point to signal new data
-				reader->readingTracker[port].pos = 0;
+			// Update the total data read + check if we have reached our goal
+			dataRead += byteDelta;
+			VERBOSE(if (dataRead >= nchars) {
+				if (reader->meta->VERBOSE) printf("Reader terminating: %ld read, %ld requested, %ld\n", dataRead, nchars, nchars - dataRead);
+			});
+			
+			if (dataRead >= nchars) {
+				return dataRead;
 			}
 
-			// Repeat
+			if (reader->decompressionTracker[port].pos == reader->decompressionTracker[port].size) {
+				fprintf(stderr, "Failed to read %ld/%ld chars on port %d before filling the buffer. Attempting to continue...\n", dataRead, nchars, port);
+				return dataRead;
+			}
 		}
 
-		// Should be unreachable, error if reached.
-		return 0;
-	} else {
-		// Decompressed file: just read the data lol
-		VERBOSE(if (reader->meta->VERBOSE) printf("reader_nchars: Entering read request: %d, %ld\n", port, nchars));
+		// EOF: return everything we read
+		return  dataRead;
 
-		return fread(targetArray, sizeof(char), nchars, reader->fileRef[port]);
+	} else if (reader->readerType == DADA) {
+		// Get data from the PSRDADA buffer
+
+		// TO BE IMPLEMENTED
+		fprintf(stderr, "ERROR: DADA reader not yet implemented. Exiting.\n");
+		return -1;
+	} else {
+		fprintf(stderr, "ERROR: Unknown reader type %d passed to lofar_udp_reader_nchars, exiting.\n", reader->readerType);
+		return -1;
 	}
 }
 
@@ -1296,7 +1439,6 @@ int lofar_udp_reader_read_step(lofar_udp_reader *reader) {
 	//else if (checkReturnValue < 0) if(lofar_udp_realign_data(reader) > 0) return 1;
 	
 	// Read in the required new data
-	omp_set_num_threads(OMP_THREADS);
 	#pragma omp parallel for shared(returnVal)
 	for (int port = 0; port < reader->meta->numPorts; port++) {
 		long charsToRead, charsRead, packetPerIter;
@@ -1351,6 +1493,14 @@ int lofar_udp_reader_step_timed(lofar_udp_reader *reader, double timing[2]) {
 	struct timespec tick0, tick1, tock0, tock1;
 	const int time = !(timing[0] == -1.0);
 
+
+	if (reader->meta->calibrateData && reader->meta->calibrationStep >= reader->calibration->calibrationStepsGenerated) {
+		VERBOSE(printf("Calibration buffer has run out, generating new Jones matrices.\n"));
+		if ((readReturnVal > lofar_udp_reader_calibration(reader))) {
+			return readReturnVal;
+		}
+	}
+
 	// Start the reader clock
 	if (time) clock_gettime(CLOCK_MONOTONIC_RAW, &tick0);
 
@@ -1360,6 +1510,14 @@ int lofar_udp_reader_step_timed(lofar_udp_reader *reader, double timing[2]) {
 		if ((readReturnVal = lofar_udp_reader_read_step(reader)) > 0) return readReturnVal;
 		reader->meta->leadingPacket = reader->meta->lastPacket + 1;
 		reader->meta->outputDataReady = 0;
+
+		if (reader->readerType == ZSTDCOMPRESSED) {
+			for (int i = 0; i < reader->meta->numPorts; i++) {
+				if (madvise(((void*) reader->readingTracker[i].src), reader->readingTracker[i].pos, MADV_DONTNEED) < 0) {
+					fprintf(stderr, "ERROR: Failed to apply MADV_DONTNEED after read operation on port %d (errno %d: %s).\n", i, errno, strerror(errno));
+				}
+			}
+		}
 	}
 
 
@@ -1374,7 +1532,9 @@ int lofar_udp_reader_step_timed(lofar_udp_reader *reader, double timing[2]) {
 	// Make sure there is a new input data set before running
 	// On the setup iteration, the output data is marked as ready to prevent this occurring until the first read step is called
 	if (reader->meta->outputDataReady != 1 && reader->meta->packetsPerIteration > 0) {
-		if ((stepReturnVal = (reader->meta->processFunc)(reader->meta)) > 0) return stepReturnVal;
+		if ((stepReturnVal = lofar_udp_cpp_loop_interface(reader->meta)) > 0) {
+			return stepReturnVal;
+		}
 		reader->meta->packetsRead += reader->meta->packetsPerIteration;
 		reader->meta->inputDataReady = 0;
 	}
@@ -1420,7 +1580,7 @@ int lofar_udp_reader_step(lofar_udp_reader *reader) {
 int lofar_udp_get_first_packet_alignment(lofar_udp_reader *reader) {
 
 	// Align the data to the same packet on each port
-	int returnVal = lofar_udp_get_first_packet_alignment_meta(reader->meta);
+	int returnVal = lofar_udp_get_first_packet_alignment_meta(reader);
 	int shiftPackets[MAX_NUM_PORTS], returnLen;
 	long nchars;
 
@@ -1480,17 +1640,19 @@ int lofar_udp_get_first_packet_alignment(lofar_udp_reader *reader) {
  * @return     int 0: Success, -1: Some port shifting required, 1: Unable to
  *             align data
  */
-int lofar_udp_get_first_packet_alignment_meta(lofar_udp_meta *meta) {
+int lofar_udp_get_first_packet_alignment_meta(lofar_udp_reader *reader) {
 
 	// If we only have 1 ports, just return.
 	//if (meta->numPorts < 2) return 0;
+	lofar_udp_meta *meta = reader->meta;
 	int returnValue = 0;
 
 	long portStartingPacket[MAX_NUM_PORTS];
 	long maxPacketNumber = -1;
 	long maxIndex[MAX_NUM_PORTS];
 
-	long portDelta, trueDelta = 0, currentPacketNumber;
+	long portDelta, currentPacketNumber, nchars;
+	long trueDelta = 0;
 
 	// Determine the maximum port packet number, update the variables as neded
 	for (int port = 0; port < meta->numPorts; port++) {
@@ -1503,6 +1665,22 @@ int lofar_udp_get_first_packet_alignment_meta(lofar_udp_meta *meta) {
 			// Check if the maxPacketNumber needs to be updated
 			if (portStartingPacket[port] > maxPacketNumber) maxPacketNumber = portStartingPacket[port]; 
 
+	}
+
+	// If ports are severely out of sync, read until we find the lowst common packet
+	for (int port = 0; port < meta->numPorts; port++) {
+		// Use the last packet to check if the target packet is in the current block
+		portStartingPacket[port] = lofar_get_packet_number(&(meta->inputData[port][(meta->packetsPerIteration - 1) * meta->portPacketLength[port]]));
+		while (portStartingPacket[port] <= maxPacketNumber) {
+			fprintf(stderr, "WARNING: Port %d is significantly below the target packet (%ld vs %ld), reading new block to syncronise the data.\n", port, portStartingPacket[port], maxPacketNumber);
+			nchars = lofar_udp_reader_nchars(reader, port, meta->inputData[port], meta->packetsPerIteration * meta->portPacketLength[port], 0);
+			if (nchars != meta->packetsPerIteration * meta->portPacketLength[port]) {
+				fprintf(stderr, "ERROR: Reader returned less data than expected for port %d (%ld vs %ld), attempting to continue...\n", port, nchars, meta->packetsPerIteration * meta->portPacketLength[port]);
+			}
+			portStartingPacket[port] = lofar_get_packet_number(&(meta->inputData[port][(meta->packetsPerIteration - 1) * meta->portPacketLength[port]]));
+		}
+		// Reset to the actual starting packet
+		portStartingPacket[port] = lofar_get_packet_number(meta->inputData[port]);
 	}
 
 	// Across each port,
@@ -1690,7 +1868,7 @@ int lofar_udp_shift_remainder_packets(lofar_udp_reader *reader, const int shiftP
 		meta->inputDataOffset[port] = 0;
 		totalShift += shiftPackets[port];
 
-		if (reader->compressedReader) {
+		if (reader->readerType == ZSTDCOMPRESSED) {
 			if ((long) reader->decompressionTracker[port].pos > meta->portPacketLength[port] * meta->packetsPerIteration) {
 				fixBuffer = 1;
 			}
@@ -1703,10 +1881,21 @@ int lofar_udp_shift_remainder_packets(lofar_udp_reader *reader, const int shiftP
 	// Shift the data on each port
 	for (int port = 0; port < meta->numPorts; port++) {
 		inputData = meta->inputData[port];
-		packetShift = shiftPackets[port];
+
+		// Work around a segfault, cap the size of a shift to the size of the input buffers.
+		if (shiftPackets[port] < reader->packetsPerIteration) {
+			packetShift = shiftPackets[port];
+		} else {
+			packetShift = reader->packetsPerIteration - 1;
+		}
 
 
 		VERBOSE(if (meta->VERBOSE) printf("shift_remainder: Port %d packet shift %d padding %d\n", port, packetShift, handlePadding));
+
+		if (packetShift > reader->packetsPerIteration) {
+			fprintf(stderr, "\nWARNING: Requested packet shift is larger than the size of our input buffer. Adjusting port %d from %d to %ld.\n", port, packetShift, reader->packetsPerIteration);
+			packetShift = reader->packetsPerIteration;
+		}
 
  		// If we have packet shift or want to copy the final packet for future refernece
 		if (packetShift > 0 || handlePadding == 1 || (handlePadding == 1 && fixBuffer == 1)) {
@@ -1731,7 +1920,7 @@ int lofar_udp_shift_remainder_packets(lofar_udp_reader *reader, const int shiftP
 
 			VERBOSE(if (meta->VERBOSE) printf("P: %d, SO: %ld, DO: %d, BS: %ld IDO: %ld\n", port, sourceOffset, destOffset, byteShift, destOffset + byteShift));
 
-			if (reader->compressedReader) {
+			if (reader->readerType == ZSTDCOMPRESSED) {
 				if ((long) reader->decompressionTracker[port].pos > meta->portPacketLength[port] * meta->packetsPerIteration) {
 					byteShift += reader->decompressionTracker[port].pos - meta->portPacketLength[port] * meta->packetsPerIteration;
 				}
@@ -1759,4 +1948,18 @@ int lofar_udp_shift_remainder_packets(lofar_udp_reader *reader, const int shiftP
 	}
 
 	return returnVal;
+}
+
+
+
+long fd_file_size(int fd) {
+	struct stat stat_s;
+	int status = fstat(fd, &stat_s);
+
+	if (status == -1) {
+		fprintf(stderr, "ERROR: Unable to stat input file for fd %d. Errno: %d. Exiting.\n", fd, errno);
+		return -1;
+	}
+
+	return stat_s.st_size;
 }

@@ -16,24 +16,28 @@ endif
 endif
 
 # Library versions
-LIB_VER = 0.5
+LIB_VER = 0.6
 LIB_VER_MINOR = 0
-CLI_VER = 0.3
+CLI_VER = 0.4
 
 # Detemrine the max threads per socket to speed up execution via OpenMP with ICC (GCC falls over if we set too many)
 THREADS = $(shell cat /proc/cpuinfo | uniq | grep -m 2 "siblings" | cut -d ":" -f 2 | sort --numeric --unique | awk '{printf("%d", $$1);}')
 
-CFLAGS 	+= -W -Wall -Ofast -march=native -DVERSION=$(LIB_VER) -DVERSIONCLI=$(CLI_VER) -fPIC # -DBENCHMARKING -g -DALLOW_VERBOSE #-D__SLOWDOWN
+CFLAGS 	+= -W -Wall -Ofast -march=native -fPIC
+CFLAGS  += -DVERSION=$(LIB_VER) -DVERSIONCLI=$(CLI_VER) 
+#CFLAGS  += -fsanitize=address -DALLOW_VERBOSE -g # -DBENCHMARKING -g -DALLOW_VERBOSE #-D__SLOWDOWN
 # -fopt-info-missed=compiler_report_missed.log -fopt-info-vec=compiler_report_vec.log -fopt-info-loop=compiler_report_loop.log -fopt-info-inline=compiler_report_inline.log -fopt-info-omp=compiler_report_omp.log
 
-# Adjust flaged based on the compiler
-# ICC has a different code path and can use more threads as a result
+# Adjust flags based on the compiler
+# GCC has negative scaling when the number of threads is greater than twice the number of ports
+# ICC will take everything you throw at it.
 ifeq ($(CC), icc)
 AR = xiar
 CFLAGS += -fast -static -static-intel -qopenmp-link=static -DOMP_THREADS=$(THREADS)
 else
 AR = ar
-CFLAGS += -funswitch-loops -DOMP_THREADS=5
+CFLAGS += -static -DOMP_THREADS=8 -funswitch-loops
+LFLAGS += -fopenmp-simd
 endif
 
 # Ensure we're using C++17
@@ -49,6 +53,10 @@ CLI_OBJECTS = $(OBJECTS) $(CLI_META_OBJECTS) src/CLI/lofar_cli_extractor.o src/C
 LIBRARY_TARGET = liblofudpman.a
 
 PREFIX = /usr/local
+
+# Local folder for casacore if already installed
+CASACOREDIR = /usr/share/casacore/data/
+
 
 .INTERMEDIATE : ./tests/obj-generated-$(LIB_VER).$(LIB_VER_MINOR)
 
@@ -75,6 +83,7 @@ install: all
 	mkdir -p $(PREFIX)/bin/ && mkdir -p $(PREFIX)/include/
 	cp ./lofar_udp_extractor $(PREFIX)/bin/
 	cp ./lofar_udp_guppi_raw $(PREFIX)/bin/
+	cp ./src/misc/dreamBeamJonesGenerator.py $(PREFIX)/bin/
 	cp ./src/lib/*.h $(PREFIX)/include/
 	cp ./src/lib/*.hpp $(PREFIX)/include/
 	cp -P ./*.a* ${PREFIX}/lib/
@@ -86,11 +95,23 @@ install-local: all
 	mkdir -p ~/.local/bin/ && mkdir -p ~/.local/include/
 	cp ./lofar_udp_extractor ~/.local/bin/
 	cp ./lofar_udp_guppi_raw ~/.local/bin/
+	cp ./src/misc/dreamBeamJonesGenerator.py ~/.local/bin/
 	cp ./src/lib/*.h ~/.local/include/
 	cp ./src/lib/*.hpp ~/.local/include/
 	cp -P ./*.a* ~/.local/lib/
 	cp -P ./*.a ~/.local/lib/
 	-cp ./mockHeader/mockHeader ~/.local/bin/
+
+
+calibration-prep:
+	# Install the python dependencies \
+	pip3 install lofarantpos python-casacore astropy git+https://github.com/2baOrNot2ba/AntPat.git git+https://github.com/2baOrNot2ba/dreamBeam.git; \
+	# Get the base casacore-data \
+	apt-get install -y --upgrade rsync casacore-data; \
+	# Update the out-of-date components of casacore-data \
+	rsync -avz rsync://casa-rsync.nrao.edu/casa-data/ephemerides rsync://casa-rsync.nrao.edu/casa-data/geodetic $(CASACOREDIR); \
+	wget ftp://ftp.astron.nl/outgoing/Measures/WSRT_Measures.ztar -O $(CASACOREDIR)WSRT_Measures.ztar; \
+	tar -xzvf $(CASACOREDIR)WSRT_Measures.ztar -C /usr/share/casacore/data/; \
 
 # Remove local build arifacts
 clean:
@@ -107,6 +128,7 @@ clean:
 remove:
 	rm $(PREFIX)/bin/lofar_udp_extractor
 	rm $(PREFIX)/bin/lofar_udp_guppi_raw
+	rm $(PREFIX)/bin/dreamBeamJonesGenerator.py
 	cd src/lib/; find . -name "*.hpp" -exec rm $(PREFIX)/include/{} \;
 	cd src/lib/; find . -name "*.h" -exec rm $(PREFIX)/include/{} \;
 	find . -name "*.a" -exec rm $(PREFIX)/lib/{} \;
@@ -117,6 +139,7 @@ remove:
 remove-local:
 	rm ~/.local/bin/lofar_udp_extractor
 	rm ~/.local/bin/lofar_udp_guppi_raw
+	rm ~/.local/bin/dreamBeamJonesGenerator.py
 	cd src/lib/; find . -name "*.hpp" -exec rm ~/.local/include/{} \;
 	cd src/lib/; find . -name "*.h" -exec rm ~/.local/include/{} \;
 	find . -name "*.a" -exec rm ~/.local/lib/{} \;
@@ -137,8 +160,7 @@ test: ./tests/obj-generated-$(LIB_VER).$(LIB_VER_MINOR)
 		md5hash=($$(md5sum $$output)); \
 		echo "$$base: $${md5hash[0]}, $${!base}"; \
 		if [[ "$${md5hash[0]}" != "$${!base}" ]]; then \
-			echo "Processed output $$output does not match expected hash. Exiting."; \
-			exit 1; \
+			echo "##### Processed output $$output does not match expected hash. #####"; \
 		fi; \
 	done; \
 	\
@@ -160,10 +182,14 @@ test: ./tests/obj-generated-$(LIB_VER).$(LIB_VER_MINOR)
 	done
 
 	for procMode in 100 110 120 130 150 160; do \
-		for offset in 0 1 2 3 4; do \
-			procModeStokes="`expr $$procMode + $$offset`"; \
-			echo "Running lofar_udp_extractor -i ./tests/udp_1613%d_sample.zst -o './tests/output_'$$procModeStokes'_%d' -p $$procModeStokes -m 501 -u 2"; \
-			lofar_udp_extractor -i ./tests/udp_1613%d_sample.zst -o './tests/output_'$$procModeStokes'_%d' -p $$procModeStokes -m 501 -u 2; \
+		for order in 0; do \
+		#for order in 0 100; do \
+			workingMode="`expr $$procMode + $$order`"; \
+			for offset in 0 1 2 3 4; do \
+				procModeStokes="`expr $$workingMode + $$offset`"; \
+				echo "Running lofar_udp_extractor -i ./tests/udp_1613%d_sample.zst -o './tests/output_'$$procModeStokes'_%d' -p $$procModeStokes -m 501 -u 2"; \
+				lofar_udp_extractor -i ./tests/udp_1613%d_sample.zst -o './tests/output_'$$procModeStokes'_%d' -p $$procModeStokes -m 501 -u 2; \
+			done; \
 		done; \
 	done
 

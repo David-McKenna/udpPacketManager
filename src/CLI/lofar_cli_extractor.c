@@ -18,7 +18,9 @@ void helpMessages() {
 	printf("-e: <fileName>	Specify a file of events to extract; newline separated start time and durations in seconds. Events must not overlap.\n");
 	printf("-p: <mode>		Processing mode, options listed below (default: 0)\n");
 	printf("-r:		Replay the previous packet when a dropped packet is detected (default: pad with 0 values)\n");
-	printf("-c:		Change to the alternative clock used for modes 4/6 (160MHz clock) (default: False)\n");
+	printf("-c:		Calibrate the data with the given strategy (default: disabled, eg 'HBA,12:499'). Will not run without -d\n");
+	printf("-d:		Calibrate the data with the given pointing (default: disabled, eg '0.1,0.2,J2000'). Will not run without -c\n");
+	printf("-z:		Change to the alternative clock used for modes 4/6 (160MHz clock) (default: False)\n");
 	printf("-q:		Enable silent mode for the CLI, don't print any information outside of library error messes (default: False)\n");
 	printf("-a: <args>		Call mockHeader with the specific flags to prefix output files with a header (default: False)\n");
 	printf("-f:		Append files if they already exist (default: False, exit if exists)\n");
@@ -38,7 +40,7 @@ int main(int argc, char  *argv[]) {
 	float seconds = 0.0;
 	double sampleTime = 0.0;
 	char inputFormat[256] = "./%d", outputFormat[256] = "./output%d_%s_%ld", inputTime[256] = "", eventsFile[256] = "", stringBuff[128], mockHdrArg[2048] = "", mockHdrCmd[4096] = "";
-	int silent = 0, appendMode = 0, eventCount = 0, returnCounter = 0, callMockHdr = 0, basePort = 0;
+	int silent = 0, appendMode = 0, eventCount = 0, returnCounter = 0, callMockHdr = 0, basePort = 0, calPoint = 0, calStrat = 0;
 	long maxPackets = -1, startingPacket = -1;
 	unsigned int clock200MHz = 1;
 	FILE *eventsFilePtr;
@@ -61,7 +63,7 @@ int main(int argc, char  *argv[]) {
 	char **dateStr; // Sub elements need to be free'd too.
 
 	// Standard ugly input flags parser
-	while((inputOpt = getopt(argc, argv, "rcqfvVi:o:m:u:t:s:e:p:a:n:b:")) != -1) {
+	while((inputOpt = getopt(argc, argv, "zrqfvVi:o:m:u:t:s:e:p:a:n:b:c:d:")) != -1) {
 		input = 1;
 		switch(inputOpt) {
 			
@@ -116,6 +118,16 @@ int main(int argc, char  *argv[]) {
 				break;
 
 			case 'c':
+				calPoint = 1;
+				strcpy(config.calibrationConfiguration->calibrationSubbands, optarg);
+				break;
+
+			case 'd':
+				calStrat = 1;
+				sscanf(optarg, "%f,%f,%128s", &(config.calibrationConfiguration->calibrationPointing[0]), &(config.calibrationConfiguration->calibrationPointing[1]), &(config.calibrationConfiguration->calibrationPointingBasis[0]));
+				break;
+
+			case 'z':
 				clock200MHz = 0;
 				break;
 
@@ -145,7 +157,7 @@ int main(int argc, char  *argv[]) {
 
 			// Handle edge/error cases
 			case '?':
-				if ((optopt == 'i') || (optopt == 'o') || (optopt == 'm') || (optopt == 'u') || (optopt == 't') || (optopt == 's') || (optopt == 'e') || (optopt == 'p') || (optopt == 'a')) {
+				if ((optopt == 'i') || (optopt == 'o') || (optopt == 'm') || (optopt == 'u') || (optopt == 't') || (optopt == 's') || (optopt == 'e') || (optopt == 'p') || (optopt == 'a') || (optopt == 'c') || (optopt == 'd')) {
 					fprintf(stderr, "Option '%c' requires an argument.\n", optopt);
 				} else {
 					fprintf(stderr, "Option '%c' is unknown or encountered an error.\n", optopt);
@@ -167,6 +179,21 @@ int main(int argc, char  *argv[]) {
 		return 1;
 	}
 
+	if (calPoint || calStrat) {
+		if (calPoint && calStrat) {
+			config.calibrateData = 1;
+		} else {
+			fprintf(stderr, "ERROR: Calibration not fully initialised. You only provided the ");
+			if (calPoint) {
+				fprintf(stderr, "pointing. ");
+			} else {
+				fprintf(stderr, "strategy. ");
+			}
+			fprintf(stderr, "Exiting.\n");
+			return 1;
+		}
+	}
+
 	char workingString[1024];
 
 	// Sanity check a few inputs
@@ -178,11 +205,15 @@ int main(int argc, char  *argv[]) {
 
 	// Check if we have a compressed input file
 	if (strstr(inputFormat, "zst") != NULL) {
-		config.compressedReader = 1;
+		config.readerType = ZSTDCOMPRESSED;
 	}
 
 	// Make sure mockHeader is on the path if we want to use it.
 	if (callMockHdr) {
+		if (config.processingMode < 99 || config.processingMode > 199) {
+			fprintf(stderr, "WARNING: Processing mode %d may not confirm to the Sigproc spec, but you requested a header. Continuing with caution...\n", config.processingMode);
+		}
+		
 		printf("Checking for mockHeader on system path... ");
 		callMockHdr += system("which mockHeader > /tmp/udp_reader_mockheader.log 2>&1"); // Add the return code (multiplied by 256 from bash return) to the execution variable, ensure it doesn't change
 		printf("\n");
@@ -203,7 +234,7 @@ int main(int argc, char  *argv[]) {
 		printf("Input File:\t%s\nOutput File: %s\n\n", inputFormat, outputFormat);
 		printf("Packets/Gulp:\t%ld\t\t\tPorts:\t%d\n\n", config.packetsPerIteration, config.numPorts);
 		VERBOSE(printf("Verbose:\t%d\n", config.verbose););
-		printf("Proc Mode:\t%03d\t\t\tCompressed:\t%d\n\n", config.processingMode, config.compressedReader);
+		printf("Proc Mode:\t%03d\t\t\tCompressed:\t%d\n\n", config.processingMode, config.readerType);
 		printf("Beamlet limits:\t%d, %d\n\n", config.beamletLimits[0], config.beamletLimits[1]);
 	}
 
@@ -319,8 +350,8 @@ int main(int argc, char  *argv[]) {
 
 		VERBOSE(if (config.verbose) printf("Opening file at %s\n", workingString));
 
-		inputFiles[port] = fopen(workingString, "r");
-		if (inputFiles[port] == NULL) {
+		inputFiles[port - basePort] = fopen(workingString, "r");
+		if (inputFiles[port - basePort] == NULL) {
 			fprintf(stderr, "Input file at %s does not exist, exiting.\n", workingString);
 			return 1;
 		}

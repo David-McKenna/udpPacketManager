@@ -70,7 +70,25 @@ Arguments
 - If set, the last good packet will be repeated when a dropped packet is detected
 - Default behaviour is to 0 pad the output
 
-#### -c
+-c:             Calibrate the data with the given strategy (default: disabled, eg 'HBA,12:499'). Will not run without -d
+-d:             Calibrate the data with the given pointing (default: disabled, eg '0.1,0.2,J2000'). Will not run without -c
+-z:             Change to the alternative clock used for modes 4/6 (160MHz clock) (default: False)
+
+#### -c (str) [default: NULL]
+- Pass conformation on the sintrument and subbands for calibrating the data using generating Jones matrices from dreamBeam
+- General syntax: 'INST,<lo,hi>' where inst is 'LBA' or 'HBA' and lo, hi are the same as used in beamctl commands
+- HBA mode 7 is accessed by adding 512 to the base subband
+- Multiple instruments (eg, mode 357) can be specified similarly by command separating each variable, eg "LBA,0:200,HBA,100:300"
+- Requires -d is provided in order for calibration to be enabled
+
+#### -d (str) [default: NULL]
+- Provide a comma separate direction to generate Jones matrices for with dreamBeam
+- General syntax is 'RAD1,RAD2,COORD', where RAD1/2 are values in radians with respect to the coordinate system
+- All standard casacore coordinate systems are supported (J2000, SUN, JUPITER, AZELGO), but non-J2000 coordinate system will be processed slowly as they must be recalculated for each timestep
+- Requires -c is provided in order for calibration to be enabled
+
+
+#### -z
 - If set, change from calculating the start time from the RSP 200MHz clock (Modes 3, 5, 7) to the 160MHz clock (4,6, probably others)
 
 #### -q 
@@ -135,6 +153,9 @@ Processing Modes
 
 
 ### Processing Operations
+
+There is currently an untested implementation of time-major Stokes outputs in the library, but is has not been tested or fully implemented in the reader setup as of yet.
+
 #### Base Modes
 By default, we define a number of base Stokes parameter outputs each at a multiple of 10 from 100.
 

@@ -2,6 +2,13 @@ Integrating the Library
 =======================
 TODO
 
+A lot of this information is outdated, I suggest having a look at [lofar_cli_guppi_raw.c](../src/CLI/lofar_cli_guppi_raw.c) for an example implementation.
+- Configure the system with `lofar_udp_config`
+- Pass to `lofar_udp_meta_file_reader_setup_struct(...)` and error check that the repsonse isn't null
+- Call in a loop with `lofar_udp_reader_step(_timed)(...)`, note that the arrays are pre-populated after reader construction
+- Get data from `reader->meta->utputData[i]`, repeat loop
+- Cleanup allocated data with `lofar_udp_reader_cleanup(reader);`
+
 
 Include the reader header
 ```

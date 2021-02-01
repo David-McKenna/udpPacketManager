@@ -87,6 +87,12 @@ float getPacketsToSeconds(long packetCount, const int clock200MHz) {
 }
 */
 
+/**
+ * @brief      Convert the current packet to an ISOT string
+ *
+ * @param      reader      The UDP reader
+ * @param      stringBuff  The string buffer
+ */
 void getStartTimeString(lofar_udp_reader *reader, char stringBuff[]) {
 	double startTime;
 	time_t startTimeUnix;

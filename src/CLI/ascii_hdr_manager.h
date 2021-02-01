@@ -14,9 +14,11 @@
 #define __LOFAR_UDP_VERBOSE_MACRO
 
 #ifdef ALLOW_VERBOSE
-#define VERBOSE(MSG) MSG; PAUSE;
+#define VERBOSE(MSG) MSG;
+#define VERBOSEP(...) printf("%s: %s", __func__, ##__VA_ARGS__);
 #else
 #define VERBOSE(MSG) while(0) {};
+#define VERBOSEP(...) while(0) {};
 #endif
 
 #endif

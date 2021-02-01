@@ -7,114 +7,56 @@
 #include <limits.h>
 #include <time.h>
 #include <malloc.h>
+#include <errno.h>
+#include <sys/mman.h>
+#include <sys/stat.h>
 
-#ifndef __LOFAR_COMPILE_CONSTANTS
-#define __LOFAR_COMPILE_CONSTANTS
-
-// I/O array sizes
-#define MAX_NUM_PORTS 4
-#define MAX_OUTPUT_DIMS 4
-
-// CEP packet reference values
-#define UDPHDRLEN 16
-#define UDPCURVER 3
-#define UDPMAXBEAM 244
-#define UDPNPOL 4
-#define UDPNTIMESLICE 16
-
-// Timing values
-#define LFREPOCH 1199145600 // 2008-01-01 Unix time, sanity check
-#define RSPMAXSEQ 195313
-#define CLOCK200MHZ 195312.5
-#define CLOCK160MHZ 156250.0
-
-// Execution values
-#define OMP_NUM_THREADS OMP_THREADS
-#define OMP_NESTED TRUE
-#define ZSTD_BUFFERMUL 4096
-#define ALIGNMENT_LENGTH 1024
-#endif
-
-
-
-// Slow stopping macro (enable from makefile)
-#ifndef __LOFAR_SLEEP
-#define __LOFAR_SLEEP
-
-#ifdef __SLOWDOWN
+// Calibration extra requirements
+#include <sys/types.h>
+#include <sys/wait.h>
+#include <signal.h>
 #include <unistd.h>
-#define PAUSE sleep(1);
-#else
-#define PAUSE while(0) {};
-#endif
-
-#endif
+#include <spawn.h>
+// For posix_spawnp
+extern char **environ;
 
 
-
-// Add extra verbosity at compile time
-#ifndef __LOFAR_UDP_VERBOSE_MACRO
-#define __LOFAR_UDP_VERBOSE_MACRO
-
-#ifdef ALLOW_VERBOSE
-#define VERBOSE(MSG) MSG; PAUSE;
-#else
-#define VERBOSE(MSG) while(0) {};
-#endif
-
-#endif
-
-
-
-// Timing macro
-#ifndef __LOFAR_UDP_TICKTOCK_MACRO
-#define __LOFAR_UDP_TICKTOCK_MACRO
-#define CLICK(clock) clock_gettime(CLOCK_MONOTONIC_RAW, &clock);
-#define TICKTOCK(tick, tock) ((double) (tock.tv_nsec - tick.tv_nsec) / 1000000000.0) + (tock.tv_sec - tick.tv_sec)
-#endif
-
-
-// Raw data stored as chars, offer methods to read as other value types as required
-// Do I really need this?
-#ifndef __LOFAR_UNION_TYPES
-#define __LOFAR_UNION_TYPES
-typedef union char_unsigned_int {
-    unsigned int ui;
-    char c[4];
-} char_unsigned_int;
-
-typedef union char_short {
-    short s;
-    char c[2];
-} char_short;
-#endif
-
-
-
-// Decode the 'two source' bytes in the CEP header
-#ifndef __LOFAR_SOURCE_BYTE_STRUCT
-#define __LOFAR_SOURCE_BYTE_STRUCT
-// For unpacking the header source bytes
-typedef struct __attribute__((__packed__)) lofar_source_bytes {
-	unsigned int rsp : 5;
-	unsigned int padding0 : 1;
-	unsigned int errorBit : 1;
-	unsigned int clockBit : 1;
-	unsigned int bitMode  : 2;
-	unsigned int padding1 : 6;
-
-} lofar_source_bytes;
-#endif
-
-
+#include "lofar_udp_general.h"
 
 #ifndef __LOFAR_UDP_READER_STRUCTS
 #define __LOFAR_UDP_READER_STRUCTS
 
-// Metadata struct
-typedef struct lofar_udp_meta lofar_udp_meta;
-typedef int (*lofar_udp_processing_function )(lofar_udp_meta*);
+typedef enum {
+	NORMAL,
+	ZSTDCOMPRESSED,
+	DADA,
+	BITSHFLCOMPRESSED
+} reader_t;
 
+typedef struct lofar_udp_calibration {
+	// The current calibration step we are on and the amount that have been generated
+	int calibrationStepsGenerated;
+
+	// Location to generate the FIFO pipe to communicate with dreamBeam
+	char calibrationFifo[4096];
+
+	// Calibration strategy to use with dreamBeam (see documentation)
+	// Maximum length: both antenna set (2x 5), all 3-digit subbands (4 ea), in 4-bit mode (976 subbands)
+	// ~= 10 + 3904 = 3914
+	char calibrationSubbands[4096];
+
+	// Estimated duration of observation (used to determine number of steps to calibrate)
+	float calibrationDuration;
+
+	// Station pointing for calibration, Ra/Dec-like, coordinate system
+	float calibrationPointing[2];
+	char calibrationPointingBasis[128];
+
+} lofar_udp_calibration;
+extern lofar_udp_calibration lofar_udp_calibration_default;
+
+
+// Metadata struct
 typedef struct lofar_udp_meta {
 	// Input/Output data storage
 	char *inputData[MAX_NUM_PORTS];
@@ -140,6 +82,12 @@ typedef struct lofar_udp_meta {
 	// Input characteristics
 	int inputBitMode;
 	int portPacketLength[MAX_NUM_PORTS];
+	int clockBit;
+
+	// Calibration data
+	int calibrateData;
+	int calibrationStep;
+	float **jonesMatrices;
 
 
 	// Track the output metatdata
@@ -156,7 +104,6 @@ typedef struct lofar_udp_meta {
 	// Configuration: replay last packet or copy a 0 packed file, set the processing mode and it's related processing function
 	int replayDroppedPackets;
 	int processingMode;
-	lofar_udp_processing_function processFunc;
 
 	// Overall runtime information
 	long packetsPerIteration;
@@ -164,6 +111,9 @@ typedef struct lofar_udp_meta {
 	long packetsReadMax;
 	long leadingPacket;
 	long lastPacket;
+
+	// Other metadata
+	int stationID;
 
 	// Configuration: verbosity of processing
 	#ifdef ALLOW_VERBOSE
@@ -176,23 +126,25 @@ extern lofar_udp_meta lofar_udp_meta_default;
 
 // File data + decompression struct
 typedef struct lofar_udp_reader {
-	FILE* fileRef[MAX_NUM_PORTS];
+	FILE *fileRef[MAX_NUM_PORTS];
 
-	int compressedReader;
+	reader_t readerType;
+
+	int ompThreads;
 
 	// Setup ZSTD requirements
-	ZSTD_DStream* dstream[MAX_NUM_PORTS];
+	ZSTD_DStream *dstream[MAX_NUM_PORTS];
 	ZSTD_inBuffer readingTracker[MAX_NUM_PORTS];
 	ZSTD_outBuffer decompressionTracker[MAX_NUM_PORTS];
-
-	// ZSTD Raw data input buffer
-	char* inBuffer[MAX_NUM_PORTS];
 
 	// Cache the constant length for the arrays malloc'd by the reader, will be used to reset meta
 	long packetsPerIteration;
 
 	// Metadata / data struct
-	lofar_udp_meta* meta;
+	lofar_udp_meta *meta;
+
+		// Calibration configuration struct
+	lofar_udp_calibration *calibration;
 
 } lofar_udp_reader;
 extern lofar_udp_reader lofar_udp_reader_default;
@@ -224,13 +176,22 @@ typedef struct lofar_udp_config {
 	// Index of the last packet to process
 	long packetsReadMax;
 
-	// Whether or not inputFiles are compressed files or raw packet captures
-	int compressedReader;
+	// Define the input type (see reader_t enums)
+	int readerType;
 
 	// Lower / Upper limits of beamlets to process
 	int beamletLimits[2];
-} lofar_udp_config;
 
+	// Enable / disable dreamBeam polarmetric corrections
+	int calibrateData;
+
+	// Configure calibration parameters
+	lofar_udp_calibration *calibrationConfiguration;
+
+	// Number of OMP threads to use while processing
+	int ompThreads;
+
+} lofar_udp_config;
 extern lofar_udp_config lofar_udp_config_default;
 #endif
 
@@ -249,14 +210,14 @@ extern "C" {
 // Reader/meta struct initialisation
 lofar_udp_reader* lofar_udp_meta_file_reader_setup(FILE **inputFiles, const int numPorts, const int replayDroppedPackets, const int processingMode, const int verbose, const long packetsPerIteration, const long startingPacket, const long packetsReadMax, const int compressedReader);
 lofar_udp_reader* lofar_udp_meta_file_reader_setup_struct(lofar_udp_config *config);
-lofar_udp_reader* lofar_udp_file_reader_setup(FILE **inputFiles, lofar_udp_meta *meta, const int compressedReader);
+lofar_udp_reader* lofar_udp_file_reader_setup(FILE **inputFiles, lofar_udp_meta *meta, const int compressedReader, lofar_udp_calibration *calibration);
 int lofar_udp_file_reader_reuse(lofar_udp_reader *reader, const long startingPacket, const long packetsReadMax);
 
 // Initialisation helpers
 int lofar_udp_parse_headers(lofar_udp_meta *meta, char header[MAX_NUM_PORTS][UDPHDRLEN], const int beamletLimits[2]);
 int lofar_udp_setup_processing(lofar_udp_meta *meta);
 int lofar_udp_get_first_packet_alignment(lofar_udp_reader *reader);
-int lofar_udp_get_first_packet_alignment_meta(lofar_udp_meta *meta);
+int lofar_udp_get_first_packet_alignment_meta(lofar_udp_reader *reader);
 
 // Raw input data haandlers
 int lofar_udp_reader_step(lofar_udp_reader *reader);
@@ -272,10 +233,9 @@ int lofar_udp_reader_cleanup(lofar_udp_reader *reader);
 int lofar_udp_reader_cleanup_f(lofar_udp_reader *reader, const int closeFiles);
 
 
-
-// Maybe move this to misc?
+// Maybe move these to misc?
 int fread_temp_ZSTD(void *outbuf, const size_t size, int num, FILE* inputFile, const int resetSeek);
-
+long fd_file_size(int fd);
 
 #ifdef __cplusplus
 }
