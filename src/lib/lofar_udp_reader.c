@@ -914,7 +914,7 @@ lofar_udp_reader* lofar_udp_meta_file_reader_setup_struct(lofar_udp_config *conf
 	// Scan in the first header on each port
 	for (int port = 0; port < meta.numPorts; port++) {
 		
-		if (config->readerType == COMPRESSED)  {
+		if (config->readerType == ZSTDCOMPRESSED)  {
 			readlen = fread_temp_ZSTD(&(inputHeaders[port][0]), sizeof(char), 16 + UDPHDROFF, config->inputFiles[port], 1);
 		} else if (config->readerType == NORMAL) {
 			readlen = fread(&(inputHeaders[port]), sizeof(char), 16, config->inputFiles[port]);
@@ -1103,7 +1103,7 @@ int lofar_udp_reader_cleanup_f(lofar_udp_reader *reader, const int closeFiles) {
 			reader->fileRef[i] = NULL;
 		}
 
-		if (reader->readerType == COMPRESSED) {
+		if (reader->readerType == ZSTDCOMPRESSED) {
 			// Free the decomression stream
 			if (reader->dstream[i] != NULL) {
 				VERBOSE(if(reader->meta->VERBOSE) printf("Freeing decompression buffers and ZSTD stream on port %d\n", i););
@@ -1337,7 +1337,7 @@ long lofar_udp_reader_nchars(lofar_udp_reader *reader, const int port, char *tar
 		VERBOSE(if (reader->meta->VERBOSE) printf("reader_nchars: Entering read request: %d, %ld\n", port, nchars));
 		return fread(targetArray, sizeof(char), nchars, reader->fileRef[port]);
 
-	} else if (reader->readerType == COMPRESSED) {
+	} else if (reader->readerType == ZSTDCOMPRESSED) {
 		// Compressed file: Perform streaming decompression on a zstandard compressed file
 		VERBOSE(if (reader->meta->VERBOSE) printf("reader_nchars: Entering read request (compressed): %d, %ld, %ld\n", port, nchars, knownOffset));
 
@@ -1484,8 +1484,9 @@ int lofar_udp_reader_read_step(lofar_udp_reader *reader) {
  */
 int lofar_udp_reader_step_timed(lofar_udp_reader *reader, double timing[2]) {
 	int readReturnVal = 0, stepReturnVal = 0;
-	struct timespec tick0, tick1, tock0, tock1;
+	struct timespec tick0, tick1, tock0, tock1, tick2, tick3, tock2, tock3;
 	const int time = !(timing[0] == -1.0);
+	double madvTiming[2];
 
 	printf("Check cal %d, %d\n", reader->meta->calibrationStep, reader->calibration->calibrationStepsGenerated);
 	if (reader->meta->calibrateData && reader->meta->calibrationStep >= reader->calibration->calibrationStepsGenerated) {
@@ -1505,7 +1506,28 @@ int lofar_udp_reader_step_timed(lofar_udp_reader *reader, double timing[2]) {
 		if ((readReturnVal = lofar_udp_reader_read_step(reader)) > 0) return readReturnVal;
 		reader->meta->leadingPacket = reader->meta->lastPacket + 1;
 		reader->meta->outputDataReady = 0;
+
+		if (reader->readerType == ZSTDCOMPRESSED) {
+			for (int i = 0; i < reader->numPorts; i++) {
+				clock_gettime(CLOCK_MONOTONIC_RAW, &tick2);
+				if (madvise(reader->readingTracker[i].src, reader->readingTracker[i].pos, MADV_DONTNEED) < 0) {
+					fprintf(stderr, "ERROR: Failed to apply MADV_DONTNEED after read operation on port %d.\n", i);
+				}
+				clock_gettime(CLOCK_MONOTONIC_RAW, &tock2);
+				clock_gettime(CLOCK_MONOTONIC_RAW, &tick3);
+				if (madvise(reader->readingTracker[i].src + reader->readingTracker[i].pos, reader->packetsPerIteration * reader->meta->portPacketLength[i], MADV_WILLNEED) < 0) {
+					fprintf(stderr, "ERROR: Failed to apply MADV_DONTNEED after read operation on port %d.\n", i);
+				}
+				clock_gettime(CLOCK_MONOTONIC_RAW, &tock3);
+
+				madvTiming[0] += TICKTOCK(tick2, tock2);
+				madvTiming[1] += TICKTOCK(tick3, tock3);
+
+			}
+		}
 	}
+
+	printf("madv: %lf, %lf\n", madvTiming[0], madvTiming[1]);
 
 
 	// End the I/O timer. start the processing timer

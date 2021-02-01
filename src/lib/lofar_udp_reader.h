@@ -28,8 +28,9 @@ extern char **environ;
 
 typedef enum {
 	NORMAL = 0,
-	COMPRESSED = 1,
-	DADA = 2
+	ZSTDCOMPRESSED = 1,
+	DADA = 2,
+	BITSHFLCOMPRESSED = 3
 } reader_t;
 
 typedef struct lofar_udp_calibration {
@@ -133,6 +134,7 @@ typedef struct lofar_udp_reader {
 	ZSTD_DStream *dstream[MAX_NUM_PORTS];
 	ZSTD_inBuffer readingTracker[MAX_NUM_PORTS];
 	ZSTD_outBuffer decompressionTracker[MAX_NUM_PORTS];
+	long lastUnmappedIdx[MAX_NUM_PORTS];
 
 	// Cache the constant length for the arrays malloc'd by the reader, will be used to reset meta
 	long packetsPerIteration;
