@@ -1151,7 +1151,9 @@ int lofar_udp_reader_cleanup_f(lofar_udp_reader *reader, const int closeFiles) {
 			}
 
 		} else if (reader->readerType == DADA) {
-			// To be implemented
+			if (ipcio_disconnect(reader->input->dadaReader[i]) < 0) {
+				fprintf(stderr, "ERROR: Failed to disconnect from PSRDADA buffer %d on port %d.\n", reader->input->dadaKey[i], i);
+			}
 		}
 	}
 
@@ -1422,7 +1424,23 @@ long lofar_udp_reader_nchars(lofar_udp_reader *reader, const int port, char *tar
 	} else if (reader->readerType == DADA) {
 		// Get data from the PSRDADA buffer
 		VERBOSE(if (reader->meta->VERBOSE) printf("reader_nchars: Entering read request (dada): %d, %d, %ld\n", port, reader->input->dadaKey[port], nchars));
-		return ipcio_read(reader->input->dadaReader[port], targetArray, nchars);
+		
+		// Open the ringbuffer for reader
+		// Note: PSRDADA prints it's own errors on stderr
+		if (ipcio_open(reader->input->dadaReader[port], 'R')) {
+			return -1;
+		}
+		
+		// Read the data into the target array
+		long dataRead = ipcio_read(reader->input->dadaReader[port], targetArray, nchars);
+
+
+		// Close the ringbuffer so that other processes can read/write from/to it
+		if (ipcio_close(reader->input->dadaReader[port])) {
+			return -1;
+		}
+
+		return dataRead;
 	} else {
 		fprintf(stderr, "ERROR: Unknown reader type %d passed to lofar_udp_reader_nchars, exiting.\n", reader->readerType);
 		return -1;
