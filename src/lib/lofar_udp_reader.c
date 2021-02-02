@@ -487,11 +487,16 @@ lofar_udp_reader* lofar_udp_file_reader_setup(lofar_udp_meta *meta, lofar_udp_co
 				reader.input->decompressionTracker[port].dst = reader.meta->inputData[port];
 			}
 		} else if (reader.readerType == DADA) {
+#ifndef NODADA
 			*(reader.input->dadaReader[port]) = IPCIO_INIT;
 			if (ipcio_connect(reader.input->dadaReader[port], config->dadaKeys[port])) {
 				returnVal = 1;
 			}
 			reader.input->dadaKey[port] = config->dadaKeys[port];
+#else
+			fprintf(stderr, "ERROR: PSRDADA was disabled at compile time, exiting.\n");
+			returnVal = 1;
+#endif
 		} else {
 			fprintf(stderr, "ERROR: Unknown reader (%d) provided, exiting.\n", reader.readerType);
 			returnVal = 1;
@@ -953,7 +958,14 @@ lofar_udp_reader* lofar_udp_meta_file_reader_setup_struct(lofar_udp_config *conf
 			readlen = fread(&(inputHeaders[port]), sizeof(char), UDPHDRLEN + UDPHDROFF, config->inputFiles[port]);
 			fseek(config->inputFiles[port], -UDPHDRLEN - UDPHDROFF, SEEK_CUR);
 		} else if (config->readerType == DADA) {
-
+#ifndef NODADA
+			// TODO
+			// TODO
+			// TODO
+#else
+			fprintf(stderr, "ERROR: PSRDADA was disabled at compile time, exiting.\n");
+			return NULL;
+#endif
 		} else {
 			fprintf(stderr, "ERROR: Unknown reader type %d. Exiting\n", config->readerType);
 		}
@@ -1151,9 +1163,11 @@ int lofar_udp_reader_cleanup_f(lofar_udp_reader *reader, const int closeFiles) {
 			}
 
 		} else if (reader->readerType == DADA) {
+#ifndef NODADA
 			if (ipcio_disconnect(reader->input->dadaReader[i]) < 0) {
 				fprintf(stderr, "ERROR: Failed to disconnect from PSRDADA buffer %d on port %d.\n", reader->input->dadaKey[i], i);
 			}
+#endif
 		}
 	}
 
@@ -1422,6 +1436,8 @@ long lofar_udp_reader_nchars(lofar_udp_reader *reader, const int port, char *tar
 		return  dataRead;
 
 	} else if (reader->readerType == DADA) {
+#ifndef NODADA
+
 		// Get data from the PSRDADA buffer
 		VERBOSE(if (reader->meta->VERBOSE) printf("reader_nchars: Entering read request (dada): %d, %d, %ld\n", port, reader->input->dadaKey[port], nchars));
 		
@@ -1441,6 +1457,13 @@ long lofar_udp_reader_nchars(lofar_udp_reader *reader, const int port, char *tar
 		}
 
 		return dataRead;
+
+#else
+
+		fprintf(stderr, "ERROR: PSRDADA was disable at compile time, exiting.\n");
+		return -1;
+
+#endif
 	} else {
 		fprintf(stderr, "ERROR: Unknown reader type %d passed to lofar_udp_reader_nchars, exiting.\n", reader->readerType);
 		return -1;

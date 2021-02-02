@@ -15,6 +15,12 @@ CXX		= g++
 endif
 endif
 
+ifneq (1,$(NODADA))
+LFLAGS += -lpsrdada
+
+else
+CFLAGS += -DNODADA
+endif
 # Library versions
 LIB_VER = 0.6
 LIB_VER_MINOR = 1

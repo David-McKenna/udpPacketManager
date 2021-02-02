@@ -22,8 +22,11 @@ extern char **environ;
 
 
 // PSRDADA includes
+#ifndef NODADA
 #include <ipcio.h>
-
+#else
+typedef struct ipcio_t ipcio_t;
+#endif
 
 #include "lofar_udp_general.h"
 
