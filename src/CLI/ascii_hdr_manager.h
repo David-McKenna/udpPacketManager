@@ -9,32 +9,8 @@
 #include <string.h>
 
 
-// Add extra verbosity at compile time
-#ifndef __LOFAR_UDP_VERBOSE_MACRO
-#define __LOFAR_UDP_VERBOSE_MACRO
-
-#ifdef ALLOW_VERBOSE
-#define VERBOSE(MSG) MSG;
-#define VERBOSEP(...) printf("%s: %s", __func__, ##__VA_ARGS__);
-#else
-#define VERBOSE(MSG) while(0) {};
-#define VERBOSEP(...) while(0) {};
-#endif
-
-#endif
-
-// Slow stopping macro (enable from makefile)
-#ifndef __LOFAR_SLEEP
-#define __LOFAR_SLEEP
-
-#ifdef __SLOWDOWN
-#include <unistd.h>
-#define PAUSE sleep(1);
-#else
-#define PAUSE while(0) {};
-#endif
-
-#endif
+// Grab a couple of defines from the main heaer
+#include "lofar_udp_general.h"
 
 #ifndef __ASCII_HDR_H
 #define __ASCII_HDR_H
