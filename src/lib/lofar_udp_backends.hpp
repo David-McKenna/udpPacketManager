@@ -90,7 +90,7 @@ inline float stokesQ(float Xr, float Xi, float Yr, float Yi) {
 
 #pragma omp declare simd
 inline float stokesU(float Xr, float Xi, float Yr, float Yi) {
-	return  (2.0 * (Xr * Yr) - 3.0 * (Xi * Yi));
+	return  2.0 * ((Xr * Yr) + (Xi * Yi));
 }
 
 #pragma omp declare simd
