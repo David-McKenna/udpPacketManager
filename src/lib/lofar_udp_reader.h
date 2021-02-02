@@ -21,6 +21,10 @@
 extern char **environ;
 
 
+// PSRDADA includes
+#include <ipcio.h>
+
+
 #include "lofar_udp_general.h"
 
 #ifndef __LOFAR_UDP_READER_STRUCTS
@@ -123,19 +127,31 @@ typedef struct lofar_udp_meta {
 } lofar_udp_meta;
 extern lofar_udp_meta lofar_udp_meta_default;
 
+typedef struct lofar_udp_reader_input {
+	
+	// Raw filte pointers
+	FILE *fileRef[MAX_NUM_PORTS];
+
+	// ZSTD requirements
+	ZSTD_DStream *dstream[MAX_NUM_PORTS];
+	ZSTD_inBuffer readingTracker[MAX_NUM_PORTS];
+	ZSTD_outBuffer decompressionTracker[MAX_NUM_PORTS];
+
+	// PSRDADA keys, buffers
+	int dadaKey[MAX_NUM_PORTS];
+	ipcio_t *dadaReader[MAX_NUM_PORTS];
+
+} lofar_udp_reader_input;
+extern lofar_udp_reader_input lofar_udp_reader_input_meta;
 
 // File data + decompression struct
 typedef struct lofar_udp_reader {
 	FILE *fileRef[MAX_NUM_PORTS];
 
 	reader_t readerType;
+	lofar_udp_reader_input *input;
 
 	int ompThreads;
-
-	// Setup ZSTD requirements
-	ZSTD_DStream *dstream[MAX_NUM_PORTS];
-	ZSTD_inBuffer readingTracker[MAX_NUM_PORTS];
-	ZSTD_outBuffer decompressionTracker[MAX_NUM_PORTS];
 
 	// Cache the constant length for the arrays malloc'd by the reader, will be used to reset meta
 	long packetsPerIteration;
@@ -191,6 +207,9 @@ typedef struct lofar_udp_config {
 	// Number of OMP threads to use while processing
 	int ompThreads;
 
+	// Input PSRDADA ringbuffer keys
+	int dadaKeys[MAX_NUM_PORTS];
+
 } lofar_udp_config;
 extern lofar_udp_config lofar_udp_config_default;
 #endif
@@ -210,7 +229,7 @@ extern "C" {
 // Reader/meta struct initialisation
 lofar_udp_reader* lofar_udp_meta_file_reader_setup(FILE **inputFiles, const int numPorts, const int replayDroppedPackets, const int processingMode, const int verbose, const long packetsPerIteration, const long startingPacket, const long packetsReadMax, const int compressedReader);
 lofar_udp_reader* lofar_udp_meta_file_reader_setup_struct(lofar_udp_config *config);
-lofar_udp_reader* lofar_udp_file_reader_setup(FILE **inputFiles, lofar_udp_meta *meta, const int compressedReader, lofar_udp_calibration *calibration);
+lofar_udp_reader* lofar_udp_file_reader_setup(lofar_udp_meta *meta, lofar_udp_config *config);
 int lofar_udp_file_reader_reuse(lofar_udp_reader *reader, const long startingPacket, const long packetsReadMax);
 
 // Initialisation helpers

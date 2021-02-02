@@ -2,7 +2,6 @@
 #include "lofar_udp_reader.h"
 #include "lofar_udp_backends.hpp"
 
-
 // Define a set of default structs
 
 // Calibration default
@@ -31,13 +30,21 @@ lofar_udp_config lofar_udp_config_default = {
 	.beamletLimits = { 0, 0 },
 	.calibrateData = 0,
 	.calibrationConfiguration = &lofar_udp_calibration_default,
-	.ompThreads = OMP_THREADS
+	.ompThreads = OMP_THREADS,
+	.dadaKeys = { -1 }
+};
+
+lofar_udp_reader_input lofar_udp_reader_input_default = {
+	.fileRef = { NULL },
+	.dstream = { NULL },
+	.dadaKey = { -1 },
+	.dadaReader = { NULL }
 };
 
 
 // Reader / meta with NULL-initialised values to help the cleanup function
 lofar_udp_reader lofar_udp_reader_default = {
-	.dstream = { NULL },
+	.input = &lofar_udp_reader_input_default,
 	.ompThreads = OMP_THREADS
 };
 
@@ -415,65 +422,88 @@ int lofar_udp_skip_to_packet(lofar_udp_reader *reader) {
  *
  * @return     lofar_udp_reader ptr, or NULL on error
  */
-lofar_udp_reader* lofar_udp_file_reader_setup(FILE **inputFiles, lofar_udp_meta *meta, const int readerType, lofar_udp_calibration *calibration) {
+lofar_udp_reader* lofar_udp_file_reader_setup(lofar_udp_meta *meta, lofar_udp_config *config) {
 	int returnVal, bufferSize, tmpFd;
 	void *tmpPtr;
 	long fileSize;
 	static lofar_udp_reader reader;
+	static lofar_udp_reader_input input;
 	reader = lofar_udp_reader_default;
+	input = lofar_udp_reader_input_default;
+	
+	reader.input = &input;
 
 	// Initialise the reader struct as needed
-	reader.readerType = (reader_t) readerType;
+	reader.readerType = (reader_t) config->readerType;
 	reader.packetsPerIteration = meta->packetsPerIteration;
 	reader.meta = meta;
-	reader.calibration = calibration;
+	reader.calibration = config->calibrationConfiguration;
 
 	for (int port = 0; port < meta->numPorts; port++) {
-		reader.fileRef[port] = inputFiles[port];
 
-		if (readerType == ZSTDCOMPRESSED) {
+		if ((reader.readerType & (NORMAL | ZSTDCOMPRESSED)) != 0) {
+			reader.input->fileRef[port] = config->inputFiles[port];
 
-			// Get the FILE*'s file descriptor (needed for mmap)'
-			tmpFd = fileno(inputFiles[port]);
-			// Find the file size (needed for mmap)
-			fileSize = fd_file_size(tmpFd);
-			// Ensure there wasn't an error
-			if (fileSize < 0) {
-				return NULL;
+			if (reader.readerType == ZSTDCOMPRESSED) {
+
+				// Get the FILE*'s file descriptor (needed for mmap)'
+				tmpFd = fileno(config->inputFiles[port]);
+				// Find the file size (needed for mmap)
+				fileSize = fd_file_size(tmpFd);
+				// Ensure there wasn't an error
+				if (fileSize < 0) {
+					returnVal = 1;
+				}
+
+				// Setup the decompression stream
+				reader.input->dstream[port] = ZSTD_createDStream();
+				ZSTD_initDStream(reader.input->dstream[port]);
+
+				tmpPtr = mmap(NULL, fileSize, PROT_READ, MAP_PRIVATE, tmpFd, 0);
+
+				// Setup the compressed data buffer/struct
+				reader.input->readingTracker[port].size = fileSize;
+				reader.input->readingTracker[port].pos = 0;
+				reader.input->readingTracker[port].src = tmpPtr;
+
+				if (tmpPtr == MAP_FAILED) {
+					fprintf(stderr, "ERROR: Failed to create memory mapping for file on port %d. Errno: %d. Exiting.\n", port, errno);
+					returnVal = 1;
+				}
+
+				returnVal = madvise(tmpPtr, fileSize, MADV_SEQUENTIAL);
+
+				if (returnVal == -1) {
+					fprintf(stderr, "ERROR: Failed to advise the kernel on mmap read stratgy on port %d. Errno: %d. Exiting.\n", port, errno);
+					returnVal = 1;
+				}
+
+				// Setup the decompressed data buffer/struct
+				bufferSize = meta->packetsPerIteration * meta->portPacketLength[port];
+				VERBOSE(if (meta->VERBOSE) printf("reader_setup: expending decompression buffer by %ld bytes\n", bufferSize % ZSTD_DStreamOutSize()));
+				bufferSize += bufferSize % ZSTD_DStreamOutSize();
+				reader.input->decompressionTracker[port].size = bufferSize;
+				reader.input->decompressionTracker[port].pos = 0; // Initialisation for our step-by-step reader
+				reader.input->decompressionTracker[port].dst = reader.meta->inputData[port];
 			}
-
-			// Setup the decompression stream
-			reader.dstream[port] = ZSTD_createDStream();
-			ZSTD_initDStream(reader.dstream[port]);
-
-			tmpPtr = mmap(NULL, fileSize, PROT_READ, MAP_PRIVATE, tmpFd, 0);
-
-			// Setup the compressed data buffer/struct
-			reader.readingTracker[port].size = fileSize;
-			reader.readingTracker[port].pos = 0;
-			reader.readingTracker[port].src = tmpPtr;
-
-			if (tmpPtr == MAP_FAILED) {
-				fprintf(stderr, "ERROR: Failed to create memory mapping for file on port %d. Errno: %d. Exiting.\n", port, errno);
-				return NULL;
+		} else if (reader.readerType == DADA) {
+			*(reader.input->dadaReader[port]) = IPCIO_INIT;
+			if (ipcio_connect(reader.input->dadaReader[port], config->dadaKeys[port])) {
+				returnVal = 1;
 			}
+			reader.input->dadaKey[port] = config->dadaKeys[port];
+		} else {
+			fprintf(stderr, "ERROR: Unknown reader (%d) provided, exiting.\n", reader.readerType);
+			returnVal = 1;
+		}
 
-			returnVal = madvise(tmpPtr, fileSize, MADV_SEQUENTIAL);
-
-			if (returnVal == -1) {
-				fprintf(stderr, "ERROR: Failed to advise the kernel on mmap read stratgy on port %d. Errno: %d. Exiting.\n", port, errno);
-				return NULL;
-			}
-
-			// Setup the decompressed data buffer/struct
-			bufferSize = meta->packetsPerIteration * meta->portPacketLength[port];
-			VERBOSE(if (meta->VERBOSE) printf("reader_setup: expending decompression buffer by %ld bytes\n", bufferSize % ZSTD_DStreamOutSize()));
-			bufferSize += bufferSize % ZSTD_DStreamOutSize();
-			reader.decompressionTracker[port].size = bufferSize;
-			reader.decompressionTracker[port].pos = 0; // Initialisation for our step-by-step reader
-			reader.decompressionTracker[port].dst = reader.meta->inputData[port];
+		// Cleanup and return early on error.
+		if (returnVal > 0) {
+			lofar_udp_reader_cleanup_f(&reader, 0);
+			return NULL;
 		}
 	}
+
 
 	// Gulp the first set of raw data
 	returnVal = lofar_udp_reader_read_step(&reader);
@@ -533,7 +563,7 @@ int lofar_udp_file_reader_reuse(lofar_udp_reader *reader, const long startingPac
 	if (reader->packetsPerIteration != reader->meta->packetsPerIteration) {
 		#pragma omp parallel for
 		for (int port = 0; port < reader->meta->numPorts; port++) {
-			lofar_udp_reader_nchars(reader, port, &(reader->meta->inputData[port][reader->decompressionTracker[port].pos]), reader->packetsPerIteration * reader->meta->portPacketLength[port] - reader->decompressionTracker[port].pos, reader->decompressionTracker[port].pos);
+			lofar_udp_reader_nchars(reader, port, &(reader->meta->inputData[port][reader->input->decompressionTracker[port].pos]), reader->packetsPerIteration * reader->meta->portPacketLength[port] - reader->input->decompressionTracker[port].pos, reader->input->decompressionTracker[port].pos);
 		}
 	}
 
@@ -1057,7 +1087,7 @@ lofar_udp_reader* lofar_udp_meta_file_reader_setup_struct(lofar_udp_config *conf
 
 	// Form a reader using the given metadata and input files, setup OMP threads
 	omp_set_num_threads(config->ompThreads);
-	lofar_udp_reader *reader = lofar_udp_file_reader_setup(config->inputFiles, &meta, config->readerType, config->calibrationConfiguration);
+	lofar_udp_reader *reader = lofar_udp_file_reader_setup(&meta, config);
 	reader->ompThreads = config->ompThreads;
 
 	return reader;
@@ -1104,20 +1134,20 @@ int lofar_udp_reader_cleanup_f(lofar_udp_reader *reader, const int closeFiles) {
 		}
 
 		// Close the input file
-		if (reader->fileRef[i] != NULL && closeFiles && reader->readerType != DADA) {
+		if (reader->input->fileRef[i] != NULL && closeFiles && reader->readerType != DADA) {
 			VERBOSE(if(reader->meta->VERBOSE) printf("On port: %d closing file\n", i))
-			fclose(reader->fileRef[i]);
-			reader->fileRef[i] = NULL;
+			fclose(reader->input->fileRef[i]);
+			reader->input->fileRef[i] = NULL;
 		}
 
 		if (reader->readerType == ZSTDCOMPRESSED) {
 			// Free the decomression stream
-			if (reader->dstream[i] != NULL) {
+			if (reader->input->dstream[i] != NULL) {
 				VERBOSE(if(reader->meta->VERBOSE) printf("Freeing decompression buffers and ZSTD stream on port %d\n", i););
-				ZSTD_freeDStream(reader->dstream[i]);
-				void *tmpPtr = (void* ) reader->readingTracker[i].src;
-				munmap(tmpPtr, reader->readingTracker[i].size);
-				reader->dstream[i] = NULL;
+				ZSTD_freeDStream(reader->input->dstream[i]);
+				void *tmpPtr = (void* ) reader->input->readingTracker[i].src;
+				munmap(tmpPtr, reader->input->readingTracker[i].size);
+				reader->input->dstream[i] = NULL;
 			}
 
 		} else if (reader->readerType == DADA) {
@@ -1341,8 +1371,8 @@ long lofar_udp_reader_nchars(lofar_udp_reader *reader, const int port, char *tar
 
 	if (reader->readerType == NORMAL) {
 		// Decompressed file: Read and return the data as needed
-		VERBOSE(if (reader->meta->VERBOSE) printf("reader_nchars: Entering read request: %d, %ld\n", port, nchars));
-		return fread(targetArray, sizeof(char), nchars, reader->fileRef[port]);
+		VERBOSE(if (reader->meta->VERBOSE) printf("reader_nchars: Entering read request (normal): %d, %ld\n", port, nchars));
+		return fread(targetArray, sizeof(char), nchars, reader->input->fileRef[port]);
 
 	} else if (reader->readerType == ZSTDCOMPRESSED) {
 		// Compressed file: Perform streaming decompression on a zstandard compressed file
@@ -1353,22 +1383,22 @@ long lofar_udp_reader_nchars(lofar_udp_reader *reader, const int port, char *tar
 		int byteDelta = 0, returnVal = 0;
 
 		// Ensure the decompression buffer has been updated
-		reader->decompressionTracker[port].pos = knownOffset;
+		reader->input->decompressionTracker[port].pos = knownOffset;
 
-		VERBOSE(if (reader->meta->VERBOSE) printf("reader_nchars: start of read loop, %ld, %ld, %ld, %ld\n", reader->readingTracker[port].pos, reader->readingTracker[port].size, reader->decompressionTracker[port].pos, dataRead););
+		VERBOSE(if (reader->meta->VERBOSE) printf("reader_nchars: start of read loop, %ld, %ld, %ld, %ld\n", reader->input->readingTracker[port].pos, reader->input->readingTracker[port].size, reader->input->decompressionTracker[port].pos, dataRead););
 
 		// Loop across while decompressing the data (zstd decompressed in frame iterations, so it may take a few iterations)
-		while (reader->readingTracker[port].pos < reader->readingTracker[port].size) {
-			previousDecompressionPos = reader->decompressionTracker[port].pos;
+		while (reader->input->readingTracker[port].pos < reader->input->readingTracker[port].size) {
+			previousDecompressionPos = reader->input->decompressionTracker[port].pos;
 			// zstd streaming decompression + check for errors
-			returnVal = ZSTD_decompressStream(reader->dstream[port], &(reader->decompressionTracker[port]), &(reader->readingTracker[port]));
+			returnVal = ZSTD_decompressStream(reader->input->dstream[port], &(reader->input->decompressionTracker[port]), &(reader->input->readingTracker[port]));
 			if (ZSTD_isError(returnVal)) {
 				fprintf(stderr, "ZSTD encountered an error decompressing a frame (code %d, %s), exiting data read early.\n", returnVal, ZSTD_getErrorName(returnVal));
 				return dataRead;
 			}
 
 			// Determine how much data we just added to the buffer
-			byteDelta = ((long) reader->decompressionTracker[port].pos - (long) previousDecompressionPos);
+			byteDelta = ((long) reader->input->decompressionTracker[port].pos - (long) previousDecompressionPos);
 
 			// Update the total data read + check if we have reached our goal
 			dataRead += byteDelta;
@@ -1380,7 +1410,7 @@ long lofar_udp_reader_nchars(lofar_udp_reader *reader, const int port, char *tar
 				return dataRead;
 			}
 
-			if (reader->decompressionTracker[port].pos == reader->decompressionTracker[port].size) {
+			if (reader->input->decompressionTracker[port].pos == reader->input->decompressionTracker[port].size) {
 				fprintf(stderr, "Failed to read %ld/%ld chars on port %d before filling the buffer. Attempting to continue...\n", dataRead, nchars, port);
 				return dataRead;
 			}
@@ -1391,10 +1421,8 @@ long lofar_udp_reader_nchars(lofar_udp_reader *reader, const int port, char *tar
 
 	} else if (reader->readerType == DADA) {
 		// Get data from the PSRDADA buffer
-
-		// TO BE IMPLEMENTED
-		fprintf(stderr, "ERROR: DADA reader not yet implemented. Exiting.\n");
-		return -1;
+		VERBOSE(if (reader->meta->VERBOSE) printf("reader_nchars: Entering read request (dada): %d, %d, %ld\n", port, reader->input->dadaKey[port], nchars));
+		return ipcio_read(reader->input->dadaReader[port], targetArray, nchars);
 	} else {
 		fprintf(stderr, "ERROR: Unknown reader type %d passed to lofar_udp_reader_nchars, exiting.\n", reader->readerType);
 		return -1;
@@ -1513,7 +1541,7 @@ int lofar_udp_reader_step_timed(lofar_udp_reader *reader, double timing[2]) {
 
 		if (reader->readerType == ZSTDCOMPRESSED) {
 			for (int i = 0; i < reader->meta->numPorts; i++) {
-				if (madvise(((void*) reader->readingTracker[i].src), reader->readingTracker[i].pos, MADV_DONTNEED) < 0) {
+				if (madvise(((void*) reader->input->readingTracker[i].src), reader->input->readingTracker[i].pos, MADV_DONTNEED) < 0) {
 					fprintf(stderr, "ERROR: Failed to apply MADV_DONTNEED after read operation on port %d (errno %d: %s).\n", i, errno, strerror(errno));
 				}
 			}
@@ -1869,7 +1897,7 @@ int lofar_udp_shift_remainder_packets(lofar_udp_reader *reader, const int shiftP
 		totalShift += shiftPackets[port];
 
 		if (reader->readerType == ZSTDCOMPRESSED) {
-			if ((long) reader->decompressionTracker[port].pos > meta->portPacketLength[port] * meta->packetsPerIteration) {
+			if ((long) reader->input->decompressionTracker[port].pos > meta->portPacketLength[port] * meta->packetsPerIteration) {
 				fixBuffer = 1;
 			}
 		}
@@ -1921,10 +1949,10 @@ int lofar_udp_shift_remainder_packets(lofar_udp_reader *reader, const int shiftP
 			VERBOSE(if (meta->VERBOSE) printf("P: %d, SO: %ld, DO: %d, BS: %ld IDO: %ld\n", port, sourceOffset, destOffset, byteShift, destOffset + byteShift));
 
 			if (reader->readerType == ZSTDCOMPRESSED) {
-				if ((long) reader->decompressionTracker[port].pos > meta->portPacketLength[port] * meta->packetsPerIteration) {
-					byteShift += reader->decompressionTracker[port].pos - meta->portPacketLength[port] * meta->packetsPerIteration;
+				if ((long) reader->input->decompressionTracker[port].pos > meta->portPacketLength[port] * meta->packetsPerIteration) {
+					byteShift += reader->input->decompressionTracker[port].pos - meta->portPacketLength[port] * meta->packetsPerIteration;
 				}
-				reader->decompressionTracker[port].pos = destOffset + byteShift;
+				reader->input->decompressionTracker[port].pos = destOffset + byteShift;
 				VERBOSE(if (meta->VERBOSE) printf("Compressed offset: P: %d, SO: %ld, DO: %d, BS: %ld IDO: %ld\n", port, sourceOffset, destOffset, byteShift, destOffset + byteShift));
 
 			}
