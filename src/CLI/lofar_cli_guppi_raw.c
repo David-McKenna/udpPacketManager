@@ -5,7 +5,7 @@
 void getStartTimeStringDAQ(lofar_udp_reader *reader, char stringBuff[]);
 
 void helpMessages() {
-	printf("LOFAR UDP Data extractor (v%.1f)\n\n", VERSIONCLI);
+	printf("LOFAR UDP Data extractor (v%.1f, lib v%.1f.%d)\n\n", VERSIONCLI, VERSION, VERSION_MINOR);
 	printf("Usage: ./lofar_cli_extractor <flags>");
 
 	printf("\n\n");
