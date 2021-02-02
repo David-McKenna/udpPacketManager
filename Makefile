@@ -17,7 +17,7 @@ endif
 
 # Library versions
 LIB_VER = 0.6
-LIB_VER_MINOR = 0
+LIB_VER_MINOR = 1
 CLI_VER = 0.4
 
 # Detemrine the max threads per socket to speed up execution via OpenMP with ICC (GCC falls over if we set too many)
@@ -205,12 +205,14 @@ test-samples:
 # Generate hashes for the current output files
 test-make-hashes: ./tests/obj-generated-$(LIB_VER).$(LIB_VER_MINOR)
 	-rm ./tests/hashVariables.txt
-	touch ./tests/hashVariables.txt
+	touch ./tests/hashVariables_tmp.txt
 	for fil in ./tests/output*; \
 		do outp=($$(md5sum $$fil)); \
 		base=$$(basename $$fil); \
-		echo $$base='"'"$${outp[0]}"'"' >> ./tests/hashVariables.txt; \
-	done
+		echo $$base='"'"$${outp[0]}"'"' >> ./tests/hashVariables_tmp.txt; \
+	done; \
+	cat ./tests/hashVariables_tmp.txt | sort > ./tests/hashVariables.txt; \
+	rm ./tests/hashVariables_tmp.txt 
 
 
 
