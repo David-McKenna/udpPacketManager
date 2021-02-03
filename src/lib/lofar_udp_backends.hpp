@@ -1116,7 +1116,7 @@ int lofar_udp_raw_loop(lofar_udp_meta *meta) {
 		// Select Jones Matrix if performing Calibration
 		float *jonesMatrix;
 		if constexpr (calibrateData) {
-			printf("Beamlets %d: %d, %d\n", port, baseBeamlet, upperBeamlet);
+			VERBOSE(printf("Beamlets %d: %d, %d\n", port, baseBeamlet, upperBeamlet););
 			jonesMatrix = (float*) calloc((upperBeamlet - baseBeamlet) * JONESMATSIZE, sizeof(float));
 			for (int i = 0; i < (upperBeamlet - baseBeamlet); i++) {
 				for (int j = 0; j < JONESMATSIZE; j++) {
@@ -1382,7 +1382,7 @@ int lofar_udp_raw_loop(lofar_udp_meta *meta) {
 
 		// Perform analysis of iteration, cleanup and wait for tasks to end.
 		if constexpr (calibrateData) {
-			printf("Free'ing calibration Jones\n");
+			VERBOSE(printf("Free'ing calibration Jones\n"););
 			free(jonesMatrix);
 		}
 
