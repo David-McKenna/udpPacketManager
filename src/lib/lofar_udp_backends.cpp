@@ -23,7 +23,7 @@ int lofar_udp_cpp_loop_interface(lofar_udp_meta *meta) {
 	// The target template is then used to process the data.
 	// See docs/newProcessingMode.md for more details
 	if (calibrateData == 1) {
-		printf("Calibrating...\n");
+		VERBOSE(printf("Calibrating...\n"););
 		// Bit-mode dependant inputs
 		if (inputBitMode == 4) {
 			if (processingMode == 2) {
@@ -146,7 +146,7 @@ int lofar_udp_cpp_loop_interface(lofar_udp_meta *meta) {
 
 
 		} else if (inputBitMode == 8) {
-			printf("Bitmode 8...\n");
+			VERBOSE(printf("Bitmode 8...\n"););
 			if (processingMode == 2) {
 				return lofar_udp_raw_loop<signed char, float, 2, 1>(meta);
 			
