@@ -959,9 +959,10 @@ lofar_udp_reader* lofar_udp_meta_file_reader_setup_struct(lofar_udp_config *conf
 			fseek(config->inputFiles[port], -UDPHDRLEN - UDPHDROFF, SEEK_CUR);
 		} else if (config->readerType == DADA) {
 #ifndef NODADA
-			// TODO
-			// TODO
-			// TODO
+			// ipcio_connect
+			// ipcio_open
+			// ipcio_read
+			// ipcio_seek
 #else
 			fprintf(stderr, "ERROR: PSRDADA was disabled at compile time, exiting.\n");
 			return NULL;
