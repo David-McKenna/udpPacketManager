@@ -1,18 +1,17 @@
 lofar_udp_extractor
 ===================
-The [*lofar_udp_extractor*](../src/CLI/lofar_cli_extractor.c) utility can be used to extract and process LOFAR beamformed observations from international stations. This file will discuss the basis for the CLI, and [*README_CLI_GUPPI_RAW.md*](README_CLI_GUPPI_RAW.md) will describe the changes made to support the LOFAR -> GUPPI RAW formatting in [*lofar_udp_guppi_raw*](../src/CLI/lofar_cli_guppi_raw.c).
+The [*lofar_udp_extractor*](../src/CLI/lofar_cli_extractor.c) utility can be used to extract and process LOFAR beamformed observations from international stations. This file is a basic guide on how to use the main CLI, while [*README_CLI_GUPPI_RAW.md*](README_CLI_GUPPI_RAW.md) will describe the changes made to support the LOFAR -> GUPPI RAW formatting in [*lofar_udp_guppi_raw*](../src/CLI/lofar_cli_guppi_raw.c).
 
 
-Expected Input Formats
+Expected Input Data Format
 ---------------------
-The expected recoridng format consists of the last 16-bytes of the header (all ethernet/udp frames removed) followed by the *N* byte data payload. 
+The expected recording format consists of the last 16-bytes of the header (all ethernet/udp frames removed) followed by a *N* byte data payload. These data streams can be raw files, or files that have been compressed with [zstandard](https://github.com/facebook/zstd) (ending in *.zst*).
 
+Multiple ports of data can be combined at once by providing a *%d* in the input file name. This will iterate over a specified number of ports (controlled by the *-u* flag) and concatenate the beamlets into a single output outside of processing mode 0.
 
-Multiple ports of data can be processed at once by providing a *%d* in the input file name. This will iterate from 0 to the specifed number of ports (*-u* flag) and concatenate the frequencies into a single output outside of processing mode 0.
+Any times are handled in the ISOT format (YYYY-MM-DDTHH:mm:ss, fractions of seconds are not supported) in UTC+0 (NOT effected by local time zone, daylight savings, etc unless your station clock has been modified).
 
-Any times are handled in the ISOT format (YYYY-MM-DDTHH:mm:ss, fractions of seconds are not supported) in UTC+0 (NOT effected by local time zone, summer, etc unless your station clock has been modified).
-
-The events file format is described at the end of this document.
+The events file can allow for several smaller chunks of data to be removed from an observation, the format for these files is described at the end of this document.
 
 Example Command
 ---------------
@@ -24,36 +23,37 @@ Example Command
 
 ```
 This command
-- Takes an input from 4 ports of date (16130 -> 16133) from a set of files in the local folder
-- Outputs it to a file, with a suffix containing the output number (0->numOutputs, here it will just be 0), starting timestamp (later fixed to 2020-02-22T11:02:00) and the starting packet number
-- Sets the number of packets reader + processed per iteration to 100,000
-- Sets the output to be a Stokes I array
-- Sets the starting point to 2020-02-22T11:02:00, and will only read the next 6 minutes and 0.5 seconds of data
+- Takes an input from 4 ports of data (16130 -> 16133) from a set of files in the local folder
+- Outputs it to a file, with a suffix containing the output number (0->numOutputs, here it will only be one file at 0), starting timestamp (later fixed to 2020-02-22T11:02:00) and the starting packet number
+- Sets the number of packets read + processed per iteration to 100,000
+- Sets the output to be a Stokes I array, without any downsampling
+- Sets the starting time to 2020-02-22T11:02:00, and will only read the next 6 minutes and 0.5 seconds of data
 
 Arguments
 --------
 
 #### -i (str)
 - Input file name, let it contain *%d* to iterate over a number of ports
+- E.g., `-i ./udp_1613%d.ucc1_2020-10-20T20:20:20.000.zst`
 
 #### -o (str) [default: "./output_%d_%s_%ld"]
 - Output file name, must contain at least *%d* when generating multiple outputs
 - *%s* will include the starting time stamp, *%ld* will include the starting packet number
-- These values must be added in order, so *%d_%s* is allowed to not print the packet number but *%ld_%d_%s* will not work.
+- These values must be added in order, so *%d_%s* is allowed to not attach the packet number but *%ld_%d_%s* will not work.
 
 #### -m (int) [default: 65536]
-- Number of packets to read and process per iteration
+- Number of packets to read and processed per iteration
 - Be considerate of the memory requirements for loading / processing the data when setting this value
 
 #### -u (int) [default: 4]
-- Number of input ports to iterate over
+- Number of input files to iterate over
 
 #### -b (int),(int) [default: 0,0 === all inputs]
-- Indicies of beamlets to extract from the input dataset. Lower value is inclusive, higher value is exclusive
-- Eg, `-b 0,300` will return 300 beamlets, at indicies 0:299.
+- Indices of beamlets to extract from the input dataset. Lower value is inclusive, higher value is exclusive
+- Eg, `-b 0,300` will return 300 beamlets, at indices 0:299.
 - I wanted this to be inclusive on both ends but couldn't find a solid way to just index it as intended.
 
-#### -t (str) [default: T=0]
+#### -t (str) [default: '']
 - Starting time string, in UTC+0 and ISOT format (YYYY-MM-DDTHH:mm:ss)
 
 #### -s (float) [default: FLOAT_MAX]
@@ -70,23 +70,18 @@ Arguments
 - If set, the last good packet will be repeated when a dropped packet is detected
 - Default behaviour is to 0 pad the output
 
--c:             Calibrate the data with the given strategy (default: disabled, eg 'HBA,12:499'). Will not run without -d
--d:             Calibrate the data with the given pointing (default: disabled, eg '0.1,0.2,J2000'). Will not run without -c
--z:             Change to the alternative clock used for modes 4/6 (160MHz clock) (default: False)
-
-#### -c (str) [default: NULL]
-- Pass conformation on the sintrument and subbands for calibrating the data using generating Jones matrices from dreamBeam
+#### -c (str) [default: '']
+- Provide comma separated information on the instrument and subbands for calibrating the data using generating Jones matrices from dreamBeam
 - General syntax: 'INST,<lo,hi>' where inst is 'LBA' or 'HBA' and lo, hi are the same as used in beamctl commands
-- HBA mode 7 is accessed by adding 512 to the base subband
+- HBA mode 7 is accessed by adding 512 to the base subband (e.g., mode 7 subband 12 is 524)
 - Multiple instruments (eg, mode 357) can be specified similarly by command separating each variable, eg "LBA,0:200,HBA,100:300"
 - Requires -d is provided in order for calibration to be enabled
 
-#### -d (str) [default: NULL]
+#### -d (str) [default: '']
 - Provide a comma separate direction to generate Jones matrices for with dreamBeam
 - General syntax is 'RAD1,RAD2,COORD', where RAD1/2 are values in radians with respect to the coordinate system
 - All standard casacore coordinate systems are supported (J2000, SUN, JUPITER, AZELGO), but non-J2000 coordinate system will be processed slowly as they must be recalculated for each timestep
 - Requires -c is provided in order for calibration to be enabled
-
 
 #### -z
 - If set, change from calculating the start time from the RSP 200MHz clock (Modes 3, 5, 7) to the 160MHz clock (4,6, probably others)
@@ -94,20 +89,20 @@ Arguments
 #### -q 
 - If set, silence the output from this CLI. Library error messages will still be displayed.
 
-#### -a (str)
-- Call mockHeader to generate a header for new files
-- By default, we will pass in the number of channels and the starting time
-
+#### -a (str) [default: '']
+- Call mockHeader to generate a header for new files, provide mockHeader enclosed by \".
+- E.g., '-a "-fch1 150 -fo -0.19 -tel 1916 -source Sun"'
+- By default, we will pass in the number of channels, starting time and sampling time
 
 #### -f
-- If set, we will append to file rather than overwrite them.
+- If set, we will append to an existing output file rather than exiting when they exist
 - Do note, using this in conjunction with *-a* will replace files rather than appending them.
 
 
 
 Processing Modes
 ----------------
-### Default Ordering Operaitons
+### Default Ordering Operations
 #### 0: "Raw Copy"
 - Copy the input to the output, padding dropped packets and dropping out of order packets
 - 1 input file -> 1 output file
@@ -128,10 +123,10 @@ Processing Modes
 - N input files -> 1 output file
 
 #### 11: "Raw to Beamlet-Major, Split Polarizations"
-- Combintion of (2) and (10), split output data per (Xr, Xi, Yr, Yi) polarizations
+- Combination of (2) and (10), split output data per (Xr, Xi, Yr, Yi) polarizations
 - N input files -> 4 output files
 
-#### 20: "Raw To Beamlet-Major, Frequecy Reversed"
+#### 20: "Raw To Beamlet-Major, Frequency Reversed"
 - Modified version of (10), where instead of (f0t0, f1t0...) we now output (fNt0, fN-1t0, ...), following the standard used for pulsar observations
 - N input files -> 1 output file
 
@@ -148,13 +143,13 @@ Processing Modes
 - N input files -> 1 output file
 
 #### 32: "Raw To Time-Major, Antenna Polarizations"
-- Modified version of (30), where we split the output per (X, Y) polsarisaiton (complex elements, FFTWF format)
+- Modified version of (30), where we split the output per (X, Y) polarisation (complex elements, FFTWF format)
 - N input files -> 2 output files
 
 
 ### Processing Operations
 
-There is currently an untested implementation of time-major Stokes outputs in the library, but is has not been tested or fully implemented in the reader setup as of yet.
+There is currently an untested implementation of time-major Stokes outputs in the library, but is has not been tested or fully implemented in the reader as of yet.
 
 #### Base Modes
 By default, we define a number of base Stokes parameter outputs each at a multiple of 10 from 100.
@@ -176,31 +171,31 @@ By default, we define a number of base Stokes parameter outputs each at a multip
 - N input files -> 1 output file
 
 #### 150: "Stokes Vector"
-- Take the input data, apply (20), and then combine the polariszation to form 4 output 32-bit floating point Stokes (I, Q, U, V) filterbanks for each frequency sample
+- Take the input data, apply (20), and then combine the polarisation to form 4 output 32-bit floating point Stokes (I, Q, U, V) filterbanks for each frequency sample
 - N input files -> 4 output files
 
 #### 160: "Useful Stokes Vector"
-- Take the input data, apply (20), and then combine the polariszation to form 4 output 32-bit floating point Stokes (I, V) filterbanks for each frequency sample
+- Take the input data, apply (20), and then combine the polarisation to form 4 output 32-bit floating point Stokes (I, V) filterbanks for each frequency sample
 - N input files -> 2 output files
 
-#### Time decimation
-We also offer up to a 16x decimation during execution (the number of time samples per packet). To select this, choose a Stokes parameter and add a log 2 of the factor to the mode.
+#### Time downsampling
+We also offer up to a 16x downsampling during execution (the number of time samples per packet). To select this, choose a Stokes parameter and add a log 2 of the factor to the mode.
 
-So in order to get a Stokes U output, with 8x decimation we will pass `120 + log_2(8) = 123` as our processing mode.
+So in order to get a Stokes U output, with 8x downsampling we will pass `120 + log_2(8) = 123` as our processing mode.
 
-#### 1\*1: "Stokes with 2x decimation"
+#### 1\*1: "Stokes with 2x downsampling"
 - Take the input data, apply (20) and (1\*0) to form a Stokes \* sample, and sum it with the next sample
 - N input files -> 1 output file (2x less output samples)
 
-#### 1\*2: "Stokes with 4x decimation"
+#### 1\*2: "Stokes with 4x downsampling"
 - Take the input data, apply (20) and (1\*0) to form a Stokes \* sample, and sum it with the next sample
 - N input files -> 1 output file (4x less output samples)
 
-#### 1\*3: "Stokes with 8x decimation"
+#### 1\*3: "Stokes with 8x downsampling"
 - Take the input data, apply (20) and (1\*0) to form a Stokes \* sample, and sum it with the next sample
 - N input files -> 1 output file (8x less output samples)
 
-#### 1\*4: "Stokes with 16x decimation"
+#### 1\*4: "Stokes with 16x downsampling"
 - Take the input data, apply (20) and (1\*0) to form a Stokes \* sample, and sum it with the next sample
 - N input files -> 1 output file (16x less output samples)
 

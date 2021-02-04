@@ -1,6 +1,6 @@
 lofar_udp_guppi_raw
 ===================
-This is a modified version of the [*lofar_udp_extrator*](../src/CLI/lofar_cli_extractor.c), where instead of producing a variable mode output with / without a SigProc compatible header, the output is always time-majour (30) and has a GUPPI RAW / FITS compatible header attached between iterations.
+This is a modified version of the [*lofar_udp_extrator*](../src/CLI/lofar_cli_extractor.c), where instead of producing a variable mode output with / without a [SigProc](https://github.com/SixByNine/sigproc) compatible header, the output is always time-major (30) and has a GUPPI RAW / FITS compatible header attached between iterations.
 
 
 Injecting Metadata
@@ -54,14 +54,12 @@ While most of the arguments are the same as the default CLI, as described in [*R
 #### -e (int) [default: INT_MAX]
 - Number of iterations to perform before closing the current file and opening a new one
 
-
 #### -p <REMOVED>
-- As we only expect a single output, the *-p* flag is remove from this CLI
-
+- As we only expect a single output, the *-p* flag has been removed from this CLI
 
 #### -a (str) [default: ""]
 - Location of the file containing modifications to the default header attributes
-- If not provided, it will use the default values provided above.
+- If not provided, it will use the default values listed above.
 
 
 
