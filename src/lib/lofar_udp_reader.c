@@ -818,7 +818,6 @@ int lofar_udp_setup_processing(lofar_udp_meta *meta) {
  *
  * @return     lofar_udp_reader ptr, or NULL on error
  */
-[[deprecated("The function has been replaced by the lofar_udp_config setup method and will be removed in a future version.")]]
 lofar_udp_reader* lofar_udp_meta_file_reader_setup(FILE **inputFiles, const int numPorts, const int replayDroppedPackets, const int processingMode, const int verbose, const long packetsPerIteration, const long startingPacket, const long packetsReadMax, const int readerType) {
 	static lofar_udp_config config;
 	// GCC is fine with assignment at definition, icc is not.
