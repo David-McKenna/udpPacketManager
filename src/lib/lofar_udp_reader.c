@@ -29,7 +29,7 @@ const lofar_udp_config lofar_udp_config_default = {
 	.readerType = 0,
 	.beamletLimits = { 0, 0 },
 	.calibrateData = 0,
-	.calibrationConfiguration = lofar_udp_calibration_default,
+	.calibrationConfiguration = *(&lofar_udp_calibration_default),
 	.ompThreads = OMP_THREADS,
 	.dadaKeys = { -1 }
 };
@@ -44,7 +44,7 @@ const lofar_udp_reader_input lofar_udp_reader_input_default = {
 
 // Reader / meta with NULL-initialised values to help the cleanup function
 const lofar_udp_reader lofar_udp_reader_default = {
-	.input = lofar_udp_reader_input_default,
+	.input = *(&lofar_udp_reader_input_default),
 	.ompThreads = OMP_THREADS
 };
 
