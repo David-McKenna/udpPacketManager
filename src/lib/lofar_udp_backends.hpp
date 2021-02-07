@@ -124,7 +124,7 @@ inline long input_offset_index(long lastInputPacketOffset, int beamlet, int time
  *
  * @return     { description_of_the_return_value }
  */
-inline long frequency_major_index(long outputPacketOffset, int totalBeamlets, int beamlet, int baseBeamlet, int cumulativeBeamlets) {
+inline long frequency_major_index(long outputPacketOffset, int beamlet, int baseBeamlet, int cumulativeBeamlets) {
 	return outputPacketOffset + (beamlet - baseBeamlet + cumulativeBeamlets);
 }
 
@@ -237,7 +237,7 @@ void inline udp_copySplitPols(long iLoop, char *inputPortData, O **outputData, l
 	#endif
 	for (int beamlet = baseBeamlet; beamlet < upperBeamlet; beamlet++) {
 		tsInOffset = input_offset_index(lastInputPacketOffset, beamlet, timeStepSize);
-		tsOutOffset = frequency_major_index(outputPacketOffset, totalBeamlets, beamlet, baseBeamlet, cumulativeBeamlets) * UDPNTIMESLICE;
+		tsOutOffset = frequency_major_index(outputPacketOffset, beamlet, baseBeamlet, cumulativeBeamlets) * UDPNTIMESLICE;
 		
 		if constexpr (calibrateData) {
 			beamletJones = &(jonesMatrix[(beamlet - baseBeamlet) * JONESMATSIZE]);
@@ -288,7 +288,7 @@ void inline udp_channelMajor(long iLoop, char *inputPortData, O **outputData, lo
 	#endif
 	for (int beamlet = baseBeamlet; beamlet < upperBeamlet; beamlet++) {
 		tsInOffset = input_offset_index(lastInputPacketOffset, beamlet, timeStepSize);
-		tsOutOffset = frequency_major_index(outputPacketOffset, totalBeamlets, beamlet, baseBeamlet, cumulativeBeamlets) * UDPNPOL;
+		tsOutOffset = frequency_major_index(outputPacketOffset, beamlet, baseBeamlet, cumulativeBeamlets) * UDPNPOL;
 		
 		if constexpr (calibrateData) {
 			beamletJones = &(jonesMatrix[(beamlet - baseBeamlet) * JONESMATSIZE]);
@@ -338,7 +338,7 @@ void inline udp_channelMajorSplitPols(long iLoop, char *inputPortData, O **outpu
 	#endif
 	for (int beamlet = baseBeamlet; beamlet < upperBeamlet; beamlet++) {
 		tsInOffset = input_offset_index(lastInputPacketOffset, beamlet, timeStepSize);
-		tsOutOffset = frequency_major_index(outputPacketOffset, totalBeamlets, beamlet, baseBeamlet, cumulativeBeamlets);
+		tsOutOffset = frequency_major_index(outputPacketOffset, beamlet, baseBeamlet, cumulativeBeamlets);
 		
 		if constexpr (calibrateData) {
 			beamletJones = &(jonesMatrix[(beamlet - baseBeamlet) * JONESMATSIZE]);

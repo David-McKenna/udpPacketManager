@@ -119,12 +119,12 @@ int main(int argc, char  *argv[]) {
 
 			case 'c':
 				calPoint = 1;
-				strcpy(config.calibrationConfiguration.calibrationSubbands, optarg);
+				strcpy(config.calibrationConfiguration->calibrationSubbands, optarg);
 				break;
 
 			case 'd':
 				calStrat = 1;
-				sscanf(optarg, "%f,%f,%128s", &(config.calibrationConfiguration.calibrationPointing[0]), &(config.calibrationConfiguration.calibrationPointing[1]), &(config.calibrationConfiguration.calibrationPointingBasis[0]));
+				sscanf(optarg, "%f,%f,%128s", &(config.calibrationConfiguration->calibrationPointing[0]), &(config.calibrationConfiguration->calibrationPointing[1]), &(config.calibrationConfiguration->calibrationPointingBasis[0]));
 				break;
 
 			case 'z':
@@ -379,7 +379,7 @@ int main(int argc, char  *argv[]) {
 	}
 
 	// Sanity check that we were passed the correct clock bit
-	if (((lofar_source_bytes*) &(reader->meta.inputData[0][1]))->clockBit != clock200MHz) {
+	if (((lofar_source_bytes*) &(reader->meta->inputData[0][1]))->clockBit != clock200MHz) {
 		fprintf(stderr, "ERROR: The clock bit of the first packet does not match the clock state given when starting the CLI. Add or remove -c from your command. Exiting.\n");
 		return 1;
 	}
@@ -394,7 +394,7 @@ int main(int argc, char  *argv[]) {
 			break;
 		}
 
-		for (int out = 0; out < reader->meta.numOutputs; out++) {
+		for (int out = 0; out < reader->meta->numOutputs; out++) {
 			sprintf(workingString, outputFormat, out, dateStr[eventLoop]);
 
 			VERBOSE( if (config.verbose) printf("Checking if file at %s exists / can be written to\n", workingString));
@@ -420,13 +420,13 @@ int main(int argc, char  *argv[]) {
 	if (silent == 0) {
 		getStartTimeString(reader, stringBuff);
 		printf("\n\n=========== Reader  Information ===========\n");
-		printf("Total Beamlets:\t%d/%d\t\t\t\t\tFirst Packet:\t%ld\n", reader->meta.totalProcBeamlets, reader->meta.totalRawBeamlets, reader->meta.lastPacket);
-		printf("Start time:\t%s\t\tMJD Time:\t%lf\n", stringBuff, lofar_get_packet_time_mjd(reader->meta.inputData[0]));
-		for (int port = 0; port < reader->meta.numPorts; port++) {
+		printf("Total Beamlets:\t%d/%d\t\t\t\t\tFirst Packet:\t%ld\n", reader->meta->totalProcBeamlets, reader->meta->totalRawBeamlets, reader->meta->lastPacket);
+		printf("Start time:\t%s\t\tMJD Time:\t%lf\n", stringBuff, lofar_get_packet_time_mjd(reader->meta->inputData[0]));
+		for (int port = 0; port < reader->meta->numPorts; port++) {
 			printf("------------------ Port %d -----------------\n", port);
-			printf("Port Beamlets:\t%d/%d\t\tPort Bitmode:\t%d\t\tInput Pkt Len:\t%d\n", reader->meta.upperBeamlets[port] - reader->meta.baseBeamlets[port], reader->meta.portRawBeamlets[port], reader->meta.inputBitMode, reader->meta.portPacketLength[port]);
+			printf("Port Beamlets:\t%d/%d\t\tPort Bitmode:\t%d\t\tInput Pkt Len:\t%d\n", reader->meta->upperBeamlets[port] - reader->meta->baseBeamlets[port], reader->meta->portRawBeamlets[port], reader->meta->inputBitMode, reader->meta->portPacketLength[port]);
 		}
-		for (int out = 0; out < reader->meta.numOutputs; out++) printf("Output Pkt Len (%d):\t%d\t\t", out, reader->meta.packetOutputLength[out]);
+		for (int out = 0; out < reader->meta->numOutputs; out++) printf("Output Pkt Len (%d):\t%d\t\t", out, reader->meta->packetOutputLength[out]);
 		printf("\n"); 
 		printf("============= End Information =============\n\n");
 	}
@@ -437,7 +437,7 @@ int main(int argc, char  *argv[]) {
 		returnVal = 0;
 
 		// Initialise / empty the packets lost array
-		for (int port = 0; port < reader->meta.numPorts; port++) eventPacketsLost[port] = 0;
+		for (int port = 0; port < reader->meta->numPorts; port++) eventPacketsLost[port] = 0;
 
 		// If we are not on the first event, set-up the reader for the current event
 		if (loops != 0) {
@@ -452,25 +452,25 @@ int main(int argc, char  *argv[]) {
 			if (silent == 0) {
 				if (eventLoop > 0)  {
 					printf("Completed work for event %d, packets lost for each port during this event was", eventLoop -1);
-					for (int port = 0; port < reader->meta.numPorts; port++) printf(" %ld", eventPacketsLost[port]);
+					for (int port = 0; port < reader->meta->numPorts; port++) printf(" %ld", eventPacketsLost[port]);
 					printf(".\n\n\n");
 				}
 				printf("Beginning work on event %d at %s: packets %ld to %ld...\n", eventLoop, dateStr[eventLoop], startingPackets[eventLoop], startingPackets[eventLoop] + multiMaxPackets[eventLoop]);
 				getStartTimeString(reader, stringBuff);
 				printf("============ Event %d Information ===========\n", eventLoop);
 				printf("Target Time:\t%s\t\tActual Time:\t%s\n", dateStr[eventLoop], stringBuff);
-				printf("Target Packet:\t%ld\tActual Packet:\t%ld\n", startingPackets[eventLoop], reader->meta.lastPacket + 1);
+				printf("Target Packet:\t%ld\tActual Packet:\t%ld\n", startingPackets[eventLoop], reader->meta->lastPacket + 1);
 				printf("Event Length:\t%fs\t\tPacket Count:\t%ld\n", eventSeconds[eventLoop], multiMaxPackets[eventLoop]);
-				printf("MJD Time:\t%lf\n", lofar_get_packet_time_mjd(reader->meta.inputData[0]));
+				printf("MJD Time:\t%lf\n", lofar_get_packet_time_mjd(reader->meta->inputData[0]));
 				printf("============= End Information ==============\n");
 			}
 
 
 		// Get the starting packet for output file names
-		startingPacket = reader->meta.leadingPacket;
+		startingPacket = reader->meta->leadingPacket;
 
 		// Open the output files for this event
-		for (int out = 0; out < reader->meta.numOutputs; out++) {
+		for (int out = 0; out < reader->meta->numOutputs; out++) {
 			sprintf(workingString, outputFormat, out, dateStr[eventLoop], startingPacket);
 			VERBOSE(if (config.verbose) printf("Testing output file for output %d @ %s\n", out, workingString));
 			
@@ -482,7 +482,7 @@ int main(int argc, char  *argv[]) {
 
 			if (callMockHdr) {
 				// Call mockHeader, we can populate the starting time, number of channels, output bit size and sampling rate
-				sprintf(mockHdrCmd, "mockHeader -tstart %.9lf -nchans %d -nbits %d -tsamp %.9lf %s %s > /tmp/udp_reader_mockheader.log 2>&1", lofar_get_packet_time_mjd(reader->meta.inputData[0]), reader->meta.totalProcBeamlets, reader->meta.outputBitMode, sampleTime, mockHdrArg, workingString);
+				sprintf(mockHdrCmd, "mockHeader -tstart %.9lf -nchans %d -nbits %d -tsamp %.9lf %s %s > /tmp/udp_reader_mockheader.log 2>&1", lofar_get_packet_time_mjd(reader->meta->inputData[0]), reader->meta->totalProcBeamlets, reader->meta->outputBitMode, sampleTime, mockHdrArg, workingString);
 				dummy = system(mockHdrCmd);
 
 				if (dummy != 0) fprintf(stderr, "Encountered error while calling mockHeader (%s), continuing with caution.\n", mockHdrCmd);
@@ -509,20 +509,20 @@ int main(int argc, char  *argv[]) {
 			totalOpsTime += timing[1];
 
 			// Write out the desired amount of packets; cap if needed.
-			packetsToWrite = reader->meta.packetsPerIteration;
+			packetsToWrite = reader->meta->packetsPerIteration;
 			if (multiMaxPackets[eventLoop] < packetsToWrite) packetsToWrite = multiMaxPackets[eventLoop];
 
 			CLICK(tick0);
 			
 			#ifndef BENCHMARKING
-			for (int out = 0; out < reader->meta.numOutputs; out++) {
-				VERBOSE(printf("Writing %ld bytes (%ld packets) to disk for output %d...\n", packetsToWrite * reader->meta.packetOutputLength[out], packetsToWrite, out));
-				fwrite(reader->meta.outputData[out], sizeof(char), packetsToWrite * reader->meta.packetOutputLength[out], outputFiles[out]);
+			for (int out = 0; out < reader->meta->numOutputs; out++) {
+				VERBOSE(printf("Writing %ld bytes (%ld packets) to disk for output %d...\n", packetsToWrite * reader->meta->packetOutputLength[out], packetsToWrite, out));
+				fwrite(reader->meta->outputData[out], sizeof(char), packetsToWrite * reader->meta->packetOutputLength[out], outputFiles[out]);
 			}
 			#endif
 
 			packetsWritten += packetsToWrite;
-			packetsProcessed += reader->meta.packetsPerIteration;
+			packetsProcessed += reader->meta->packetsPerIteration;
 
 			CLICK(tock0);
 			totalWriteTime += TICKTOCK(tick0, tock0);
@@ -531,9 +531,9 @@ int main(int argc, char  *argv[]) {
 				timing[1] = 0.;
 				printf("Disk writes completed for operation %d after %f seconds.\n", loops, TICKTOCK(tick0, tock0));
 				if (returnVal < 0) 
-					for(int port = 0; port < reader->meta.numPorts; port++)
-						if (reader->meta.portLastDroppedPackets[port] != 0)
-							printf("During this iteration there were %d dropped packets on port %d.\n", reader->meta.portLastDroppedPackets[port], port);
+					for(int port = 0; port < reader->meta->numPorts; port++)
+						if (reader->meta->portLastDroppedPackets[port] != 0)
+							printf("During this iteration there were %d dropped packets on port %d.\n", reader->meta->portLastDroppedPackets[port], port);
 				printf("\n");
 			}
 
@@ -552,7 +552,7 @@ int main(int argc, char  *argv[]) {
 		}
 
 		// Close the output files before we open new ones or exit
-		for (int out = 0; out < reader->meta.numOutputs; out++) fclose(outputFiles[out]);
+		for (int out = 0; out < reader->meta->numOutputs; out++) fclose(outputFiles[out]);
 
 	}
 
@@ -563,13 +563,13 @@ int main(int argc, char  *argv[]) {
 
 	// Print out a summary of the operations performed, this does not contain data read for seek operations
 	if (silent == 0) {
-		for (int port = 0; port < reader->meta.numPorts; port++) totalPacketLength += reader->meta.portPacketLength[port];
-		for (int out = 0; out < reader->meta.numOutputs; out++) totalOutLength += reader->meta.packetOutputLength[out];
-		for (int port = 0; port < reader->meta.numPorts; port++) droppedPackets += reader->meta.portTotalDroppedPackets[port];
+		for (int port = 0; port < reader->meta->numPorts; port++) totalPacketLength += reader->meta->portPacketLength[port];
+		for (int out = 0; out < reader->meta->numOutputs; out++) totalOutLength += reader->meta->packetOutputLength[out];
+		for (int port = 0; port < reader->meta->numPorts; port++) droppedPackets += reader->meta->portTotalDroppedPackets[port];
 
 		printf("Reader loop exited (%d); overall process took %f seconds.\n", returnVal, (double) TICKTOCK(tick, tock));
-		printf("We processed %ld packets, representing %.03lf seconds of data", packetsProcessed, reader->meta.numPorts * packetsProcessed * UDPNTIMESLICE * 5.12e-6);
-		if (reader->meta.numPorts > 1) printf(" (%.03lf per port)\n", packetsProcessed * UDPNTIMESLICE * 5.12e-6);
+		printf("We processed %ld packets, representing %.03lf seconds of data", packetsProcessed, reader->meta->numPorts * packetsProcessed * UDPNTIMESLICE * 5.12e-6);
+		if (reader->meta->numPorts > 1) printf(" (%.03lf per port)\n", packetsProcessed * UDPNTIMESLICE * 5.12e-6);
 		else printf(".\n");
 		printf("Total Read Time:\t%3.02lf\t\tTotal CPU Ops Time:\t%3.02lf\tTotal Write Time:\t%3.02lf\n", totalReadTime, totalOpsTime, totalWriteTime);
 		printf("Total Data Read:\t%3.03lfGB\t\t\t\tTotal Data Written:\t%3.03lfGB\n", (double) packetsProcessed * totalPacketLength / 1e+9, (double) packetsWritten* totalOutLength / 1e+9);
