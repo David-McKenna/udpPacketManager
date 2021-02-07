@@ -920,10 +920,7 @@ lofar_udp_reader* lofar_udp_meta_file_reader_setup_struct(lofar_udp_config *conf
 
 		} else if (config->readerType == DADA) {
 #ifndef NODADA
-			// ipcio_connect
-			// ipcio_open
-			// ipcio_read
-			// ipcio_seek
+			readlen = fread_temp_dada(&(inputHeaders[port][0]), sizeof(char), UDPHDRLEN + UDPHDROFF, config->dadaKeys[port], 1);
 #else
 			fprintf(stderr, "ERROR: PSRDADA was disabled at compile time, exiting.\n");
 			return NULL;
@@ -1953,6 +1950,61 @@ int fread_temp_ZSTD(void *outbuf, const size_t size, int num, FILE* inputFile, c
 
 }
 
+/**
+ * @brief      Temporarily read in num bytes from a PSRDADA ringbuffer
+ *
+ * @param      outbuf     The output buffer pointer
+ * @param[in]  size       The size of words ot read
+ * @param[in]  num        The number of words to read
+ * @param      dadaKey  The PSRDADA ringbuffer ID
+ * @param[in]  resetSeek  Do (1) / Don't (0) reset back to the original location
+ *                        in FILE* after performing a read operation
+ *
+ * @return     int 0: ZSTD error, 1: File error, other: data read length
+ */
+int fread_temp_dada(void *outbuf, const size_t size, int num, int dadaKey, const int resetSeek) {
+
+#ifndef NODADA
+	ipcio_t tmpReader = IPCIO_INIT;
+	// Al of these functions print their own error messages.
+
+	// Connecting to an ipcio_t struct allows you to control it like any other file descriptor usng the ipcio_* functions
+	// As a result, after connecting to the buffer...
+	if (ipcio_connect(&tmpReader, dadaKey) < 0) {
+		return 0;
+	}
+
+	// We can fopen()....
+	if (ipcio_open(&tmpReader, 'r') < 0) {
+		return 0;
+	}
+
+	// Then fread()...
+	int returnlen = ipcio_read(&tmpReader, outbuf, size * num);
+
+	// fseek() if requested....
+	if (resetSeek == 1) {
+		if (ipcio_seek(&tmpReader, -num, SEEK_CUR) < 0) {
+			return 0;
+		}
+	}
+
+	// And fclose() the file
+	if (ipcio_close(&tmpReader) < 0) {
+		return 0;
+	}
+
+	// We then disconnect to make sure everyhting is cleaned up.
+	if (ipcio_disconnect(&tmpReader) < 0) {
+		return 0;
+	}
+
+	return returnlen;
+#else
+	return 0;
+#endif
+
+}
 
 /**
  * @brief      Get the size of a file descriptor on disk

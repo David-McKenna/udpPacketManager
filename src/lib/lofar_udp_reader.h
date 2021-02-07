@@ -257,6 +257,7 @@ int lofar_udp_reader_cleanup_f(lofar_udp_reader *reader, const int closeFiles);
 
 // Maybe move these to misc?
 int fread_temp_ZSTD(void *outbuf, const size_t size, int num, FILE* inputFile, const int resetSeek);
+int fread_temp_dada(void *outbuf, const size_t size, int num, int dadaKey, const int resetSeek);
 long fd_file_size(int fd);
 
 #ifdef __cplusplus
