@@ -288,7 +288,7 @@ int main(int argc, char  *argv[]) {
 	}
 
 	// Sanity check that we were passed the correct clock bit
-	if (((lofar_source_bytes*) &(reader->meta->inputData[0][1]))->clockBit != clock200MHz) {
+	if (((lofar_source_bytes*) &(reader->meta.inputData[0][1]))->clockBit != clock200MHz) {
 		fprintf(stderr, "ERROR: The clock bit of the first packet does not match the clock state given when starting the CLI. Add or remove -c from your command. Exiting.\n");
 		return 1;
 	}
@@ -302,19 +302,19 @@ int main(int argc, char  *argv[]) {
 
 	// Pull the reader parameters into the ASCII header
 	// Frequency indo
-	header.obsnchan = reader->meta->totalProcBeamlets;
+	header.obsnchan = reader->meta.totalProcBeamlets;
 	header.chan_bw = (CLOCK160MHZ / 1e6) * (1 - clock200MHz) + (CLOCK200MHZ / 1e6) * clock200MHz;
 	header.obsbw = header.obsnchan * header.chan_bw;
 
 	// Data format into
-	header.nbits = reader->meta->inputBitMode;
+	header.nbits = reader->meta.inputBitMode;
 	header.npol = 2;
 	header.overlap = 0;
 	strcpy(header.pktfmt, "1SFA");
-	header.pktsize = reader->meta->packetOutputLength[0];
+	header.pktsize = reader->meta.packetOutputLength[0];
 
 	// Timing info
-	double mjdTime = lofar_get_packet_time_mjd(reader->meta->inputData[0]);
+	double mjdTime = lofar_get_packet_time_mjd(reader->meta.inputData[0]);
 	header.stt_imjd = (int) mjdTime;
 	header.stt_smjd = (int) ((mjdTime - (int) mjdTime) * 86400);
 	header.stt_offs = ((mjdTime - (int) mjdTime) * 86400) - header.stt_smjd;
@@ -324,13 +324,13 @@ int main(int argc, char  *argv[]) {
 	if (silent == 0) {
 		getStartTimeString(reader, stringBuff);
 		printf("\n\n=========== Reader  Information ===========\n");
-		printf("Total Beamlets:\t%d%d\t\t\t\t\tFirst Packet:\t%ld\n", reader->meta->totalProcBeamlets, reader->meta->totalRawBeamlets, reader->meta->lastPacket);
-		printf("Start time:\t%s\t\tMJD Time:\t%lf\n", stringBuff, lofar_get_packet_time_mjd(reader->meta->inputData[0]));
-		for (int port = 0; port < reader->meta->numPorts; port++) {
+		printf("Total Beamlets:\t%d%d\t\t\t\t\tFirst Packet:\t%ld\n", reader->meta.totalProcBeamlets, reader->meta.totalRawBeamlets, reader->meta.lastPacket);
+		printf("Start time:\t%s\t\tMJD Time:\t%lf\n", stringBuff, lofar_get_packet_time_mjd(reader->meta.inputData[0]));
+		for (int port = 0; port < reader->meta.numPorts; port++) {
 			printf("------------------ Port %d -----------------\n", port);
-			printf("Port Beamlets:\t%d/%d\t\tPort Bitmode:\t%d\t\tInput Pkt Len:\t%d\n", reader->meta->upperBeamlets[port] - reader->meta->baseBeamlets[port], reader->meta->portRawBeamlets[port], reader->meta->inputBitMode, reader->meta->portPacketLength[port]);
+			printf("Port Beamlets:\t%d/%d\t\tPort Bitmode:\t%d\t\tInput Pkt Len:\t%d\n", reader->meta.upperBeamlets[port] - reader->meta.baseBeamlets[port], reader->meta.portRawBeamlets[port], reader->meta.inputBitMode, reader->meta.portPacketLength[port]);
 		}
-		for (int out = 0; out < reader->meta->numOutputs; out++) printf("Output Pkt Len (%d):\t%d\t\t", out, reader->meta->packetOutputLength[out]);
+		for (int out = 0; out < reader->meta.numOutputs; out++) printf("Output Pkt Len (%d):\t%d\t\t", out, reader->meta.packetOutputLength[out]);
 		printf("\n"); 
 		printf("============= End Information =============\n\n");
 	}
@@ -384,18 +384,18 @@ int main(int argc, char  *argv[]) {
 			packetsToWrite = reader->packetsPerIteration;
 
 			// Get the number of dropped packets for the ASCII header
-			for(int port = 0; port < reader->meta->numPorts; port++)
-				if (reader->meta->portLastDroppedPackets[port] != 0) {
-					blockDropped += reader->meta->portLastDroppedPackets[port];
+			for(int port = 0; port < reader->meta.numPorts; port++)
+				if (reader->meta.portLastDroppedPackets[port] != 0) {
+					blockDropped += reader->meta.portLastDroppedPackets[port];
 					totalDropped += blockDropped;
 				}
 
 			CLICK(tick0);
 			
 			#ifndef BENCHMARKING
-			for (int out = 0; out < reader->meta->numOutputs; out++) {
+			for (int out = 0; out < reader->meta.numOutputs; out++) {
 				// Update header parameters, then write it to disk before we write the next block of data
-				header.blocsize = packetsToWrite * reader->meta->packetOutputLength[out];
+				header.blocsize = packetsToWrite * reader->meta.packetOutputLength[out];
 				
 				// Should this be processing time, rather than the recording time?
 				getStartTimeStringDAQ(reader, timeStr);
@@ -410,14 +410,14 @@ int main(int argc, char  *argv[]) {
 
 				writeHdr(outputFiles[out], &header);
 				
-				VERBOSE(printf("Writing %ld bytes (%ld packets) to disk for output %d...\n", packetsToWrite * reader->meta->packetOutputLength[out], packetsToWrite, out));
-				fwrite(reader->meta->outputData[out], sizeof(char), packetsToWrite * reader->meta->packetOutputLength[out], outputFiles[out]);
+				VERBOSE(printf("Writing %ld bytes (%ld packets) to disk for output %d...\n", packetsToWrite * reader->meta.packetOutputLength[out], packetsToWrite, out));
+				fwrite(reader->meta.outputData[out], sizeof(char), packetsToWrite * reader->meta.packetOutputLength[out], outputFiles[out]);
 			}
 			#endif
 
 			// Count the number of packets written + processed (should always be the same for the GUPPI CLI)
 			packetsWritten += packetsToWrite;
-			packetsProcessed += reader->meta->packetsPerIteration;
+			packetsProcessed += reader->meta.packetsPerIteration;
 
 			CLICK(tock0);
 			totalWriteTime += TICKTOCK(tick0, tock0);
@@ -426,9 +426,9 @@ int main(int argc, char  *argv[]) {
 				timing[1] = 0.;
 				printf("Disk writes completed for operation %d after %f seconds.\n", loops, TICKTOCK(tick0, tock0));
 				if (returnVal < 0) 
-					for(int port = 0; port < reader->meta->numPorts; port++)
-						if (reader->meta->portLastDroppedPackets[port] != 0)
-							printf("During this iteration there were %d dropped packets on port %d.\n", reader->meta->portLastDroppedPackets[port], port);
+					for(int port = 0; port < reader->meta.numPorts; port++)
+						if (reader->meta.portLastDroppedPackets[port] != 0)
+							printf("During this iteration there were %d dropped packets on port %d.\n", reader->meta.portLastDroppedPackets[port], port);
 				printf("\n");
 			}
 
@@ -463,13 +463,13 @@ int main(int argc, char  *argv[]) {
 
 	// Print out a summary of the operations performed, this does not contain data read for seek operations
 	if (silent == 0) {
-		for (int port = 0; port < reader->meta->numPorts; port++) totalPacketLength += reader->meta->portPacketLength[port];
-		for (int out = 0; out < outputFilesCount; out++) totalOutLength += reader->meta->packetOutputLength[out];
-		for (int port = 0; port < reader->meta->numPorts; port++) droppedPackets += reader->meta->portTotalDroppedPackets[port];
+		for (int port = 0; port < reader->meta.numPorts; port++) totalPacketLength += reader->meta.portPacketLength[port];
+		for (int out = 0; out < outputFilesCount; out++) totalOutLength += reader->meta.packetOutputLength[out];
+		for (int port = 0; port < reader->meta.numPorts; port++) droppedPackets += reader->meta.portTotalDroppedPackets[port];
 
 		printf("Reader loop exited (%d); overall process took %f seconds.\n", returnVal, (double) TICKTOCK(tick, tock));
-		printf("We processed %ld packets, representing %.03lf seconds of data", packetsProcessed, reader->meta->numPorts * packetsProcessed * UDPNTIMESLICE * 5.12e-6);
-		if (reader->meta->numPorts > 1) printf(" (%.03lf per port)\n", packetsProcessed * UDPNTIMESLICE * 5.12e-6);
+		printf("We processed %ld packets, representing %.03lf seconds of data", packetsProcessed, reader->meta.numPorts * packetsProcessed * UDPNTIMESLICE * 5.12e-6);
+		if (reader->meta.numPorts > 1) printf(" (%.03lf per port)\n", packetsProcessed * UDPNTIMESLICE * 5.12e-6);
 		else printf(".\n");
 		printf("Total Read Time:\t%3.02lf\t\tTotal CPU Ops Time:\t%3.02lf\tTotal Write Time:\t%3.02lf\n", totalReadTime, totalOpsTime, totalWriteTime);
 		printf("Total Data Read:\t%3.03lfGB\t\t\t\tTotal Data Written:\t%3.03lfGB\n", (double) packetsProcessed * totalPacketLength / 1e+9, (double) packetsWritten* totalOutLength / 1e+9);
@@ -503,7 +503,7 @@ void getStartTimeStringDAQ(lofar_udp_reader *reader, char stringBuff[24]) {
 	time_t startTimeUnix;
 	struct tm *startTimeStruct;
 
-	startTime = lofar_get_packet_time(reader->meta->inputData[0]);
+	startTime = lofar_get_packet_time(reader->meta.inputData[0]);
 	startTimeUnix = (unsigned int) startTime;
 	startTimeStruct = gmtime(&startTimeUnix);
 

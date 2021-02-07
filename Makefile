@@ -30,7 +30,7 @@ CLI_VER = 0.4
 THREADS = $(shell cat /proc/cpuinfo | uniq | grep -m 2 "siblings" | cut -d ":" -f 2 | sort --numeric --unique | awk '{printf("%d", $$1);}')
 
 CFLAGS 	+= -W -Wall -Ofast -march=native -fPIC
-CFLAGS  += -DVERSION=$(LIB_VER) -DVERSION_MINOR=$(LIB_VER_MINOR) -DVERSIONCLI=$(CLI_VER) 
+CFLAGS  += -DVERSION=$(LIB_VER) -DVERSION_MINOR=$(LIB_VER_MINOR) -DVERSIONCLI=$(CLI_VER)
 #CFLAGS  += -fsanitize=address -DALLOW_VERBOSE -g # -DBENCHMARKING -g -DALLOW_VERBOSE #-D__SLOWDOWN
 # -fopt-info-missed=compiler_report_missed.log -fopt-info-vec=compiler_report_vec.log -fopt-info-loop=compiler_report_loop.log -fopt-info-inline=compiler_report_inline.log -fopt-info-omp=compiler_report_omp.log
 
@@ -39,10 +39,10 @@ CFLAGS  += -DVERSION=$(LIB_VER) -DVERSION_MINOR=$(LIB_VER_MINOR) -DVERSIONCLI=$(
 # ICC will take everything you throw at it.
 ifeq ($(CC), icc)
 AR = xiar
-CFLAGS += -fast -static -static-intel -qopenmp-link=static -DOMP_THREADS=$(THREADS)
+CFLAGS += -ipo -fast -static -static-intel -qopenmp-link=static -DOMP_THREADS=$(THREADS)
 else
 AR = ar
-CFLAGS += -static -DOMP_THREADS=8 -funswitch-loops
+CFLAGS += -flto -static -DOMP_THREADS=8 -funswitch-loops
 LFLAGS += -fopenmp-simd
 endif
 

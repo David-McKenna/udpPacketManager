@@ -60,7 +60,7 @@ typedef struct lofar_udp_calibration {
 	char calibrationPointingBasis[128];
 
 } lofar_udp_calibration;
-extern lofar_udp_calibration lofar_udp_calibration_default;
+extern const lofar_udp_calibration lofar_udp_calibration_default;
 
 
 // Metadata struct
@@ -128,7 +128,7 @@ typedef struct lofar_udp_meta {
 	#endif
 
 } lofar_udp_meta;
-extern lofar_udp_meta lofar_udp_meta_default;
+extern const lofar_udp_meta lofar_udp_meta_default;
 
 typedef struct lofar_udp_reader_input {
 	
@@ -145,14 +145,14 @@ typedef struct lofar_udp_reader_input {
 	ipcio_t *dadaReader[MAX_NUM_PORTS];
 
 } lofar_udp_reader_input;
-extern lofar_udp_reader_input lofar_udp_reader_input_meta;
+extern const lofar_udp_reader_input lofar_udp_reader_input_meta;
 
 // File data + decompression struct
 typedef struct lofar_udp_reader {
 	FILE *fileRef[MAX_NUM_PORTS];
 
 	reader_t readerType;
-	lofar_udp_reader_input *input;
+	lofar_udp_reader_input input;
 
 	int ompThreads;
 
@@ -160,13 +160,13 @@ typedef struct lofar_udp_reader {
 	long packetsPerIteration;
 
 	// Metadata / data struct
-	lofar_udp_meta *meta;
+	lofar_udp_meta meta;
 
 		// Calibration configuration struct
-	lofar_udp_calibration *calibration;
+	lofar_udp_calibration calibration;
 
 } lofar_udp_reader;
-extern lofar_udp_reader lofar_udp_reader_default;
+extern const lofar_udp_reader lofar_udp_reader_default;
 
 // Confugration struct
 typedef struct lofar_udp_config {
@@ -205,7 +205,7 @@ typedef struct lofar_udp_config {
 	int calibrateData;
 
 	// Configure calibration parameters
-	lofar_udp_calibration *calibrationConfiguration;
+	lofar_udp_calibration calibrationConfiguration;
 
 	// Number of OMP threads to use while processing
 	int ompThreads;
@@ -214,7 +214,7 @@ typedef struct lofar_udp_config {
 	int dadaKeys[MAX_NUM_PORTS];
 
 } lofar_udp_config;
-extern lofar_udp_config lofar_udp_config_default;
+extern const lofar_udp_config lofar_udp_config_default;
 #endif
 
 
