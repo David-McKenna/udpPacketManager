@@ -39,13 +39,11 @@ CFLAGS  += -DVERSION=$(LIB_VER) -DVERSION_MINOR=$(LIB_VER_MINOR) -DVERSIONCLI=$(
 # ICC will take everything you throw at it.
 ifeq ($(CC), icc)
 AR = xiar
-CFLAGS += -ipo -fast -static -static-intel -qopenmp-link=static -DOMP_THREADS=$(THREADS)
-LINKFLAGS = ""
+CFLAGS += -fast -static -static-intel -qopenmp-link=static -DOMP_THREADS=$(THREADS)
 else
 AR = ar
-CFLAGS += -flto -static -DOMP_THREADS=8 -funswitch-loops
+CFLAGS += -static -DOMP_THREADS=8 -funswitch-loops
 LFLAGS += -fopenmp-simd 
-LINKFLAGS = -Wno-maybe-uninitialized -Wno-uninitialized
 endif
 
 # Ensure we're using C++17
@@ -78,8 +76,8 @@ CASACOREDIR = /usr/share/casacore/data/
 
 # CLI -> link with C++
 all: $(CLI_OBJECTS) library
-	$(CXX) $(CXXFLAGS) $(LINKFLAGS) src/CLI/lofar_cli_extractor.o $(CLI_META_OBJECTS) $(LIBRARY_TARGET)  -o ./lofar_udp_extractor $(LFLAGS)
-	$(CXX) $(CXXFLAGS) $(LINKFLAGS) src/CLI/lofar_cli_guppi_raw.o $(CLI_META_OBJECTS) $(LIBRARY_TARGET) -o ./lofar_udp_guppi_raw $(LFLAGS)
+	$(CXX) $(CXXFLAGS) src/CLI/lofar_cli_extractor.o $(CLI_META_OBJECTS) $(LIBRARY_TARGET)  -o ./lofar_udp_extractor $(LFLAGS)
+	$(CXX) $(CXXFLAGS) src/CLI/lofar_cli_guppi_raw.o $(CLI_META_OBJECTS) $(LIBRARY_TARGET) -o ./lofar_udp_guppi_raw $(LFLAGS)
 
 # Library -> *ar
 library: $(OBJECTS)
