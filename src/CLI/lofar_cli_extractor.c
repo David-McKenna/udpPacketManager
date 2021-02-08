@@ -8,6 +8,9 @@ void helpMessages() {
 	printf("\n\n");
 
 	printf("-i: <format>	Input file name format (default: './%%d')\n");
+#ifndef NODADA
+	printf("-k: <key>		Input PSRDADA ringbuffer keys, a base value and an offset (>2 to allow for headers) (default: '', example ('16130,10'))\n");
+#endif
 	printf("-o: <format>	Output file name format (provide %%d, %%s and %%ld to fill in output ID, date/time string and the starting packet number) (default: './output%%d_%%s_%%ld')\n");
 	printf("-m: <numPack>	Number of packets to process in each read request (default: 65536)\n");
 	printf("-u: <numPort>	Number of ports to combine (default: 4)\n");
@@ -24,7 +27,8 @@ void helpMessages() {
 	printf("-q:		Enable silent mode for the CLI, don't print any information outside of library error messes (default: False)\n");
 	printf("-a: <args>		Call mockHeader with the specific flags to prefix output files with a header (default: False)\n");
 	printf("-f:		Append files if they already exist (default: False, exit if exists)\n");
-	
+	printf("-T: <threads>	OpenMP Threads to use during processing (8+ highly recommended, default: %d)\n", OMP_THREADS);
+
 	VERBOSE(printf("-v:		Enable verbose output (default: False)\n");
 			printf("-V:		Enable highly verbose output (default: False)\n"));
 
@@ -40,7 +44,7 @@ int main(int argc, char  *argv[]) {
 	float seconds = 0.0;
 	double sampleTime = 0.0;
 	char inputFormat[256] = "./%d", outputFormat[256] = "./output%d_%s_%ld", inputTime[256] = "", eventsFile[256] = "", stringBuff[128], mockHdrArg[2048] = "", mockHdrCmd[4096] = "";
-	int silent = 0, appendMode = 0, eventCount = 0, returnCounter = 0, callMockHdr = 0, basePort = 0, calPoint = 0, calStrat = 0;
+	int silent = 0, appendMode = 0, eventCount = 0, returnCounter = 0, callMockHdr = 0, basePort = 0, calPoint = 0, calStrat = 0, dadaInput = 0, dadaOffset = -1;
 	long maxPackets = -1, startingPacket = -1;
 	unsigned int clock200MHz = 1;
 	FILE *eventsFilePtr;
@@ -63,12 +67,30 @@ int main(int argc, char  *argv[]) {
 	char **dateStr; // Sub elements need to be free'd too.
 
 	// Standard ugly input flags parser
-	while((inputOpt = getopt(argc, argv, "zrqfvVi:o:m:u:t:s:e:p:a:n:b:c:d:")) != -1) {
+	while((inputOpt = getopt(argc, argv, "zrqfvVi:o:m:u:t:s:e:p:a:n:b:c:d:k:T:")) != -1) {
 		input = 1;
 		switch(inputOpt) {
 			
 			case 'i':
+				if (dadaInput == 1) {
+					fprintf(stderr, "ERROR: Specificed input file after defining PSRDADA ringbuffer key, exiting.\n");
+					return 1;
+				}
+				dadaInput = -1;
 				strcpy(inputFormat, optarg);
+				break;
+
+			case 'k':
+#ifndef NODADA
+				if (dadaInput == -1) {
+					fprintf(stderr, "ERROR: Specific input ringbuffer after defininig an input file, exiting.\n");
+					return 1;
+				}
+				sscanf(optarg, "%d,%d", &(config.dadaKeys[0]), &dadaOffset);
+#else
+				fprintf(stderr, "ERROR: PSRDADA key specified when PSRDADA was disable at compile time, exiting.\n");
+				return 1;
+#endif
 				break;
 
 			case 'o':
@@ -147,6 +169,9 @@ int main(int argc, char  *argv[]) {
 				VERBOSE(config.verbose = 2;);
 				break;
 
+			case 'T':
+				config.ompThreads = atoi(optarg);
+				break;
 
 
 
@@ -197,16 +222,26 @@ int main(int argc, char  *argv[]) {
 	char workingString[1024];
 
 	// Sanity check a few inputs
-	if ( (strcmp(inputFormat, "") == 0) || (config.numPorts == 0) || (config.packetsPerIteration < 2)  || (config.replayDroppedPackets > 1 || config.replayDroppedPackets < 0) || (config.processingMode > 1000 || config.processingMode < 0) || (seconds < 0)) {
+	if ( (strcmp(inputFormat, "") == 0 && dadaInput < 1) || (config.dadaKeys[0] > 1 && dadaOffset > 1) || (dadaInput != 0) || (config.numPorts <= 0) || (config.packetsPerIteration < 2)  || (config.replayDroppedPackets > 1 || config.replayDroppedPackets < 0) || (config.processingMode > 1000 || config.processingMode < 0) || (seconds < 0)) {
 		fprintf(stderr, "One or more inputs invalid or not fully initialised, exiting.\n");
 		helpMessages();
 		return 1;
 	}
 
-	// Check if we have a compressed input file
-	if (strstr(inputFormat, "zst") != NULL) {
-		config.readerType = ZSTDCOMPRESSED;
+	if (dadaInput < 1) {
+		// Check if we have a compressed input file
+		if (strstr(inputFormat, "zst") != NULL) {
+			config.readerType = ZSTDCOMPRESSED;
+		} else {
+			config.readerType = NORMAL;
+		}
+	} else {
+		for (int i = 1; i < config.numPorts; i++) {
+			config.dadaKeys[i] = config.dadaKeys[0] + dadaOffset;
+		}
+		config.readerType = DADA;
 	}
+
 
 	// Make sure mockHeader is on the path if we want to use it.
 	if (callMockHdr) {

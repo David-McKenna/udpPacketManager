@@ -15,15 +15,10 @@ CXX		= g++
 endif
 endif
 
-ifneq (1,$(NODADA))
-LFLAGS += -lpsrdada
 
-else
-CFLAGS += -DNODADA
-endif
 # Library versions
 LIB_VER = 0.6
-LIB_VER_MINOR = 1
+LIB_VER_MINOR = 2
 CLI_VER = 0.4
 
 # Detemrine the max threads per socket to speed up execution via OpenMP with ICC (GCC falls over if we set too many)
@@ -50,6 +45,24 @@ endif
 CXXFLAGS += $(CFLAGS) -std=c++17
 
 LFLAGS 	+= -I./src -I./src/lib -I./src/CLI -I/usr/include/ -lzstd -fopenmp #-lefence
+
+
+# Include PSRDADA if it is not disabled
+# Also check to see if CUDA is available, add it to the link list if so (assuming PSRDADA would have been compiled with it as well)
+CUDA_PATH = /usr/local/cuda
+
+ifneq (1,$(NODADA))
+LFLAGS += -lpsrdada 
+
+PSRDADA_CUDA_DETECTED = $(shell whereis libpsrdada.a | cut -f 2- -d ' ' | xargs nm | grep "cuda" | wc -l)
+ifeq ($(shell test $(PSRDADA_CUDA_DETECTED) -gt 2; echo $$?),0)
+LFLAGS += -L$(CUDA_PATH)/lib -lcudart_static -lrt
+endif
+
+else
+CFLAGS += -DNODADA
+endif
+
 
 # Define our general build targets
 OBJECTS = src/lib/lofar_udp_reader.o src/lib/lofar_udp_misc.o src/lib/lofar_udp_backends.o
