@@ -86,7 +86,7 @@ int main(int argc, char  *argv[]) {
 					fprintf(stderr, "ERROR: Specific input ringbuffer after defininig an input file, exiting.\n");
 					return 1;
 				}
-				dataInput = 1;
+				dadaInput = 1;
 				sscanf(optarg, "%d,%d", &(config.dadaKeys[0]), &dadaOffset);
 #else
 				fprintf(stderr, "ERROR: PSRDADA key specified when PSRDADA was disable at compile time, exiting.\n");
