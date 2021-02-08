@@ -186,7 +186,7 @@ int main(int argc, char  *argv[]) {
 	outputFilesCount = 1;
 
 	// Sanity check a few inputs
-	if ( (strcmp(inputFormat, "") == 0 && dadaInput < 1) || (config.dadaKeys[0] < 1 && dadaOffset > 1) || (dadaInput != 0) ||  (config.numPorts <= 0) || (config.packetsPerIteration < 2)  || (config.replayDroppedPackets > 1 || config.replayDroppedPackets < 0) || (seconds < 0) || (config.ompThreads < 1)) {
+	if ( (strcmp(inputFormat, "") == 0 && dadaInput < 1) || (config.dadaKeys[0] < 1 && dadaOffset > 1) || (dadaInput == 0) ||  (config.numPorts <= 0) || (config.packetsPerIteration < 2)  || (config.replayDroppedPackets > 1 || config.replayDroppedPackets < 0) || (seconds < 0) || (config.ompThreads < 1)) {
 		fprintf(stderr, "One or more inputs invalid or not fully initialised, exiting.\n");
 		helpMessages();
 		return 1;
