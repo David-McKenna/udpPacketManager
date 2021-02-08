@@ -11,6 +11,9 @@ void helpMessages() {
 	printf("\n\n");
 
 	printf("-i: <format>	Input file name format (default: './%%d')\n");
+#ifndef NODADA
+	printf("-k: <key>		Input PSRDADA ringbuffer keys, a base value and an offset (>2 to allow for headers) (default: '', example ('16130,10'))\n");
+#endif
 	printf("-o: <format>	Output file name format (provide %%d to fill in the output file number) (default: './output%%d')\n");
 	printf("-m: <numPack>	Number of packets to process in each read request (default: 65536)\n");
 	printf("-u: <numPort>	Number of ports to combine (default: 4)\n");
@@ -24,6 +27,7 @@ void helpMessages() {
 	printf("-q:		Enable silent mode for the CLI, don't print any information outside of library error messes (default: False)\n");
 	printf("-a: <file>		File to open with parameters for the ASCII headers\n");
 	printf("-f:		Append files if they already exist (default: False, exit if exists)\n");
+	printf("-T: <threads>	OpenMP Threads to use during processing (8+ highly recommended, default: %d)\n", OMP_THREADS);
 	
 	VERBOSE(printf("-v:		Enable verbose output (default: False)\n");
 			printf("-V:		Enable highly verbose output (default: False)\n"));
@@ -38,7 +42,7 @@ int main(int argc, char  *argv[]) {
 	float seconds = 0.0;
 	double sampleTime = 0.0;
 	char inputFormat[256] = "./%d", outputFormat[256] = "./output_%d", inputTime[256] = "", stringBuff[128], hdrFile[2048] = "", timeStr[28] = "";
-	int silent = 0, appendMode = 0, itersPerFile = INT_MAX, basePort = 0;
+	int silent = 0, appendMode = 0, itersPerFile = INT_MAX, basePort = 0, dadaInput = 0, dadaOffset = 0;
 	unsigned int clock200MHz = 1;
 	
 	lofar_udp_config config = lofar_udp_config_default;
@@ -58,12 +62,25 @@ int main(int argc, char  *argv[]) {
 	char **dateStr; // Sub elements need to be free'd too.
 
 	// Standard ugly input flags parser
-	while((inputOpt = getopt(argc, argv, "rcqfvVi:o:m:u:t:s:e:a:n:b:")) != -1) {
+	while((inputOpt = getopt(argc, argv, "rcqfvVi:o:m:u:t:s:e:a:n:b:k:T:")) != -1) {
 		input = 1;
 		switch(inputOpt) {
 			
 			case 'i':
 				strcpy(inputFormat, optarg);
+				break;
+
+			case 'k':
+#ifndef NODADA
+				if (dadaInput == -1) {
+					fprintf(stderr, "ERROR: Specific input ringbuffer after defininig an input file, exiting.\n");
+					return 1;
+				}
+				sscanf(optarg, "%d,%d", &(config.dadaKeys[0]), &dadaOffset);
+#else
+				fprintf(stderr, "ERROR: PSRDADA key specified when PSRDADA was disable at compile time, exiting.\n");
+				return 1;
+#endif
 				break;
 
 			case 'o':
@@ -127,6 +144,9 @@ int main(int argc, char  *argv[]) {
 				VERBOSE(config.verbose = 2;);
 				break;
 
+			case 'T':
+				config.ompThreads = atoi(optarg);
+				break;
 
 
 
@@ -165,7 +185,7 @@ int main(int argc, char  *argv[]) {
 	outputFilesCount = 1;
 
 	// Sanity check a few inputs
-	if ( (strcmp(inputFormat, "") == 0) || (config.numPorts == 0) || (config.packetsPerIteration < 2)  || (config.replayDroppedPackets > 1 || config.replayDroppedPackets < 0) || (seconds < 0)) {
+	if ( (strcmp(inputFormat, "") == 0 && dadaInput < 1) || (config.dadaKeys[0] > 1 && dadaOffset > 1) || (dadaInput != 0) ||  (config.numPorts <= 0) || (config.packetsPerIteration < 2)  || (config.replayDroppedPackets > 1 || config.replayDroppedPackets < 0) || (seconds < 0)) {
 		fprintf(stderr, "One or more inputs invalid or not fully initialised, exiting.\n");
 		helpMessages();
 		return 1;
@@ -179,9 +199,19 @@ int main(int argc, char  *argv[]) {
 		return 1;
 	}
 
-	// Check if we have a compressed input file
-	if (strstr(inputFormat, "zst") != NULL) {
-		config.readerType = ZSTDCOMPRESSED;
+
+	if (dadaInput < 1) {
+		// Check if we have a compressed input file
+		if (strstr(inputFormat, "zst") != NULL) {
+			config.readerType = ZSTDCOMPRESSED;
+		} else {
+			config.readerType = NORMAL;
+		}
+	} else {
+		for (int i = 1; i < config.numPorts; i++) {
+			config.dadaKeys[i] = config.dadaKeys[0] + dadaOffset;
+		}
+		config.readerType = DADA;
 	}
 
 	// Determine the clock time
