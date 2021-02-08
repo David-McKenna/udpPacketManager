@@ -223,7 +223,7 @@ int main(int argc, char  *argv[]) {
 	char workingString[1024];
 
 	// Sanity check a few inputs
-	if ( (strcmp(inputFormat, "") == 0 && dadaInput < 1) || (config.dadaKeys[0] > 1 && dadaOffset > 1) || (dadaInput != 0) || (config.numPorts <= 0) || (config.packetsPerIteration < 2)  || (config.replayDroppedPackets > 1 || config.replayDroppedPackets < 0) || (config.processingMode > 1000 || config.processingMode < 0) || (seconds < 0)) {
+	if ( (strcmp(inputFormat, "") == 0 && dadaInput < 1) || (config.dadaKeys[0] < 1 && dadaOffset > 1) || (dadaInput != 0) || (config.numPorts <= 0) || (config.packetsPerIteration < 2)  || (config.replayDroppedPackets > 1 || config.replayDroppedPackets < 0) || (config.processingMode > 1000 || config.processingMode < 0) || (seconds < 0) || (config.ompThreads < 1)) {
 		fprintf(stderr, "One or more inputs invalid or not fully initialised, exiting.\n");
 		helpMessages();
 		return 1;
