@@ -234,7 +234,7 @@ int main(int argc, char  *argv[]) {
 		config.readerType = DADA;
 	}
 
-	
+
 	// Determine the clock time
 	sampleTime = clock160MHzSample * (1 - clock200MHz) + clock200MHzSample * clock200MHz;
 
@@ -245,7 +245,7 @@ int main(int argc, char  *argv[]) {
 		if (dadaInput < 0) {
 			printf("Input File:\t%s\n", inputFormat);
 		} else {
-			printf("Input Ringbuffer/Offset:\t%s\n", config.dadaKeys[0], dadaOffset);
+			printf("Input Ringbuffer/Offset:\t%d, %d\n", config.dadaKeys[0], dadaOffset);
 		}
 		printf("Output File: %s\n\n", outputFormat);
 		printf("Packets/Gulp:\t%ld\t\t\tPorts:\t%d\n\n", config.packetsPerIteration, config.numPorts);

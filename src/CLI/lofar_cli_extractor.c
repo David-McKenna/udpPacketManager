@@ -254,7 +254,7 @@ int main(int argc, char  *argv[]) {
 			}
 			PAUSE;
 		}
-	
+
 	} else {
 		for (int i = 1; i < config.numPorts; i++) {
 			config.dadaKeys[i] = config.dadaKeys[0] + i * dadaOffset;
@@ -289,7 +289,7 @@ int main(int argc, char  *argv[]) {
 		if (dadaInput < 0) {
 			printf("Input File:\t%s\n", inputFormat);
 		} else {
-			printf("Input Ringbuffer/Offset:\t%s\n", config.dadaKeys[0], dadaOffset);
+			printf("Input Ringbuffer/Offset:\t%d, %d\n", config.dadaKeys[0], dadaOffset);
 		}
 		printf("Output File: %s\n\n", outputFormat);
 		printf("Packets/Gulp:\t%ld\t\t\tPorts:\t%d\n\n", config.packetsPerIteration, config.numPorts);
