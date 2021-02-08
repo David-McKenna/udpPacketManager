@@ -207,13 +207,34 @@ int main(int argc, char  *argv[]) {
 		} else {
 			config.readerType = NORMAL;
 		}
+
+		// Set-up the input files, with checks to ensure they're opened
+		for (int port = basePort; port < config.numPorts + basePort; port++) {
+			sprintf(workingString, inputFormat, port);
+
+			if (strcmp(inputFormat, workingString) == 0 && config.numPorts > 1) {
+				fprintf(stderr, "ERROR: Input file was not iterated while trying to load raw data, please ensure it contains a '%%d' value. Exiting.\n");
+				return 1;
+			}
+
+			VERBOSE(if (config.verbose) printf("Opening file at %s\n", workingString));
+
+			inputFiles[port - basePort] = fopen(workingString, "r");
+			if (inputFiles[port - basePort] == NULL) {
+				fprintf(stderr, "Input file at %s does not exist, exiting.\n", workingString);
+				return 1;
+			}
+			PAUSE;
+		}
+	
 	} else {
 		for (int i = 1; i < config.numPorts; i++) {
-			config.dadaKeys[i] = config.dadaKeys[0] + dadaOffset;
+			config.dadaKeys[i] = config.dadaKeys[0] + i * dadaOffset;
 		}
 		config.readerType = DADA;
 	}
 
+	
 	// Determine the clock time
 	sampleTime = clock160MHzSample * (1 - clock200MHz) + clock200MHzSample * clock200MHz;
 
@@ -221,7 +242,12 @@ int main(int argc, char  *argv[]) {
 	if (silent == 0) {
 		printf("LOFAR UDP Data extractor (CLI v%.1f, Backend v%.1f)\n\n", VERSIONCLI, VERSION);
 		printf("=========== Given configuration ===========\n");
-		printf("Input File:\t%s\nOutput File: %s\n\n", inputFormat, outputFormat);
+		if (dadaInput < 0) {
+			printf("Input File:\t%s\n", inputFormat);
+		} else {
+			printf("Input Ringbuffer/Offset:\t%s\n", config.dadaKeys[0], dadaOffset);
+		}
+		printf("Output File: %s\n\n", outputFormat);
 		printf("Packets/Gulp:\t%ld\t\t\tPorts:\t%d\n\n", config.packetsPerIteration, config.numPorts);
 		VERBOSE(printf("Verbose:\t%d\n", config.verbose););
 		printf("Proc Mode:\t%03d\t\t\tCompressed:\t%d\n\n", 30, config.readerType);
@@ -253,25 +279,6 @@ int main(int argc, char  *argv[]) {
 		if (silent == 0) printf("Packet/Gulp is greater than the maximum packets requested, reducing from %ld to %ld.\n", config.packetsPerIteration, config.packetsReadMax);
 		config.packetsPerIteration = config.packetsReadMax;
 
-	}
-
-	// Set-up the input files, with checks to ensure they're opened
-	for (int port = basePort; port < config.numPorts + basePort; port++) {
-		sprintf(workingString, inputFormat, port);
-
-		VERBOSE(if (config.verbose) printf("Opening file at %s\n", workingString));
-
-		if (strcmp(inputFormat, workingString) == 0 && config.numPorts > 1) {
-			fprintf(stderr, "ERROR: Input file was not iterated while trying to load raw data, please ensure it contains a '%%d' value. Exiting.\n");
-			return 1;
-		}
-
-		inputFiles[port - basePort] = fopen(workingString, "r");
-		if (inputFiles[port - basePort] == NULL) {
-			fprintf(stderr, "Input file at %s does not exist, exiting.\n", workingString);
-			return 1;
-		}
-		PAUSE;
 	}
 
 	// Check that the output files don't already exist (no append mode), or that they can be written to (append mode)		
