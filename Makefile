@@ -76,6 +76,11 @@ PREFIX = /usr/local
 # Local folder for casacore if already installed
 CASACOREDIR = /usr/share/casacore/data/
 
+# Docker compilation variables
+NPROC = $(shell nproc)
+BUILD_CORES = $(shell echo $(NPROC) '0.75' | awk '{printf "%1.0f", $$1*$$2}')
+BUILD_DATE = $(shell date --iso-8601)
+
 
 .INTERMEDIATE : ./tests/obj-generated-$(LIB_VER).$(LIB_VER_MINOR)
 
@@ -88,7 +93,9 @@ CASACOREDIR = /usr/share/casacore/data/
 	$(CXX) -c $(CXXFLAGS) -o ./$@ $< $(LFLAGS)
 
 # CLI -> link with C++
-all: $(CLI_OBJECTS) library
+all: $(CLI_OBJECTS) library cli docker-build
+
+cli:
 	$(CXX) $(CXXFLAGS) src/CLI/lofar_cli_extractor.o $(CLI_META_OBJECTS) $(LIBRARY_TARGET)  -o ./lofar_udp_extractor $(LFLAGS)
 	$(CXX) $(CXXFLAGS) src/CLI/lofar_cli_guppi_raw.o $(CLI_META_OBJECTS) $(LIBRARY_TARGET) -o ./lofar_udp_guppi_raw $(LFLAGS)
 
@@ -131,6 +138,12 @@ calibration-prep:
 	rsync -avz rsync://casa-rsync.nrao.edu/casa-data/ephemerides rsync://casa-rsync.nrao.edu/casa-data/geodetic $(CASACOREDIR); \
 	wget ftp://ftp.astron.nl/outgoing/Measures/WSRT_Measures.ztar -O $(CASACOREDIR)WSRT_Measures.ztar; \
 	tar -xzvf $(CASACOREDIR)WSRT_Measures.ztar -C /usr/share/casacore/data/; \
+
+docker-build:
+	docker build --build-arg BUILD_CORES=$(BUILD_CORES) --build-arg BUILD_DATE=$(BUILD_DATE) -t lofar-upm:$(LIB_VER).$(LIB_VER_MINOR) -f src/docker/Dockerfile .
+
+docker-pull:
+	docker pull mckennadavid/lofar-udppacketmanager
 
 # Remove local build arifacts
 clean:
