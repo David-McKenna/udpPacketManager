@@ -3,6 +3,7 @@ SHELL ["/bin/bash", "-l", "-c"]
 
 # Should be updated to the value in the makefile at runtime
 ARG BUILD_CORES=8
+ARG ARCH="skylake"
 
 # Install all required packages available from the disto package manager
 RUN apt-get update && \
@@ -31,7 +32,7 @@ ENV CUDA_HOME /usr/local/cuda
 ENV CUDA_TOOLKIT_ROOT_DIR $CUDA_HOME
 ENV LIBRARY_PATH $CUDA_HOME/lib64:/usr/local/lib:$LIBRARY_PATH
 ENV LD_LIBRARY_PATH $CUDA_HOME/lib64:/usr/local/lib:$LD_LIBRARY_PATH
-ENV CFLAGS "-mtune=native -I$CUDA_HOME/include $CFLAGS -lstdc++"
+ENV CFLAGS "-mtune=$ARCH -I$CUDA_HOME/include $CFLAGS -lstdc++"
 ENV CPPFLAGS "$CFLAGS $CPP_FLAGS"
 ENV CUDA_CFLAGS "-I$CUDA_HOME/include $CUDA_CFLAGS -lstdc++"
 ENV CUDA_LIBS "-L$CUDA_HOME/lib64 -lcudart $CUDA_LIBS -lstdc++"
@@ -76,7 +77,7 @@ WORKDIR $SOFT/udpPacketManager
 RUN echo "Building udpPacketManager / mockHeader" && \
 	\
 	apt-get update && \
-	make mockHeader calibration-prep all install && \
+	make mockHeader calibration-prep all install ARCH=$ARCH && \
 	rm -rf /var/lib/apt/lists/* && \
 	\
 	echo "Buidling CDMT" && \
