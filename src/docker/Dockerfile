@@ -16,7 +16,7 @@ RUN apt-get update && \
 ARG DEBIAN_FRONTEND=noninteractive
 # Install remaining packages; may be excessive after removing some of the install targets.
 RUN apt-get update && \
-	apt-get install -y --no-install-recommends autoconf autogen automake autotools-dev cmake csh g++-7 g++-9 g++-multilib gcc-7 gcc-9 gcc-multilib gdb gfortran gfortran git gnupg-agent gsl-bin hwloc intel-hpckit intel-oneapi-ipp intel-oneapi-ipp-devel intel-oneapi-mkl intel-oneapi-mkl-devel intel-oneapi-tbb intel-oneapi-tbb-devel intel-oneapi-openmp intel-oneapi-tbb intel-oneapi-tbb-devel libblas-dev  libfftw3-3 libfftw3-bin libfftw3-dev libfftw3-single3 libglib2.0-dev libgsl-dev libgslcblas0 libtool libtool-bin nano python3-dev python3-matplotlib python3-pip python3-setuptools python3-wheel vim zstd libzstd-dev && \
+	apt-get install -y --no-install-recommends autoconf autogen automake autotools-dev cmake csh g++-7 g++-9 g++-multilib gcc-7 gcc-9 gcc-multilib gdb gfortran gfortran git gnupg-agent gsl-bin hwloc intel-hpckit intel-oneapi-ipp intel-oneapi-ipp-devel intel-oneapi-mkl intel-oneapi-mkl-devel intel-oneapi-tbb intel-oneapi-tbb-devel intel-oneapi-openmp intel-oneapi-tbb intel-oneapi-tbb-devel libblas-dev libfftw3-3 libfftw3-bin libfftw3-dev libfftw3-single3 libglib2.0-dev libgsl-dev libgslcblas0 libtool libtool-bin locate nano python3-dev python3-matplotlib python3-pip python3-setuptools python3-wheel vim zstd libzstd-dev && \
 	apt-get remove -y python2.7* libpython2* libpython-* intel-oneapi-dnn* intel-oneapi-python intel-oneapi-dal* && \
 	update-alternatives --install /usr/bin/python python /usr/bin/python3 60 && \
 	update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-9 60 --slave /usr/bin/g++ g++ /usr/bin/g++-9 && \
