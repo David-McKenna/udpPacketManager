@@ -77,7 +77,7 @@ WORKDIR $SOFT/udpPacketManager
 RUN echo "Building udpPacketManager / mockHeader" && \
 	\
 	apt-get update && \
-	make mockHeader calibration-prep all install ARCH=$ARCH && \
+	make mockHeader calibration-prep install ARCH=$ARCH && \
 	rm -rf /var/lib/apt/lists/* && \
 	\
 	echo "Buidling CDMT" && \

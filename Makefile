@@ -22,13 +22,13 @@ LIB_VER_MINOR = 2
 CLI_VER = 0.4
 
 # Detemrine the max threads per socket to speed up execution via OpenMP with ICC (GCC falls over if we set too many)
-THREADS = $(shell cat /proc/cpuinfo | uniq | grep -m 2 "siblings" | cut -d ":" -f 2 | sort --numeric --unique | awk '{printf("%d", $$1);}')
+THREADS ?= $(shell cat /proc/cpuinfo | uniq | grep -m 2 "siblings" | cut -d ":" -f 2 | sort --numeric --unique | awk '{printf("%d", $$1);}')
 
 # Docker compilation variables
 NPROC = $(shell nproc)
 BUILD_CORES = $(shell echo $(NPROC) '0.75' | awk '{printf "%1.0f", $$1*$$2}')
 BUILD_DATE = $(shell date --iso-8601)
-ARCH = "native"
+ARCH ?= "native"
 
 CFLAGS 	+= -W -Wall -Ofast -march=$(ARCH) -mtune=$(ARCH) -fPIC
 CFLAGS  += -DVERSION=$(LIB_VER) -DVERSION_MINOR=$(LIB_VER_MINOR) -DVERSIONCLI=$(CLI_VER)
@@ -55,7 +55,7 @@ LFLAGS 	+= -I./src -I./src/lib -I./src/CLI -I/usr/include/ -lzstd -fopenmp #-lef
 
 # Include PSRDADA if it is not disabled
 # Also check to see if CUDA is available, add it to the link list if so (assuming PSRDADA would have been compiled with it as well)
-CUDA_PATH = /usr/local/cuda
+CUDA_PATH ?= /usr/local/cuda
 
 ifneq (1,$(NODADA))
 LFLAGS += -lpsrdada 
@@ -77,10 +77,10 @@ CLI_OBJECTS = $(OBJECTS) $(CLI_META_OBJECTS) src/CLI/lofar_cli_extractor.o src/C
 
 LIBRARY_TARGET = liblofudpman.a
 
-PREFIX = /usr/local
+PREFIX ?= /usr/local
 
 # Local folder for casacore if already installed
-CASACOREDIR = /usr/share/casacore/data/
+CASACOREDIR ?= /usr/share/casacore/data/
 
 
 .INTERMEDIATE : ./tests/obj-generated-$(LIB_VER).$(LIB_VER_MINOR)
@@ -106,7 +106,7 @@ library: $(OBJECTS)
 	ln -sf ./$(LIBRARY_TARGET).$(LIB_VER).$(LIB_VER_MINOR) ./$(LIBRARY_TARGET)
 
 # Install CLI, headers, library
-install: all
+install: $(CLI_OBJECTS) library cli
 	mkdir -p $(PREFIX)/bin/ && mkdir -p $(PREFIX)/include/
 	cp ./lofar_udp_extractor $(PREFIX)/bin/
 	cp ./lofar_udp_guppi_raw $(PREFIX)/bin/
