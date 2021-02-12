@@ -3,7 +3,7 @@ SHELL ["/bin/bash", "-l", "-c"]
 
 
 ARG BUILD_CORES=8
-ARG OPT_ARCH="skylake"
+ARG OPT_ARCH="skylake-avx512"
 ARG DEBIAN_FRONTEND=noninteractive
 COPY . $SOFT/udpPacketManager/
 RUN find $SOFT/udpPacketManager/
