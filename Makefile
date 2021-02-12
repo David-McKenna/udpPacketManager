@@ -28,9 +28,9 @@ THREADS ?= $(shell cat /proc/cpuinfo | uniq | grep -m 2 "siblings" | cut -d ":" 
 NPROC = $(shell nproc)
 BUILD_CORES = $(shell echo $(NPROC) '0.75' | awk '{printf "%1.0f", $$1*$$2}')
 BUILD_DATE = $(shell date --iso-8601)
-ARCH ?= "native"
+OPT_ARCH ?= "native"
 
-CFLAGS 	+= -W -Wall -Ofast -march=$(ARCH) -mtune=$(ARCH) -fPIC
+CFLAGS 	+= -W -Wall -Ofast -march=$(OPT_ARCH) -mtune=$(OPT_ARCH) -fPIC
 CFLAGS  += -DVERSION=$(LIB_VER) -DVERSION_MINOR=$(LIB_VER_MINOR) -DVERSIONCLI=$(CLI_VER)
 #CFLAGS  += -fsanitize=address -DALLOW_VERBOSE -g # -DBENCHMARKING -g -DALLOW_VERBOSE #-D__SLOWDOWN
 # -fopt-info-missed=compiler_report_missed.log -fopt-info-vec=compiler_report_vec.log -fopt-info-loop=compiler_report_loop.log -fopt-info-inline=compiler_report_inline.log -fopt-info-omp=compiler_report_omp.log
