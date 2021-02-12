@@ -28,7 +28,7 @@ THREADS ?= $(shell cat /proc/cpuinfo | uniq | grep -m 2 "siblings" | cut -d ":" 
 NPROC = $(shell nproc)
 BUILD_CORES = $(shell echo $(NPROC) '0.75' | awk '{printf "%1.0f", $$1*$$2}')
 BUILD_DATE = $(shell date --iso-8601)
-ARCH ?= native
+ARCH ?= "native"
 
 CFLAGS 	+= -W -Wall -Ofast -march=$(ARCH) -mtune=$(ARCH) -fPIC
 CFLAGS  += -DVERSION=$(LIB_VER) -DVERSION_MINOR=$(LIB_VER_MINOR) -DVERSIONCLI=$(CLI_VER)
@@ -140,11 +140,8 @@ calibration-prep:
 	wget ftp://ftp.astron.nl/outgoing/Measures/WSRT_Measures.ztar -O $(CASACOREDIR)WSRT_Measures.ztar; \
 	tar -xzvf $(CASACOREDIR)WSRT_Measures.ztar -C /usr/share/casacore/data/; \
 
-docker-base-dev:
-	docker build --build-arg BUILD_CORES=$(BUILD_CORES) --build-arg BUILD_DATE=$(BUILD_DATE) --build-arg=$(ARCH) -t lofar-upm-devbase:$(LIB_VER).$(LIB_VER_MINOR) -f src/docker/Dockerfile_base .
-
 docker-build:
-	docker build --build-arg BUILD_CORES=$(BUILD_CORES) --build-arg BUILD_DATE=$(BUILD_DATE) --build-arg=$(ARCH) -t lofar-upm:$(LIB_VER).$(LIB_VER_MINOR) -f src/docker/Dockerfile_software .
+	docker build --build-arg BUILD_CORES=$(BUILD_CORES) --build-arg BUILD_DATE=$(BUILD_DATE) --build-arg ARCH=$(ARCH) -t lofar-upm:$(LIB_VER).$(LIB_VER_MINOR) -f src/docker/Dockerfile_software .
 
 docker-pull:
 	docker pull mckennadavid/lofar-udppacketmanager
@@ -251,6 +248,9 @@ test-make-hashes: ./tests/obj-generated-$(LIB_VER).$(LIB_VER_MINOR)
 	rm ./tests/hashVariables_tmp.txt 
 
 
+# Build the base image for the docker container (apt-get compilers + setup ENVs)
+docker-base-dev:
+	docker build --build-arg BUILD_CORES=$(BUILD_CORES) --build-arg BUILD_DATE=$(BUILD_DATE) --build-arg ARCH=$(ARCH) -t lofar-upm-devbase:$(LIB_VER).$(LIB_VER_MINOR) -f src/docker/Dockerfile_base .
 
 
 # Optional: build mockHeader
