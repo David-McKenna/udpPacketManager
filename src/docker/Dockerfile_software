@@ -20,7 +20,7 @@ RUN touch $BUILD_DATE && \
 	git clone https://github.com/NVlabs/cub.git cub && \
 	git clone https://git.code.sf.net/p/psrdada/code psrdada && \
 	git clone https://github.com/AA-ALERT/psrdada-python && \
-	mkdir udpPacketManager && cp -r ../../../* $SOFT/udpPacketManager
+	git clone --single-branch --branch $SOURCE_BRANCH https://github.com/David-McKenna/udpPacketManager.git
 
 # Build PSRDADA
 WORKDIR $SOFT/psrdada
