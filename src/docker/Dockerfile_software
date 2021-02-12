@@ -6,7 +6,7 @@ ARG BUILD_CORES=8
 ARG ARCH="skylake"
 ARG DEBIAN_FRONTEND=noninteractive
 COPY . $SOFT/udpPacketManager/
-RUN ls -l $SOFT/udpPacketManager/ && find . && exit 1
+RUN find $SOFT/udpPacketManager/
 
 
 # Get the latest version of in-active-development software
