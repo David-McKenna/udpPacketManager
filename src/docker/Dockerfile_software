@@ -1,0 +1,51 @@
+FROM mckennadavid/lofar-upm-devbase:latest
+SHELL ["/bin/bash", "-l", "-c"]
+
+
+ARG BUILD_CORES=8
+ARG ARCH="skylake"
+ARG DEBIAN_FRONTEND=noninteractive
+
+
+# Get the latest version of in-active-development software
+# This arg is updated at build time by the makefile and will cause
+# the remainder of this dockerfile to recompile every time it is run
+# on a new day
+
+WORKDIR /home/soft
+ARG BUILD_DATE=2020-01-01
+
+RUN touch $BUILD_DATE && \
+	git clone https://github.com/David-McKenna/cdmt.git && \
+	git clone https://github.com/NVlabs/cub.git cub && \
+	git clone https://git.code.sf.net/p/psrdada/code psrdada && \
+	git clone https://github.com/AA-ALERT/psrdada-python && \
+	git clone https://github.com/David-McKenna/udpPacketManager.git
+
+# Build PSRDADA
+WORKDIR $SOFT/psrdada
+ENV FLAGS "-lstdc++"
+RUN cp -r $SOFT/cub /usr/local/include/ && updatedb && ldconfig && \
+	./bootstrap && \
+	./configure --enable-shared --x-libraries=/usr/lib/x86_64-linux-gnu && \
+	make -j $BUILD_CORES && \
+	make install
+ENV FLAGS ""
+
+# Build and install udpPacketManager/mockHeader, riptide, PSRSalsa, CDMT, IQRM, PSRDADA-python
+# Comment: I'm compiling udpPacketManager twice here (cdmt clones + compiles on it's own)
+WORKDIR $SOFT/udpPacketManager
+RUN echo "Building udpPacketManager / mockHeader" && \
+	\
+	apt-get update && \
+	make mockHeader calibration-prep install ARCH=$ARCH && \
+	rm -rf /var/lib/apt/lists/* && \
+	\
+	echo "Buidling CDMT" && \
+	cd $SOFT/cdmt && git pull origin && make cdmt_udp CC=icc && make cdmt_udp_stokesV CC=icc && cp ./cdmt_ud* /usr/local/bin/ &&  \
+	\
+	echo "Building PSRDADA-python" && \
+	cd $SOFT/psrdada-python && python3 -m pip install -r ./requirements.txt && make && make test && make install
+
+WORKDIR /home/user
+ENTRYPOINT /bin/bash
