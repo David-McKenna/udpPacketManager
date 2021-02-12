@@ -1,4 +1,4 @@
-FROM mckennadavid/lofar-upm-devbase:latest
+FROM mckennadavid/lofar-upm-devbase:2021.02.12
 SHELL ["/bin/bash", "-l", "-c"]
 
 
