@@ -5,6 +5,7 @@ SHELL ["/bin/bash", "-l", "-c"]
 ARG BUILD_CORES=8
 ARG ARCH="skylake"
 ARG DEBIAN_FRONTEND=noninteractive
+ADD ../../ /home/soft/udpPacketManager
 
 
 # Get the latest version of in-active-development software
@@ -19,8 +20,7 @@ RUN touch $BUILD_DATE && \
 	git clone https://github.com/David-McKenna/cdmt.git && \
 	git clone https://github.com/NVlabs/cub.git cub && \
 	git clone https://git.code.sf.net/p/psrdada/code psrdada && \
-	git clone https://github.com/AA-ALERT/psrdada-python && \
-	git clone --single-branch --branch $SOURCE_BRANCH https://github.com/David-McKenna/udpPacketManager.git
+	git clone https://github.com/AA-ALERT/psrdada-python
 
 # Build PSRDADA
 WORKDIR $SOFT/psrdada
