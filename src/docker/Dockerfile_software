@@ -5,7 +5,7 @@ SHELL ["/bin/bash", "-l", "-c"]
 ARG BUILD_CORES=8
 ARG ARCH="skylake"
 ARG DEBIAN_FRONTEND=noninteractive
-ADD ../../ /home/soft/udpPacketManager
+ADD . /home/soft/udpPacketManager/
 
 
 # Get the latest version of in-active-development software
