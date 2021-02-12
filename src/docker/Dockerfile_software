@@ -32,6 +32,7 @@ RUN cp -r $SOFT/cub /usr/local/include/ && updatedb && ldconfig && \
 	make install
 ENV FLAGS ""
 
+ENV CFLAGS "-mtune=$ARCH -march=$ARCH $CFLAGS"
 # Build and install udpPacketManager/mockHeader, riptide, PSRSalsa, CDMT, IQRM, PSRDADA-python
 # Comment: I'm compiling udpPacketManager twice here (cdmt clones + compiles on it's own)
 WORKDIR $SOFT/udpPacketManager
