@@ -5,7 +5,7 @@ SHELL ["/bin/bash", "-l", "-c"]
 ARG BUILD_CORES=8
 ARG ARCH="skylake"
 ARG DEBIAN_FRONTEND=noninteractive
-ADD ./* $SOFT/udpPacketManager/
+COPY . $SOFT/udpPacketManager/
 
 
 # Get the latest version of in-active-development software
@@ -39,6 +39,7 @@ WORKDIR $SOFT/udpPacketManager
 RUN echo "Building udpPacketManager / mockHeader" && \
 	\
 	apt-get update && \
+	find ./src && \
 	ARCH=$ARCH make mockHeader calibration-prep install ARCH=$ARCH && \
 	rm -rf /var/lib/apt/lists/* && \
 	\
