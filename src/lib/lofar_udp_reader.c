@@ -208,7 +208,13 @@ int lofar_udp_parse_headers(lofar_udp_meta *meta, char header[MAX_NUM_PORTS][UDP
 		// 16-bit: 2x the size per sample
 		bitMul = 1 - 0.5 * (meta->inputBitMode == 4) + 1 * (meta->inputBitMode == 16); // 4bit = 0.5x, 16bit = 2x
 		meta->portPacketLength[port] = (int) ((UDPHDRLEN) + (meta->portRawBeamlets[port] * bitMul * UDPNTIMESLICE * UDPNPOL));
-		
+
+		if (port > 1) {
+			if (meta->portPacketLength[port] != meta->portPacketLength[port - 1]) {
+				fprintf(stderr, "WARNING: Packet lengths different between port offsets %d and %d, proceeding with caution.\n", port, port - 1);
+			}
+		}
+
 	}
 
 	return 0;
@@ -1214,7 +1220,7 @@ int lofar_udp_reader_calibration(lofar_udp_reader *reader) {
 
 	VERBOSE(printf("Fork\n"););
 	if (returnVal == 0) {
-		VERBOSE(printf("dreamBeam called on pid %d\n"));
+		VERBOSE(printf("dreamBeam called on pid %d\n", pid));
 	} else if (returnVal < 0) {
 		fprintf(stderr, "ERROR: Unable to create child process to call dreamBeam. Exiting.\n");
 		return 1;
@@ -1975,7 +1981,7 @@ int fread_temp_dada(void *outbuf, const size_t size, int num, int dadaKey, const
 	}
 
 	// We can fopen()....
-	if (ipcio_open(&tmpReader, 'r') < 0) {
+	if (ipcio_open(&tmpReader, 'R') < 0) {
 		return 0;
 	}
 

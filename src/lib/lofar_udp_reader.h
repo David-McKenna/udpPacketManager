@@ -23,6 +23,7 @@ extern char **environ;
 
 // PSRDADA includes
 #ifndef NODADA
+#include <ipcbuf.h>
 #include <ipcio.h>
 #else
 typedef struct ipcio_t ipcio_t;
