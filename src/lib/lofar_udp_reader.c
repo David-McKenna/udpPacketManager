@@ -508,7 +508,7 @@ lofar_udp_reader* lofar_udp_file_reader_setup(lofar_udp_meta *meta, lofar_udp_co
 				returnVal = 1;
 			}
 
-			if (ipcio_open(&(reader->input->dadaReader[port]), 'R')) {
+			if (ipcio_open(&(reader.input->dadaReader[port]), 'R')) {
 				returnVal = 1;
 			}
 			reader.input->dadaKey[port] = config->dadaKeys[port];
@@ -1134,7 +1134,7 @@ int lofar_udp_reader_cleanup_f(lofar_udp_reader *reader, const int closeFiles) {
 
 			} else if (reader->readerType == DADA) {
 #ifndef NODADA
-				if (ipcio_close(&(reader->input->dadaReader[port]))) {
+				if (ipcio_close(&(reader->input->dadaReader[i]))) {
 					fprintf(stderr, "ERROR: Failed to close PSRDADA buffer %d on port %d.\n", reader->input->dadaKey[i], i);
 				}
 				if (ipcio_disconnect(&(reader->input->dadaReader[i])) < 0) {
