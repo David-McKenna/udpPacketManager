@@ -38,7 +38,8 @@ const lofar_udp_reader_input lofar_udp_reader_input_default = {
 	.fileRef = { NULL },
 	.dstream = { NULL },
 	.dadaKey = { -1 },
-	.dadaReader = { IPCIO_INIT }
+	// External #defines apparently aren't constant according to ICC?Clang, copy/paste from ipcio/ipcbuf.h
+	.dadaReader = { { {0, -1, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1}, 0,0, 0, 0, 0, 0,0,0, 0,0,0 } }
 };
 
 
