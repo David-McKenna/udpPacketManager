@@ -143,7 +143,7 @@ typedef struct lofar_udp_reader_input {
 
 	// PSRDADA keys, buffers
 	int dadaKey[MAX_NUM_PORTS];
-	ipcio_t *dadaReader[MAX_NUM_PORTS];
+	ipcio_t dadaReader[MAX_NUM_PORTS];
 
 } lofar_udp_reader_input;
 extern const lofar_udp_reader_input lofar_udp_reader_input_meta;
