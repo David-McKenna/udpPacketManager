@@ -38,7 +38,7 @@ const lofar_udp_reader_input lofar_udp_reader_input_default = {
 	.fileRef = { NULL },
 	.dstream = { NULL },
 	.dadaKey = { -1 },
-	.dadaReader = { 0 }
+	.dadaReader = { IPCIO_INIT }
 };
 
 
