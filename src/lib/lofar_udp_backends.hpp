@@ -243,11 +243,7 @@ void inline udp_copySplitPols(long iLoop, char *inputPortData, O **outputData, l
 
 		tsInOffset = tsInOffsetBase;
 		tsOutOffset = tsOutOffsetBase;
-		#ifdef __GNUC__
-		#pragma GCC unroll 16
-		#else
-		#pragma unroll(16)
-		#endif
+		#pragma GCC unroll(16)
 		for (int ts = 0; ts < UDPNTIMESLICE; ts++) {
 			if constexpr (calibrateData) {
 				calibrateDataFunc<I, O>(&Xr, &Xi, &Yr, &Yi, beamletJones, inputPortData, tsInOffset, timeStepSize);
@@ -298,11 +294,7 @@ void inline udp_channelMajor(long iLoop, char *inputPortData, O **outputData, lo
 
 		tsInOffset = tsInOffsetBase;
 		tsOutOffset = tsOutOffsetBase;
-		#ifdef __GNUC__
-		#pragma GCC unroll 16
-		#else
-		#pragma unroll(16)
-		#endif
+		#pragma GCC unroll(16)
 		for (int ts = 0; ts < UDPNTIMESLICE; ts++) {
 			if constexpr (calibrateData) {
 				calibrateDataFunc<I, O>(&Xr, &Xi, &Yr, &Yi, beamletJones, inputPortData, tsInOffset, timeStepSize);
@@ -352,11 +344,7 @@ void inline udp_channelMajorSplitPols(long iLoop, char *inputPortData, O **outpu
 
 		tsInOffset = tsInOffsetBase;
 		tsOutOffset = tsOutOffsetBase;
-		#ifdef __GNUC__
-		#pragma GCC unroll 16
-		#else
-		#pragma unroll(16)
-		#endif
+		#pragma GCC unroll(16)
 		for (int ts = 0; ts < UDPNTIMESLICE; ts++) {
 			if constexpr (calibrateData) {
 				calibrateDataFunc<I, O>(&Xr, &Xi, &Yr, &Yi, beamletJones, inputPortData, tsInOffset, timeStepSize);
@@ -405,11 +393,7 @@ void inline udp_reversedChannelMajor(long iLoop, char *inputPortData, O **output
 
 		tsInOffset = tsInOffsetBase;
 		tsOutOffset = tsOutOffsetBase;
-		#ifdef __GNUC__
-		#pragma GCC unroll 16
-		#else
-		#pragma unroll(16)
-		#endif
+		#pragma GCC unroll(16)
 		for (int ts = 0; ts < UDPNTIMESLICE; ts++) {
 			if constexpr (calibrateData) {
 				calibrateDataFunc<I, O>(&Xr, &Xi, &Yr, &Yi, beamletJones, inputPortData, tsInOffset, timeStepSize);
@@ -458,11 +442,7 @@ void inline udp_reversedChannelMajorSplitPols(long iLoop, char *inputPortData, O
 
 		tsInOffset = tsInOffsetBase;
 		tsOutOffset = tsOutOffsetBase;
-		#ifdef __GNUC__
-		#pragma GCC unroll 16
-		#else
-		#pragma unroll(16)
-		#endif
+		#pragma GCC unroll(16)
 		for (int ts = 0; ts < UDPNTIMESLICE; ts++) {
 			if constexpr (calibrateData) {
 				calibrateDataFunc<I, O>(&Xr, &Xi, &Yr, &Yi, beamletJones, inputPortData, tsInOffset, timeStepSize);
@@ -511,11 +491,7 @@ void inline udp_timeMajor(long iLoop, char *inputPortData, O **outputData, long 
 
 		tsInOffset = tsInOffsetBase;
 		tsOutOffset = tsOutOffsetBase;
-		#ifdef __GNUC__
-		#pragma GCC unroll 16
-		#else
-		#pragma unroll(16)
-		#endif
+		#pragma GCC unroll(16)
 		for (int ts = 0; ts < UDPNTIMESLICE; ts++) {
 			if constexpr (calibrateData) {
 				calibrateDataFunc<I, O>(&Xr, &Xi, &Yr, &Yi, beamletJones, inputPortData, tsInOffset, timeStepSize);
@@ -563,11 +539,7 @@ void inline udp_timeMajorSplitPols(long iLoop, char *inputPortData, O **outputDa
 
 		tsInOffset = tsInOffsetBase;
 		tsOutOffset = tsOutOffsetBase;
-		#ifdef __GNUC__
-		#pragma GCC unroll 16
-		#else
-		#pragma unroll(16)
-		#endif
+		#pragma GCC unroll(16)
 		for (int ts = 0; ts < UDPNTIMESLICE; ts++) {
 			if constexpr (calibrateData) {
 				calibrateDataFunc<I, O>(&Xr, &Xi, &Yr, &Yi, beamletJones, inputPortData, tsInOffset, timeStepSize);
@@ -618,11 +590,7 @@ void inline udp_timeMajorDualPols(long iLoop, char *inputPortData, O **outputDat
 
 		tsInOffset = tsInOffsetBase;
 		tsOutOffset = tsOutOffsetBase;
-		#ifdef __GNUC__
-		#pragma GCC unroll 16
-		#else
-		#pragma unroll(16)
-		#endif
+		#pragma GCC unroll(16)
 		for (int ts = 0; ts < UDPNTIMESLICE; ts++) {
 			if constexpr (calibrateData) {
 				calibrateDataFunc<I, O>(&Xr, &Xi, &Yr, &Yi, beamletJones, inputPortData, tsInOffset, timeStepSize);
@@ -684,11 +652,7 @@ void inline udp_stokes(long iLoop, char *inputPortData, O **outputData,  long la
 
 		tsInOffset = tsInOffsetBase;
 		tsOutOffset = tsOutOffsetBase;
-		#ifdef __GNUC__
-		#pragma GCC unroll 16
-		#else
-		#pragma unroll(16)
-		#endif
+		#pragma GCC unroll(16)
 		for (int ts = 0; ts < UDPNTIMESLICE; ts++) {
 			if constexpr (calibrateData) {
 				calibrateDataFunc<I, O>(&Xr, &Xi, &Yr, &Yi, beamletJones, inputPortData, tsInOffset, timeStepSize);
@@ -749,11 +713,7 @@ void inline udp_stokesDecimation(long iLoop, char *inputPortData, O **outputData
 
 		tsInOffset = tsInOffsetBase;
 		tsOutOffset = tsOutOffsetBase;
-		#ifdef __GNUC__
-		#pragma GCC unroll 16
-		#else
-		#pragma unroll(16)
-		#endif
+		#pragma GCC unroll(16)
 		for (int ts = 0; ts < UDPNTIMESLICE; ts++) {
 			if constexpr (calibrateData) {
 				calibrateDataFunc<I, O>(&Xr, &Xi, &Yr, &Yi, beamletJones, inputPortData, tsInOffset, timeStepSize);
@@ -816,11 +776,7 @@ void inline udp_fullStokes(long iLoop, char *inputPortData, O **outputData,  lon
 
 		tsInOffset = tsInOffsetBase;
 		tsOutOffset = tsOutOffsetBase;
-		#ifdef __GNUC__
-		#pragma GCC unroll 16
-		#else
-		#pragma unroll(16)
-		#endif
+		#pragma GCC unroll(16)
 		for (int ts = 0; ts < UDPNTIMESLICE; ts++) {
 			if constexpr (calibrateData) {
 				calibrateDataFunc<I, O>(&Xr, &Xi, &Yr, &Yi, beamletJones, inputPortData, tsInOffset, timeStepSize);
@@ -892,11 +848,7 @@ void inline udp_fullStokesDecimation(long iLoop, char *inputPortData, O **output
 
 		tsInOffset = tsInOffsetBase;
 		tsOutOffset = tsOutOffsetBase;
-		#ifdef __GNUC__
-		#pragma GCC unroll 16
-		#else
-		#pragma unroll(16)
-		#endif
+		#pragma GCC unroll(16)
 		for (int ts = 0; ts < UDPNTIMESLICE; ts++) {
 			if constexpr (calibrateData) {
 				calibrateDataFunc<I, O>(&Xr, &Xi, &Yr, &Yi, beamletJones, inputPortData, tsInOffset, timeStepSize);
@@ -936,11 +888,7 @@ void inline udp_fullStokesDecimation(long iLoop, char *inputPortData, O **output
 
 		tsInOffset = tsInOffsetBase;
 		tsOutOffset = tsOutOffsetBase;
-		#ifdef __GNUC__
-		#pragma GCC unroll 16
-		#else
-		#pragma unroll(16)
-		#endif
+		#pragma GCC unroll(16)
 		for (int ts = 0; ts < UDPNTIMESLICE; ts++) {
 			if constexpr (calibrateData) {
 				calibrateDataFunc<I, O>(&Xr, &Xi, &Yr, &Yi, beamletJones, inputPortData, tsInOffset, timeStepSize);
@@ -1008,11 +956,7 @@ void inline udp_usefulStokes(long iLoop, char *inputPortData, O **outputData,  l
 
 		tsInOffset = tsInOffsetBase;
 		tsOutOffset = tsOutOffsetBase;
-		#ifdef __GNUC__
-		#pragma GCC unroll 16
-		#else
-		#pragma unroll(16)
-		#endif
+		#pragma GCC unroll(16)
 		for (int ts = 0; ts < UDPNTIMESLICE; ts++) {
 			if constexpr (calibrateData) {
 				calibrateDataFunc<I, O>(&Xr, &Xi, &Yr, &Yi, beamletJones, inputPortData, tsInOffset, timeStepSize);
@@ -1076,11 +1020,8 @@ void inline udp_usefulStokesDecimation(long iLoop, char *inputPortData, O **outp
 
 		tsInOffset = tsInOffsetBase;
 		tsOutOffset = tsOutOffsetBase;
-		#ifdef __GNUC__
-		#pragma GCC unroll 16
-		#else
-		#pragma unroll(16)
-		#endif
+
+		#pragma GCC unroll(16)
 		for (int ts = 0; ts < UDPNTIMESLICE; ts++) {
 			if constexpr (calibrateData) {
 				calibrateDataFunc<I, O>(&Xr, &Xi, &Yr, &Yi, beamletJones, inputPortData, tsInOffset, timeStepSize);
