@@ -60,7 +60,7 @@ CUDA_PATH ?= /usr/local/cuda
 ifneq (1,$(NODADA))
 LFLAGS += -lpsrdada 
 
-PSRDADA_CUDA_DETECTED = $(shell whereis libpsrdada.a | cut -f 2- -d ' ' | xargs nm | grep "cuda" | wc -l)
+PSRDADA_CUDA_DETECTED = $(shell whereis libpsrdada.a | cut -f 2- -d ' ' | xargs nm 2>/dev/null | grep "cuda" | wc -l)
 ifeq ($(shell test $(PSRDADA_CUDA_DETECTED) -gt 2; echo $$?),0)
 LFLAGS += -L$(CUDA_PATH)/lib -lcudart_static -lrt
 endif
