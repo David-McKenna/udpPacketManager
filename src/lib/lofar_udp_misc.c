@@ -29,7 +29,7 @@ long beamformed_packno(unsigned int timestamp, unsigned int sequence, unsigned i
  * @return     The packet number
  */
 long lofar_get_packet_number(char *inputData) {
-	return beamformed_packno(*((unsigned int*) &(inputData[UDPHDROFF + 8])), *((unsigned int*) &(inputData[UDPHDROFF + 12])), ((lofar_source_bytes*) &(inputData[UDPHDROFF + 1]))->clockBit);
+	return beamformed_packno(*((unsigned int*) &(inputData[CEP_HDR_TIME_OFFSET])), *((unsigned int*) &(inputData[CEP_HDR_SEQ_OFFSET])), ((lofar_source_bytes*) &(inputData[CEP_HDR_SRC_OFFSET]))->clockBit);
 }
 
 /**
@@ -43,8 +43,8 @@ long lofar_get_packet_number(char *inputData) {
  */
 unsigned int lofar_get_next_packet_sequence(char *inputData) {
 	return (unsigned int) ((16 * \
-			(beamformed_packno(*((unsigned int*) &(inputData[UDPHDROFF + 8])), *((unsigned int*) &(inputData[UDPHDROFF + 12])), ((lofar_source_bytes*) &(inputData[UDPHDROFF + 1]))->clockBit) + 1)) 
-			- (*((unsigned int*) &(inputData[UDPHDROFF + 8]))*1000000l*200+512)/1024);
+			(beamformed_packno(*((unsigned int*) &(inputData[CEP_HDR_TIME_OFFSET])), *((unsigned int*) &(inputData[CEP_HDR_SEQ_OFFSET])), ((lofar_source_bytes*) &(inputData[CEP_HDR_SRC_OFFSET]))->clockBit) + 1)) 
+			- (*((unsigned int*) &(inputData[CEP_HDR_TIME_OFFSET]))*1000000l*200+512)/1024);
 }
 
 /**
@@ -69,7 +69,7 @@ long lofar_get_packet_difference(unsigned int ts, long packetNumber, unsigned in
  * @return     Unix time double
  */
 double lofar_get_packet_time(char *inputData) {
-	return (double) *((unsigned int*) &(inputData[UDPHDROFF + 8])) + ((double) *((unsigned int*) &(inputData[UDPHDROFF + 12])) / (clock160MHzSteps + clockStepsDelta * ((lofar_source_bytes*) &(inputData[UDPHDROFF + 1]))->clockBit));
+	return (double) *((unsigned int*) &(inputData[CEP_HDR_TIME_OFFSET])) + ((double) *((unsigned int*) &(inputData[CEP_HDR_SEQ_OFFSET])) / (clock160MHzSteps + clockStepsDelta * ((lofar_source_bytes*) &(inputData[CEP_HDR_SRC_OFFSET]))->clockBit));
 }
 
 /**

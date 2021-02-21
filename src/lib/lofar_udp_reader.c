@@ -38,8 +38,9 @@ const lofar_udp_reader_input lofar_udp_reader_input_default = {
 	.fileRef = { NULL },
 	.dstream = { NULL },
 	.dadaKey = { -1 },
-	// External #defines apparently aren't constant according to ICC?Clang, copy/paste from ipcio/
-	.dadaReader = { { {0, -1, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1}, 0,0, 0, 0, 0, 0,0,0, 0,0,0 } }
+	.readMode = DADA_ACTIVE,
+	.dadaReader = { NULL },
+	.multilog = { NULL }	
 };
 
 
@@ -51,6 +52,7 @@ const lofar_udp_reader lofar_udp_reader_default = {
 };
 
 
+// meta with NULL-initialised values to help the cleanup function
 const lofar_udp_meta lofar_udp_meta_default = {
 	.inputData = { NULL },
 	.outputData = { NULL },
@@ -71,7 +73,7 @@ const lofar_udp_meta lofar_udp_meta_default = {
  *
  * @return     0: Success, 1: Fatal error
  */
-int lofar_udp_parse_headers(lofar_udp_meta *meta, char header[MAX_NUM_PORTS][UDPHDROFF + UDPHDRLEN], const int beamletLimits[2]) {
+int lofar_udp_parse_headers(lofar_udp_meta *meta, char header[MAX_NUM_PORTS][UDPHDRLEN], const int beamletLimits[2]) {
 
 	lofar_source_bytes *source;
 
@@ -85,32 +87,32 @@ int lofar_udp_parse_headers(lofar_udp_meta *meta, char header[MAX_NUM_PORTS][UDP
 	for (int port = 0; port < meta->numPorts; port++) {
 		VERBOSE( if(meta->VERBOSE) printf("Port %d/%d\n", port, meta->numPorts - 1););
 		// Data integrity checks
-		if ((unsigned char) header[port][UDPHDROFF + 0] < UDPCURVER) {
+		if ((unsigned char) header[port][CEP_HDR_RSP_VER_OFFSET] < UDPCURVER) {
 			fprintf(stderr, "Input header on port %d appears malformed (RSP Version less than 3), exiting.\n", port);
 			return 1;
 		}
 
-		if (*((unsigned int *) &(header[port][UDPHDROFF + 8])) <  LFREPOCH) {
+		if (*((unsigned int *) &(header[port][CEP_HDR_TIME_OFFSET])) <  LFREPOCH) {
 			fprintf(stderr, "Input header on port %d appears malformed (data timestamp before 2008), exiting.\n", port);
 			return 1;
 		}
 
-		if (*((unsigned int *) &(header[port][UDPHDROFF + 12])) > RSPMAXSEQ) {
-			fprintf(stderr, "Input header on port %d appears malformed (sequence higher than 200MHz clock maximum, %d), exiting.\n", port, *((unsigned int *) &(header[port][UDPHDROFF + 12])));
+		if (*((unsigned int *) &(header[port][CEP_HDR_SEQ_OFFSET])) > RSPMAXSEQ) {
+			fprintf(stderr, "Input header on port %d appears malformed (sequence higher than 200MHz clock maximum, %d), exiting.\n", port, *((unsigned int *) &(header[port][CEP_HDR_SEQ_OFFSET])));
 			return 1;
 		}
 
-		if ((unsigned char) header[port][UDPHDROFF + 6] > UDPMAXBEAM) {
-			fprintf(stderr, "Input header on port %d appears malformed (more than %d beamlets on a port, %d), exiting.\n", port, UDPMAXBEAM, header[port][UDPHDROFF + 6]);
+		if ((unsigned char) header[port][CEP_HDR_NBEAM_OFFSET] > UDPMAXBEAM) {
+			fprintf(stderr, "Input header on port %d appears malformed (more than %d beamlets on a port, %d), exiting.\n", port, UDPMAXBEAM, header[port][CEP_HDR_NBEAM_OFFSET]);
 			return 1;
 		}
 
-		if ((unsigned char) header[port][UDPHDROFF + 7] != UDPNTIMESLICE) {
-			fprintf(stderr, "Input header on port %d appears malformed (time slices are %d, not UDPNTIMESLICE), exiting.\n", port, header[port][UDPHDROFF + 7]);
+		if ((unsigned char) header[port][CEP_HDR_NTIMESLICE_OFFSET] != UDPNTIMESLICE) {
+			fprintf(stderr, "Input header on port %d appears malformed (time slices are %d, not UDPNTIMESLICE), exiting.\n", port, header[port][CEP_HDR_NTIMESLICE_OFFSET]);
 			return 1;
 		}
 
-		source = (lofar_source_bytes*) &(header[port][UDPHDROFF + 1]);
+		source = (lofar_source_bytes*) &(header[port][CEP_HDR_SRC_OFFSET]);
 		if (source->padding0 != 0) {
 			fprintf(stderr, "Input header on port %d appears malformed (padding bit (0) is set), exiting.\n", port);
 			return 1;
@@ -136,11 +138,11 @@ int lofar_udp_parse_headers(lofar_udp_meta *meta, char header[MAX_NUM_PORTS][UDP
 
 		// Extract the station ID
 		// Divide by 32 to convert from (my current guess based on SE607 / IE613 codes) RSP IDs to station codes
-		meta->stationID = *((short*) &(header[port][UDPHDROFF + 4])) / 32;
+		meta->stationID = *((short*) &(header[port][CEP_HDR_STN_ID_OFFSET])) / 32;
 
 		// Determine the number of beamlets on the port
-		VERBOSE(printf("port %d, bitMode %d, beamlets %d (%u)\n", port, source->bitMode, (int) ((unsigned char) header[port][UDPHDROFF + 6]), (unsigned char) header[port][UDPHDROFF + 6]););
-		meta->portRawBeamlets[port] = (int) ((unsigned char) header[port][UDPHDROFF + 6]);
+		VERBOSE(printf("port %d, bitMode %d, beamlets %d (%u)\n", port, source->bitMode, (int) ((unsigned char) header[port][CEP_HDR_NBEAM_OFFSET]), (unsigned char) header[port][CEP_HDR_NBEAM_OFFSET]););
+		meta->portRawBeamlets[port] = (int) ((unsigned char) header[port][CEP_HDR_NBEAM_OFFSET]);
 
 		// Assume we are processing all beamlets by default
 		meta->upperBeamlets[port] = meta->portRawBeamlets[port];
@@ -289,6 +291,7 @@ int lofar_udp_skip_to_packet(lofar_udp_reader *reader) {
 			// Account for packet ddsync between ports
  			for (int portInner = 0; portInner < reader->meta->numPorts; portInner++) {
 				reader->meta->portLastDroppedPackets[portInner] = lofar_get_packet_number(&(reader->meta->inputData[portInner][lastPacketOffset])) - (currentPacket + reader->meta->packetsPerIteration);
+				
 				VERBOSE(if (reader->meta->portLastDroppedPackets[portInner]) {
 					printf("%d: %d packets lost.\n", portInner, reader->meta->portLastDroppedPackets[portInner]);
 				});
@@ -299,14 +302,8 @@ int lofar_udp_skip_to_packet(lofar_udp_reader *reader) {
 				}
 			}
 
-			// Get the new last packet
-			if (returnVal == -2) {
-				// If we have a large amount of packet loss, update directly
-				currentPacket = lofar_get_packet_number(&(reader->meta->inputData[0][lastPacketOffset]));
-			} else {
-				// Otherwise just add the number of iterations
-				currentPacket += reader->meta->packetsPerIteration;			
-			}
+			currentPacket = lofar_get_packet_number(&(reader->meta->inputData[port][lastPacketOffset]));
+
 
 			// Print a status update to the CLI
 			printf("\rScanning to packet %ld (~%.02f%% complete, currently at packet %ld on port %d, %ld to go)", reader->meta->lastPacket, (float) 100.0 -  (float) (reader->meta->lastPacket - currentPacket) / (packetDelta) * 100.0, currentPacket, port, reader->meta->lastPacket - currentPacket);
@@ -330,6 +327,11 @@ int lofar_udp_skip_to_packet(lofar_udp_reader *reader) {
 
 		// Get the current packet, and guess the target packet by assuming no packet loss
 		currentPacket = lofar_get_packet_number(&(reader->meta->inputData[port][0]));
+
+		if ((reader->meta->lastPacket - currentPacket) > reader->meta->packetsPerIteration || (reader->meta->lastPacket - currentPacket) < 0) {
+			fprintf(stderr, "WARNING: lofar_udp_skip_to_packet just attempted to do an illegal memory access, resetting target packet to prevent it (%ld, %ld -> %ld).\n", reader->meta->lastPacket, currentPacket, reader->packetsPerIteration / 2);
+			currentPacket = reader->packetsPerIteration / 2;
+		}
 		guessPacket = lofar_get_packet_number(&(reader->meta->inputData[port][(reader->meta->lastPacket - currentPacket) * reader->meta->portPacketLength[port]]));
 
 		VERBOSE(printf("lofar_udp_skip_to_packet: searching within current array starting index %ld (max %ld)...\n", (reader->meta->lastPacket - currentPacket) * reader->meta->portPacketLength[port], reader->meta->packetsPerIteration * reader->meta->portPacketLength[port]););
@@ -361,7 +363,16 @@ int lofar_udp_skip_to_packet(lofar_udp_reader *reader) {
 			// Iterate until we reach a target packet
 			while(guessPacket != reader->meta->lastPacket) {
 				VERBOSE(printf("lofar_udp_skip_to_packet: meta search: currentGuess %ld, lastGuess %ld, target %ld...\n", guessPacket, lastPacketOffset, reader->meta->lastPacket););
+				if (endOff > reader->packetsPerIteration || endOff < 0) {
+					fprintf(stderr, "WARNING: lofar_udp_skip_to_packet just attempted to do an illegal memory access, resetting search end offfset to %ld (%ld).\n", reader->packetsPerIteration, endOff);
+					endOff = reader->packetsPerIteration;
+				}
 				
+				if (startOff > reader->packetsPerIteration || startOff < 0) {
+					fprintf(stderr, "WARNING: lofar_udp_skip_to_packet just attempted to do an illegal memory access, resetting search end offfset to %d (%ld).\n", 0, startOff);
+					startOff = 0;
+				}
+
 				// Update the offsrt, binary search iteration style
 				nextOff = (startOff + endOff) / 2;
 
@@ -385,9 +396,10 @@ int lofar_udp_skip_to_packet(lofar_udp_reader *reader) {
 
 				// If we can't find the packet, shift the indices away and try find the next packet
 				if (startOff > endOff) {
+					fprintf(stderr, "WARNING: Unable to find packet %ld in output array, attmepting to find %ld\n", reader->meta->lastPacket, reader->meta->lastPacket + 1);
 					reader->meta->lastPacket += 1;
-					startOff -= 20;
-					endOff += 20;
+					startOff -= 10;
+					endOff += 10;
 				}
 
 			}
@@ -441,8 +453,9 @@ lofar_udp_reader* lofar_udp_file_reader_setup(lofar_udp_meta *meta, lofar_udp_co
 	reader = lofar_udp_reader_default;
 	input = lofar_udp_reader_input_default;
 	reader.input = &input;
+	reader.input->readMode = config->readMode;
 
-	// Initialise the reader struct as needed
+	// Initialise the reader struct from config
 	reader.readerType = (reader_t) config->readerType;
 	reader.packetsPerIteration = meta->packetsPerIteration;
 	reader.meta = meta;
@@ -504,15 +517,35 @@ lofar_udp_reader* lofar_udp_file_reader_setup(lofar_udp_meta *meta, lofar_udp_co
 		// Not always available: can be disabled at compile time
 		} else if (reader.readerType == DADA) {
 #ifndef NODADA
-			reader.input->dadaReader[port] = IPCIO_INIT;
-			if (ipcio_connect(&(reader.input->dadaReader[port]), config->dadaKeys[port])) {
-				returnVal = 1;
-			}
+			// Init the logger and HDU
+			reader.input->multilog[port] = multilog_open("UdpPacketManager", 0);
+			reader.input->dadaReader[port] = dada_hdu_create(reader.input->multilog[port]);
 
-			if (ipcio_open(&(reader.input->dadaReader[port]), 'R')) {
+			if (reader.input->multilog[port] == NULL || reader.input->dadaReader[port] == NULL) {
+				fprintf(stderr, "ERROR: Unable to initialsie PSRDADA logger on port %d. Exiting.\n", port);
 				returnVal = 1;
+			} else {
+
+				// If successful, connect to the ingbuffer as a given reader type
+				dada_hdu_set_key(reader.input->dadaReader[port], config->dadaKeys[port]);
+				if (dada_hdu_connect(reader.input->dadaReader[port])) {
+					returnVal = 1;
+				}
+
+				if (config->readMode == DADA_ACTIVE) {
+					if (dada_hdu_lock_read(reader.input->dadaReader[port])) {
+						returnVal = 1;
+					}
+				} else if (config->readMode == DADA_PASSIVE) {
+					if (dada_hdu_open_view(reader.input->dadaReader[port])) {
+						returnVal = 1;
+					}
+				} else {
+					fprintf(stderr, "ERROR: Unknown DADA read mode %d. Exiting.\n", config->readMode);
+					returnVal = 1;
+				}
+				reader.input->dadaKey[port] = config->dadaKeys[port];
 			}
-			reader.input->dadaKey[port] = config->dadaKeys[port];
 #else
 			fprintf(stderr, "ERROR: PSRDADA was disabled at compile time, exiting.\n");
 			returnVal = 1;
@@ -895,7 +928,7 @@ lofar_udp_reader* lofar_udp_meta_file_reader_setup_struct(lofar_udp_config *conf
 	// Setup the metadata struct and a few variables we'll need
 	static lofar_udp_meta meta;
 	meta = lofar_udp_meta_default;
-	char inputHeaders[MAX_NUM_PORTS][UDPHDRLEN + UDPHDROFF];
+	char inputHeaders[MAX_NUM_PORTS][UDPHDRLEN];
 	int readlen, bufferSize;
 	long localMaxPackets = config->packetsReadMax;
 
@@ -921,17 +954,17 @@ lofar_udp_reader* lofar_udp_meta_file_reader_setup_struct(lofar_udp_config *conf
 	for (int port = 0; port < meta.numPorts; port++) {
 		
 		if (config->readerType == NORMAL) {
-			readlen = fread(&(inputHeaders[port]), sizeof(char), UDPHDRLEN + UDPHDROFF, config->inputFiles[port]);
-			fseek(config->inputFiles[port], -UDPHDRLEN - UDPHDROFF, SEEK_CUR);
+			readlen = fread(&(inputHeaders[port]), sizeof(char), UDPHDRLEN, config->inputFiles[port]);
+			fseek(config->inputFiles[port], -UDPHDRLEN, SEEK_CUR);
 
 
 		} else if (config->readerType == ZSTDCOMPRESSED)  {
-			readlen = fread_temp_ZSTD(&(inputHeaders[port][0]), sizeof(char), UDPHDRLEN + UDPHDROFF, config->inputFiles[port], 1);
+			readlen = fread_temp_ZSTD(&(inputHeaders[port][0]), sizeof(char), UDPHDRLEN, config->inputFiles[port], 1);
 
 
 		} else if (config->readerType == DADA) {
 #ifndef NODADA
-			readlen = fread_temp_dada(&(inputHeaders[port][0]), sizeof(char), UDPHDRLEN + UDPHDROFF, config->dadaKeys[port], 1);
+			readlen = fread_temp_dada(&(inputHeaders[port][0]), sizeof(char), UDPHDRLEN, config->dadaKeys[port], 1);
 #else
 			fprintf(stderr, "ERROR: PSRDADA was disabled at compile time, exiting.\n");
 			return NULL;
@@ -1135,11 +1168,29 @@ int lofar_udp_reader_cleanup_f(lofar_udp_reader *reader, const int closeFiles) {
 
 			} else if (reader->readerType == DADA) {
 #ifndef NODADA
-				if (ipcio_close(&(reader->input->dadaReader[i]))) {
-					fprintf(stderr, "ERROR: Failed to close PSRDADA buffer %d on port %d.\n", reader->input->dadaKey[i], i);
+				if (reader->input->dadaReader[i] != NULL) {
+					if (reader->input->readMode == DADA_ACTIVE) {
+						if (dada_hdu_unlock_read(reader->input->dadaReader[i]) < 0) {
+							fprintf(stderr, "ERROR: Failed to close PSRDADA buffer %d on port %d.\n", reader->input->dadaKey[i], i);
+						}
+					} else if (reader->input->readMode == DADA_ACTIVE) {
+						if (dada_hdu_close_view(reader->input->dadaReader[i]) < 0) {
+							fprintf(stderr, "ERROR: Failed to close PSRDADA buffer %d on port %d.\n", reader->input->dadaKey[i], i);
+						}
+					} else {
+						fprintf(stderr, "ERROR: Unknown PSRDADA read mode %d, unable to clean up HDU.\n", reader->input->readMode);
+					}
+
+
+					if (dada_hdu_disconnect(reader->input->dadaReader[i]) < 0) {
+						fprintf(stderr, "ERROR: Failed to disconnect from PSRDADA buffer %d on port %d.\n", reader->input->dadaKey[i], i);
+					}
 				}
-				if (ipcio_disconnect(&(reader->input->dadaReader[i])) < 0) {
-					fprintf(stderr, "ERROR: Failed to disconnect from PSRDADA buffer %d on port %d.\n", reader->input->dadaKey[i], i);
+
+				if (reader->input->multilog[i] != NULL) {
+					if (multilog_close(reader->input->multilog[i]) < 0) {
+						fprintf(stderr, "ERROR: Failed to close PSRDADA multilogger struct on port %d.\n", i);
+					}
 				}
 #endif
 			}
@@ -1423,23 +1474,9 @@ long lofar_udp_reader_nchars(lofar_udp_reader *reader, const int port, char *tar
 		// Get data from the PSRDADA buffer
 		VERBOSE(if (reader->meta->VERBOSE) printf("reader_nchars: Entering read request (dada): %d, %d, %ld\n", port, reader->input->dadaKey[port], nchars));
 		
-		// Open the ringbuffer for reader
-		// Note: PSRDADA prints it's own errors on stderr
-		/*
-		if (ipcio_open(&(reader->input->dadaReader[port]), 'R')) {
-			return -1;
-		}
-		*/
 		// Read the data into the target array
-		long dataRead = ipcio_read(&(reader->input->dadaReader[port]), targetArray, nchars);
+		long dataRead = ipcio_read(reader->input->dadaReader[port]->data_block, targetArray, nchars);
 
-
-		// Close the ringbuffer so that other processes can read/write from/to it
-		/*
-		if (ipcio_close(&(reader->input->dadaReader[port]))) {
-			return -1;
-		}
-		*/
 		return dataRead;
 
 #else

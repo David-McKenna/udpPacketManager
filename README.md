@@ -40,6 +40,8 @@ No dreamBeam:	Total Read Time:	285.35		Total CPU Ops Time:	49.42	Total Write Tim
 
 Performance can be improved in the GCC path by modifying the default THREADS variable to be between 8 and the number of raw cores (not including hyper-threads) per CPU installed in your machine, though including too many threads causes performance degradation extremely quickly. The number of threads can be set at run time as well.
 
+Installing ICC is now free using the [Intel oneAPI repositories](https://software.intel.com/content/www/us/en/develop/articles/installing-intel-oneapi-toolkits-via-apt.html), or you can just install the IOMP library (`intel-oneapi-openmp intel-oneapi-runtime-openmp`) and use GCC if you include `IOMP=1` as a enviroment or Makefile input flag.
+
 #### Using ICC built objects with GCC/NVCC
 While ICC offers significant performance improvements, if downstream objects cannot be compiled with ICC/ICPC, you will need to include extra flags to link in the Intel libraries as they cannot be statically included. As a result, these flags need to be included. 
 

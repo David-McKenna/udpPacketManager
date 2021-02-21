@@ -15,42 +15,22 @@ CXX		= g++
 endif
 endif
 
+IOMP ?= 0
+
 
 # Library versions
-LIB_VER = 0.6
-LIB_VER_MINOR = 2
-CLI_VER = 0.4
+LIB_VER = 0.7
+LIB_VER_MINOR = 0
+CLI_VER = 0.5
 
 # Detemrine the max threads per socket to speed up execution via OpenMP with ICC (GCC falls over if we set too many)
 THREADS ?= $(shell cat /proc/cpuinfo | uniq | grep -m 2 "siblings" | cut -d ":" -f 2 | sort --numeric --unique | awk '{printf("%d", $$1);}')
 
 # Docker compilation variables
-NPROC = $(shell nproc)
-BUILD_CORES = $(shell echo $(NPROC) '0.75' | awk '{printf "%1.0f", $$1*$$2}')
-BUILD_DATE = $(shell date --iso-8601)
+NPROC ?= $(shell nproc)
+BUILD_CORES ?= $(shell echo $(NPROC) '0.75' | awk '{printf "%1.0f", $$1*$$2}')
+BUILD_DATE ?= $(shell date --iso-8601)
 OPT_ARCH ?= "native"
-
-CFLAGS 	+= -W -Wall -Ofast -march=$(OPT_ARCH) -mtune=$(OPT_ARCH) -fPIC
-CFLAGS  += -DVERSION=$(LIB_VER) -DVERSION_MINOR=$(LIB_VER_MINOR) -DVERSIONCLI=$(CLI_VER)
-#CFLAGS  += -fsanitize=address -DALLOW_VERBOSE -g # -DBENCHMARKING -g -DALLOW_VERBOSE #-D__SLOWDOWN
-# -fopt-info-missed=compiler_report_missed.log -fopt-info-vec=compiler_report_vec.log -fopt-info-loop=compiler_report_loop.log -fopt-info-inline=compiler_report_inline.log -fopt-info-omp=compiler_report_omp.log
-
-# Adjust flags based on the compiler
-# GCC has negative scaling when the number of threads is greater than twice the number of ports
-# ICC will take everything you throw at it.
-ifeq ($(CC), icc)
-AR = xiar
-CFLAGS += -fast -static -static-intel -qopenmp-link=static -DOMP_THREADS=$(THREADS)
-else
-AR = ar
-CFLAGS += -static -DOMP_THREADS=8 -funswitch-loops
-LFLAGS += -fopenmp-simd 
-endif
-
-# Ensure we're using C++17
-CXXFLAGS += $(CFLAGS) -std=c++17
-
-LFLAGS 	+= -I./src -I./src/lib -I./src/CLI -I/usr/include/ -lzstd -fopenmp #-lefence
 
 
 # Include PSRDADA if it is not disabled
@@ -68,6 +48,38 @@ endif
 else
 CFLAGS += -DNODADA
 endif
+
+
+CFLAGS += -W -Wall -Ofast -march=$(OPT_ARCH) -mtune=$(OPT_ARCH) -fPIC
+CFLAGS += -DVERSION=$(LIB_VER) -DVERSION_MINOR=$(LIB_VER_MINOR) -DVERSIONCLI=$(CLI_VER)
+#CFLAGS  += -fsanitize=address -DALLOW_VERBOSE -g # -DBENCHMARKING -g -DALLOW_VERBOSE #-D__SLOWDOWN
+# -fopt-info-missed=compiler_report_missed.log -fopt-info-vec=compiler_report_vec.log -fopt-info-loop=compiler_report_loop.log -fopt-info-inline=compiler_report_inline.log -fopt-info-omp=compiler_report_omp.log
+
+# Adjust flags based on the compiler
+# GCC has negative scaling when the number of threads is greater than twice the number of ports
+# ICC will take everything you throw at it.
+ifeq ($(CC), icc)
+AR = xiar
+CFLAGS += -fast -static -static-intel -qopenmp-link=static -DOMP_THREADS=$(THREADS) -fopenmp
+else
+AR = ar
+CFLAGS += -static -funswitch-loops -fopenmp
+ifeq ($(IOMP),0)
+CFLAGS += -DOMP_THREADS=8
+LFLAGS += -fopenmp-simd
+else
+CFLAGS += -DOMP_THREADS=$(THREADS)
+LFLAGS += -L$(ONEAPI_ROOT)/compiler/latest/linux/compiler/lib/intel64_lin/ -liomp5 -lirc
+endif
+endif
+
+# Ensure we're using C++17
+CXXFLAGS += $(CFLAGS) -std=c++17
+
+LFLAGS 	+= -I./src -I./src/lib -I./src/CLI -I/usr/include/ -lzstd #-lefence
+
+
+
 
 
 # Define our general build targets
@@ -140,7 +152,11 @@ calibration-prep:
 	wget ftp://ftp.astron.nl/outgoing/Measures/WSRT_Measures.ztar -O $(CASACOREDIR)WSRT_Measures.ztar; \
 	tar -xzvf $(CASACOREDIR)WSRT_Measures.ztar -C /usr/share/casacore/data/; \
 
-docker-build:
+docker-build: docker-pull
+	docker build --build-arg BUILD_CORES=$(BUILD_CORES) --build-arg BUILD_DATE=$(BUILD_DATE) --build-arg ARCH=$(ARCH) -t lofar-upm:$(LIB_VER).$(LIB_VER_MINOR) -f src/docker/Dockerfile_software .
+
+docker-build-full:
+	docker build --build-arg BUILD_CORES=$(BUILD_CORES) --build-arg BUILD_DATE=$(BUILD_DATE) --build-arg ARCH=$(ARCH) -t mckennadavid/lofar-upm-devbase:$(LIB_VER).$(LIB_VER_MINOR) -f src/docker/Dockerfile_base .
 	docker build --build-arg BUILD_CORES=$(BUILD_CORES) --build-arg BUILD_DATE=$(BUILD_DATE) --build-arg ARCH=$(ARCH) -t lofar-upm:$(LIB_VER).$(LIB_VER_MINOR) -f src/docker/Dockerfile_software .
 
 docker-pull:

@@ -23,10 +23,10 @@ extern char **environ;
 
 // PSRDADA includes
 #ifndef NODADA
-#include <ipcbuf.h>
-#include <ipcio.h>
+#include "dada_hdu.h"
 #else
-typedef struct ipcio_t ipcio_t;
+typedef struct dada_hdu_t dada_hdu_t;
+typedef struct multilog_t multilog_t;
 #endif
 
 #include "lofar_udp_general.h"
@@ -40,6 +40,11 @@ typedef enum {
 	DADA,
 	BITSHFLCOMPRESSED
 } reader_t;
+
+typedef enum {
+	DADA_ACTIVE,
+	DADA_PASSIVE
+} dada_reader_t;
 
 typedef struct lofar_udp_calibration {
 	// The current calibration step we are on and the amount that have been generated
@@ -143,7 +148,9 @@ typedef struct lofar_udp_reader_input {
 
 	// PSRDADA keys, buffers
 	int dadaKey[MAX_NUM_PORTS];
-	ipcio_t dadaReader[MAX_NUM_PORTS];
+	dada_reader_t readMode;
+	multilog_t *multilog[MAX_NUM_PORTS];
+	dada_hdu_t *dadaReader[MAX_NUM_PORTS];
 
 } lofar_udp_reader_input;
 extern const lofar_udp_reader_input lofar_udp_reader_input_meta;
@@ -211,8 +218,9 @@ typedef struct lofar_udp_config {
 	// Number of OMP threads to use while processing
 	int ompThreads;
 
-	// Input PSRDADA ringbuffer keys
+	// Input PSRDADA ringbuffer keys, read modes
 	int dadaKeys[MAX_NUM_PORTS];
+	dada_reader_t readMode;
 
 } lofar_udp_config;
 extern const lofar_udp_config lofar_udp_config_default;
