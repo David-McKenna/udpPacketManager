@@ -1289,6 +1289,13 @@ int lofar_udp_raw_loop(lofar_udp_meta *meta) {
 				lastInputPacketOffset = 0;
 			}
 
+			// Many different configurations use different variables so they all need to be past, even if they aren't used
+			// GCC complains if any given template does not use a varible, since the warning.
+			#pragma GCC diagnostic push
+			#pragma GCC diagnostic ignored "-Wunused-but-set-variable"
+			#pragma GCC diagnostic push
+			#pragma GCC diagnostic push
+
 			// Effectively a large switch statement, but more performant as it's decided at compile time.
 			if constexpr (trueState == 0) {
 				udp_copy<char, char>(iLoop, inputPortData, (char**) outputData, port, lastInputPacketOffset, packetOutputLength);
@@ -1392,6 +1399,8 @@ int lofar_udp_raw_loop(lofar_udp_meta *meta) {
 				exit(1);
 			}
 
+			#pragma GCC diagnostic pop
+			#pragma GCC diagnostic pop
 
 			// End task block, update cached variables as needed
 			}

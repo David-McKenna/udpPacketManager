@@ -151,8 +151,6 @@ int lofar_udp_parse_headers(lofar_udp_meta *meta, char header[MAX_NUM_PORTS][UDP
 		// Ordering is intentional so that we get the number of beamlets before this port.
 		meta->portRawCumulativeBeamlets[port] = meta->totalRawBeamlets;
 		meta->portCumulativeBeamlets[port] = meta->totalProcBeamlets;
-		meta->totalRawBeamlets += meta->portRawBeamlets[port];
-
 
 		// Set the  upper, lower limit of beamlets as needed
 		
@@ -173,6 +171,10 @@ int lofar_udp_parse_headers(lofar_udp_meta *meta, char header[MAX_NUM_PORTS][UDP
 			meta->baseBeamlets[port] = 0;
 			meta->totalProcBeamlets += meta->upperBeamlets[port];
 		}
+
+		// Update the number of raw beamlets now that we have used the previous values to determine offsets
+		meta->totalRawBeamlets += meta->portRawBeamlets[port];
+
 
 		// Check the bitmode on the port
 		switch (source->bitMode) {
@@ -1279,7 +1281,7 @@ int lofar_udp_reader_calibration(lofar_udp_reader *reader) {
 
 	VERBOSE(printf("Fork\n"););
 	if (returnVal == 0) {
-		VERBOSE(printf("dreamBeam called on pid %d\n", pid));
+		VERBOSE(printf("dreamBeam has been launched.\n"));
 	} else if (returnVal < 0) {
 		fprintf(stderr, "ERROR: Unable to create child process to call dreamBeam. Exiting.\n");
 		return 1;
