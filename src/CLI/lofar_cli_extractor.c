@@ -50,6 +50,8 @@ int main(int argc, char  *argv[]) {
 	FILE *eventsFilePtr;
 
 	lofar_udp_config config = lofar_udp_config_default;
+	lofar_udp_calibration cal = lofar_udp_calibration_default;
+	config.calibrationConfiguration = &cal;
 
 	// Set up reader loop variables
 	int loops = 0, localLoops = 0, returnVal, dummy;
