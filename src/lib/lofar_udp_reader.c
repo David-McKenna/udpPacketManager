@@ -2005,6 +2005,8 @@ int fread_temp_ZSTD(void *outbuf, const size_t size, int num, FILE* inputFile, c
 
 }
 
+
+#ifndef NODADA
 /**
  * @brief      Temporarily read in num bytes from a PSRDADA ringbuffer
  *
@@ -2018,8 +2020,6 @@ int fread_temp_ZSTD(void *outbuf, const size_t size, int num, FILE* inputFile, c
  * @return     int 0: ZSTD error, 1: File error, other: data read length
  */
 int fread_temp_dada(void *outbuf, const size_t size, int num, int dadaKey, const int resetSeek) {
-
-#ifndef NODADA
 	ipcio_t tmpReader = IPCIO_INIT;
 	// Al of these functions print their own error messages.
 
@@ -2055,11 +2055,8 @@ int fread_temp_dada(void *outbuf, const size_t size, int num, int dadaKey, const
 	}
 
 	return returnlen;
-#else
-	return 0;
-#endif
-
 }
+#endif
 
 /**
  * @brief      Get the size of a file descriptor on disk

@@ -1063,31 +1063,30 @@ int lofar_udp_raw_loop(lofar_udp_meta *meta) {
 	#pragma GCC diagnostic push
 	#pragma GCC diagnostic ignored "-Wunused-variable"
 	#pragma GCC diagnostic ignored "-Wunused-but-set-variable"
-	#pragma GCC diagnostic ignored "-Wuninitialized"
-	#pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
 	#pragma GCC diagnostic push
 	#pragma GCC diagnostic push
 	#pragma GCC diagnostic push
 	#pragma GCC diagnostic push
 	constexpr int decimation = 1 << (state % 10);
 
-	char **byteWorkspace;
+	char **byteWorkspace = NULL;
 	if constexpr (state >= 4010) {
-		byteWorkspace = (char**) malloc(sizeof(char *) * OMP_THREADS);
 		VERBOSE(if (verbose) printf("Allocating %ld bytes at %p\n", sizeof(char *) * OMP_THREADS, (void *) byteWorkspace););
+		byteWorkspace = (char**) malloc(sizeof(char *) * OMP_THREADS);
 		int maxPacketSize = 0;
 		for (int port = 0; port < meta->numPorts; port++) {
 			if (meta->portPacketLength[port] > maxPacketSize) {
 				maxPacketSize = meta->portPacketLength[port];
 			}
 		}
-		for (int i = 0; i < OMP_THREADS; i++) {
-			byteWorkspace[i] = (char*) malloc(2 * maxPacketSize - 2 * UDPHDRLEN * sizeof(char));
-			VERBOSE(if (verbose) printf("Allocating %d bytes at %p\n", 2 * maxPacketSize - 2 * UDPHDRLEN, (void *) byteWorkspace[i]););
+		VERBOSE(if (verbose) printf("Allocating %d bytes at %p\n", OMP_THREADS * 2 * maxPacketSize - 2 * UDPHDRLEN, (void *) byteWorkspace[0]););
+		int calSampleSize =  2 * maxPacketSize - 2 * UDPHDRLEN * sizeof(char);
+		byteWorkspace[0] = (char*) malloc(OMP_THREADS * calSampleSize);
+
+		for (int i = 1; i < OMP_THREADS; i++) {
+			byteWorkspace[i] = byteWorkspace[0] + i * calSampleSize;
 		}
 	}
-	#pragma GCC diagnostic pop
-	#pragma GCC diagnostic pop
 	#pragma GCC diagnostic pop
 	#pragma GCC diagnostic pop
 
@@ -1289,13 +1288,6 @@ int lofar_udp_raw_loop(lofar_udp_meta *meta) {
 				lastInputPacketOffset = 0;
 			}
 
-			// Many different configurations use different variables so they all need to be past, even if they aren't used
-			// GCC complains if any given template does not use a varible, since the warning.
-			#pragma GCC diagnostic push
-			#pragma GCC diagnostic ignored "-Wunused-but-set-variable"
-			#pragma GCC diagnostic push
-			#pragma GCC diagnostic push
-
 			// Effectively a large switch statement, but more performant as it's decided at compile time.
 			if constexpr (trueState == 0) {
 				udp_copy<char, char>(iLoop, inputPortData, (char**) outputData, port, lastInputPacketOffset, packetOutputLength);
@@ -1399,8 +1391,6 @@ int lofar_udp_raw_loop(lofar_udp_meta *meta) {
 				exit(1);
 			}
 
-			#pragma GCC diagnostic pop
-			#pragma GCC diagnostic pop
 
 			// End task block, update cached variables as needed
 			}
@@ -1449,11 +1439,9 @@ int lofar_udp_raw_loop(lofar_udp_meta *meta) {
 
 	// If needed, free the 4-bit workspace
 	if constexpr (state >= 4010) {
-		for (int i = 0; i < OMP_THREADS; i++) {
-			VERBOSE(if (verbose) printf("freeing byteWorkspace data at %p\n", (void *) byteWorkspace[i]););
-			free(byteWorkspace[i]);
-		}
-		VERBOSE(if (verbose) printf("byteWorkspaceSubArrays free'd\n"););
+		VERBOSE(if (verbose) printf("freeing byteWorkspace data at %p\n", (void *) byteWorkspace[0]););
+		free(byteWorkspace[0]);
+
 		free(byteWorkspace);
 		VERBOSE(if (verbose) printf("byteWorkspace free'd\n"););
 	}

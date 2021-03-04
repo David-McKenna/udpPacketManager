@@ -142,7 +142,7 @@ int main(int argc, char  *argv[]) {
 
 			case 'c':
 				calPoint = 1;
-				strcpy(config.calibrationConfiguration->calibrationSubbands, optarg);
+				strcpy(&(config.calibrationConfiguration->calibrationSubbands[0]), optarg);
 				break;
 
 			case 'd':
