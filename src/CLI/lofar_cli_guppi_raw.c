@@ -41,7 +41,7 @@ int main(int argc, char  *argv[]) {
 	int inputOpt, outputFilesCount, input = 0;
 	float seconds = 0.0;
 	double sampleTime = 0.0;
-	char inputFormat[256] = "./%d", outputFormat[256] = "./output_%d", inputTime[256] = "", stringBuff[128], hdrFile[2048] = "", timeStr[28] = "";
+	char inputFormat[256] = "./%d", outputFormat[256] = "./output_%d", inputTime[256] = "", stringBuff[128], hdrFile[2048] = "", timeStr[28] = "", readerChar = 'R';
 	int silent = 0, appendMode = 0, itersPerFile = INT_MAX, basePort = 0, dadaInput = 0, dadaOffset = 0;
 	unsigned int clock200MHz = 1;
 	
@@ -73,11 +73,25 @@ int main(int argc, char  *argv[]) {
 			case 'k':
 #ifndef NODADA
 				if (dadaInput == -1) {
-					fprintf(stderr, "ERROR: Specific input ringbuffer after defininig an input file, exiting.\n");
+					fprintf(stderr, "ERROR: Specified input ringbuffer after defining an input file, exiting.\n");
 					return 1;
 				}
+				dadaInput = sscanf(optarg, "%d,%d,%c", &(config.dadaKeys[0]), &dadaOffset, &readerChar);
+				if (dadaInput < 1 || dadaInput > 3) {
+					fprintf(stderr, "ERROR: Failed to parse PSRDADA keys inpu (%d values parsed), exiting.\n", dadaInput);
+					return 1;
+				} else if (dadaInput <= 3) {
+					if (readerChar == 'R') {
+						config.readerType = DADA_ACTIVE;
+					} else if (readerChar == 'r') {
+						config.readerType = DADA_PASSIVE;
+					} else {
+						fprintf(stderr, "ERROR: Unable to determine PSRDADA reader mode (passed %c, expected R or r), exiting.\n", readerChar);
+						return 1;
+					}
+				}
+				
 				dadaInput = 1;
-				sscanf(optarg, "%d,%d", &(config.dadaKeys[0]), &dadaOffset);
 #else
 				fprintf(stderr, "ERROR: PSRDADA key specified when PSRDADA was disable at compile time, exiting.\n");
 				return 1;
@@ -232,7 +246,6 @@ int main(int argc, char  *argv[]) {
 		for (int i = 1; i < config.numPorts; i++) {
 			config.dadaKeys[i] = config.dadaKeys[0] + i * dadaOffset;
 		}
-		config.readerType = DADA;
 	}
 
 

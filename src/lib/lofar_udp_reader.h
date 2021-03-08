@@ -35,16 +35,12 @@ typedef struct multilog_t multilog_t;
 #define __LOFAR_UDP_READER_STRUCTS
 
 typedef enum {
-	NORMAL,
-	ZSTDCOMPRESSED,
-	DADA,
-	BITSHFLCOMPRESSED
+	NORMAL = 1,
+	ZSTDCOMPRESSED = 2,
+	DADA_ACTIVE = 4,
+	DADA_PASSIVE = 8,
+	BITSHFLCOMPRESSED = 16
 } reader_t;
-
-typedef enum {
-	DADA_ACTIVE,
-	DADA_PASSIVE
-} dada_reader_t;
 
 typedef struct lofar_udp_calibration {
 	// The current calibration step we are on and the amount that have been generated
@@ -148,7 +144,6 @@ typedef struct lofar_udp_reader_input {
 
 	// PSRDADA keys, buffers
 	int dadaKey[MAX_NUM_PORTS];
-	dada_reader_t readMode;
 	multilog_t *multilog[MAX_NUM_PORTS];
 	dada_hdu_t *dadaReader[MAX_NUM_PORTS];
 
@@ -218,9 +213,8 @@ typedef struct lofar_udp_config {
 	// Number of OMP threads to use while processing
 	int ompThreads;
 
-	// Input PSRDADA ringbuffer keys, read modes
+	// Input PSRDADA ringbuffer keys
 	int dadaKeys[MAX_NUM_PORTS];
-	dada_reader_t readMode;
 
 } lofar_udp_config;
 extern const lofar_udp_config lofar_udp_config_default;

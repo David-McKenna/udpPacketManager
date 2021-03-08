@@ -38,7 +38,6 @@ const lofar_udp_reader_input lofar_udp_reader_input_default = {
 	.fileRef = { NULL },
 	.dstream = { NULL },
 	.dadaKey = { -1 },
-	.readMode = DADA_ACTIVE,
 	.dadaReader = { NULL },
 	.multilog = { NULL }	
 };
@@ -455,7 +454,6 @@ lofar_udp_reader* lofar_udp_file_reader_setup(lofar_udp_meta *meta, lofar_udp_co
 	reader = lofar_udp_reader_default;
 	input = lofar_udp_reader_input_default;
 	reader.input = &input;
-	reader.input->readMode = config->readMode;
 
 	// Initialise the reader struct from config
 	reader.readerType = (reader_t) config->readerType;
@@ -517,10 +515,10 @@ lofar_udp_reader* lofar_udp_file_reader_setup(lofar_udp_meta *meta, lofar_udp_co
 
 		// Ringbuffer setup
 		// Not always available: can be disabled at compile time
-		} else if (reader.readerType == DADA) {
+		} else if ((reader.readerType & (DADA_ACTIVE | DADA_PASSIVE)) != 0) {
 #ifndef NODADA
 			// Init the logger and HDU
-			reader.input->multilog[port] = multilog_open("UdpPacketManager", 0);
+			reader.input->multilog[port] = multilog_open("udpPacketManager", 0);
 			reader.input->dadaReader[port] = dada_hdu_create(reader.input->multilog[port]);
 
 			if (reader.input->multilog[port] == NULL || reader.input->dadaReader[port] == NULL) {
@@ -534,16 +532,16 @@ lofar_udp_reader* lofar_udp_file_reader_setup(lofar_udp_meta *meta, lofar_udp_co
 					returnVal = 1;
 				}
 
-				if (config->readMode == DADA_ACTIVE) {
+				if (config->readerType == DADA_ACTIVE) {
 					if (dada_hdu_lock_read(reader.input->dadaReader[port])) {
 						returnVal = 1;
 					}
-				} else if (config->readMode == DADA_PASSIVE) {
+				} else if (config->readerType == DADA_PASSIVE) {
 					if (dada_hdu_open_view(reader.input->dadaReader[port])) {
 						returnVal = 1;
 					}
 				} else {
-					fprintf(stderr, "ERROR: Unknown DADA read mode %d. Exiting.\n", config->readMode);
+					fprintf(stderr, "ERROR: Unknown DADA read mode %d. Exiting.\n", config->readerType);
 					returnVal = 1;
 				}
 				reader.input->dadaKey[port] = config->dadaKeys[port];
@@ -964,9 +962,9 @@ lofar_udp_reader* lofar_udp_meta_file_reader_setup_struct(lofar_udp_config *conf
 			readlen = fread_temp_ZSTD(&(inputHeaders[port][0]), sizeof(char), UDPHDRLEN, config->inputFiles[port], 1);
 
 
-		} else if (config->readerType == DADA) {
+		} else if ((config->readerType & (DADA_ACTIVE | DADA_PASSIVE)) != 0) {
 #ifndef NODADA
-			readlen = fread_temp_dada(&(inputHeaders[port][0]), sizeof(char), UDPHDRLEN, config->dadaKeys[port], 1);
+			readlen = fread_temp_dada(&(inputHeaders[port][0]), sizeof(char), UDPHDRLEN, config->dadaKeys[port], 1, config->readerType);
 #else
 			fprintf(stderr, "ERROR: PSRDADA was disabled at compile time, exiting.\n");
 			return NULL;
@@ -1152,7 +1150,7 @@ int lofar_udp_reader_cleanup_f(lofar_udp_reader *reader, const int closeFiles) {
 
 		// Close the input file
 		if (reader->input != NULL) {
-			if (reader->input->fileRef[i] != NULL && closeFiles && reader->readerType != DADA) {
+			if (reader->input->fileRef[i] != NULL && closeFiles && ((reader->readerType & (DADA_ACTIVE | DADA_PASSIVE)) == 0)) {
 				VERBOSE(if(reader->meta->VERBOSE) printf("On port: %d closing file\n", i))
 				fclose(reader->input->fileRef[i]);
 				reader->input->fileRef[i] = NULL;
@@ -1168,19 +1166,19 @@ int lofar_udp_reader_cleanup_f(lofar_udp_reader *reader, const int closeFiles) {
 					reader->input->dstream[i] = NULL;
 				}
 
-			} else if (reader->readerType == DADA) {
+			} else if ((reader->readerType & (DADA_ACTIVE | DADA_PASSIVE)) != 0) {
 #ifndef NODADA
 				if (reader->input->dadaReader[i] != NULL) {
-					if (reader->input->readMode == DADA_ACTIVE) {
+					if (reader->readerType == DADA_ACTIVE) {
 						if (dada_hdu_unlock_read(reader->input->dadaReader[i]) < 0) {
 							fprintf(stderr, "ERROR: Failed to close PSRDADA buffer %d on port %d.\n", reader->input->dadaKey[i], i);
 						}
-					} else if (reader->input->readMode == DADA_ACTIVE) {
+					} else if (reader->readerType == DADA_PASSIVE) {
 						if (dada_hdu_close_view(reader->input->dadaReader[i]) < 0) {
 							fprintf(stderr, "ERROR: Failed to close PSRDADA buffer %d on port %d.\n", reader->input->dadaKey[i], i);
 						}
 					} else {
-						fprintf(stderr, "ERROR: Unknown PSRDADA read mode %d, unable to clean up HDU.\n", reader->input->readMode);
+						fprintf(stderr, "ERROR: Unknown PSRDADA read mode %d, unable to clean up HDU.\n", reader->readerType);
 					}
 
 
@@ -1470,7 +1468,7 @@ long lofar_udp_reader_nchars(lofar_udp_reader *reader, const int port, char *tar
 		// EOF: return everything we read
 		return  dataRead;
 
-	} else if (reader->readerType == DADA) {
+	} else if ((reader->readerType & (DADA_ACTIVE | DADA_PASSIVE)) != 0) {
 #ifndef NODADA
 
 		// Get data from the PSRDADA buffer
@@ -2030,7 +2028,7 @@ int fread_temp_dada(void *outbuf, const size_t size, int num, int dadaKey, const
 	}
 
 	// We can fopen()....
-	if (ipcio_open(&tmpReader, 'R') < 0) {
+	if (ipcio_open(&tmpReader, 'r') < 0) {
 		return 0;
 	}
 
@@ -2042,11 +2040,6 @@ int fread_temp_dada(void *outbuf, const size_t size, int num, int dadaKey, const
 		if (ipcio_seek(&tmpReader, -num, SEEK_CUR) < 0) {
 			return 0;
 		}
-	}
-
-	// And fclose() the file
-	if (ipcio_close(&tmpReader) < 0) {
-		return 0;
 	}
 
 	// We then disconnect to make sure everyhting is cleaned up.

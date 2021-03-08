@@ -37,13 +37,13 @@ void helpMessages() {
 }
 
 
-int main(int argc, char  *argv[]) {
+int main(int argc, char *argv[]) {
 
 	// Set up input local variables
 	int inputOpt, input = 0;
 	float seconds = 0.0;
 	double sampleTime = 0.0;
-	char inputFormat[256] = "./%d", outputFormat[256] = "./output%d_%s_%ld", inputTime[256] = "", eventsFile[256] = "", stringBuff[128], mockHdrArg[2048] = "", mockHdrCmd[4096] = "";
+	char inputFormat[256] = "./%d", outputFormat[256] = "./output%d_%s_%ld", inputTime[256] = "", eventsFile[256] = "", stringBuff[128], mockHdrArg[2048] = "", mockHdrCmd[4096] = "", readerChar = 'R';
 	int silent = 0, appendMode = 0, eventCount = 0, returnCounter = 0, callMockHdr = 0, basePort = 0, calPoint = 0, calStrat = 0, dadaInput = 0, dadaOffset = -1;
 	long maxPackets = -1, startingPacket = -1;
 	unsigned int clock200MHz = 1;
