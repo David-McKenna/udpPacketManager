@@ -85,11 +85,25 @@ int main(int argc, char *argv[]) {
 			case 'k':
 #ifndef NODADA
 				if (dadaInput == -1) {
-					fprintf(stderr, "ERROR: Specific input ringbuffer after defininig an input file, exiting.\n");
+					fprintf(stderr, "ERROR: Specified input ringbuffer after defining an input file, exiting.\n");
 					return 1;
 				}
+				dadaInput = sscanf(optarg, "%d,%d,%c", &(config.dadaKeys[0]), &dadaOffset, &readerChar);
+				if (dadaInput < 1 || dadaInput > 3) {
+					fprintf(stderr, "ERROR: Failed to parse PSRDADA keys inpu (%d values parsed), exiting.\n", dadaInput);
+					return 1;
+				} else if (dadaInput <= 3) {
+					if (readerChar == 'R') {
+						config.readerType = DADA_ACTIVE;
+					} else if (readerChar == 'r') {
+						config.readerType = DADA_PASSIVE;
+					} else {
+						fprintf(stderr, "ERROR: Unable to determine PSRDADA reader mode (passed %c, expected R or r), exiting.\n", readerChar);
+						return 1;
+					}
+				}
+				printf("%d, %d\n", dadaInput, config.readerType);
 				dadaInput = 1;
-				sscanf(optarg, "%d,%d", &(config.dadaKeys[0]), &dadaOffset);
 #else
 				fprintf(stderr, "ERROR: PSRDADA key specified when PSRDADA was disable at compile time, exiting.\n");
 				return 1;
@@ -262,7 +276,6 @@ int main(int argc, char *argv[]) {
 		for (int i = 1; i < config.numPorts; i++) {
 			config.dadaKeys[i] = config.dadaKeys[0] + i * dadaOffset;
 		}
-		config.readerType = DADA;
 	}
 
 
@@ -297,7 +310,7 @@ int main(int argc, char *argv[]) {
 		printf("Output File: %s\n\n", outputFormat);
 		printf("Packets/Gulp:\t%ld\t\t\tPorts:\t%d\n\n", config.packetsPerIteration, config.numPorts);
 		VERBOSE(printf("Verbose:\t%d\n", config.verbose););
-		printf("Proc Mode:\t%03d\t\t\tCompressed:\t%d\n\n", config.processingMode, config.readerType);
+		printf("Proc Mode:\t%03d\t\t\tReader:\t%d\n\n", config.processingMode, config.readerType);
 		printf("Beamlet limits:\t%d, %d\n\n", config.beamletLimits[0], config.beamletLimits[1]);
 	}
 

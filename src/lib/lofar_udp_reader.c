@@ -964,7 +964,7 @@ lofar_udp_reader* lofar_udp_meta_file_reader_setup_struct(lofar_udp_config *conf
 
 		} else if ((config->readerType & (DADA_ACTIVE | DADA_PASSIVE)) != 0) {
 #ifndef NODADA
-			readlen = fread_temp_dada(&(inputHeaders[port][0]), sizeof(char), UDPHDRLEN, config->dadaKeys[port], 1, config->readerType);
+			readlen = fread_temp_dada(&(inputHeaders[port][0]), sizeof(char), UDPHDRLEN, config->dadaKeys[port], 1);
 #else
 			fprintf(stderr, "ERROR: PSRDADA was disabled at compile time, exiting.\n");
 			return NULL;
