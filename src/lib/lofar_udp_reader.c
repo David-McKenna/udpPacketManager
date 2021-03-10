@@ -541,14 +541,18 @@ lofar_udp_reader* lofar_udp_file_reader_setup(lofar_udp_meta *meta, lofar_udp_co
 						returnVal = 1;
 					}
 
+					printf("%" PRIu64 ", %" PRIu64 "\n", ipcio_tell(reader.input->dadaReader[port]->data_block), ipcio_tell(reader.input->dadaReader[port]->data_block) % 7824);
 					// Fake read 1 byte to fix reader state (can't properly tell/seek below without this)
 					if (ipcio_read(reader.input->dadaReader[port]->data_block, 0, 1) != 1) {
-						return 0;
+						returnVal = 1;
 					}
 
+					printf("%" PRIu64 ", %" PRIu64 "\n", ipcio_tell(reader.input->dadaReader[port]->data_block), ipcio_tell(reader.input->dadaReader[port]->data_block) % 7824);
 					if (ipcio_seek(reader.input->dadaReader[port]->data_block, -1, SEEK_CUR) < 0) {
-						return 0;
+						returnVal = 1;
 					}
+					printf("%" PRIu64 ", %" PRIu64 "\n", ipcio_tell(reader.input->dadaReader[port]->data_block), ipcio_tell(reader.input->dadaReader[port]->data_block) % 7824);
+
 				} else {
 					fprintf(stderr, "ERROR: Unknown DADA read mode %d. Exiting.\n", config->readerType);
 					returnVal = 1;
@@ -556,11 +560,14 @@ lofar_udp_reader* lofar_udp_file_reader_setup(lofar_udp_meta *meta, lofar_udp_co
 
 				// If we are restarting, align to the expected packet length
 				// TODO: read packet length form header rather than hard coding 7824, here and in fread_temp_dada
-				if (ipcio_tell(reader.input->dadaReader[port]->data_block) != 0) {
+				printf("%" PRIu64 ", %" PRIu64 "\n", ipcio_tell(reader.input->dadaReader[port]->data_block), ipcio_tell(reader.input->dadaReader[port]->data_block) % 7824);
+				if ((ipcio_tell(reader.input->dadaReader[port]->data_block) % 7824) != 0) {
+					printf("%" PRIu64 ", %" PRIu64 "\n", ipcio_tell(reader.input->dadaReader[port]->data_block), ipcio_tell(reader.input->dadaReader[port]->data_block) % 7824);
 					if (ipcio_seek(reader.input->dadaReader[port]->data_block, 7824 - (int64_t) (ipcio_tell(reader.input->dadaReader[port]->data_block) % 7824), SEEK_CUR) < 0) {
 						returnVal = 1;
 					}
 				}
+				printf("%" PRIu64 ", %" PRIu64 "\n", ipcio_tell(reader.input->dadaReader[port]->data_block), ipcio_tell(reader.input->dadaReader[port]->data_block) % 7824);
 
 				reader.input->dadaKey[port] = config->dadaKeys[port];
 			}
