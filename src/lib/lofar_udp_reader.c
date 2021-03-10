@@ -544,6 +544,15 @@ lofar_udp_reader* lofar_udp_file_reader_setup(lofar_udp_meta *meta, lofar_udp_co
 					fprintf(stderr, "ERROR: Unknown DADA read mode %d. Exiting.\n", config->readerType);
 					returnVal = 1;
 				}
+
+				// If we are restarting, align to the expected packet length
+				// TODO: read packet length form header rather than hard coding 7824, here and in fread_temp_dada
+				if (ipcio_tell(reader.input->dadaReader[port]->data_block) != 0) {
+					if (ipcio_seek(reader.input->dadaReader[port]->data_block, 7824 - (int64_t) (ipcio_tell(reader.input->dadaReader[port]->data_block) % 7824), SEEK_CUR) < 0) {
+						returnVal = 1;
+					}
+				}
+
 				reader.input->dadaKey[port] = config->dadaKeys[port];
 			}
 #else
@@ -2019,7 +2028,8 @@ int fread_temp_ZSTD(void *outbuf, const size_t size, int num, FILE* inputFile, c
  */
 int fread_temp_dada(void *outbuf, const size_t size, int num, int dadaKey, const int resetSeek) {
 	ipcio_t tmpReader = IPCIO_INIT;
-	// Al of these functions print their own error messages.
+	char readerChar = 'R';
+	// All of these functions print their own error messages.
 
 	// Connecting to an ipcio_t struct allows you to control it like any other file descriptor usng the ipcio_* functions
 	// As a result, after connecting to the buffer...
@@ -2027,9 +2037,21 @@ int fread_temp_dada(void *outbuf, const size_t size, int num, int dadaKey, const
 		return 0;
 	}
 
+	if (ipcbuf_get_reader_conn(&(tmpReader.buf)) == 0) {
+		readerChar = 'r';
+	}
+
 	// We can fopen()....
-	if (ipcio_open(&tmpReader, 'r') < 0) {
+	if (ipcio_open(&tmpReader, readerChar) < 0) {
 		return 0;
+	}
+
+	// Fix offset if we are joining in the middle of a run
+	// TODO: read packet length form header rather than hard coding to 7824 (here and in initlaisation)
+	if (ipcio_tell(&tmpReader) != 0) {
+		if (ipcio_seek(&tmpReader, 7824 - (int64_t) (ipcio_tell(&tmpReader) % 7824), SEEK_CUR) < 0) {
+			return 0;
+		}
 	}
 
 	// Then fread()...
@@ -2042,7 +2064,12 @@ int fread_temp_dada(void *outbuf, const size_t size, int num, int dadaKey, const
 		}
 	}
 
-	// We then disconnect to make sure everyhting is cleaned up.
+	if (readerChar == 'R') {
+		if (ipcio_close(&tmpReader) < 0) {
+			return 0;
+		}
+	}
+
 	if (ipcio_disconnect(&tmpReader) < 0) {
 		return 0;
 	}

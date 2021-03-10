@@ -52,7 +52,8 @@ endif
 
 CFLAGS += -W -Wall -Ofast -march=$(OPT_ARCH) -mtune=$(OPT_ARCH) -fPIC
 CFLAGS += -DVERSION=$(LIB_VER) -DVERSION_MINOR=$(LIB_VER_MINOR) -DVERSIONCLI=$(CLI_VER)
-#CFLAGS  += -fsanitize=address -DALLOW_VERBOSE -g # -DBENCHMARKING -g -DALLOW_VERBOSE #-D__SLOWDOWN
+#CFLAGS += -DALLOW_VERBOSE -g
+#CFLAGS  += -fsanitize=address -DALLOW_VERBOSE -g -DBENCHMARKING -D__SLOWDOWN
 # -fopt-info-missed=compiler_report_missed.log -fopt-info-vec=compiler_report_vec.log -fopt-info-loop=compiler_report_loop.log -fopt-info-inline=compiler_report_inline.log -fopt-info-omp=compiler_report_omp.log
 
 # Adjust flags based on the compiler
