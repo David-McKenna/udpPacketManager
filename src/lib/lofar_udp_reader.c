@@ -2051,7 +2051,7 @@ int fread_temp_dada(void *outbuf, const size_t size, int num, int dadaKey, const
 	// Passive reading needs at least 1 read before tell returns sane values
 	
 	if (readerChar == 'r') {
-		if (ipio_read(&tmpReader, 0, 1) != 1) {
+		if (ipcio_read(&tmpReader, 0, 1) != 1) {
 			return 0;
 		}
 
