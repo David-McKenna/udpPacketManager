@@ -2049,7 +2049,7 @@ int fread_temp_ZSTD(void *outbuf, const size_t size, int num, FILE* inputFile, c
  */
 int fread_temp_dada(void *outbuf, const size_t size, int num, int dadaKey, const int resetSeek) {
 	ipcio_t tmpReader = IPCIO_INIT;
-	char readerKey = 'R';
+	char readerChar = 'R';
 	// All of these functions print their own error messages.
 
 	// Connecting to an ipcio_t struct allows you to control it like any other file descriptor usng the ipcio_* functions
