@@ -2048,22 +2048,37 @@ int fread_temp_dada(void *outbuf, const size_t size, int num, int dadaKey, const
 
 	// Fix offset if we are joining in the middle of a run
 	// TODO: read packet length form header rather than hard coding to 7824 (here and in initlaisation)
+	// Passive reading needs at least 1 read before tell returns sane values
+	
+	if (readerChar == 'r') {
+		if (ipio_read(&tmpReader, 0, 1) != 1) {
+			return 0;
+		}
+
+		if (ipcio_seek(&tmpReader, -1, SEEK_CUR) < 0) {
+			return 0;
+		}
+	}
+
+	printf("%" PRIu64 ", %" PRIu64 "\n", ipcio_tell(&tmpReader), ipcio_tell(&tmpReader) % 7824);
 	if (ipcio_tell(&tmpReader) != 0) {
 		if (ipcio_seek(&tmpReader, 7824 - (int64_t) (ipcio_tell(&tmpReader) % 7824), SEEK_CUR) < 0) {
 			return 0;
 		}
 	}
 
+	printf("%" PRIu64 ", %" PRIu64 "\n", ipcio_tell(&tmpReader), ipcio_tell(&tmpReader) % 7824);
+
 	// Then fread()...
 	int returnlen = ipcio_read(&tmpReader, outbuf, size * num);
-
+	printf("%" PRIu64 ", %" PRIu64 "\n", ipcio_tell(&tmpReader), ipcio_tell(&tmpReader) % 7824);
 	// fseek() if requested....
 	if (resetSeek == 1) {
 		if (ipcio_seek(&tmpReader, -num, SEEK_CUR) < 0) {
 			return 0;
 		}
 	}
-
+	printf("%" PRIu64 ", %" PRIu64 "\n", ipcio_tell(&tmpReader), ipcio_tell(&tmpReader) % 7824);
 	if (readerChar == 'R') {
 		if (ipcio_close(&tmpReader) < 0) {
 			return 0;
