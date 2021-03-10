@@ -542,11 +542,11 @@ lofar_udp_reader* lofar_udp_file_reader_setup(lofar_udp_meta *meta, lofar_udp_co
 					}
 
 					// Fake read 1 byte to fix reader state (can't properly tell/seek below without this)
-					if (ipcio_read(&tmpReader, 0, 1) != 1) {
+					if (ipcio_read(reader.input->dadaReader[port]->data_block, 0, 1) != 1) {
 						return 0;
 					}
 
-					if (ipcio_seek(&tmpReader, -1, SEEK_CUR) < 0) {
+					if (ipcio_seek(reader.input->dadaReader[port]->data_block, -1, SEEK_CUR) < 0) {
 						return 0;
 					}
 				} else {
