@@ -2054,6 +2054,7 @@ int fread_temp_dada(void *outbuf, const size_t size, int num, int dadaKey, const
 	}
 
 	if (ipcbuf_get_reader_conn(&(tmpReader.buf)) == 0) {
+		printf("Swapping to passive reader in tmp call\n");
 		readerChar = 'r';
 	}
 
