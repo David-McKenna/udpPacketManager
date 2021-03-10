@@ -2059,7 +2059,7 @@ int fread_temp_dada(void *outbuf, const size_t size, int num, int dadaKey, const
 	}
 
 	if (ipcbuf_get_reader_conn(&(tmpReader.buf)) == 0) {
-		printf("ERROR: Reader already active on ringbuffer %d (%x). Exiting.\n", dadaKy, dadaKey);
+		printf("ERROR: Reader already active on ringbuffer %d (%x). Exiting.\n", dadaKey, dadaKey);
 		//readerChar = 'r';
 	}
 
