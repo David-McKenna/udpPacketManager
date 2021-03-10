@@ -540,6 +540,15 @@ lofar_udp_reader* lofar_udp_file_reader_setup(lofar_udp_meta *meta, lofar_udp_co
 					if (dada_hdu_open_view(reader.input->dadaReader[port])) {
 						returnVal = 1;
 					}
+
+					// Fake read 1 byte to fix reader state (can't properly tell/seek below without this)
+					if (ipcio_read(&tmpReader, 0, 1) != 1) {
+						return 0;
+					}
+
+					if (ipcio_seek(&tmpReader, -1, SEEK_CUR) < 0) {
+						return 0;
+					}
 				} else {
 					fprintf(stderr, "ERROR: Unknown DADA read mode %d. Exiting.\n", config->readerType);
 					returnVal = 1;
