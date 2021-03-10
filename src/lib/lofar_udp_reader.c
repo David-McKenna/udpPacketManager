@@ -537,6 +537,11 @@ lofar_udp_reader* lofar_udp_file_reader_setup(lofar_udp_meta *meta, lofar_udp_co
 						returnVal = 1;
 					}
 				} else if (config->readerType == DADA_PASSIVE) {
+					fprintf(stderr, "ERROR: DADA Passive reader not yet implemented. Exiting.\n");
+					// Exit early to prevent errors from the ipcio calls below
+					lofar_udp_reader_cleanup_f(&reader, 0);
+					return NULL;
+					/*
 					if (dada_hdu_open_view(reader.input->dadaReader[port])) {
 						returnVal = 1;
 					}
@@ -552,7 +557,7 @@ lofar_udp_reader* lofar_udp_file_reader_setup(lofar_udp_meta *meta, lofar_udp_co
 						returnVal = 1;
 					}
 					printf("%" PRIu64 ", %" PRIu64 "\n", ipcio_tell(reader.input->dadaReader[port]->data_block), ipcio_tell(reader.input->dadaReader[port]->data_block) % 7824);
-
+					*/
 				} else {
 					fprintf(stderr, "ERROR: Unknown DADA read mode %d. Exiting.\n", config->readerType);
 					returnVal = 1;
@@ -560,14 +565,11 @@ lofar_udp_reader* lofar_udp_file_reader_setup(lofar_udp_meta *meta, lofar_udp_co
 
 				// If we are restarting, align to the expected packet length
 				// TODO: read packet length form header rather than hard coding 7824, here and in fread_temp_dada
-				printf("%" PRIu64 ", %" PRIu64 "\n", ipcio_tell(reader.input->dadaReader[port]->data_block), ipcio_tell(reader.input->dadaReader[port]->data_block) % 7824);
 				if ((ipcio_tell(reader.input->dadaReader[port]->data_block) % 7824) != 0) {
-					printf("%" PRIu64 ", %" PRIu64 "\n", ipcio_tell(reader.input->dadaReader[port]->data_block), ipcio_tell(reader.input->dadaReader[port]->data_block) % 7824);
 					if (ipcio_seek(reader.input->dadaReader[port]->data_block, 7824 - (int64_t) (ipcio_tell(reader.input->dadaReader[port]->data_block) % 7824), SEEK_CUR) < 0) {
 						returnVal = 1;
 					}
 				}
-				printf("%" PRIu64 ", %" PRIu64 "\n", ipcio_tell(reader.input->dadaReader[port]->data_block), ipcio_tell(reader.input->dadaReader[port]->data_block) % 7824);
 
 				reader.input->dadaKey[port] = config->dadaKeys[port];
 			}
@@ -1199,9 +1201,12 @@ int lofar_udp_reader_cleanup_f(lofar_udp_reader *reader, const int closeFiles) {
 							fprintf(stderr, "ERROR: Failed to close PSRDADA buffer %d on port %d.\n", reader->input->dadaKey[i], i);
 						}
 					} else if (reader->readerType == DADA_PASSIVE) {
+						// PSRDADA passive buffer not yet implemented
+						/*
 						if (dada_hdu_close_view(reader->input->dadaReader[i]) < 0) {
 							fprintf(stderr, "ERROR: Failed to close PSRDADA buffer %d on port %d.\n", reader->input->dadaKey[i], i);
 						}
+						*/
 					} else {
 						fprintf(stderr, "ERROR: Unknown PSRDADA read mode %d, unable to clean up HDU.\n", reader->readerType);
 					}
@@ -2044,7 +2049,7 @@ int fread_temp_ZSTD(void *outbuf, const size_t size, int num, FILE* inputFile, c
  */
 int fread_temp_dada(void *outbuf, const size_t size, int num, int dadaKey, const int resetSeek) {
 	ipcio_t tmpReader = IPCIO_INIT;
-	char readerChar = 'R';
+	char readerKey = 'R';
 	// All of these functions print their own error messages.
 
 	// Connecting to an ipcio_t struct allows you to control it like any other file descriptor usng the ipcio_* functions
@@ -2054,19 +2059,20 @@ int fread_temp_dada(void *outbuf, const size_t size, int num, int dadaKey, const
 	}
 
 	if (ipcbuf_get_reader_conn(&(tmpReader.buf)) == 0) {
-		printf("Swapping to passive reader in tmp call\n");
-		readerChar = 'r';
+		printf("ERROR: Reader already active on ringbuffer %d (%x). Exiting.\n", dadaKy, dadaKey);
+		//readerChar = 'r';
 	}
 
 	// We can fopen()....
-	if (ipcio_open(&tmpReader, readerChar) < 0) {
+	if (ipcio_open(&tmpReader, 'R') < 0) {
 		return 0;
 	}
 
-	// Fix offset if we are joining in the middle of a run
-	// TODO: read packet length form header rather than hard coding to 7824 (here and in initlaisation)
 	// Passive reading needs at least 1 read before tell returns sane values
-	
+	// Pasive reader currently removed from implementation, as I can't
+	// figure out how it works for the life of me. Is it based on the writer?
+	// Is it based on the reader? Why does it get blocks by the reader, but
+	// updated by the writer?
 	if (readerChar == 'r') {
 		if (ipcio_read(&tmpReader, 0, 1) != 1) {
 			return 0;
@@ -2077,25 +2083,25 @@ int fread_temp_dada(void *outbuf, const size_t size, int num, int dadaKey, const
 		}
 	}
 
-	printf("%" PRIu64 ", %" PRIu64 "\n", ipcio_tell(&tmpReader), ipcio_tell(&tmpReader) % 7824);
+	// Fix offset if we are joining in the middle of a run
+	// TODO: read packet length form header rather than hard coding to 7824 (here and in initlaisation)
 	if (ipcio_tell(&tmpReader) != 0) {
 		if (ipcio_seek(&tmpReader, 7824 - (int64_t) (ipcio_tell(&tmpReader) % 7824), SEEK_CUR) < 0) {
 			return 0;
 		}
 	}
 
-	printf("%" PRIu64 ", %" PRIu64 "\n", ipcio_tell(&tmpReader), ipcio_tell(&tmpReader) % 7824);
-
 	// Then fread()...
 	int returnlen = ipcio_read(&tmpReader, outbuf, size * num);
-	printf("%" PRIu64 ", %" PRIu64 "\n", ipcio_tell(&tmpReader), ipcio_tell(&tmpReader) % 7824);
+	
 	// fseek() if requested....
 	if (resetSeek == 1) {
 		if (ipcio_seek(&tmpReader, -num, SEEK_CUR) < 0) {
 			return 0;
 		}
 	}
-	printf("%" PRIu64 ", %" PRIu64 "\n", ipcio_tell(&tmpReader), ipcio_tell(&tmpReader) % 7824);
+	
+	// Only the active reader needs an explicit close, passive reader will raise an error here
 	if (readerChar == 'R') {
 		if (ipcio_close(&tmpReader) < 0) {
 			return 0;
