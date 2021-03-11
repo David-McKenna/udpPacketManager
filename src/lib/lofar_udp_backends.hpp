@@ -1130,7 +1130,7 @@ int lofar_udp_raw_loop(lofar_udp_meta *meta) {
 
 
 		// Select Jones Matrix if performing Calibration
-		float *jonesMatrix;
+		float *jonesMatrix = NULL;
 		if constexpr (calibrateData) {
 			VERBOSE(printf("Beamlets %d: %d, %d\n", port, baseBeamlet, upperBeamlet););
 			jonesMatrix = (float*) calloc((upperBeamlet - baseBeamlet) * JONESMATSIZE, sizeof(float));
@@ -1392,7 +1392,6 @@ int lofar_udp_raw_loop(lofar_udp_meta *meta) {
 			}
 
 
-			// End task block, update cached variables as needed
 			}
 		}
 

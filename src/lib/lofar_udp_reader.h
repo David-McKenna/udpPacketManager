@@ -38,8 +38,7 @@ typedef enum {
 	NORMAL = 1,
 	ZSTDCOMPRESSED = 2,
 	DADA_ACTIVE = 4,
-	DADA_PASSIVE = 8,
-	BITSHFLCOMPRESSED = 16
+	BITSHFLCOMPRESSED = 8
 } reader_t;
 
 typedef struct lofar_udp_calibration {

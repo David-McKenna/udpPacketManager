@@ -36,6 +36,24 @@ void helpMessages() {
 
 }
 
+void eventsCleanup(int eventCount, char **dateStr, long *startingPackets, long *multiMaxPackets, float *eventSeconds) {
+	if (startingPackets != NULL)
+		free(startingPackets); 
+
+	if (multiMaxPackets != NULL)
+		free(multiMaxPackets); 
+
+	if (eventSeconds != NULL)
+		free(eventSeconds); 
+
+	if (dateStr != NULL) {
+		for (int i =0; i < eventCount; i++) 
+			free(dateStr[i]);
+
+		free(dateStr);
+	}
+}
+
 
 int main(int argc, char *argv[]) {
 
@@ -43,7 +61,7 @@ int main(int argc, char *argv[]) {
 	int inputOpt, input = 0;
 	float seconds = 0.0;
 	double sampleTime = 0.0;
-	char inputFormat[256] = "./%d", outputFormat[256] = "./output%d_%s_%ld", inputTime[256] = "", eventsFile[256] = "", stringBuff[128], mockHdrArg[2048] = "", mockHdrCmd[4096] = "", readerChar = 'R';
+	char inputFormat[256] = "./%d", outputFormat[256] = "./output%d_%s_%ld", inputTime[256] = "", eventsFile[256] = "", stringBuff[128], mockHdrArg[2048] = "", mockHdrCmd[4096] = "";
 	int silent = 0, appendMode = 0, eventCount = 0, returnCounter = 0, callMockHdr = 0, basePort = 0, calPoint = 0, calStrat = 0, dadaInput = 0, dadaOffset = -1;
 	long maxPackets = -1, startingPacket = -1;
 	unsigned int clock200MHz = 1;
@@ -60,8 +78,8 @@ int main(int argc, char *argv[]) {
 	struct timespec tick, tick0, tock, tock0;
 
 	// I/O variables
-	FILE *inputFiles[MAX_NUM_PORTS];
-	FILE *outputFiles[MAX_OUTPUT_DIMS];
+	FILE *inputFiles[MAX_NUM_PORTS] = { NULL };
+	FILE *outputFiles[MAX_OUTPUT_DIMS] = { NULL };
 	
 	// Malloc'd variables: need to be free'd later.
 	long *startingPackets, *multiMaxPackets;
@@ -88,24 +106,15 @@ int main(int argc, char *argv[]) {
 					fprintf(stderr, "ERROR: Specified input ringbuffer after defining an input file, exiting.\n");
 					return 1;
 				}
-				dadaInput = sscanf(optarg, "%d,%d,%c", &(config.dadaKeys[0]), &dadaOffset, &readerChar);
-				if (dadaInput < 1 || dadaInput > 3) {
-					fprintf(stderr, "ERROR: Failed to parse PSRDADA keys inpu (%d values parsed), exiting.\n", dadaInput);
+				dadaInput = sscanf(optarg, "%d,%d", &(config.dadaKeys[0]), &dadaOffset);
+				if (dadaInput < 1) {
+					fprintf(stderr, "ERROR: Failed to parse PSRDADA keys input (%d values parsed), exiting.\n", dadaInput);
 					return 1;
-				} else if (dadaInput <= 3) {
-					if (readerChar == 'R') {
-						config.readerType = DADA_ACTIVE;
-					} else if (readerChar == 'r') {
-						config.readerType = DADA_PASSIVE;
-					} else {
-						fprintf(stderr, "ERROR: Unable to determine PSRDADA reader mode (passed %c, expected R or r), exiting.\n", readerChar);
-						return 1;
-					}
-				}
-				printf("%d, %d\n", dadaInput, config.readerType);
+				} 
+				
 				dadaInput = 1;
 #else
-				fprintf(stderr, "ERROR: PSRDADA key specified when PSRDADA was disable at compile time, exiting.\n");
+				fprintf(stderr, "ERROR: PSRDADA key specified when PSRDADA was disabled at compile time, exiting.\n");
 				return 1;
 #endif
 				break;
@@ -150,7 +159,6 @@ int main(int argc, char *argv[]) {
 			case 'b':
 				sscanf(optarg, "%d,%d", &(config.beamletLimits[0]), &(config.beamletLimits[1]));
 				break;
-
 
 			case 'r':
 				config.replayDroppedPackets = 1;
@@ -350,12 +358,17 @@ int main(int argc, char *argv[]) {
 
 			if (returnCounter != 2) {
 				fprintf(stderr, "Unable to parse line %d of events file, exiting ('%s', %lf).\n", idx + 1, stringBuff, seconds);
+				eventsCleanup(eventCount, dateStr, startingPackets, multiMaxPackets, eventSeconds);
 				return 1;
 			}
 
 			// Determine the packet corresponding to the initial time and the amount of packets needed to observe for  the length of the event
 			startingPackets[idx] = getStartingPacket(stringBuff, clock200MHz);
-			if (startingPackets[idx] == 1) return 1;
+			if (startingPackets[idx] == 1) {
+				fprintf(stderr, "ERROR: Failed to get starting packet for event %d, exiting.\n", idx);
+				eventsCleanup(eventCount, dateStr, startingPackets, multiMaxPackets, eventSeconds);
+				return 1;
+			}
 
 			eventSeconds[idx] = seconds;
 			multiMaxPackets[idx] = getSecondsToPacket(seconds, clock200MHz);
@@ -369,11 +382,13 @@ int main(int argc, char *argv[]) {
 			if (idx > 0) {
 				if (startingPackets[idx] < startingPackets[idx-1]) {
 					fprintf(stderr, "Events %d and %d are out of order, please only use increasing event times, exiting.\n", idx, idx - 1);
+					eventsCleanup(eventCount, dateStr, startingPackets, multiMaxPackets, eventSeconds); 
 					return 1;
 				}
 
 				if (startingPackets[idx] < startingPackets[idx-1] + multiMaxPackets[idx -1]) {
 					fprintf(stderr, "Events %d and %d overlap, please combine them or ensure there is some buffer time between them, exiting.", idx, idx -1);
+					eventsCleanup(eventCount, dateStr, startingPackets, multiMaxPackets, eventSeconds);
 					return 1;
 				}
 			}
@@ -389,7 +404,10 @@ int main(int argc, char *argv[]) {
 		dateStr[0] = calloc(1, sizeof("2020-20-20T-20:20:20"));
 		if (strcmp(inputTime, "") != 0) {
 			startingPacket = getStartingPacket(inputTime, clock200MHz);
-			if (startingPacket == 1) return 1;
+			if (startingPacket == 1) {
+				eventsCleanup(eventCount, dateStr, startingPackets, NULL, NULL);
+				return 1;
+			}
 		}
 		startingPackets[0] = startingPacket;
 		strcpy(dateStr[0], inputTime);
@@ -430,12 +448,14 @@ int main(int argc, char *argv[]) {
 	// Returns null on error, check
 	if (reader == NULL) {
 		fprintf(stderr, "Failed to generate reader. Exiting.\n");
+		eventsCleanup(eventCount, dateStr, startingPackets, multiMaxPackets, eventSeconds);
 		return 1;
 	}
 
 	// Sanity check that we were passed the correct clock bit
 	if (((lofar_source_bytes*) &(reader->meta->inputData[0][1]))->clockBit != clock200MHz) {
 		fprintf(stderr, "ERROR: The clock bit of the first packet does not match the clock state given when starting the CLI. Add or remove -c from your command. Exiting.\n");
+		eventsCleanup(eventCount, dateStr, startingPackets, multiMaxPackets, eventSeconds);
 		return 1;
 	}
 
@@ -456,12 +476,14 @@ int main(int argc, char *argv[]) {
 			if (!appendMode) {
 				if (access(workingString, F_OK) != -1) {
 					fprintf(stderr, "Output file at %s already exists; exiting.\n", workingString);
+					eventsCleanup(eventCount, dateStr, startingPackets, multiMaxPackets, eventSeconds);
 					return 1;
 				}
 			} else {
 				outputFiles[0] = fopen(workingString, "a");
 				if (outputFiles[0] == NULL) {
 					fprintf(stderr, "Output file at %s could not be opened for writing, exiting.\n", workingString);
+					eventsCleanup(eventCount, dateStr, startingPackets, multiMaxPackets, eventSeconds);
 					return 1;
 				}
 
@@ -498,6 +520,7 @@ int main(int argc, char *argv[]) {
 		if (loops != 0) {
 			if ((returnVal = lofar_udp_file_reader_reuse(reader, startingPackets[eventLoop], multiMaxPackets[eventLoop])) > 0) {
 				fprintf(stderr, "Error re-initialising reader for event %d (error %d), exiting.\n", eventLoop, returnVal);
+				eventsCleanup(eventCount, dateStr, startingPackets, multiMaxPackets, eventSeconds);
 				return 1;
 			}
 		} 
@@ -531,6 +554,7 @@ int main(int argc, char *argv[]) {
 			
 			if (appendMode != 1 && access(workingString, F_OK) != -1) {
 				fprintf(stderr, "Output file at %s already exists; exiting.\n", workingString);
+				eventsCleanup(eventCount, dateStr, startingPackets, multiMaxPackets, eventSeconds);
 				return 1;
 			}
 			
@@ -548,6 +572,7 @@ int main(int argc, char *argv[]) {
 			outputFiles[out] = fopen(workingString, "a");
 			if (outputFiles[out] == NULL) {
 				fprintf(stderr, "Output file at %s could not be created, exiting.\n", workingString);
+				eventsCleanup(eventCount, dateStr, startingPackets, multiMaxPackets, eventSeconds);
 				return 1;
 			}
 		}
@@ -569,12 +594,10 @@ int main(int argc, char *argv[]) {
 
 			CLICK(tick0);
 			
-			#ifndef BENCHMARKING
 			for (int out = 0; out < reader->meta->numOutputs; out++) {
 				VERBOSE(printf("Writing %ld bytes (%ld packets) to disk for output %d...\n", packetsToWrite * reader->meta->packetOutputLength[out], packetsToWrite, out));
 				fwrite(reader->meta->outputData[out], sizeof(char), packetsToWrite * reader->meta->packetOutputLength[out], outputFiles[out]);
 			}
-			#endif
 
 			packetsWritten += packetsToWrite;
 			packetsProcessed += reader->meta->packetsPerIteration;
@@ -607,7 +630,9 @@ int main(int argc, char *argv[]) {
 		}
 
 		// Close the output files before we open new ones or exit
-		for (int out = 0; out < reader->meta->numOutputs; out++) fclose(outputFiles[out]);
+		for (int out = 0; out < reader->meta->numOutputs; out++) {
+			fclose(outputFiles[out]);
+		}
 
 	}
 
@@ -639,11 +664,7 @@ int main(int argc, char *argv[]) {
 	if (silent == 0) printf("Reader cleanup performed successfully.\n");
 
 	// Free our malloc'd objects
-	for (int i =0; i < eventCount; i++) free(dateStr[i]);
-	free(dateStr);
-	free(multiMaxPackets);
-	free(startingPackets);
-	free(eventSeconds);
+	eventsCleanup(eventCount, dateStr, startingPackets, multiMaxPackets, eventSeconds);
 
 	if (silent == 0) printf("CLI memory cleaned up successfully. Exiting.\n");
 	return 0;

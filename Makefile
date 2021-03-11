@@ -46,14 +46,14 @@ LFLAGS += -L$(CUDA_PATH)/lib -lcudart_static -lrt
 endif
 
 else
-CFLAGS += -DNODADA
+DEFINES += -DNODADA
 endif
 
 
 CFLAGS += -W -Wall -Ofast -march=$(OPT_ARCH) -mtune=$(OPT_ARCH) -fPIC
-CFLAGS += -DVERSION=$(LIB_VER) -DVERSION_MINOR=$(LIB_VER_MINOR) -DVERSIONCLI=$(CLI_VER)
+DEFINES += -DVERSION=$(LIB_VER) -DVERSION_MINOR=$(LIB_VER_MINOR) -DVERSIONCLI=$(CLI_VER)
 #CFLAGS += -DALLOW_VERBOSE -g
-#CFLAGS  += -fsanitize=address -DALLOW_VERBOSE -g -DBENCHMARKING -D__SLOWDOWN
+#CFLAGS  += -fsanitize=address -DALLOW_VERBOSE -g -D__SLOWDOWN
 # -fopt-info-missed=compiler_report_missed.log -fopt-info-vec=compiler_report_vec.log -fopt-info-loop=compiler_report_loop.log -fopt-info-inline=compiler_report_inline.log -fopt-info-omp=compiler_report_omp.log
 
 # Adjust flags based on the compiler
@@ -61,25 +61,24 @@ CFLAGS += -DVERSION=$(LIB_VER) -DVERSION_MINOR=$(LIB_VER_MINOR) -DVERSIONCLI=$(C
 # ICC will take everything you throw at it.
 ifeq ($(CC), icc)
 AR = xiar
-CFLAGS += -fast -static -static-intel -qopenmp-link=static -DOMP_THREADS=$(THREADS) -fopenmp
+CFLAGS += -fast -static -static-intel -qopenmp-link=static -fopenmp
+DEFINES += -DOMP_THREADS=$(THREADS)
 else
 AR = ar
 CFLAGS += -static -funswitch-loops -fopenmp
 ifeq ($(IOMP),0)
-CFLAGS += -DOMP_THREADS=8
+DEFINES += -DOMP_THREADS=8
 LFLAGS += -fopenmp-simd
 else
-CFLAGS += -DOMP_THREADS=$(THREADS)
+DEFINES += -DOMP_THREADS=$(THREADS)
 LFLAGS += -L$(ONEAPI_ROOT)/compiler/latest/linux/compiler/lib/intel64_lin/ -liomp5 -lirc
 endif
 endif
 
-# Ensure we're using C++17
-CXXFLAGS += $(CFLAGS) -std=c++17
+CFLAGS += $(DEFINES) 
+CXXFLAGS += $(CFLAGS)
 
 LFLAGS 	+= -I./src -I./src/lib -I./src/CLI -I/usr/include/ -lzstd #-lefence
-
-
 
 
 
@@ -104,7 +103,7 @@ CASACOREDIR ?= /usr/share/casacore/data/
 
 # C++ -> CXX
 %.o: %.cpp
-	$(CXX) -c $(CXXFLAGS) -o ./$@ $< $(LFLAGS)
+	$(CXX) -std=c++17 -c $(CXXFLAGS) -o ./$@ $< $(LFLAGS)
 
 # CLI -> link with C++
 all: $(CLI_OBJECTS) library cli

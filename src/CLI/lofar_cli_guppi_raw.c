@@ -41,7 +41,7 @@ int main(int argc, char  *argv[]) {
 	int inputOpt, outputFilesCount, input = 0;
 	float seconds = 0.0;
 	double sampleTime = 0.0;
-	char inputFormat[256] = "./%d", outputFormat[256] = "./output_%d", inputTime[256] = "", stringBuff[128], hdrFile[2048] = "", timeStr[28] = "", readerChar = 'R';
+	char inputFormat[256] = "./%d", outputFormat[256] = "./output_%d", inputTime[256] = "", stringBuff[128], hdrFile[2048] = "", timeStr[28] = "";
 	int silent = 0, appendMode = 0, itersPerFile = INT_MAX, basePort = 0, dadaInput = 0, dadaOffset = 0;
 	unsigned int clock200MHz = 1;
 	
@@ -55,8 +55,8 @@ int main(int argc, char  *argv[]) {
 	struct timespec tick, tick0, tock, tock0;
 
 	// I/O variables
-	FILE *inputFiles[MAX_NUM_PORTS];
-	FILE *outputFiles[MAX_OUTPUT_DIMS];
+	FILE *inputFiles[MAX_NUM_PORTS] = { NULL };
+	FILE *outputFiles[MAX_OUTPUT_DIMS] = { NULL };
 	
 	// Malloc'd variables: need to be free'd later.
 	char **dateStr; // Sub elements need to be free'd too.
@@ -76,24 +76,15 @@ int main(int argc, char  *argv[]) {
 					fprintf(stderr, "ERROR: Specified input ringbuffer after defining an input file, exiting.\n");
 					return 1;
 				}
-				dadaInput = sscanf(optarg, "%d,%d,%c", &(config.dadaKeys[0]), &dadaOffset, &readerChar);
-				if (dadaInput < 1 || dadaInput > 3) {
-					fprintf(stderr, "ERROR: Failed to parse PSRDADA keys inpu (%d values parsed), exiting.\n", dadaInput);
+				dadaInput = sscanf(optarg, "%d,%d", &(config.dadaKeys[0]), &dadaOffset);
+				if (dadaInput < 1) {
+					fprintf(stderr, "ERROR: Failed to parse PSRDADA keys input (%d values parsed), exiting.\n", dadaInput);
 					return 1;
-				} else if (dadaInput <= 3) {
-					if (readerChar == 'R') {
-						config.readerType = DADA_ACTIVE;
-					} else if (readerChar == 'r') {
-						config.readerType = DADA_PASSIVE;
-					} else {
-						fprintf(stderr, "ERROR: Unable to determine PSRDADA reader mode (passed %c, expected R or r), exiting.\n", readerChar);
-						return 1;
-					}
-				}
+				} 
 				
 				dadaInput = 1;
 #else
-				fprintf(stderr, "ERROR: PSRDADA key specified when PSRDADA was disable at compile time, exiting.\n");
+				fprintf(stderr, "ERROR: PSRDADA key specified when PSRDADA was disabled at compile time, exiting.\n");
 				return 1;
 #endif
 				break;
@@ -133,7 +124,6 @@ int main(int argc, char  *argv[]) {
 			case 'b':
 				sscanf(optarg, "%d,%d", &(config.beamletLimits[0]), &(config.beamletLimits[1]));
 				break;
-
 
 			case 'r':
 				config.replayDroppedPackets = 1;
@@ -275,7 +265,10 @@ int main(int argc, char  *argv[]) {
 	dateStr[0] = calloc(1, sizeof("2020-20-20T-20:20:20"));
 	if (strcmp(inputTime, "") != 0) {
 		config.startingPacket = getStartingPacket(inputTime, clock200MHz);
-		if (config.startingPacket == 1) return 1;
+		if (config.startingPacket == 1) {
+			free(dateStr[0]); free(dateStr);
+			return 1;
+		}
 	}
 
 	strcpy(dateStr[0], inputTime);
@@ -306,12 +299,14 @@ int main(int argc, char  *argv[]) {
 			if (!appendMode) {
 				if (access(workingString, F_OK) != -1) {
 					fprintf(stderr, "Output file at %s already exists; exiting.\n", workingString);
+					free(dateStr[0]); free(dateStr);
 					return 1;
 				}
 			} else {
 				outputFiles[0] = fopen(workingString, "a");
 				if (outputFiles[0] == NULL) {
 					fprintf(stderr, "Output file at %s could not be opened for writing, exiting.\n", workingString);
+					free(dateStr[0]); free(dateStr);
 					return 1;
 				}
 
@@ -335,12 +330,14 @@ int main(int argc, char  *argv[]) {
 	// Returns null on error, check
 	if (reader == NULL) {
 		fprintf(stderr, "Failed to generate reader. Exiting.\n");
+		free(dateStr[0]); free(dateStr);
 		return 1;
 	}
 
 	// Sanity check that we were passed the correct clock bit
 	if (((lofar_source_bytes*) &(reader->meta->inputData[0][1]))->clockBit != clock200MHz) {
 		fprintf(stderr, "ERROR: The clock bit of the first packet does not match the clock state given when starting the CLI. Add or remove -c from your command. Exiting.\n");
+		free(dateStr[0]); free(dateStr);
 		return 1;
 	}
 
@@ -348,6 +345,8 @@ int main(int argc, char  *argv[]) {
 	if (strcmp(hdrFile, "") != 0) {
 		if (parseHdrFile(hdrFile, &header) > 0) {
 			fprintf(stderr, "Error initialising ASCII header struct, exiting.");
+			free(dateStr[0]); free(dateStr);
+			return 1;
 		}
 	}
 
@@ -404,6 +403,7 @@ int main(int argc, char  *argv[]) {
 			
 			if (appendMode != 1 && access(workingString, F_OK) != -1) {
 				fprintf(stderr, "Output file at %s already exists; exiting.\n", workingString);
+				free(dateStr[0]); free(dateStr);
 				return 1;
 			}
 			
@@ -412,6 +412,7 @@ int main(int argc, char  *argv[]) {
 			outputFiles[out] = fopen(workingString, "a");
 			if (outputFiles[out] == NULL) {
 				fprintf(stderr, "Output file at %s could not be created, exiting.\n", workingString);
+				free(dateStr[0]); free(dateStr);
 				return 1;
 			}
 

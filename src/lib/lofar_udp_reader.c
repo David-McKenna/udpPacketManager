@@ -428,7 +428,7 @@ int lofar_udp_skip_to_packet(lofar_udp_reader *reader) {
 	}
 
 	// Success!
-	return 0;
+	return returnVal;
 }
 
 /**
@@ -493,14 +493,14 @@ lofar_udp_reader* lofar_udp_file_reader_setup(lofar_udp_meta *meta, lofar_udp_co
 
 				if (tmpPtr == MAP_FAILED) {
 					fprintf(stderr, "ERROR: Failed to create memory mapping for file on port %d. Errno: %d. Exiting.\n", port, errno);
-					returnVal = 1;
+					returnVal = returnVal | 2;
 				}
 
 				returnVal = madvise(tmpPtr, fileSize, MADV_SEQUENTIAL);
 
 				if (returnVal == -1) {
 					fprintf(stderr, "ERROR: Failed to advise the kernel on mmap read stratgy on port %d. Errno: %d. Exiting.\n", port, errno);
-					returnVal = 1;
+					returnVal = returnVal | 4;
 				}
 
 				// Setup the decompressed data buffer/struct
@@ -515,7 +515,7 @@ lofar_udp_reader* lofar_udp_file_reader_setup(lofar_udp_meta *meta, lofar_udp_co
 
 		// Ringbuffer setup
 		// Not always available: can be disabled at compile time
-		} else if ((reader.readerType & (DADA_ACTIVE | DADA_PASSIVE)) != 0) {
+		} else if (reader.readerType == DADA_ACTIVE) {
 #ifndef NODADA
 			// Init the logger and HDU
 			reader.input->multilog[port] = multilog_open("udpPacketManager", 0);
@@ -532,42 +532,15 @@ lofar_udp_reader* lofar_udp_file_reader_setup(lofar_udp_meta *meta, lofar_udp_co
 					returnVal = 1;
 				}
 
-				if (config->readerType == DADA_ACTIVE) {
-					if (dada_hdu_lock_read(reader.input->dadaReader[port])) {
-						returnVal = 1;
-					}
-				} else if (config->readerType == DADA_PASSIVE) {
-					fprintf(stderr, "ERROR: DADA Passive reader not yet implemented. Exiting.\n");
-					// Exit early to prevent errors from the ipcio calls below
-					lofar_udp_reader_cleanup_f(&reader, 0);
-					return NULL;
-					/*
-					if (dada_hdu_open_view(reader.input->dadaReader[port])) {
-						returnVal = 1;
-					}
-
-					printf("%" PRIu64 ", %" PRIu64 "\n", ipcio_tell(reader.input->dadaReader[port]->data_block), ipcio_tell(reader.input->dadaReader[port]->data_block) % 7824);
-					// Fake read 1 byte to fix reader state (can't properly tell/seek below without this)
-					if (ipcio_read(reader.input->dadaReader[port]->data_block, 0, 1) != 1) {
-						returnVal = 1;
-					}
-
-					printf("%" PRIu64 ", %" PRIu64 "\n", ipcio_tell(reader.input->dadaReader[port]->data_block), ipcio_tell(reader.input->dadaReader[port]->data_block) % 7824);
-					if (ipcio_seek(reader.input->dadaReader[port]->data_block, -1, SEEK_CUR) < 0) {
-						returnVal = 1;
-					}
-					printf("%" PRIu64 ", %" PRIu64 "\n", ipcio_tell(reader.input->dadaReader[port]->data_block), ipcio_tell(reader.input->dadaReader[port]->data_block) % 7824);
-					*/
-				} else {
-					fprintf(stderr, "ERROR: Unknown DADA read mode %d. Exiting.\n", config->readerType);
-					returnVal = 1;
+				if (dada_hdu_lock_read(reader.input->dadaReader[port])) {
+					returnVal = returnVal | 2;
 				}
 
 				// If we are restarting, align to the expected packet length
 				// TODO: read packet length form header rather than hard coding 7824, here and in fread_temp_dada
 				if ((ipcio_tell(reader.input->dadaReader[port]->data_block) % 7824) != 0) {
 					if (ipcio_seek(reader.input->dadaReader[port]->data_block, 7824 - (int64_t) (ipcio_tell(reader.input->dadaReader[port]->data_block) % 7824), SEEK_CUR) < 0) {
-						returnVal = 1;
+						returnVal = returnVal | 4;
 					}
 				}
 
@@ -989,7 +962,7 @@ lofar_udp_reader* lofar_udp_meta_file_reader_setup_struct(lofar_udp_config *conf
 			readlen = fread_temp_ZSTD(&(inputHeaders[port][0]), sizeof(char), UDPHDRLEN, config->inputFiles[port], 1);
 
 
-		} else if ((config->readerType & (DADA_ACTIVE | DADA_PASSIVE)) != 0) {
+		} else if (config->readerType == DADA_ACTIVE) {
 #ifndef NODADA
 			readlen = fread_temp_dada(&(inputHeaders[port][0]), sizeof(char), UDPHDRLEN, config->dadaKeys[port], 1);
 #else
@@ -1000,6 +973,7 @@ lofar_udp_reader* lofar_udp_meta_file_reader_setup_struct(lofar_udp_config *conf
 
 		} else {
 			fprintf(stderr, "ERROR: Unknown reader type %d. Exiting\n", config->readerType);
+			return NULL;
 		}
 
 		if (readlen < UDPHDRLEN) {
@@ -1177,7 +1151,7 @@ int lofar_udp_reader_cleanup_f(lofar_udp_reader *reader, const int closeFiles) {
 
 		// Close the input file
 		if (reader->input != NULL) {
-			if (reader->input->fileRef[i] != NULL && closeFiles && ((reader->readerType & (DADA_ACTIVE | DADA_PASSIVE)) == 0)) {
+			if (reader->input->fileRef[i] != NULL && closeFiles && (reader->readerType != DADA_ACTIVE)) {
 				VERBOSE(if(reader->meta->VERBOSE) printf("On port: %d closing file\n", i))
 				fclose(reader->input->fileRef[i]);
 				reader->input->fileRef[i] = NULL;
@@ -1193,24 +1167,12 @@ int lofar_udp_reader_cleanup_f(lofar_udp_reader *reader, const int closeFiles) {
 					reader->input->dstream[i] = NULL;
 				}
 
-			} else if ((reader->readerType & (DADA_ACTIVE | DADA_PASSIVE)) != 0) {
+			} else if (reader->readerType == DADA_ACTIVE) {
 #ifndef NODADA
 				if (reader->input->dadaReader[i] != NULL) {
-					if (reader->readerType == DADA_ACTIVE) {
-						if (dada_hdu_unlock_read(reader->input->dadaReader[i]) < 0) {
-							fprintf(stderr, "ERROR: Failed to close PSRDADA buffer %d on port %d.\n", reader->input->dadaKey[i], i);
-						}
-					} else if (reader->readerType == DADA_PASSIVE) {
-						// PSRDADA passive buffer not yet implemented
-						/*
-						if (dada_hdu_close_view(reader->input->dadaReader[i]) < 0) {
-							fprintf(stderr, "ERROR: Failed to close PSRDADA buffer %d on port %d.\n", reader->input->dadaKey[i], i);
-						}
-						*/
-					} else {
-						fprintf(stderr, "ERROR: Unknown PSRDADA read mode %d, unable to clean up HDU.\n", reader->readerType);
+					if (dada_hdu_unlock_read(reader->input->dadaReader[i]) < 0) {
+						fprintf(stderr, "ERROR: Failed to close PSRDADA buffer %d on port %d.\n", reader->input->dadaKey[i], i);
 					}
-
 
 					if (dada_hdu_disconnect(reader->input->dadaReader[i]) < 0) {
 						fprintf(stderr, "ERROR: Failed to disconnect from PSRDADA buffer %d on port %d.\n", reader->input->dadaKey[i], i);
@@ -1498,7 +1460,7 @@ long lofar_udp_reader_nchars(lofar_udp_reader *reader, const int port, char *tar
 		// EOF: return everything we read
 		return  dataRead;
 
-	} else if ((reader->readerType & (DADA_ACTIVE | DADA_PASSIVE)) != 0) {
+	} else if (reader->readerType == DADA_ACTIVE) {
 #ifndef NODADA
 
 		// Get data from the PSRDADA buffer
@@ -1535,7 +1497,6 @@ long lofar_udp_reader_nchars(lofar_udp_reader *reader, const int port, char *tar
  */
 int lofar_udp_reader_read_step(lofar_udp_reader *reader) {
 	int returnVal = 0;
-	int checkReturnValue = 0;
 
 	// Make sure we have work to perform
 	if (reader->meta->packetsPerIteration == 0) {
@@ -1547,7 +1508,7 @@ int lofar_udp_reader_read_step(lofar_udp_reader *reader) {
 	reader->meta->packetsPerIteration = reader->packetsPerIteration;
 
 	// If packets were dropped, shift the remaining packets back to the start of the array
-	if ((checkReturnValue = lofar_udp_shift_remainder_packets(reader, reader->meta->portLastDroppedPackets, 1)) > 0) return 1;
+	if (lofar_udp_shift_remainder_packets(reader, reader->meta->portLastDroppedPackets, 1) > 0) return 1;
 
 	// Ensure we aren't passed the read length cap
 	if (reader->meta->packetsRead >= (reader->meta->packetsReadMax - reader->meta->packetsPerIteration)) {
@@ -1766,9 +1727,9 @@ int lofar_udp_get_first_packet_alignment_meta(lofar_udp_reader *reader) {
 	//if (meta->numPorts < 2) return 0;
 	int returnValue = 0;
 
-	long portStartingPacket[MAX_NUM_PORTS];
+	long portStartingPacket[MAX_NUM_PORTS] = { -1 };
 	long maxPacketNumber = -1;
-	long maxIndex[MAX_NUM_PORTS];
+	long maxIndex[MAX_NUM_PORTS] = { -1 };
 
 	long portDelta, currentPacketNumber, nchars;
 	long trueDelta = 0;
@@ -2004,6 +1965,9 @@ int fread_temp_ZSTD(void *outbuf, const size_t size, int num, FILE* inputFile, c
 	int readLen = fread(inBuff, sizeof(char), minRead, inputFile);
 	if (readLen != (int) minRead) {
 		fprintf(stderr, "Unable to read in header from file; exiting.\n");
+		ZSTD_freeDStream(dstreamTmp);
+		free(inBuff);
+		free(outBuff);
 		return 1;
 	}
 
@@ -2015,6 +1979,7 @@ int fread_temp_ZSTD(void *outbuf, const size_t size, int num, FILE* inputFile, c
 	VERBOSE(printf("Header decompression code: %ld, %s\n", output, ZSTD_getErrorName(output)));
 	if (ZSTD_isError(output)) {
 		fprintf(stderr, "ZSTD enountered an error while doing temp read (code %ld, %s), returning 0 data.\n", output, ZSTD_getErrorName(output));
+		ZSTD_freeDStream(dstreamTmp);
 		free(inBuff);
 		free(outBuff);
 		return 0;
