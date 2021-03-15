@@ -266,6 +266,7 @@ int main(int argc, char  *argv[]) {
 	if (strcmp(inputTime, "") != 0) {
 		config.startingPacket = getStartingPacket(inputTime, clock200MHz);
 		if (config.startingPacket == 1) {
+			helpMessages();
 			free(dateStr[0]); free(dateStr);
 			return 1;
 		}

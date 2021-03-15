@@ -114,7 +114,7 @@ cli:
 
 # Library -> *ar
 library: $(OBJECTS)
-	$(AR) rc $(LIBRARY_TARGET).$(LIB_VER).$(LIB_VER_MINOR) $(OBJECTS)
+	$(AR) rc $(LIBRARY_TARGET).$(LIB_VER).$(LIB_VER_MINOR) $(OBJECTS) $(CLI_META_OBJECTS)
 	ln -sf ./$(LIBRARY_TARGET).$(LIB_VER).$(LIB_VER_MINOR) ./$(LIBRARY_TARGET)
 
 # Install CLI, headers, library
@@ -123,6 +123,7 @@ install: $(CLI_OBJECTS) library cli
 	cp ./lofar_udp_extractor $(PREFIX)/bin/
 	cp ./lofar_udp_guppi_raw $(PREFIX)/bin/
 	cp ./src/misc/dreamBeamJonesGenerator.py $(PREFIX)/bin/
+	cp ./src/CLI/*.h $(PREFIX)/include/
 	cp ./src/lib/*.h $(PREFIX)/include/
 	cp ./src/lib/*.hpp $(PREFIX)/include/
 	cp -P ./*.a* ${PREFIX}/lib/
@@ -135,6 +136,7 @@ install-local: all
 	cp ./lofar_udp_extractor ~/.local/bin/
 	cp ./lofar_udp_guppi_raw ~/.local/bin/
 	cp ./src/misc/dreamBeamJonesGenerator.py ~/.local/bin/
+	cp ./src/CLI/*.h ~/.local/include/
 	cp ./src/lib/*.h ~/.local/include/
 	cp ./src/lib/*.hpp ~/.local/include/
 	cp -P ./*.a* ~/.local/lib/
@@ -175,25 +177,27 @@ clean:
 
 # Uninstall the software from the system
 remove:
-	rm $(PREFIX)/bin/lofar_udp_extractor
-	rm $(PREFIX)/bin/lofar_udp_guppi_raw
-	rm $(PREFIX)/bin/dreamBeamJonesGenerator.py
-	cd src/lib/; find . -name "*.hpp" -exec rm $(PREFIX)/include/{} \;
-	cd src/lib/; find . -name "*.h" -exec rm $(PREFIX)/include/{} \;
-	find . -name "*.a" -exec rm $(PREFIX)/lib/{} \;
-	find . -name "*.a.*" -exec rm $(PREFIX)/lib/{} \;
-	make clean
+	-rm $(PREFIX)/bin/lofar_udp_extractor
+	-rm $(PREFIX)/bin/lofar_udp_guppi_raw
+	-rm $(PREFIX)/bin/dreamBeamJonesGenerator.py
+	-cd src/lib/; find . -name "*.hpp" -exec rm $(PREFIX)/include/{} \;
+	-cd src/lib/; find . -name "*.h" -exec rm $(PREFIX)/include/{} \;
+	-cd src/CLI/; find . -name "*.h" -exec rm $(PREFIX)/include/{} \;
+	-find . -name "*.a" -exec rm $(PREFIX)/lib/{} \;
+	-find . -name "*.a.*" -exec rm $(PREFIX)/lib/{} \;
+	-make clean
 
 # Uninstall the software from the local user
 remove-local:
-	rm ~/.local/bin/lofar_udp_extractor
-	rm ~/.local/bin/lofar_udp_guppi_raw
-	rm ~/.local/bin/dreamBeamJonesGenerator.py
-	cd src/lib/; find . -name "*.hpp" -exec rm ~/.local/include/{} \;
-	cd src/lib/; find . -name "*.h" -exec rm ~/.local/include/{} \;
-	find . -name "*.a" -exec rm ~/.local/lib/{} \;
-	find . -name "*.a.*" -exec rm ~/.local/lib/{} \;
-	make clean
+	-rm ~/.local/bin/lofar_udp_extractor
+	-rm ~/.local/bin/lofar_udp_guppi_raw
+	-rm ~/.local/bin/dreamBeamJonesGenerator.py
+	-cd src/lib/; find . -name "*.hpp" -exec rm ~/.local/include/{} \;
+	-cd src/lib/; find . -name "*.h" -exec rm ~/.local/include/{} \;
+	-cd src/CLI/; find . -name "*.h" -exec rm ~/.local/include/{} \;
+	-find . -name "*.a" -exec rm ~/.local/lib/{} \;
+	-find . -name "*.a.*" -exec rm ~/.local/lib/{} \;
+	-make clean
 
 
 # Generate test outputs to ensure we haven't broken anything

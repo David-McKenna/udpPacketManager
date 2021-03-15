@@ -281,6 +281,7 @@ int main(int argc, char *argv[]) {
 		}
 
 	} else {
+		config.readerType = DADA_ACTIVE;
 		for (int i = 1; i < config.numPorts; i++) {
 			config.dadaKeys[i] = config.dadaKeys[0] + i * dadaOffset;
 		}
@@ -366,6 +367,7 @@ int main(int argc, char *argv[]) {
 			startingPackets[idx] = getStartingPacket(stringBuff, clock200MHz);
 			if (startingPackets[idx] == 1) {
 				fprintf(stderr, "ERROR: Failed to get starting packet for event %d, exiting.\n", idx);
+				helpMessages();
 				eventsCleanup(eventCount, dateStr, startingPackets, multiMaxPackets, eventSeconds);
 				return 1;
 			}
@@ -405,6 +407,7 @@ int main(int argc, char *argv[]) {
 		if (strcmp(inputTime, "") != 0) {
 			startingPacket = getStartingPacket(inputTime, clock200MHz);
 			if (startingPacket == 1) {
+				helpMessages();
 				eventsCleanup(eventCount, dateStr, startingPackets, NULL, NULL);
 				return 1;
 			}

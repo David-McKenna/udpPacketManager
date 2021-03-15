@@ -161,8 +161,12 @@ if __name__ == '__main__':
 		# Make args.pnt a dict if we have both LBA and HBA antenna in use
 		args.pnt = {}
 
+		# Center the integration time in the middle of the samples
 		obsTime = args.time - args.inte / 2
 		numSamples = int(np.ceil(args.dur / args.inte).value)
+
+		# For each time sample, calculate the time and determine a J2000 coordinate for the source, which can then be used to determine the Jones matri
+		# TODO: Larger window between coordinate re-samples to speed up the process?
 		for i in tqdm.trange(numSamples):
 			obsTime = obsTime + args.inte
 			time = dm.epoch('utc', f'{obsTime.mjd}d')
@@ -181,9 +185,9 @@ if __name__ == '__main__':
 			else:
 				jointInvJones[i, ...] = generateJones(subbands, antennaSet, args.stn, args.mdl, obsTime.datetime, args.dur.datetime, args.inte.datetime, args.pnt, firstOutput = True)
 
-		print(time)
 
 	else:
 		jointInvJones = generateJones(subbands, antennaSet, args.stn, args.mdl, args.time.datetime, args.dur.datetime, args.inte.datetime, args.pnt, firstOutput = False)
 	
+	# Print out the Jones matrix in an easy to parse format.
 	pipeJones(args.pipe, args.silent, jointInvJones, antennaSet)

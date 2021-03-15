@@ -51,12 +51,6 @@ long getStartingPacket(char inputTime[], const int clock200MHz) {
 	} else {
 		fprintf(stderr, "Invalid time string, exiting.\n");
 		
-		#pragma GCC diagnostic push
-		#pragma GCC diagnostic ignored "-Wimplicit-function-declaration"
-		#pragma GCC diagnostic push
-		helpMessages();
-		#pragma GCC diagnostic pop
-		
 		return 1;
 	}
 
