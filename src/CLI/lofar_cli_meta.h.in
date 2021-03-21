@@ -12,6 +12,8 @@
 #ifndef __LOFAR_CLI_META
 #define __LOFAR_CLI_META
 
+#define UPM_CLI_VERSION "@UPM_CLI_VERSION@"
+
 // Define prototypes
 void helpMessages(void);
 void processingModes(void);

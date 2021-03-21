@@ -5,7 +5,7 @@
 void getStartTimeStringDAQ(lofar_udp_reader *reader, char stringBuff[]);
 
 void helpMessages() {
-	printf("LOFAR UDP Data extractor (v%.1f, lib v%.1f.%d)\n\n", VERSIONCLI, VERSION, VERSION_MINOR);
+	printf("LOFAR UDP Data extractor (GUPPI v%s, lib v%s)\n\n", UPM_CLI_VERSION, UPM_VERSION);
 	printf("Usage: ./lofar_cli_extractor <flags>");
 
 	printf("\n\n");
@@ -17,8 +17,8 @@ void helpMessages() {
 	printf("-o: <format>	Output file name format (provide %%d to fill in the output file number) (default: './output%%d')\n");
 	printf("-m: <numPack>	Number of packets to process in each read request (default: 65536)\n");
 	printf("-u: <numPort>	Number of ports to combine (default: 4)\n");
-	printf("-n: <baseNum>	Base value to iterate when chosing ports (default: 0)\n");
-	printf("-b: <lo>,<hi>	Beamlets to extract from the input dataset. Lo is inclusive, hi is exclusive ( eg. 0,300 will return 300 beamlets, 0:299). (defualt: 0,0 === all)\n");
+	printf("-n: <baseNum>	Base value to iterate when choosing ports (default: 0)\n");
+	printf("-b: <lo>,<hi>	Beamlets to extract from the input dataset. Lo is inclusive, hi is exclusive ( eg. 0,300 will return 300 beamlets, 0:299). (default: 0,0 === all)\n");
 	printf("-t: <timeStr>	String of the time of the first requested packet, format YYYY-MM-DDTHH:mm:ss (default: '')\n");
 	printf("-s: <numSec>	Maximum number of seconds to process (default: all)\n");
 	printf("-e: <iters>		Split the file every N iterations (default: inf)\n");
@@ -244,7 +244,7 @@ int main(int argc, char  *argv[]) {
 
 
 	if (silent == 0) {
-		printf("LOFAR UDP Data extractor (CLI v%.1f, Backend v%.1f)\n\n", VERSIONCLI, VERSION);
+		printf("LOFAR UDP Data extractor (GUPPI v%s, lib v%s)\n\n", UPM_CLI_VERSION, UPM_VERSION);
 		printf("=========== Given configuration ===========\n");
 		if (dadaInput < 0) {
 			printf("Input File:\t%s\n", inputFormat);
@@ -345,7 +345,7 @@ int main(int argc, char  *argv[]) {
 	// Initialise the ASCII header struct if a metadata file was provided
 	if (strcmp(hdrFile, "") != 0) {
 		if (parseHdrFile(hdrFile, &header) > 0) {
-			fprintf(stderr, "Error initialising ASCII header struct, exiting.");
+			fprintf(stderr, "ERROR: Error initialising ASCII header struct, exiting.");
 			free(dateStr[0]); free(dateStr);
 			return 1;
 		}

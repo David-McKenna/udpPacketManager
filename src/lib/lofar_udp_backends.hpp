@@ -1054,6 +1054,9 @@ int lofar_udp_raw_loop(lofar_udp_meta *meta) {
 	// Setup return variable
 	int packetLoss = 0;
 
+	// Get number of OpenMP Threads
+	int nThreads = omp_get_num_threads();
+
 	VERBOSE(const int verbose = meta->VERBOSE);
 	// Calculate the true processing mode (4-bit -> +4000)
 	constexpr int trueState = state % 4000;
@@ -1072,7 +1075,7 @@ int lofar_udp_raw_loop(lofar_udp_meta *meta) {
 	char **byteWorkspace = NULL;
 	if constexpr (state >= 4010) {
 		VERBOSE(if (verbose) printf("Allocating %ld bytes at %p\n", sizeof(char *) * OMP_THREADS, (void *) byteWorkspace););
-		byteWorkspace = (char**) malloc(sizeof(char *) * OMP_THREADS);
+		byteWorkspace = (char**) malloc(sizeof(char *) * nThreads);
 		int maxPacketSize = 0;
 		for (int port = 0; port < meta->numPorts; port++) {
 			if (meta->portPacketLength[port] > maxPacketSize) {
@@ -1081,9 +1084,9 @@ int lofar_udp_raw_loop(lofar_udp_meta *meta) {
 		}
 		VERBOSE(if (verbose) printf("Allocating %d bytes at %p\n", OMP_THREADS * 2 * maxPacketSize - 2 * UDPHDRLEN, (void *) byteWorkspace[0]););
 		int calSampleSize =  2 * maxPacketSize - 2 * UDPHDRLEN * sizeof(char);
-		byteWorkspace[0] = (char*) malloc(OMP_THREADS * calSampleSize);
+		byteWorkspace[0] = (char*) malloc(nThreads * calSampleSize);
 
-		for (int i = 1; i < OMP_THREADS; i++) {
+		for (int i = 1; i < nThreads; i++) {
 			byteWorkspace[i] = byteWorkspace[0] + i * calSampleSize;
 		}
 	}

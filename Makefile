@@ -24,7 +24,7 @@ LIB_VER_MINOR = 0
 CLI_VER = 0.5
 
 # Detemrine the max threads per socket to speed up execution via OpenMP with ICC (GCC falls over if we set too many)
-THREADS ?= $(shell cat /proc/cpuinfo | uniq | grep -m 2 "siblings" | cut -d ":" -f 2 | sort --numeric --unique | awk '{printf("%d", $$1);}')
+THREADS ?= $(shell cat /proc/cpuinfo | uniq | grep -m 2 "siblings" | cut -d ":" -f 2 | sort --numeric --unique | xargs echo)
 
 # Docker compilation variables
 NPROC ?= $(shell nproc)

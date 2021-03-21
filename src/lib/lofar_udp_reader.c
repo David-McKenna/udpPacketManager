@@ -1,5 +1,5 @@
-#include "lofar_udp_misc.h"
 #include "lofar_udp_reader.h"
+#include "lofar_udp_misc.h"
 #include "lofar_udp_backends.hpp"
 
 // Define a set of default structs

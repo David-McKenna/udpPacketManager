@@ -9,7 +9,7 @@
 #include <string.h>
 
 
-// Grab a couple of defines from the main heaer
+// Grab a couple of defines from the main header
 #include "lofar_udp_general.h"
 
 #ifndef __ASCII_HDR_H

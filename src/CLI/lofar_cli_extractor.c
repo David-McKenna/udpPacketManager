@@ -2,7 +2,7 @@
 
 
 void helpMessages() {
-	printf("LOFAR UDP Data extractor (v%.1f, lib v%.1f.%d)\n\n", VERSIONCLI, VERSION, VERSION_MINOR);
+	printf("LOFAR UDP Data extractor (v%s, lib v%s)\n\n", UPM_CLI_VERSION, UPM_VERSION);
 	printf("Usage: ./lofar_cli_extractor <flags>");
 
 	printf("\n\n");
@@ -14,8 +14,8 @@ void helpMessages() {
 	printf("-o: <format>	Output file name format (provide %%d, %%s and %%ld to fill in output ID, date/time string and the starting packet number) (default: './output%%d_%%s_%%ld')\n");
 	printf("-m: <numPack>	Number of packets to process in each read request (default: 65536)\n");
 	printf("-u: <numPort>	Number of ports to combine (default: 4)\n");
-	printf("-n: <baseNum>	Base value to iterate when chosing ports (default: 0)\n");
-	printf("-b: <lo>,<hi>	Beamlets to extract from the input dataset. Lo is inclusive, hi is exclusive ( eg. 0,300 will return 300 beamlets, 0:299). (defualt: 0,0 === all)\n");
+	printf("-n: <baseNum>	Base value to iterate when choosing ports (default: 0)\n");
+	printf("-b: <lo>,<hi>	Beamlets to extract from the input dataset. Lo is inclusive, hi is exclusive ( eg. 0,300 will return 300 beamlets, 0:299). (default: 0,0 === all)\n");
 	printf("-t: <timeStr>	String of the time of the first requested packet, format YYYY-MM-DDTHH:mm:ss (default: '')\n");
 	printf("-s: <numSec>	Maximum number of seconds of raw data to extract/process (default: all)\n");
 	printf("-e: <fileName>	Specify a file of events to extract; newline separated start time and durations in seconds. Events must not overlap.\n");
@@ -59,12 +59,12 @@ int main(int argc, char *argv[]) {
 
 	// Set up input local variables
 	int inputOpt, input = 0;
-	float seconds = 0.0;
+	float seconds = 0.0f;
 	double sampleTime = 0.0;
 	char inputFormat[256] = "./%d", outputFormat[256] = "./output%d_%s_%ld", inputTime[256] = "", eventsFile[256] = "", stringBuff[128], mockHdrArg[2048] = "", mockHdrCmd[4096] = "";
 	int silent = 0, appendMode = 0, eventCount = 0, returnCounter = 0, callMockHdr = 0, basePort = 0, calPoint = 0, calStrat = 0, dadaInput = 0, dadaOffset = -1;
 	long maxPackets = -1, startingPacket = -1;
-	unsigned int clock200MHz = 1;
+	int clock200MHz = 1;
 	FILE *eventsFilePtr;
 
 	lofar_udp_config config = lofar_udp_config_default;
@@ -93,7 +93,7 @@ int main(int argc, char *argv[]) {
 			
 			case 'i':
 				if (dadaInput == 1) {
-					fprintf(stderr, "ERROR: Specificed input file after defining PSRDADA ringbuffer key, exiting.\n");
+					fprintf(stderr, "ERROR: Specified input file after defining PSRDADA ringbuffer key, exiting.\n");
 					return 1;
 				}
 				dadaInput = -1;
@@ -113,11 +113,11 @@ int main(int argc, char *argv[]) {
 				} 
 				
 				dadaInput = 1;
+				break;
 #else
 				fprintf(stderr, "ERROR: PSRDADA key specified when PSRDADA was disabled at compile time, exiting.\n");
 				return 1;
 #endif
-				break;
 
 			case 'o':
 				strcpy(outputFormat, optarg);
@@ -140,7 +140,7 @@ int main(int argc, char *argv[]) {
 				break;
 
 			case 's':
-				seconds = atof(optarg);
+				seconds = (float) atof(optarg);
 				break;
 
 			case 'e':
@@ -187,9 +187,9 @@ int main(int argc, char *argv[]) {
 				break;
 
 			case 'v': 
-				if (!config.verbose)
-					VERBOSE(config.verbose = 1;);
+                VERBOSE(config.verbose = 1;);
 				break;
+
 			case 'V': 
 				VERBOSE(config.verbose = 2;);
 				break;
@@ -309,7 +309,7 @@ int main(int argc, char *argv[]) {
 	}
 
 	if (silent == 0) {
-		printf("LOFAR UDP Data extractor (CLI v%.1f, Backend v%.1f)\n\n", VERSIONCLI, VERSION);
+		printf("LOFAR UDP Data extractor (v%s, lib v%s)\n\n", UPM_CLI_VERSION, UPM_VERSION);
 		printf("=========== Given configuration ===========\n");
 		if (dadaInput < 0) {
 			printf("Input File:\t%s\n", inputFormat);
@@ -456,7 +456,7 @@ int main(int argc, char *argv[]) {
 	}
 
 	// Sanity check that we were passed the correct clock bit
-	if (((lofar_source_bytes*) &(reader->meta->inputData[0][1]))->clockBit != clock200MHz) {
+	if (((lofar_source_bytes*) &(reader->meta->inputData[0][1]))->clockBit != (unsigned int) clock200MHz) {
 		fprintf(stderr, "ERROR: The clock bit of the first packet does not match the clock state given when starting the CLI. Add or remove -c from your command. Exiting.\n");
 		eventsCleanup(eventCount, dateStr, startingPackets, multiMaxPackets, eventSeconds);
 		return 1;
@@ -514,7 +514,6 @@ int main(int argc, char *argv[]) {
 	// Scan over the registered events
 	for (int eventLoop = 0; eventLoop < eventCount; eventLoop++) {
 		localLoops = 0;
-		returnVal = 0;
 
 		// Initialise / empty the packets lost array
 		for (int port = 0; port < reader->meta->numPorts; port++) eventPacketsLost[port] = 0;
@@ -651,11 +650,11 @@ int main(int argc, char *argv[]) {
 		for (int port = 0; port < reader->meta->numPorts; port++) droppedPackets += reader->meta->portTotalDroppedPackets[port];
 
 		printf("Reader loop exited (%d); overall process took %f seconds.\n", returnVal, (double) TICKTOCK(tick, tock));
-		printf("We processed %ld packets, representing %.03lf seconds of data", packetsProcessed, reader->meta->numPorts * packetsProcessed * UDPNTIMESLICE * 5.12e-6);
-		if (reader->meta->numPorts > 1) printf(" (%.03lf per port)\n", packetsProcessed * UDPNTIMESLICE * 5.12e-6);
+		printf("We processed %ld packets, representing %.03lf seconds of data", packetsProcessed, (float) (reader->meta->numPorts * packetsProcessed * UDPNTIMESLICE) * 5.12e-6f);
+		if (reader->meta->numPorts > 1) printf(" (%.03lf per port)\n", (float) (packetsProcessed * UDPNTIMESLICE) * 5.12e-6f);
 		else printf(".\n");
 		printf("Total Read Time:\t%3.02lf\t\tTotal CPU Ops Time:\t%3.02lf\tTotal Write Time:\t%3.02lf\n", totalReadTime, totalOpsTime, totalWriteTime);
-		printf("Total Data Read:\t%3.03lfGB\t\t\t\tTotal Data Written:\t%3.03lfGB\n", (double) packetsProcessed * totalPacketLength / 1e+9, (double) packetsWritten* totalOutLength / 1e+9);
+		printf("Total Data Read:\t%3.03lfGB\t\t\t\tTotal Data Written:\t%3.03lfGB\n", (double) (packetsProcessed * totalPacketLength) / 1e+9, (double) (packetsWritten * totalOutLength) / 1e+9);
 		printf("A total of %d packets were missed during the observation.\n", droppedPackets);
 		printf("\n\nData processing finished. Cleaning up file and memory objects...\n");
 	}

@@ -62,11 +62,11 @@ int parseHdrFile(char inputFile[], ascii_hdr *header) {
 	FILE* fileRef = fopen(inputFile, "r");
 
 	fseek(fileRef, 0, SEEK_END);
-	int fileSize = ftell(fileRef);
+	unsigned long fileSize = ftell(fileRef);
 	fseek(fileRef, 0, SEEK_SET);
 
 	char *fileData = calloc(fileSize, sizeof(char));
-	int readlen = fread(fileData, 1, fileSize, fileRef);
+	unsigned long readlen = fread(fileData, 1, fileSize, fileRef);
 
 	// Sanity check the old vs new length
 	if (readlen != fileSize) {
@@ -100,7 +100,7 @@ int parseHdrFile(char inputFile[], ascii_hdr *header) {
 	optind = 1;
 	// Iterate over each work and update the header as needed.
 	int optIdx = 0;
-	char charVal;
+	int charVal;
 	while ((charVal = getopt_long(fargc, &(fargv[0]), "+", long_options, &optIdx)) != -1) {
 		VERBOSE(printf("%c= %s \n", charVal, optarg));
 		switch (charVal) {
@@ -284,7 +284,7 @@ void writeHdr(FILE *fileRef, ascii_hdr *header) {
 	writeInt(fileRef, "DATAPORT", header->dataport);
 	writeInt(fileRef, "OVERLAP", header->overlap);
 
-	writeInt(fileRef, "BLOCSIZE", header->blocsize);
+	writeLong(fileRef, "BLOCSIZE", header->blocsize);
 	writeStr(fileRef, "DAQPULSE", header->daqpulse);
 
 	writeInt(fileRef, "STT_IMJD", header->stt_imjd);
