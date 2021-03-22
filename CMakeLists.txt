@@ -6,8 +6,14 @@ if(${CMAKE_VERSION} VERSION_LESS 3.12)
     cmake_policy(VERSION ${CMAKE_MAJOR_VERSION}.${CMAKE_MINOR_VERSION})
 endif()
 
+
 # Create a release output by default
 set(default_build_type "Release")
+
+if(CMAKE_BUILD_TYPE STREQUAL Debug)
+	set(CMAKE_VERBOSE_MAKEFILE ON)
+endif()
+
 
 # Describe the project
 project(udpPacketManager 	VERSION 0.7.0
@@ -22,7 +28,7 @@ set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -W -Wall -DALLOW_VERBOSE -g"
 
 # Find the OpenMP package on the system
 find_package(OpenMP)
-if(OpenMP_C_LIB_NAMES:STRING MATCHES "/iomp/")
+if(OpenMP_C_LIB_NAMES MATCHES ".*(iomp).*")
 	# Determine the optimal number of threads for this machine (when using Intel OpenMP Libraries)
 	execute_process(COMMAND bash -c "cat /proc/cpuinfo | uniq | grep -m 2 \"siblings\" | cut -d \":\" -f 2 | sort --numeric --unique | xargs echo"
 			OUTPUT_VARIABLE OMP_THREADS
@@ -34,10 +40,10 @@ endif()
 
 # Include compile-time parameters into the headers
 configure_file(	"${PROJECT_SOURCE_DIR}/src/lib/lofar_udp_general.h.in"
-				"${PROJECT_BINARY_DIR}/src/lib/lofar_udp_general.h"
+				"${PROJECT_SOURCE_DIR}/src/lib/lofar_udp_general.h"
 )
 configure_file(	"${PROJECT_SOURCE_DIR}/src/CLI/lofar_cli_meta.h.in"
-				"${PROJECT_BINARY_DIR}/src/CLI/lofar_cli_meta.h"
+				"${PROJECT_SOURCE_DIR}/src/CLI/lofar_cli_meta.h"
 )
 
 
@@ -51,8 +57,8 @@ add_library(lofudpman STATIC
 )
 # Include all of our headers
 target_include_directories(lofudpman PUBLIC
-		${PROJECT_SOURCE_DIR}/src/lib ${PROJECT_BINARY_DIR}/src/lib
-		${PROJECT_SOURCE_DIR}/src/CLI ${PROJECT_BINARY_DIR}/src/CLI
+		${PROJECT_SOURCE_DIR}/src/lib
+		${PROJECT_SOURCE_DIR}/src/CLI
 )
 
 
@@ -64,12 +70,12 @@ set_property(TARGET lofudpman
 		PROPERTY C_STANDARD 11
 )
 # Set a few extra compiler options
-set_property(TARGET lofudpman
-		PROPERTY
-		LINK_WHAT_YOU_USE ON
-		POSITION_INDEPENDENT_CODE TRUE
-		INTERPROCEDURAL_OPTIMIZATION TRUE
-)
+set(CMAKE_CXX_IMPLICIT_LINK_LIBRARIES "")
+set(CMAKE_CXX_IMPLICIT_LINK_DIRECTORIES "")
+set_property(TARGET lofudpman PROPERTY LINKER_LANGUAGE C)
+set_property(TARGET lofudpman PROPERTY LINK_WHAT_YOU_USE ON)
+set_property(TARGET lofudpman PROPERTY POSITION_INDEPENDENT_CODE ON)
+set_property(TARGET lofudpman PROPERTY INTERPROCEDURAL_OPTIMIZATION ON)
 
 # Link OpenMP
 if(OpenMP_CXX_FOUND)
@@ -92,22 +98,21 @@ else()
 endif()
 
 
+#get_target_property(OLD_SUFFIX lofudpman SUFFIX)
 # Version the library suffix
-get_target_property(LIBTYPE lofudpman TYPE)
-if(LIBTYPE STREQUAL STATIC_LIBRARY)
-	set_target_properties(lofudpman PROPERTIES SUFFIX ".a.${PROJECT_VERSION}")
-elseif(LIBTYPE STREQUAL SHARED_LIBRARY)
-	set_target_properties(lofudpman PROPERTIES SUFFIX ".so.${PROJECT_VERSION}")
-endif()
+#get_target_property(LIBTYPE lofudpman TYPE)
+#if(LIBTYPE STREQUAL STATIC_LIBRARY)
+#	set_property(TARGET lofudpman PROPERTY SUFFIX ".a.${PROJECT_VERSION}")
+#elseif(LIBTYPE STREQUAL SHARED_LIBRARY)
+#	set_property(TARGET lofudpman PROPERTY SUFFIX ".so.${PROJECT_VERSION}")
+#endif()
+
+
 # Setup the CLIs
-add_executable(lofar_udp_extractor
-				src/CLI/lofar_cli_extractor.c
-)
+add_executable(lofar_udp_extractor src/CLI/lofar_cli_extractor.c)
 target_link_libraries(lofar_udp_extractor PUBLIC lofudpman)
 
-add_executable(lofar_udp_guppi_raw
-				src/CLI/lofar_cli_guppi_raw.c
-)
+add_executable(lofar_udp_guppi_raw src/CLI/lofar_cli_guppi_raw.c)
 target_link_libraries(lofar_udp_guppi_raw PUBLIC lofudpman)
 
 
@@ -119,6 +124,7 @@ write_basic_package_version_file(
 		COMPATIBILITY AnyNewerVersion
 )
 
+# Install everything
 install(TARGETS lofudpman lofar_udp_extractor lofar_udp_guppi_raw
 		EXPORT lofudpman
 		LIBRARY DESTINATION lib

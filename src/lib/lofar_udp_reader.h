@@ -23,7 +23,7 @@ extern char **environ;
 
 // PSRDADA includes
 #ifndef NODADA
-#include "dada_hdu.h"
+#include <dada_hdu.h>
 #else
 typedef struct dada_hdu_t dada_hdu_t;
 typedef struct multilog_t multilog_t;

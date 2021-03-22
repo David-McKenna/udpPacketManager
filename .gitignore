@@ -5,7 +5,6 @@ test*
 *.a*
 *.d
 lofar_udp_extractor
-lofar_udp_channelisation
 lofar_udp_guppi_raw
-*pcap*
-*.pcap
+cmake-*
+.idea/*
