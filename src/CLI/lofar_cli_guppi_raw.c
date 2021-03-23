@@ -42,7 +42,7 @@ int main(int argc, char  *argv[]) {
 	float seconds = 0.0;
 	double sampleTime = 0.0;
 	char inputFormat[256] = "./%d", outputFormat[256] = "./output_%d", inputTime[256] = "", stringBuff[128], hdrFile[2048] = "", timeStr[28] = "";
-	int silent = 0, appendMode = 0, itersPerFile = INT_MAX, basePort = 0, dadaInput = 0, dadaOffset = 0;
+	int silent = 0, appendMode = 0, itersPerFile = INT_MAX, basePort = 0, dadaInput = 0, dadaOffset = 10, fifoOut = 0;
 	unsigned int clock200MHz = 1;
 	
 	lofar_udp_config config = lofar_udp_config_default;
@@ -67,6 +67,7 @@ int main(int argc, char  *argv[]) {
 		switch(inputOpt) {
 			
 			case 'i':
+				dadaInput = -1;
 				strcpy(inputFormat, optarg);
 				break;
 
@@ -83,14 +84,22 @@ int main(int argc, char  *argv[]) {
 				} 
 				
 				dadaInput = 1;
+				break;
 #else
 				fprintf(stderr, "ERROR: PSRDADA key specified when PSRDADA was disabled at compile time, exiting.\n");
 				return 1;
 #endif
-				break;
 
 			case 'o':
-				strcpy(outputFormat, optarg);
+				if (strstr(optarg, "FIFO:") != NULL) {
+					fifoOut = 1;
+					if (sscanf(optarg, "FIFO:%s", outputFormat) != 1) {
+						fprintf(stderr, "ERROR: Failed to parse fifo format, exiting.\n");
+						return 1;
+					}
+				} else {
+					strcpy(outputFormat, optarg);
+				}
 				break;
 
 			case 'm':
@@ -233,6 +242,7 @@ int main(int argc, char  *argv[]) {
 		}
 	
 	} else {
+		config.readerType = DADA_ACTIVE;
 		for (int i = 1; i < config.numPorts; i++) {
 			config.dadaKeys[i] = config.dadaKeys[0] + i * dadaOffset;
 		}
@@ -304,6 +314,12 @@ int main(int argc, char  *argv[]) {
 					return 1;
 				}
 			} else {
+				if (fifoOut) {
+					if (mkfifo(workingString, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH) < 0) {
+						fprintf(stderr, "ERROR: failed to make FIFO at %s (errno: %d (%s)), exiting.\n", workingString, errno, strerror(errno));
+						return 1;
+					}
+				}
 				outputFiles[0] = fopen(workingString, "a");
 				if (outputFiles[0] == NULL) {
 					fprintf(stderr, "Output file at %s could not be opened for writing, exiting.\n", workingString);
@@ -386,6 +402,15 @@ int main(int argc, char  *argv[]) {
 		printf("============= End Information =============\n\n");
 	}
 
+
+	// Prepare the first FIFO if needed (we'll make future FIFOs after every set of iterations, before closing the current one)
+	if (fifoOut && loops == 0) {
+		if (mkfifo(workingString, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH) < 0) {
+			fprintf(stderr, "ERROR: failed to make FIFO at %s (errno: %d (%s)), exiting.\n", workingString, errno, strerror(errno));
+			return 1;
+		}
+	}
+	
 	// Start iterating
 	int endCondition = 0;
 	int totalDropped = 0, blockDropped = 0;
@@ -409,7 +434,6 @@ int main(int argc, char  *argv[]) {
 			}
 			
 			VERBOSE(if (config.verbose) printf("Opening file at %s\n", workingString));
-
 			outputFiles[out] = fopen(workingString, "a");
 			if (outputFiles[out] == NULL) {
 				fprintf(stderr, "Output file at %s could not be created, exiting.\n", workingString);
@@ -504,8 +528,24 @@ int main(int argc, char  *argv[]) {
 			}
 		}
 
+		// Make the next FIFO early if we aren't exiting
+		if (!endCondition && fifoOut) {
+			sprintf(workingString, outputFormat, loops / itersPerFile);
+			if (mkfifo(workingString, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH) < 0) {
+				fprintf(stderr, "ERROR: failed to make FIFO at %s (errno: %d (%s)), exiting.\n", workingString, errno, strerror(errno));
+				return 1;
+			}
+		}
+
 		// Close the output files before we open new ones or exit
 		for (int out = 0; out < outputFilesCount; out++) fclose(outputFiles[out]);
+
+		if (fifoOut) {
+			sprintf(workingString, outputFormat, (loops / itersPerFile) - 1);
+			if (remove(workingString) != 0) {
+				fprintf(stderr, "WARNING: Failed to remove old FIFO at %s (errno %d: %s).\n", workingString, errno, strerror(errno));
+			}
+		}
 
 	}
 
