@@ -61,8 +61,8 @@ int main(int argc, char *argv[]) {
 	int inputOpt, input = 0;
 	float seconds = 0.0f;
 	double sampleTime = 0.0;
-	char inputFormat[256] = "./%d", outputFormat[256] = "./output%d_%s_%ld", inputTime[256] = "", eventsFile[256] = "", stringBuff[128], mockHdrArg[2048] = "", mockHdrCmd[4096] = "";
-	int silent = 0, appendMode = 0, eventCount = 0, returnCounter = 0, callMockHdr = 0, basePort = 0, calPoint = 0, calStrat = 0, dadaInput = 0, dadaOffset = -1;
+	char inputFormat[256] = "./%d", outputFormat[256] = "./output%d_%s_%ld", inputTime[256] = "", eventsFile[256] = "", stringBuff[128], mockHdrArg[2048] = "", mockHdrCmd[8192] = "", workingString[2048] = "";
+	int silent = 0, appendMode = 0, eventCount = 0, returnCounter = 0, callMockHdr = 0, basePort = 0, calPoint = 0, calStrat = 0, dadaInput = 0, dadaOffset = 10, dadaOut = 0, dadaOutKey = 26130, dadaOutOffet = 10;
 	long maxPackets = -1, startingPacket = -1;
 	int clock200MHz = 1;
 	FILE *eventsFilePtr;
@@ -120,7 +120,20 @@ int main(int argc, char *argv[]) {
 #endif
 
 			case 'o':
-				strcpy(outputFormat, optarg);
+				if (strstr(optarg, "DADA:") != NULL) {
+#ifndef NODADA
+					dadaOut = 1;
+					if (sscanf(optarg, "DADA:%d,%d", &dadaOutKey, &dadaOutOffet) < 1) {
+						fprintf(stderr, "ERROR: Failed to parse DADA format, exiting.\n");
+						return 1;
+					}
+#else
+					fprintf(stderr, "ERROR: Attempted to output to a PSRDADA Ringbuffer, bug PSRDADA was disabled at compile time, exting.\n");
+					return 1;
+#endif
+				} else {
+					strcpy(outputFormat, optarg);
+				}
 				break;
 
 			case 'm':
@@ -224,6 +237,16 @@ int main(int argc, char *argv[]) {
 		}
 	}
 
+	// DADA outputs should not be fragments, or require writing to disk (mockHeader deleted files and rewrites...)
+	if (dadaOut && strcmp(eventsFile, "") != 0) {
+		fprintf(stderr, "ERROR: DADA output does not support events parsing, exiting.\n");
+		return 1;
+	}
+	if (dadaOut && callMockHdr) {
+		fprintf(stderr, "ERROR: DADA output does not support attaching a sigproc header, exiting.\n");
+		return 1;
+	}
+
 	if (input == 0) {
 		helpMessages();
 		return 1;
@@ -244,10 +267,19 @@ int main(int argc, char *argv[]) {
 		}
 	}
 
-	char workingString[1024];
-
 	// Sanity check a few inputs
-	if ( (strcmp(inputFormat, "") == 0 && dadaInput < 1) || (config.dadaKeys[0] < 1 && dadaOffset > 1) || (dadaInput == 0) || (config.numPorts <= 0) || (config.packetsPerIteration < 2)  || (config.replayDroppedPackets > 1 || config.replayDroppedPackets < 0) || (config.processingMode > 1000 || config.processingMode < 0) || (seconds < 0) || (config.ompThreads < 1)) {
+	if ((strcmp(inputFormat, "") == 0 && dadaInput < 1) || // Input file is sane
+		(dadaInput == 1 && (config.dadaKeys[0] < 1 || dadaOffset < 1)) ||  // Input ringbuffer is sane
+		(dadaInput == 0) || // An input was provided
+		(dadaOut && (dadaOutKey < 1 || dadaOutOffet < 1)) || // Output ringbuffer is sane
+		(config.numPorts <= 0 || config.numPorts > MAX_NUM_PORTS) || // We are processing a sane number of ports
+		(config.packetsPerIteration < 2) || // We are processing a sane number of packets
+		(config.replayDroppedPackets > 1 || config.replayDroppedPackets < 0) || // Replay key was not malformed
+		(config.processingMode > 1000 || config.processingMode < 0) || // Processing mode is sane (may still fail later)
+		(seconds < 0) || // Time is sane
+		(config.ompThreads < 1)) // Number of threads will allow excution to continue
+	{ 
+
 		fprintf(stderr, "One or more inputs invalid or not fully initialised, exiting.\n");
 		helpMessages();
 		return 1;
@@ -311,12 +343,18 @@ int main(int argc, char *argv[]) {
 	if (silent == 0) {
 		printf("LOFAR UDP Data extractor (v%s, lib v%s)\n\n", UPM_CLI_VERSION, UPM_VERSION);
 		printf("=========== Given configuration ===========\n");
+		
 		if (dadaInput < 0) {
 			printf("Input File:\t%s\n", inputFormat);
 		} else {
 			printf("Input Ringbuffer/Offset:\t%d, %d\n", config.dadaKeys[0], dadaOffset);
 		}
-		printf("Output File: %s\n\n", outputFormat);
+
+		if (dadaOut == 0) {
+			printf("Output File: %s\n\n", outputFormat);
+		} else {
+			printf("Output Ringbfr/Offset:\t%d, %d\n", dadaOutKey, dadaOutOffet);
+		}
 		printf("Packets/Gulp:\t%ld\t\t\tPorts:\t%d\n\n", config.packetsPerIteration, config.numPorts);
 		VERBOSE(printf("Verbose:\t%d\n", config.verbose););
 		printf("Proc Mode:\t%03d\t\t\tReader:\t%d\n\n", config.processingMode, config.readerType);
@@ -465,8 +503,7 @@ int main(int argc, char *argv[]) {
 
 
 	// Check that the output files don't already exist (no append mode), or that they can be written to (append mode)
-	for (int eventLoop = 0; eventLoop < eventCount; eventLoop++) {
-		
+	for (int eventLoop = 0; eventLoop < eventCount && !dadaOut; eventLoop++) {
 		if (strstr(outputFormat, "%ld") != NULL && silent == 0)  {
 			printf("WARNING: we cannot predict whether or not files following the prefix '%s' will exist due to the packet number being variable due to packet loss.\nContinuing with caution.\n\n", outputFormat);
 			break;
@@ -551,31 +588,37 @@ int main(int argc, char *argv[]) {
 
 		// Open the output files for this event
 		for (int out = 0; out < reader->meta->numOutputs; out++) {
-			sprintf(workingString, outputFormat, out, dateStr[eventLoop], startingPacket);
-			VERBOSE(if (config.verbose) printf("Testing output file for output %d @ %s\n", out, workingString));
-			
-			if (appendMode != 1 && access(workingString, F_OK) != -1) {
-				fprintf(stderr, "Output file at %s already exists; exiting.\n", workingString);
-				eventsCleanup(eventCount, dateStr, startingPackets, multiMaxPackets, eventSeconds);
-				return 1;
-			}
-			
+			if (dadaOut == 0) {
+				sprintf(workingString, outputFormat, out, dateStr[eventLoop], startingPacket);
+				VERBOSE(if (config.verbose) printf("Testing output file for output %d @ %s\n", out, workingString));
+				
+				if (appendMode != 1 && access(workingString, F_OK) != -1) {
+					fprintf(stderr, "Output file at %s already exists; exiting.\n", workingString);
+					eventsCleanup(eventCount, dateStr, startingPackets, multiMaxPackets, eventSeconds);
+					return 1;
+				}
+				
 
-			if (callMockHdr) {
-				// Call mockHeader, we can populate the starting time, number of channels, output bit size and sampling rate
-				sprintf(mockHdrCmd, "mockHeader -tstart %.9lf -nchans %d -nbits %d -tsamp %.9lf %s %s > /tmp/udp_reader_mockheader.log 2>&1", lofar_get_packet_time_mjd(reader->meta->inputData[0]), reader->meta->totalProcBeamlets, reader->meta->outputBitMode, sampleTime, mockHdrArg, workingString);
-				dummy = system(mockHdrCmd);
+				if (callMockHdr) {
+					// Call mockHeader, we can populate the starting time, number of channels, output bit size and sampling rate
+					sprintf(mockHdrCmd, "mockHeader -tstart %.9lf -nchans %d -nbits %d -tsamp %.9lf %s %s > /tmp/udp_reader_mockheader.log 2>&1", lofar_get_packet_time_mjd(reader->meta->inputData[0]), reader->meta->totalProcBeamlets, reader->meta->outputBitMode, sampleTime, mockHdrArg, workingString);
+					dummy = system(mockHdrCmd);
 
-				if (dummy != 0) fprintf(stderr, "Encountered error while calling mockHeader (%s), continuing with caution.\n", mockHdrCmd);
-			}
+					if (dummy != 0) fprintf(stderr, "Encountered error while calling mockHeader (%s), continuing with caution.\n", mockHdrCmd);
+				}
 
-			VERBOSE(if (config.verbose) printf("Opening file at %s\n", workingString));
+				VERBOSE(if (config.verbose) printf("Opening file at %s\n", workingString));
 
-			outputFiles[out] = fopen(workingString, "a");
-			if (outputFiles[out] == NULL) {
-				fprintf(stderr, "Output file at %s could not be created, exiting.\n", workingString);
-				eventsCleanup(eventCount, dateStr, startingPackets, multiMaxPackets, eventSeconds);
-				return 1;
+				outputFiles[out] = fopen(workingString, "a");
+				if (outputFiles[out] == NULL) {
+					fprintf(stderr, "Output file at %s could not be created, exiting.\n", workingString);
+					eventsCleanup(eventCount, dateStr, startingPackets, multiMaxPackets, eventSeconds);
+					return 1;
+				}
+			} else {
+#ifndef NODADA
+
+#endif
 			}
 		}
 
@@ -633,7 +676,13 @@ int main(int argc, char *argv[]) {
 
 		// Close the output files before we open new ones or exit
 		for (int out = 0; out < reader->meta->numOutputs; out++) {
-			fclose(outputFiles[out]);
+			if (dadaOut == 0) {
+				fclose(outputFiles[out]);
+			} else {
+#ifndef NODADA
+
+#endif
+			}
 		}
 
 	}

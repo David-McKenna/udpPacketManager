@@ -46,6 +46,7 @@ int main(int argc, char  *argv[]) {
 	unsigned int clock200MHz = 1;
 	
 	lofar_udp_config config = lofar_udp_config_default;
+	config.processingMode = 30;
 	ascii_hdr header = ascii_hdr_default;
 
 	// Set up reader loop variables
@@ -67,6 +68,10 @@ int main(int argc, char  *argv[]) {
 		switch(inputOpt) {
 			
 			case 'i':
+				if (dadaInput == 1) {
+					fprintf(stderr, "ERROR: Specified input ringbuffer after defining an input file, exiting.\n");
+					return 1;
+				}
 				dadaInput = -1;
 				strcpy(inputFormat, optarg);
 				break;
@@ -199,7 +204,7 @@ int main(int argc, char  *argv[]) {
 	outputFilesCount = 1;
 
 	// Sanity check a few inputs
-	if ( (strcmp(inputFormat, "") == 0 && dadaInput < 1) || (config.dadaKeys[0] < 1 && dadaOffset > 1) || (dadaInput == 0) ||  (config.numPorts <= 0) || (config.packetsPerIteration < 2)  || (config.replayDroppedPackets > 1 || config.replayDroppedPackets < 0) || (seconds < 0) || (config.ompThreads < 1)) {
+	if ((strcmp(inputFormat, "") == 0 && dadaInput < 1) || (dadaInput == 1 && (config.dadaKeys[0] < 1 || dadaOffset < 1)) || (dadaInput == 0) ||  (config.numPorts <= 0) || (config.packetsPerIteration < 2)  || (config.replayDroppedPackets > 1 || config.replayDroppedPackets < 0) || (seconds < 0) || (config.ompThreads < 1)) {
 		fprintf(stderr, "One or more inputs invalid or not fully initialised, exiting.\n");
 		helpMessages();
 		return 1;
@@ -264,7 +269,7 @@ int main(int argc, char  *argv[]) {
 		printf("Output File: %s\n\n", outputFormat);
 		printf("Packets/Gulp:\t%ld\t\t\tPorts:\t%d\n\n", config.packetsPerIteration, config.numPorts);
 		VERBOSE(printf("Verbose:\t%d\n", config.verbose););
-		printf("Proc Mode:\t%03d\t\t\tCompressed:\t%d\n\n", 30, config.readerType);
+		printf("Proc Mode:\t%03d\t\t\tCompressed:\t%d\n\n", config.processingMode, config.readerType);
 		printf("Beamlet limits:\t%d, %d\n\n", config.beamletLimits[0], config.beamletLimits[1]);
 	}
 
@@ -391,7 +396,7 @@ int main(int argc, char  *argv[]) {
 	if (silent == 0) {
 		getStartTimeString(reader, stringBuff);
 		printf("\n\n=========== Reader  Information ===========\n");
-		printf("Total Beamlets:\t%d%d\t\t\t\t\tFirst Packet:\t%ld\n", reader->meta->totalProcBeamlets, reader->meta->totalRawBeamlets, reader->meta->lastPacket);
+		printf("Total Beamlets:\t%d/%d\t\t\t\t\tFirst Packet:\t%ld\n", reader->meta->totalProcBeamlets, reader->meta->totalRawBeamlets, reader->meta->lastPacket);
 		printf("Start time:\t%s\t\tMJD Time:\t%lf\n", stringBuff, lofar_get_packet_time_mjd(reader->meta->inputData[0]));
 		for (int port = 0; port < reader->meta->numPorts; port++) {
 			printf("------------------ Port %d -----------------\n", port);
@@ -404,7 +409,7 @@ int main(int argc, char  *argv[]) {
 
 
 	// Prepare the first FIFO if needed (we'll make future FIFOs after every set of iterations, before closing the current one)
-	if (fifoOut && loops == 0) {
+	if (fifoOut) {
 		if (mkfifo(workingString, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH) < 0) {
 			fprintf(stderr, "ERROR: failed to make FIFO at %s (errno: %d (%s)), exiting.\n", workingString, errno, strerror(errno));
 			return 1;
@@ -470,6 +475,7 @@ int main(int argc, char  *argv[]) {
 			CLICK(tick0);
 			
 			#ifndef BENCHMARKING
+			printf("%d\n", reader->meta->numOutputs);
 			for (int out = 0; out < reader->meta->numOutputs; out++) {
 				// Update header parameters, then write it to disk before we write the next block of data
 				header.blocsize = packetsToWrite * reader->meta->packetOutputLength[out];
@@ -526,6 +532,10 @@ int main(int argc, char  *argv[]) {
 			if (localLoops == itersPerFile) {
 				break;
 			}
+		}
+
+		if (returnVal > 0) {
+			endCondition = 1;
 		}
 
 		// Make the next FIFO early if we aren't exiting

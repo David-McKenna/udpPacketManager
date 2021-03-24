@@ -87,16 +87,26 @@ float getPacketsToSeconds(long packetCount, const int clock200MHz) {
  * @param      reader      The UDP reader
  * @param      stringBuff  The string buffer
  */
-void getStartTimeString(lofar_udp_reader *reader, char stringBuff[]) {
+void getStartTimeStringOffset(lofar_udp_reader *reader, char stringBuff[], int offsetSeconds) {
 	double startTime;
 	time_t startTimeUnix;
 	struct tm *startTimeStruct;
 
 	startTime = lofar_get_packet_time(reader->meta->inputData[0]);
-	startTimeUnix = (unsigned int) startTime;
+	startTimeUnix = (unsigned int) (startTime + offsetSeconds);
 	startTimeStruct = gmtime(&startTimeUnix);
 
 	char localBuff[32];
 	strftime(localBuff, sizeof(localBuff), "%Y-%m-%dT%H:%M:%S", startTimeStruct);
 	sprintf(stringBuff, "%s.%06d", localBuff, (int) ((startTime - startTimeUnix) * 1e6));
+}
+
+/**
+ * @brief      Convert the current packet to an ISOT string
+ *
+ * @param      reader      The UDP reader
+ * @param      stringBuff  The string buffer
+ */
+void getStartTimeString(lofar_udp_reader *reader, char stringBuff[]) {
+	getStartTimeStringOffset(reader, stringBuff, 0);
 }

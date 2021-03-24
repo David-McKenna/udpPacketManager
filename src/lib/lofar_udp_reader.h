@@ -145,6 +145,7 @@ typedef struct lofar_udp_reader_input {
 	int dadaKey[MAX_NUM_PORTS];
 	multilog_t *multilog[MAX_NUM_PORTS];
 	dada_hdu_t *dadaReader[MAX_NUM_PORTS];
+	long dadaPageSize[MAX_NUM_PORTS];
 
 } lofar_udp_reader_input;
 extern const lofar_udp_reader_input lofar_udp_reader_input_meta;

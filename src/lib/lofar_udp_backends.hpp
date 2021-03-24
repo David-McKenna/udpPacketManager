@@ -93,12 +93,12 @@ inline float stokesQ(float Xr, float Xi, float Yr, float Yi) {
 
 #pragma omp declare simd
 inline float stokesU(float Xr, float Xi, float Yr, float Yi) {
-	return  2.0 * ((Xr * Yr) + (Xi * Yi));
+	return  2.0f * ((Xr * Yr) + (Xi * Yi));
 }
 
 #pragma omp declare simd
 inline float stokesV(float Xr, float Xi, float Yr, float Yi) {
-	return 2.0 * ((Xr * Yi) - (Xi * Yr));
+	return 2.0f * ((Xr * Yi) - (Xi * Yr));
 }
 
 
@@ -173,7 +173,7 @@ inline long time_major_index(int beamlet, int baseBeamlet, int cumulativeBeamlet
 
 // Apply the calibration from a Jones matrix to a set of X/Y samples
 template<typename I, typename O>
-void inline calibrateDataFunc(O *Xr, O *Xi, O *Yr, O *Yi, float *beamletJones, char *inputPortData, long tsInOffset, int timeStepSize) {
+void inline calibrateDataFunc(O *Xr, O *Xi, O *Yr, O *Yi, const float *beamletJones, const char *inputPortData, const long tsInOffset, const int timeStepSize) {
 	(*Xr) = calibrateSample(beamletJones[0], *((I*) &(inputPortData[tsInOffset])), \
 							-1.0 * beamletJones[1], *((I*) &(inputPortData[tsInOffset + 1 * timeStepSize])), \
 							beamletJones[2], *((I*) &(inputPortData[tsInOffset + 2 * timeStepSize])), \
@@ -1103,7 +1103,7 @@ int lofar_udp_raw_loop(lofar_udp_meta *meta) {
 	const int replayDroppedPackets = meta->replayDroppedPackets;
 
 	// For each port of data provided,
-	#pragma omp parallel for 
+	#pragma omp parallel for
 	for (int port = 0; port < meta->numPorts; port++) {
 
 		VERBOSE(if (verbose) printf("Port: %d on thread %d\n", port, omp_get_thread_num()));

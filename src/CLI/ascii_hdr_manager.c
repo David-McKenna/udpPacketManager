@@ -87,7 +87,7 @@ int parseHdrFile(char inputFile[], ascii_hdr *header) {
 
 	// Break up the input file into different words, store them in fargv
 	fargv[fargc] = strtok(fileData, " \n\r");
-	printf("%d: %s\n", fargc, fargv[fargc]);
+	VERBOSE(printf("%d: %s\n", fargc, fargv[fargc]));
 
 	while (fargc < (4 * HEADER_ARGS + 1) && fargv[fargc] != 0) {
 		fargc++;

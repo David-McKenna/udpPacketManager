@@ -60,6 +60,7 @@ target_include_directories(lofudpman PUBLIC
 		${PROJECT_SOURCE_DIR}/src/lib
 		${PROJECT_SOURCE_DIR}/src/CLI
 )
+file(GLOB_RECURSE UDP_INCLUDE_FILES "${PROJECT_SOURCE_DIR}/src/*/*.h")
 
 
 # Describe the target C(++) standard
@@ -75,7 +76,7 @@ set(CMAKE_CXX_IMPLICIT_LINK_DIRECTORIES "")
 set_property(TARGET lofudpman PROPERTY LINKER_LANGUAGE C)
 set_property(TARGET lofudpman PROPERTY LINK_WHAT_YOU_USE ON)
 set_property(TARGET lofudpman PROPERTY POSITION_INDEPENDENT_CODE ON)
-#set_property(TARGET lofudpman PROPERTY INTERPROCEDURAL_OPTIMIZATION ON)
+#set_property(TARGET lofudpman PROPERTY INTERPROCEDURAL_OPTIMIZATION ON) # Static + IPO -> build failures?
 
 # Link OpenMP
 if(OpenMP_CXX_FOUND)
@@ -130,3 +131,4 @@ install(TARGETS lofudpman lofar_udp_extractor lofar_udp_guppi_raw
 		LIBRARY DESTINATION lib
 		RUNTIME DESTINATION bin
 )
+install(FILES ${UDP_INCLUDE_FILES} DESTINATION include)

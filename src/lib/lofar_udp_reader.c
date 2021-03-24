@@ -1241,7 +1241,7 @@ int lofar_udp_reader_calibration(lofar_udp_reader *reader) {
 		}
 	}
 
-	returnVal = mkfifo(fifoName, 0666);
+	returnVal = mkfifo(fifoName, 0664);
 	if (returnVal < 0) {
 		fprintf(stderr, "ERROR: Unable to create FIFO pipe at %s (%d). Exiting.\n", fifoName, errno);
 		return 1;
@@ -1428,7 +1428,7 @@ long lofar_udp_reader_nchars(lofar_udp_reader *reader, const int port, char *tar
 
 		VERBOSE(if (reader->meta->VERBOSE) printf("reader_nchars: start of read loop, %ld, %ld, %ld, %ld\n", reader->input->readingTracker[port].pos, reader->input->readingTracker[port].size, reader->input->decompressionTracker[port].pos, dataRead););
 
-		// Loop across while decompressing the data (zstd decompressed in frame iterations, so it may take a few iterations)
+		// Loop across while decompressing the data (zstd decompresses in frame iterations, so it may take a few iterations)
 		while (reader->input->readingTracker[port].pos < reader->input->readingTracker[port].size) {
 			previousDecompressionPos = reader->input->decompressionTracker[port].pos;
 			// zstd streaming decompression + check for errors
