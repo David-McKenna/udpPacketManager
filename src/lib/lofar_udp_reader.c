@@ -1431,7 +1431,7 @@ long lofar_udp_reader_nchars(lofar_udp_reader *reader, const int port, char *tar
 
 		VERBOSE(if (reader->meta->VERBOSE) printf("reader_nchars: start of read loop, %ld, %ld, %ld, %ld\n", reader->input->readingTracker[port].pos, reader->input->readingTracker[port].size, reader->input->decompressionTracker[port].pos, dataRead););
 
-		// Loop across while decompressing the data (zstd decompresses in frame iterations, so it may take a few iterations)
+		// Loop across while decompressing the data (zstd decompressed in frame iterations, so it may take a few iterations)
 		while (reader->input->readingTracker[port].pos < reader->input->readingTracker[port].size) {
 			previousDecompressionPos = reader->input->decompressionTracker[port].pos;
 			// zstd streaming decompression + check for errors
@@ -1673,7 +1673,44 @@ int lofar_udp_get_first_packet_alignment(lofar_udp_reader *reader) {
 	// Update the data status if we haven't had a majour error
 	if (returnVal != 1) reader->meta->inputDataReady = 1;
 	
-	return returnVal;
+	// If the ports were not already aligned, read in new data.
+	if (returnVal < 0) {
+		VERBOSE(if (reader->meta->VERBOSE) printf("Entering fixup loop\n"));
+
+		// Calculate the offset for each port
+		for (int port = 0; port < reader->meta->numPorts; port++) shiftPackets[port] = reader->meta->packetsPerIteration - reader->meta->portLastDroppedPackets[port];
+
+		// Perform the shift operation, return if no shift occured
+		returnVal = lofar_udp_shift_remainder_packets(reader, shiftPackets, 0);
+		VERBOSE(if (reader->meta->VERBOSE) printf("Packets shifted, returnVal %d\n", returnVal));
+		if (returnVal > 0) return returnVal;
+
+		// Read in new data to the ports that required it, could probably `pragma omp parallel for` this
+		for (int port = 0; port < reader->meta->numPorts; port++) {
+			VERBOSE(if (reader->meta->VERBOSE) printf("Entering post-fixup loop port %d, dropped %d\n", port, reader->meta->portLastDroppedPackets[port]));
+			
+			// Check if a port needs to be topped up
+			if (reader->meta->portLastDroppedPackets[port] > 0) {
+				// Determine how much data is needed and read it in
+				nchars = reader->meta->portLastDroppedPackets[port] * reader->meta->portPacketLength[port];
+				returnLen = lofar_udp_reader_nchars(reader, port, &(reader->meta->inputData[port][reader->meta->inputDataOffset[port]]), nchars, reader->meta->inputDataOffset[port]);
+				
+				// Make sure we got the right amount of data back
+				if (returnLen != nchars) {
+					fprintf(stderr, "Unable to read in enough data for first packet alignment at given data length, exiting.\n");
+					reader->meta->inputDataReady = 0;
+					return 1;
+				}
+			
+			}
+
+			// Reset the data offset to 0
+			reader->meta->inputDataOffset[port] = 0;
+		}
+		VERBOSE(if (reader->meta->VERBOSE) printf("Exitint fixup loop\n"));
+	} else return returnVal;
+
+	return 0;
 }
 
 
@@ -1697,7 +1734,7 @@ int lofar_udp_get_first_packet_alignment_meta(lofar_udp_reader *reader) {
 	long maxPacketNumber = -1;
 	long maxIndex[MAX_NUM_PORTS] = { -1 };
 
-	long portDelta, currentPacketNumber, nchars, targetNchars;
+	long portDelta, currentPacketNumber, nchars;
 	long trueDelta = 0;
 
 	// Determine the maximum port packet number, update the variables as neded
@@ -1713,12 +1750,72 @@ int lofar_udp_get_first_packet_alignment_meta(lofar_udp_reader *reader) {
 
 	}
 
-	// If ports are severely out of sync, read until we find the lowest common packet
-	reader->meta->lastPacket = maxPacketNumber;
-	reader->meta->leadingPacket = maxPacketNumber;
-	if (lofar_udp_skip_to_packet(reader) > 0) {
-		return 1;
+	// If ports are severely out of sync, read until we find the lowst common packet
+	for (int port = 0; port < reader->meta->numPorts; port++) {
+		// Use the last packet to check if the target packet is in the current block
+		portStartingPacket[port] = lofar_get_packet_number(&(reader->meta->inputData[port][(reader->meta->packetsPerIteration - 1) * reader->meta->portPacketLength[port]]));
+		while (portStartingPacket[port] <= maxPacketNumber) {
+			fprintf(stderr, "WARNING: Port %d is significantly below the target packet (%ld vs %ld), reading new block to syncronise the data.\n", port, portStartingPacket[port], maxPacketNumber);
+			nchars = lofar_udp_reader_nchars(reader, port, reader->meta->inputData[port], reader->meta->packetsPerIteration * reader->meta->portPacketLength[port], 0);
+			if (nchars != reader->meta->packetsPerIteration * reader->meta->portPacketLength[port]) {
+				fprintf(stderr, "ERROR: Reader returned an unexpected amount of data for port %d (%ld vs %ld, %ld), attempting to continue...\n", port, nchars, reader->meta->packetsPerIteration * reader->meta->portPacketLength[port], nchars - reader->meta->packetsPerIteration * reader->meta->portPacketLength[port]);
+			}
+			portStartingPacket[port] = lofar_get_packet_number(&(reader->meta->inputData[port][(reader->meta->packetsPerIteration - 1) * reader->meta->portPacketLength[port]]));
+		}
+		// Reset to the actual starting packet
+		portStartingPacket[port] = lofar_get_packet_number(reader->meta->inputData[port]);
 	}
+
+	// Across each port,
+	for (int port = 0; port < reader->meta->numPorts; port++) {
+		// Find the amount of packets from the maximum
+		portDelta = (int) (maxPacketNumber - portStartingPacket[port]);
+		VERBOSE(if (reader->meta->VERBOSE) printf("first_pkt_meta: port %d port delta %ld\n", port, portDelta));
+
+
+		// Check if a port doesn't have the expected packet number
+		if (portDelta > 0) {
+			// Change the return int to -1, count the number of packets that need to be shifted as a result
+			returnValue = -1;
+			trueDelta = 0;
+
+			// Iterate up to the expected packet loss
+			for (int i = reader->meta->portLastDroppedPackets[port]; i < portDelta; i++) {
+
+				// Check if i is beyond the number of gulp'd packets, update the returnValue, break
+				if (i > maxIndex[port]) {
+					returnValue = 1;
+					break;
+				}
+
+				// Check the current packet number relative to the tagret number
+				currentPacketNumber = lofar_get_packet_number(&(reader->meta->inputData[port][reader->meta->portPacketLength[port] * i]));
+				if (currentPacketNumber < maxPacketNumber) {
+					// If less than, count a packet that needs to be skipped
+					trueDelta += 1;
+				} else if (currentPacketNumber == maxPacketNumber) {
+					// If equal to, count the packet and break the loop
+					trueDelta += 1;
+					continue;
+				} else { // currentPacketNumber > maxPacketNumber
+					// If we skip the target packet, set a new target and break the loop, reset port to -1 (0 on ++)
+					maxPacketNumber = currentPacketNumber;
+					port = -1;
+					break;
+				}
+
+			}
+
+			// Return if we broke because we ran out of data
+			if (returnValue == 1) return returnValue;
+			// Update the number of 'dropped' packets
+			reader->meta->portLastDroppedPackets[port] += trueDelta;
+		}
+	}
+
+	// Set the lastPacket variable
+	reader->meta->lastPacket = maxPacketNumber - 1;
+	reader->meta->leadingPacket = maxPacketNumber;
 
 	return returnValue;
 }
@@ -1743,7 +1840,12 @@ int lofar_udp_get_first_packet_alignment_meta(lofar_udp_reader *reader) {
 int lofar_udp_shift_remainder_packets(lofar_udp_reader *reader, const int shiftPackets[], const int handlePadding) {
 
 	int returnVal = 0, fixBuffer = 0;
-	long totalShift = 0;	
+	int packetShift, destOffset, portPacketLength;
+	long byteShift, sourceOffset;
+
+	char *inputData;
+	int totalShift = 0;
+	
 
 	// Check if we have any work to do, reset offsets, exit if no work requested
 	for (int port = 0; port < reader->meta->numPorts; port++) {
@@ -1762,83 +1864,72 @@ int lofar_udp_shift_remainder_packets(lofar_udp_reader *reader, const int shiftP
 
 	// Shift the data on each port
 	for (int port = 0; port < reader->meta->numPorts; port++) {
-		returnVal += lofar_udp_shift_remainder_packets_port(reader, port, handlePadding, fixBuffer);
-	}
+		inputData = reader->meta->inputData[port];
 
-	return returnVal;
-}
-
-int lofar_udp_shift_remainder_packets_port(lofar_udp_reader *reader, const int port, const int shiftPackets, const int handlePadding, const int fixBuffer) {
-	int returnVal = 0;
-
-	int packetShift, destOffset, portPacketLength;
-	long byteShift, sourceOffset;
-	char *inputData = reader->meta->inputData[port];
-
-	// Work around a segfault, cap the size of a shift to the size of the input buffers.
-	if (shiftPackets < reader->packetsPerIteration) {
-		packetShift = shiftPackets;
-	} else {
-		packetShift = reader->packetsPerIteration - 1;
-	}
-
-
-	VERBOSE(if (reader->meta->VERBOSE) printf("shift_remainder: Port %d packet shift %d padding %d\n", port, packetShift, handlePadding));
-
-	if (packetShift > reader->packetsPerIteration) {
-		fprintf(stderr, "\nWARNING: Requested packet shift is larger than the size of our input buffer. Adjusting port %d from %d to %ld.\n", port, packetShift, reader->packetsPerIteration);
-		packetShift = reader->packetsPerIteration;
-	}
-
-		// If we have packet shift or want to copy the final packet for future refernece
-	if (packetShift > 0 || handlePadding == 1 || (handlePadding == 1 && fixBuffer == 1)) {
-
-		// Negative shift -> negative packet loss -> out of order data -> do nothing, we'll  drop a few packets and resume work
-		if (packetShift < 0) {
-			fprintf(stderr, "Requested shift on port %d is negative (%d);", port, packetShift);
-			if (packetShift <-5) fprintf(stderr, " this is an indication of data integrity issues. Be careful with outputs from this dataset.\n");
-			else fprintf(stderr, " attempting to continue...\n");
-			returnVal = -1;
-			reader->meta->inputDataOffset[port] = 0;
-			if (handlePadding == 0) return returnVal;
-			packetShift = 0;
+		// Work around a segfault, cap the size of a shift to the size of the input buffers.
+		if (shiftPackets[port] < reader->packetsPerIteration) {
+			packetShift = shiftPackets[port];
+		} else {
+			packetShift = reader->packetsPerIteration - 1;
 		}
 
-		portPacketLength = reader->meta->portPacketLength[port];
 
-		// Calcualte the origin + destination indices, and the amount of data to shift
-		sourceOffset = reader->meta->portPacketLength[port] * (reader->meta->packetsPerIteration - packetShift - handlePadding);
-		destOffset = -1 * portPacketLength * handlePadding;
-		byteShift = sizeof(char) * (packetShift + handlePadding) * portPacketLength;
+		VERBOSE(if (reader->meta->VERBOSE) printf("shift_remainder: Port %d packet shift %d padding %d\n", port, packetShift, handlePadding));
 
-		VERBOSE(if (reader->meta->VERBOSE) printf("P: %d, SO: %ld, DO: %d, BS: %ld IDO: %ld\n", port, sourceOffset, destOffset, byteShift, destOffset + byteShift));
+		if (packetShift > reader->packetsPerIteration) {
+			fprintf(stderr, "\nWARNING: Requested packet shift is larger than the size of our input buffer. Adjusting port %d from %d to %ld.\n", port, packetShift, reader->packetsPerIteration);
+			packetShift = reader->packetsPerIteration;
+		}
 
-		if (reader->readerType == ZSTDCOMPRESSED) {
-			if ((long) reader->input->decompressionTracker[port].pos > reader->meta->portPacketLength[port] * reader->meta->packetsPerIteration) {
-				VERBOSE(if (reader->meta->VERBOSE) printf("Compressed offset: Port %d is beyond the buffer, extending\n", port));
-				byteShift += reader->input->decompressionTracker[port].pos - reader->meta->portPacketLength[port] * reader->meta->packetsPerIteration;
+ 		// If we have packet shift or want to copy the final packet for future refernece
+		if (packetShift > 0 || handlePadding == 1 || (handlePadding == 1 && fixBuffer == 1)) {
+
+			// Negative shift -> negative packet loss -> out of order data -> do nothing, we'll  drop a few packets and resume work
+			if (packetShift < 0) {
+				fprintf(stderr, "Requested shift on port %d is negative (%d);", port, packetShift);
+				if (packetShift <-5) fprintf(stderr, " this is an indication of data integrity issues. Be careful with outputs from this dataset.\n");
+				else fprintf(stderr, " attempting to continue...\n");
+				returnVal = -1;
+				reader->meta->inputDataOffset[port] = 0;
+				if (handlePadding == 0) continue;
+				packetShift = 0;
 			}
-			reader->input->decompressionTracker[port].pos = destOffset + byteShift;
-			VERBOSE(if (reader->meta->VERBOSE) printf("Compressed offset: P: %d, SO: %ld, DO: %d, BS: %ld IDO: %ld\n", port, sourceOffset, destOffset, byteShift, destOffset + byteShift));
 
+			portPacketLength = reader->meta->portPacketLength[port];
+
+			// Calcualte the origin + destination indices, and the amount of data to shift
+			sourceOffset = reader->meta->portPacketLength[port] * (reader->meta->packetsPerIteration - packetShift - handlePadding); // Verify -1...
+			destOffset = -1 * portPacketLength * handlePadding;
+			byteShift = sizeof(char) * (packetShift + handlePadding) * portPacketLength;
+
+			VERBOSE(if (reader->meta->VERBOSE) printf("P: %d, SO: %ld, DO: %d, BS: %ld IDO: %ld\n", port, sourceOffset, destOffset, byteShift, destOffset + byteShift));
+
+			if (reader->readerType == ZSTDCOMPRESSED) {
+				if ((long) reader->input->decompressionTracker[port].pos > reader->meta->portPacketLength[port] * reader->meta->packetsPerIteration) {
+					byteShift += reader->input->decompressionTracker[port].pos - reader->meta->portPacketLength[port] * reader->meta->packetsPerIteration;
+				}
+				reader->input->decompressionTracker[port].pos = destOffset + byteShift;
+				VERBOSE(if (reader->meta->VERBOSE) printf("Compressed offset: P: %d, SO: %ld, DO: %d, BS: %ld IDO: %ld\n", port, sourceOffset, destOffset, byteShift, destOffset + byteShift));
+
+			}
+
+			VERBOSE(if (reader->meta->VERBOSE) printf("P: %d, SO: %ld, DO: %d, BS: %ld IDO: %ld\n", port, sourceOffset, destOffset, byteShift, destOffset + byteShift));
+
+			// Mmemove the data as needed (memcpy can't act on the same array)
+			memmove(&(inputData[destOffset]), &(inputData[sourceOffset]), byteShift);
+
+			// Reset the 0-valued buffer to wipe any time/sequence data remaining
+			if (!reader->meta->replayDroppedPackets) {
+				sourceOffset = -2 * portPacketLength;
+				for (int i = 0; i < portPacketLength; i++) inputData[sourceOffset + i] = 0;
+			}
+			// Update the inputDataOffset variable to point to the new  'head' of the array, including the new offset
+			reader->meta->inputDataOffset[port] = destOffset + byteShift;
+			VERBOSE( if(reader->meta->VERBOSE) printf("shift_remainder: Final data offset %d: %ld\n", port, reader->meta->inputDataOffset[port]));
 		}
 
-		VERBOSE(if (reader->meta->VERBOSE) printf("P: %d, SO: %ld, DO: %d, BS: %ld IDO: %ld\n", port, sourceOffset, destOffset, byteShift, destOffset + byteShift));
-
-		// Mmemove the data as needed (memcpy can't act on the same array)
-		memmove(&(inputData[destOffset]), &(inputData[sourceOffset]), byteShift);
-
-		// Reset the 0-valued buffer to wipe any time/sequence data remaining
-		if (!reader->meta->replayDroppedPackets) {
-			sourceOffset = -2 * portPacketLength;
-			for (int i = 0; i < portPacketLength; i++) inputData[sourceOffset + i] = 0;
-		}
-		// Update the inputDataOffset variable to point to the new  'head' of the array, including the new offset
-		reader->meta->inputDataOffset[port] = destOffset + byteShift;
-		VERBOSE( if(reader->meta->VERBOSE) printf("shift_remainder: Final data offset %d: %ld\n", port, reader->meta->inputDataOffset[port]));
+		VERBOSE( if (reader->meta->VERBOSE) printf("shift_remainder: Port %d end offset: %ld\n", port, reader->meta->inputDataOffset[port]););
 	}
-
-	VERBOSE( if (reader->meta->VERBOSE) printf("shift_remainder: Port %d end offset: %ld\n", port, reader->meta->inputDataOffset[port]););
 
 	return returnVal;
 }
