@@ -475,7 +475,6 @@ int main(int argc, char  *argv[]) {
 			CLICK(tick0);
 			
 			#ifndef BENCHMARKING
-			printf("%d\n", reader->meta->numOutputs);
 			for (int out = 0; out < reader->meta->numOutputs; out++) {
 				// Update header parameters, then write it to disk before we write the next block of data
 				header.blocsize = packetsToWrite * reader->meta->packetOutputLength[out];

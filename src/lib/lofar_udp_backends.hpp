@@ -1112,7 +1112,7 @@ int lofar_udp_raw_loop(lofar_udp_meta *meta) {
 
 		// Reset the dropped packets counter
 		meta->portLastDroppedPackets[port] = 0;
-		int currentPacketsDropped = 0, nextSequence;
+		int currentPacketsDropped = 0, currentOutOfOrderPackets = 0, nextSequence;
 
 		// Reset last packet, reference data on the current port
 		lastPortPacket = meta->lastPacket;
@@ -1169,22 +1169,31 @@ int lofar_udp_raw_loop(lofar_udp_meta *meta) {
 		VERBOSE(if (verbose) printf("Port %d: Packet %ld, iters %d, base %d, upper %d, cumulative %d, total %d, outputLength %d, timeStep %d, decimation %d, trueState %d\n", \
 					port, currentPortPacket, packetsPerIteration, baseBeamlet, upperBeamlet, cumulativeBeamlets, totalBeamlets, packetOutputLength, timeStepSize, decimation, trueState););
 		
+		//long iLoopCache;
 		for (iLoop = 0; iLoop < packetsPerIteration; iLoop++) {
-			VERBOSE(if (verbose == 2) printf("Loop %ld, Work %ld, packet %ld, target %ld\n", iLoop, iWork, currentPortPacket, lastPortPacket + 1));
+			// iLoopCache = iLoop;
+			VERBOSE(if (verbose == 2) printf("Port %d. Loop %ld, Work %ld, packet %ld, target %ld\n", port, iLoop, iWork, currentPortPacket, lastPortPacket + 1));
 
 			// Check for packet loss by ensuring we have sequential packet numbers
 			if (currentPortPacket != (lastPortPacket + 1)) {
 				// Check if a packet is out of order; if so, drop the packet
 				// TODO: Better future option: check if the packet is in this block, copy and overwrite padded packed instead
-				VERBOSE(if (verbose == 2) printf("Packet %ld is not the expected packet, %ld.\n", currentPortPacket, lastPortPacket + 1));
+				VERBOSE(if (verbose == 2) printf("Port %d, Packet %ld is not the expected packet, %ld.\n", port, currentPortPacket, lastPortPacket + 1));
 				if (currentPortPacket < lastPortPacket) {
 					
-					VERBOSE(if (verbose == 2) printf("Packet %ld on port %d is out of order; dropping.\n", currentPortPacket, port));
+					VERBOSE(if (verbose >= 1) printf("Packet %ld on port %d is out of order; dropping.\n", currentPortPacket, port));
 					// Dropped packet -> index not processed -> effectively an 'added' packet, decrement the dropped packet count
 					// 	so that we don't include an extra packet in shift operations
 					currentPacketsDropped -= 1;
+					currentOutOfOrderPackets += 1;
 
 					iWork++;
+					/* UNTESTED:
+					if ((currentPortPacket > reader->meta->lastPacket + 1) && (currentPortPacket < reader->meta->lastPacket + reader->packetsPerIteration)) {
+						lastInputPacketOffset = (currentPortPacket - (reader->meta->lastPacket + 1)) * portPacketLength;
+						iLoopCache = (currentPortPacket - (reader->meta->lastPacket + 1));
+					}
+					*/
 					if (iWork != packetsPerIteration) {
 						inputPacketOffset = iWork * portPacketLength;
 						currentPortPacket = lofar_get_packet_number(&(inputPortData[inputPacketOffset]));
@@ -1222,10 +1231,10 @@ int lofar_udp_raw_loop(lofar_udp_meta *meta) {
 					inputPortData[inputPacketOffset + 2] = (inputPortData[inputPacketOffset + 2] & 127) + 128;
 				}
 
-				VERBOSE(if (verbose == 2) printf("Packet %ld on port %d is missing; padding.\n", lastPortPacket + 1, port));
+				VERBOSE(if (verbose >= 1) printf("Packet %ld on port %d is missing; padding.\n", lastPortPacket + 1, port));
 
 			} else {
-				VERBOSE(if (verbose == 2) printf("Packet %ld is the expected packet.\n", currentPortPacket));
+				VERBOSE(if (verbose == 2) printf("Port %d, Packet %ld is the expected packet.\n", port, currentPortPacket));
 
 				// We have a sequential packet, therefore:
 				//		Update the last legitimate packet number and array offset index
@@ -1256,11 +1265,11 @@ int lofar_udp_raw_loop(lofar_udp_meta *meta) {
 			}
 
 
-			// Use firstprivate to lock 4-bit variables in a task, create a cache variable otherwise
+			// Use firstprivate to lock the variables into the task, while the main loop continues to update them
 			#pragma omp task firstprivate(iLoop, lastInputPacketOffset, inputPortData) shared(byteWorkspace, outputData)
 			{
 
-			// Unpacket 4-bit data into an array of chars, so it can be processed the same way we process 8-bit data
+			// Unpack 4-bit data into an array of chars, so it can be processed the same way we process 8-bit data
 			if constexpr (state >= 4010) {
 				// Get the workspace for the current packet
 				inputPortData = byteWorkspace[omp_get_thread_num()];
@@ -1409,6 +1418,10 @@ int lofar_udp_raw_loop(lofar_udp_meta *meta) {
 		meta->portLastDroppedPackets[port] = currentPacketsDropped;
 		meta->portTotalDroppedPackets[port] += currentPacketsDropped;
 		VERBOSE(if (verbose) printf("Current dropped packet count on port %d: %d\n", port, meta->portLastDroppedPackets[port]));
+
+		if (currentOutOfOrderPackets > 0) {
+			fprintf(stderr, "WARNING (Port %d): %d packets were out of the expected order.\n", port, currentOutOfOrderPackets);
+		}
 
 		#pragma omp taskwait
 
