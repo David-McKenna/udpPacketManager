@@ -299,7 +299,7 @@ void writeHdr(FILE *fileRef, ascii_hdr *header) {
 	writeDouble(fileRef, "DROPTOT", header->droptot);
 
 	// All headers are terminated with "END" followed by 77 spaces.
-	const char end[3] = "END";
+	const char end[4] = "END\0";
 	fprintf(fileRef, "%-80s", end);
 }
 
