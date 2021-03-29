@@ -41,13 +41,13 @@ void processingModes(void) {
  *
  * @return     The starting packet.
  */
-long getStartingPacket(char inputTime[], const int clock200MHz) {
+long getStartingPacket(char inputTime[], const unsigned int clock200MHz) {
 	struct tm unixTm;
 	time_t unixEpoch;
 
 	if(strptime(inputTime, "%Y-%m-%dT%H:%M:%S", &unixTm) != NULL) {
 		unixEpoch = timegm(&unixTm);
-		return beamformed_packno((unsigned long int) unixEpoch, 0, clock200MHz);
+		return beamformed_packno((unsigned long) unixEpoch, 0, clock200MHz);
 	} else {
 		fprintf(stderr, "Invalid time string, exiting.\n");
 		
@@ -64,7 +64,7 @@ long getStartingPacket(char inputTime[], const int clock200MHz) {
  *
  * @return     The number of packets generated
  */
-long getSecondsToPacket(float seconds, const int clock200MHz) {
+long getSecondsToPacket(double seconds, const unsigned int clock200MHz) {
 	return (long) (seconds * (clock200MHz * clock200MHzSteps + (float) (1 - clock200MHz) * clock160MHzSteps) / (float) UDPNTIMESLICE);
 }
 

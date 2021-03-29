@@ -53,6 +53,7 @@ configure_file(	"${PROJECT_SOURCE_DIR}/src/CLI/lofar_cli_meta.h.in"
 add_library(lofudpman STATIC
 			src/lib/lofar_udp_backends.cpp
 			src/lib/lofar_udp_misc.c
+			src/lib/lofar_udp_io.c
 			src/lib/lofar_udp_reader.c
 			src/CLI/lofar_cli_meta.c
 			src/CLI/ascii_hdr_manager.c

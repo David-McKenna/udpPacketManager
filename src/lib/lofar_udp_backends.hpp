@@ -39,12 +39,6 @@ inline float stokesI(float Xr, float Xi, float Yr, float Yi);
 inline float stokesQ(float Xr, float Xi, float Yr, float Yi);
 inline float stokesU(float Xr, float Xi, float Yr, float Yi);
 inline float stokesV(float Xr, float Xi, float Yr, float Yi);
-
-// Index calculation shorthands
-inline long input_offset_index(long lastInputPacketOffset, int beamlet, int timeStepSize);
-inline long reversed_frequency_major_index(long outputPacketOffset, int totalBeamlets, int beamlet, int baseBeamlet, int cumulativeBeamlets);
-inline long time_major_index(int beamlet, int baseBeamlet, int cumulativeBeamlets, long packetsPerIteration, long outputTimeIdx);
-
 #ifdef __cplusplus
 }
 #endif
@@ -116,66 +110,41 @@ inline long input_offset_index(long lastInputPacketOffset, int beamlet, int time
 }
 
 /**
- * @brief      Get the output index for an output in frequency-reversed major order
+ * @brief      Get the output index for an output in frequency-reversed major
+ *             order
  *
  * @param[in]  outputPacketOffset  The output packet offset
- * @param[in]  totalBeamlets       The total beamlets
  * @param[in]  beamlet             The beamlet
  * @param[in]  baseBeamlet         The base beamlet
  * @param[in]  cumulativeBeamlets  The cumulative beamlets
+ * @param[in]  offset              The offset
+ * @param[in]  totalBeamlets  The total beamlets
  *
  * @return     { description_of_the_return_value }
  */
-inline long frequency_major_index(long outputPacketOffset, int beamlet, int baseBeamlet, int cumulativeBeamlets) {
-	return outputPacketOffset + (beamlet - baseBeamlet + cumulativeBeamlets);
-}
-
-/**
- * @brief      Get the output index for an output in frequency-reversed major order, with a per-packet offset
- *
- * @param[in]  outputPacketOffset  The output packet offset
- * @param[in]  totalBeamlets       The total beamlets
- * @param[in]  beamlet             The beamlet
- * @param[in]  baseBeamlet         The base beamlet
- * @param[in]  cumulativeBeamlets  The cumulative beamlets
- *
- * @return     { description_of_the_return_value }
- */
-inline long frequency_major_offset_index(long outputPacketOffset, int beamlet, int baseBeamlet, int cumulativeBeamlets, int offset) {
+inline long frequency_major_index(long outputPacketOffset, int beamlet, int baseBeamlet, int cumulativeBeamlets, int offset) {
 	return outputPacketOffset + (beamlet - baseBeamlet + cumulativeBeamlets) * offset;
 }
 
 
 
 /**
- * @brief      Get the output index for an output in frequency-reversed major order
+ * @brief      Get the output index for an output in frequency-reversed major
+ *             order
  *
- * @param[in]  outputPacketOffset  The output packet offset
  * @param[in]  totalBeamlets       The total beamlets
  * @param[in]  beamlet             The beamlet
  * @param[in]  baseBeamlet         The base beamlet
  * @param[in]  cumulativeBeamlets  The cumulative beamlets
- *
- * @return     { description_of_the_return_value }
- */
-inline long reversed_frequency_major_index(long outputPacketOffset, int totalBeamlets, int beamlet, int baseBeamlet, int cumulativeBeamlets) {
-	return outputPacketOffset + (totalBeamlets - 1 - beamlet + baseBeamlet - cumulativeBeamlets);
-}
-
-/**
- * @brief      Get the output index for an output in frequency-reversed major order, with a per-packet offset
- *
+ * @param[in]  offset              The offset
  * @param[in]  outputPacketOffset  The output packet offset
- * @param[in]  totalBeamlets       The total beamlets
- * @param[in]  beamlet             The beamlet
- * @param[in]  baseBeamlet         The base beamlet
- * @param[in]  cumulativeBeamlets  The cumulative beamlets
  *
  * @return     { description_of_the_return_value }
  */
-inline long reversed_frequency_major_offset_index(long outputPacketOffset, int totalBeamlets, int beamlet, int baseBeamlet, int cumulativeBeamlets, int offset) {
+inline long reversed_frequency_major_index(long outputPacketOffset, int totalBeamlets, int beamlet, int baseBeamlet, int cumulativeBeamlets, int offset) {
 	return outputPacketOffset + (totalBeamlets - 1 - beamlet + baseBeamlet - cumulativeBeamlets) * offset;
 }
+
 
 /**
  * @brief      Get the output index for an hour in time-major order
@@ -203,12 +172,13 @@ inline long time_major_index(int beamlet, int baseBeamlet, int cumulativeBeamlet
 #ifdef __cplusplus
 
 // Apply the calibration from a Jones matrix to a set of X/Y samples
+#pragma omp declare simd
 template<typename I, typename O>
 void inline calibrateDataFunc(O *Xr, O *Xi, O *Yr, O *Yi, const float *beamletJones, const char *inputPortData, const long tsInOffset, const int timeStepSize) {
 	(*Xr) = calibrateSample(beamletJones[0], *((I*) &(inputPortData[tsInOffset])), \
-							-1.0 * beamletJones[1], *((I*) &(inputPortData[tsInOffset + 1 * timeStepSize])), \
+							-1.0f * beamletJones[1], *((I*) &(inputPortData[tsInOffset + 1 * timeStepSize])), \
 							beamletJones[2], *((I*) &(inputPortData[tsInOffset + 2 * timeStepSize])), \
-							-1.0 * beamletJones[3], *((I*) &(inputPortData[tsInOffset + 3 * timeStepSize])));
+							-1.0f * beamletJones[3], *((I*) &(inputPortData[tsInOffset + 3 * timeStepSize])));
 
 	(*Xi) = calibrateSample(beamletJones[0], *((I*) &(inputPortData[tsInOffset + 1 * timeStepSize])), \
 							beamletJones[1], *((I*) &(inputPortData[tsInOffset])), \
@@ -216,9 +186,9 @@ void inline calibrateDataFunc(O *Xr, O *Xi, O *Yr, O *Yi, const float *beamletJo
 							beamletJones[3], *((I*) &(inputPortData[tsInOffset + 2 * timeStepSize])));
 
 	(*Yr) = calibrateSample(beamletJones[4], *((I*) &(inputPortData[tsInOffset])), \
-							-1.0 * beamletJones[5], *((I*) &(inputPortData[tsInOffset + 1 * timeStepSize])), \
+							-1.0f * beamletJones[5], *((I*) &(inputPortData[tsInOffset + 1 * timeStepSize])), \
 							beamletJones[6], *((I*) &(inputPortData[tsInOffset + 2 * timeStepSize])), \
-							-1.0 * beamletJones[7], *((I*) &(inputPortData[tsInOffset + 3 * timeStepSize])));
+							-1.0f * beamletJones[7], *((I*) &(inputPortData[tsInOffset + 3 * timeStepSize])));
 
 	(*Yi) = calibrateSample(beamletJones[4], *((I*) &(inputPortData[tsInOffset + 1 * timeStepSize])), \
 							beamletJones[5], *((I*) &(inputPortData[tsInOffset])), \
@@ -270,7 +240,7 @@ void inline udp_copySplitPols(long iLoop, char *inputPortData, O **outputData, l
 	#endif
 	for (int beamlet = baseBeamlet; beamlet < upperBeamlet; beamlet++) {
 		tsInOffset = input_offset_index(lastInputPacketOffset, beamlet, timeStepSize);
-		tsOutOffset = frequency_major_offset_index(outputPacketOffset, beamlet, baseBeamlet, cumulativeBeamlets, UDPNTIMESLICE);
+		tsOutOffset = frequency_major_index(outputPacketOffset, beamlet, baseBeamlet, cumulativeBeamlets, UDPNTIMESLICE);
 		
 		if constexpr (calibrateData) {
 			beamletJones = &(jonesMatrix[(beamlet - baseBeamlet) * JONESMATSIZE]);
@@ -321,7 +291,7 @@ void inline udp_channelMajor(long iLoop, char *inputPortData, O **outputData, lo
 	#endif
 	for (int beamlet = baseBeamlet; beamlet < upperBeamlet; beamlet++) {
 		tsInOffset = input_offset_index(lastInputPacketOffset, beamlet, timeStepSize);
-		tsOutOffset = frequency_major_offset_index(outputPacketOffset, beamlet, baseBeamlet, cumulativeBeamlets, UDPNPOL);
+		tsOutOffset = frequency_major_index(outputPacketOffset, beamlet, baseBeamlet, cumulativeBeamlets, UDPNPOL);
 		
 		if constexpr (calibrateData) {
 			beamletJones = &(jonesMatrix[(beamlet - baseBeamlet) * JONESMATSIZE]);
@@ -371,7 +341,7 @@ void inline udp_channelMajorSplitPols(long iLoop, char *inputPortData, O **outpu
 	#endif
 	for (int beamlet = baseBeamlet; beamlet < upperBeamlet; beamlet++) {
 		tsInOffset = input_offset_index(lastInputPacketOffset, beamlet, timeStepSize);
-		tsOutOffset = frequency_major_index(outputPacketOffset, beamlet, baseBeamlet, cumulativeBeamlets);
+		tsOutOffset = frequency_major_index(outputPacketOffset, beamlet, baseBeamlet, cumulativeBeamlets, 1);
 		
 		if constexpr (calibrateData) {
 			beamletJones = &(jonesMatrix[(beamlet - baseBeamlet) * JONESMATSIZE]);
@@ -420,7 +390,7 @@ void inline udp_reversedChannelMajor(long iLoop, char *inputPortData, O **output
 	#endif
 	for (int beamlet = baseBeamlet; beamlet < upperBeamlet; beamlet++) {
 		tsInOffset = input_offset_index(lastInputPacketOffset, beamlet, timeStepSize);
-		tsOutOffset = reversed_frequency_major_offset_index(outputPacketOffset, totalBeamlets, beamlet, baseBeamlet, cumulativeBeamlets, UDPNPOL);
+		tsOutOffset = reversed_frequency_major_index(outputPacketOffset, totalBeamlets, beamlet, baseBeamlet, cumulativeBeamlets, UDPNPOL);
 	
 		if constexpr (calibrateData) {
 			beamletJones = &(jonesMatrix[(beamlet - baseBeamlet) * JONESMATSIZE]);
@@ -469,7 +439,7 @@ void inline udp_reversedChannelMajorSplitPols(long iLoop, char *inputPortData, O
 	#endif
 	for (int beamlet = baseBeamlet; beamlet < upperBeamlet; beamlet++) {
 		tsInOffset = input_offset_index(lastInputPacketOffset, beamlet, timeStepSize);
-		tsOutOffset = reversed_frequency_major_index(outputPacketOffset, totalBeamlets, beamlet, baseBeamlet, cumulativeBeamlets);
+		tsOutOffset = reversed_frequency_major_index(outputPacketOffset, totalBeamlets, beamlet, baseBeamlet, cumulativeBeamlets, 1);
 	
 		if constexpr (calibrateData) {
 			beamletJones = &(jonesMatrix[(beamlet - baseBeamlet) * JONESMATSIZE]);
@@ -676,7 +646,7 @@ void inline udp_stokes(long iLoop, char *inputPortData, O **outputData,  long la
 		tsInOffset = input_offset_index(lastInputPacketOffset, beamlet, timeStepSize);
 
 		if constexpr (order == 0) {
-			tsOutOffset = reversed_frequency_major_index(outputPacketOffset, totalBeamlets, beamlet, baseBeamlet, cumulativeBeamlets);
+			tsOutOffset = reversed_frequency_major_index(outputPacketOffset, totalBeamlets, beamlet, baseBeamlet, cumulativeBeamlets, 1);
 	 	} else {
 	 		tsOutOffset = time_major_index(beamlet, baseBeamlet, cumulativeBeamlets, packetsPerIteration, outputPacketOffset);
 	 	}
@@ -735,7 +705,7 @@ void inline udp_stokesDecimation(long iLoop, char *inputPortData, O **outputData
 		tsInOffset = input_offset_index(lastInputPacketOffset, beamlet, timeStepSize);
 
 		if constexpr (order == 0) {
-			tsOutOffset = reversed_frequency_major_index(outputPacketOffset, totalBeamlets, beamlet, baseBeamlet, cumulativeBeamlets);
+			tsOutOffset = reversed_frequency_major_index(outputPacketOffset, totalBeamlets, beamlet, baseBeamlet, cumulativeBeamlets, 1);
 		} else {
 			tsOutOffset = time_major_index(beamlet, baseBeamlet, cumulativeBeamlets, packetsPerIteration, outputPacketOffset);
 		}
@@ -800,7 +770,7 @@ void inline udp_fullStokes(long iLoop, char *inputPortData, O **outputData,  lon
 		tsInOffset = input_offset_index(lastInputPacketOffset, beamlet, timeStepSize);
 
 		if constexpr (order == 0) {
-			tsOutOffset = reversed_frequency_major_index(outputPacketOffset, totalBeamlets, beamlet, baseBeamlet, cumulativeBeamlets);
+			tsOutOffset = reversed_frequency_major_index(outputPacketOffset, totalBeamlets, beamlet, baseBeamlet, cumulativeBeamlets, 1);
 		} else {
 			tsOutOffset = time_major_index(beamlet, baseBeamlet, cumulativeBeamlets, packetsPerIteration, outputPacketOffset);
 		}
@@ -866,7 +836,7 @@ void inline udp_fullStokesDecimation(long iLoop, char *inputPortData, O **output
 		tsInOffset = input_offset_index(lastInputPacketOffset, beamlet, timeStepSize);
 
 		if constexpr (order == 0) {
-			tsOutOffset = reversed_frequency_major_index(outputPacketOffset, totalBeamlets, beamlet, baseBeamlet, cumulativeBeamlets);
+			tsOutOffset = reversed_frequency_major_index(outputPacketOffset, totalBeamlets, beamlet, baseBeamlet, cumulativeBeamlets, 1);
 		} else {
 			tsOutOffset = time_major_index(beamlet, baseBeamlet, cumulativeBeamlets, packetsPerIteration, outputPacketOffset);
 		}
@@ -911,7 +881,7 @@ void inline udp_fullStokesDecimation(long iLoop, char *inputPortData, O **output
 		tsInOffset = input_offset_index(lastInputPacketOffset, beamlet, timeStepSize);
 
 		if constexpr (order == 0) {
-			tsOutOffset = reversed_frequency_major_index(outputPacketOffset, totalBeamlets, beamlet, baseBeamlet, cumulativeBeamlets);
+			tsOutOffset = reversed_frequency_major_index(outputPacketOffset, totalBeamlets, beamlet, baseBeamlet, cumulativeBeamlets, 1);
 		} else {
 			tsOutOffset = time_major_index(beamlet, baseBeamlet, cumulativeBeamlets, packetsPerIteration, outputPacketOffset);
 		}
@@ -978,7 +948,7 @@ void inline udp_usefulStokes(long iLoop, char *inputPortData, O **outputData,  l
 		tsInOffset = input_offset_index(lastInputPacketOffset, beamlet, timeStepSize);
 
 		if constexpr (order == 0) {
-			tsOutOffset = reversed_frequency_major_index(outputPacketOffset, totalBeamlets, beamlet, baseBeamlet, cumulativeBeamlets);
+			tsOutOffset = reversed_frequency_major_index(outputPacketOffset, totalBeamlets, beamlet, baseBeamlet, cumulativeBeamlets, 1);
 		} else {
 			tsOutOffset = time_major_index(beamlet, baseBeamlet, cumulativeBeamlets, packetsPerIteration, outputPacketOffset);
 		}
@@ -1039,7 +1009,7 @@ void inline udp_usefulStokesDecimation(long iLoop, char *inputPortData, O **outp
 		tsInOffset = input_offset_index(lastInputPacketOffset, beamlet, timeStepSize);
 
 		if constexpr (order == 0) {
-			tsOutOffset = reversed_frequency_major_index(outputPacketOffset, totalBeamlets, beamlet, baseBeamlet, cumulativeBeamlets);
+			tsOutOffset = reversed_frequency_major_index(outputPacketOffset, totalBeamlets, beamlet, baseBeamlet, cumulativeBeamlets, 1);
 		} else {
 			tsOutOffset = time_major_index(beamlet, baseBeamlet, cumulativeBeamlets, packetsPerIteration, outputPacketOffset);
 		}
@@ -1130,8 +1100,8 @@ int lofar_udp_raw_loop(lofar_udp_meta *meta) {
 	// Setup working variables	
 	VERBOSE(if (verbose) printf("Begining processing for state %d, with input %ld and output %ld\n", state, sizeof(I), sizeof(O)););
 	
-	const int packetsPerIteration = meta->packetsPerIteration;
-	const int replayDroppedPackets = meta->replayDroppedPackets;
+	const long packetsPerIteration = meta->packetsPerIteration;
+	const long replayDroppedPackets = meta->replayDroppedPackets;
 
 	// For each port of data provided,
 	#pragma omp parallel for
@@ -1197,7 +1167,7 @@ int lofar_udp_raw_loop(lofar_udp_meta *meta) {
 		iWork = 0, inputPacketOffset = 0;
 		currentPortPacket = lofar_get_packet_number(&(inputPortData[inputPacketOffset]));
 
-		VERBOSE(if (verbose) printf("Port %d: Packet %ld, iters %d, base %d, upper %d, cumulative %d, total %d, outputLength %d, timeStep %d, decimation %d, trueState %d\n", \
+		VERBOSE(if (verbose) printf("Port %d: Packet %ld, iters %ld, base %d, upper %d, cumulative %d, total %d, outputLength %d, timeStep %d, decimation %d, trueState %d\n", \
 					port, currentPortPacket, packetsPerIteration, baseBeamlet, upperBeamlet, cumulativeBeamlets, totalBeamlets, packetOutputLength, timeStepSize, decimation, trueState););
 		
 		//long iLoopCache;

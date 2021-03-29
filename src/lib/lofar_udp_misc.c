@@ -1,8 +1,8 @@
 #include "lofar_udp_misc.h"
 
-const float clock200MHzSteps = CLOCK200MHZ;
-const float clock160MHzSteps = CLOCK160MHZ;
-const float clockStepsDelta = CLOCK200MHZ - CLOCK160MHZ;
+const double clock200MHzSteps = CLOCK200MHZ;
+const double clock160MHzSteps = CLOCK160MHZ;
+const double clockStepsDelta = CLOCK200MHZ - CLOCK160MHZ;
 
 const double clock200MHzSample = 1.0 / CLOCK200MHZ;
 const double clock160MHzSample = 1.0 / CLOCK160MHZ;
@@ -160,8 +160,6 @@ int lofar_get_station_name(int stationID, char *stationCode) {
 			sprintf(stationCode, "RS%03d", 503 + (stationID % 183));
 			break;
 
-			break;
-
 
 		// Intl Stations
 		// DE
@@ -217,7 +215,6 @@ int lofar_get_station_name(int stationID, char *stationCode) {
 		default:
 			fprintf(stderr, "Unknown telescope ID %d. Was a new station added to the array? Update lofar_udp_misc.c\n", stationID);
 			return 1;
-			break;
 	}
 
 	return 0;

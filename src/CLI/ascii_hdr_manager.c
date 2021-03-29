@@ -299,7 +299,7 @@ void writeHdr(FILE *fileRef, ascii_hdr *header) {
 	writeDouble(fileRef, "DROPTOT", header->droptot);
 
 	// All headers are terminated with "END" followed by 77 spaces.
-	const char end[4] = "END\0";
+	const char end[4] = "END";
 	fprintf(fileRef, "%-80s", end);
 }
 
@@ -311,7 +311,7 @@ void writeHdr(FILE *fileRef, ascii_hdr *header) {
  * @param      val      The value
  */
 void writeStr(FILE *fileRef, char key[], char val[]) {
-	char tmpStr[80];
+	char tmpStr[81];
 	sprintf(tmpStr, "%-8s= '%-8s'", key, val);
 	fprintf(fileRef, "%-80s", tmpStr);
 }
@@ -324,8 +324,8 @@ void writeStr(FILE *fileRef, char key[], char val[]) {
  * @param[in]  val      The value
  */
 void writeInt(FILE *fileRef, char key[], int val) {
-	char tmpStr[80];
-	char intStr[20];
+	char tmpStr[81];
+	char intStr[21];
 	sprintf(intStr, "%d", val);
 	sprintf(tmpStr, "%-8s= %20s", key, intStr);
 	fprintf(fileRef, "%-80s", tmpStr);
@@ -339,8 +339,8 @@ void writeInt(FILE *fileRef, char key[], int val) {
  * @param[in]  val      The value
  */
 void writeLong(FILE *fileRef, char key[], long val) {
-	char tmpStr[80];
-	char intStr[20];
+	char tmpStr[81];
+	char intStr[21];
 	sprintf(intStr, "%ld", val);
 	sprintf(tmpStr, "%-8s= %20s", key, intStr);
 	fprintf(fileRef, "%-80s", tmpStr);
@@ -354,8 +354,8 @@ void writeLong(FILE *fileRef, char key[], long val) {
  * @param[in]  val      The value
  */
 void writeDouble(FILE *fileRef, char key[], double val) {
-	char tmpStr[80];
-	char intStr[20];
+	char tmpStr[81];
+	char intStr[21];
 	sprintf(intStr, "%.9lf", val);
 	sprintf(tmpStr, "%-8s= %20s", key, intStr);
 	fprintf(fileRef, "%-80s", tmpStr);

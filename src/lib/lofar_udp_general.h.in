@@ -7,13 +7,22 @@
 #define UPM_VERSION_PATCH @PROJECT_VERSION_PATCH@
 #define UPM_VERSION "@PROJECT_VERSION@"
 
+
+// Reader / writer enums
+typedef enum {
+	NORMAL = 1,
+	ZSTDCOMPRESSED = 2,
+	DADA_ACTIVE = 4,
+	BITSHFLCOMPRESSED = 8
+} reader_t;
+
+
 // I/O array sizes
 #define MAX_NUM_PORTS 4
 #define MAX_OUTPUT_DIMS 4
 
 // CEP packet reference values
 #define UDPHDRLEN 16
-#define UDPHDROFF 0
 #define UDPCURVER 3
 #define UDPMAXBEAM 244
 #define UDPNPOL 4

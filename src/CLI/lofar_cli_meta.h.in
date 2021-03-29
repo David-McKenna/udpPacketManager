@@ -17,8 +17,8 @@
 // Define prototypes
 void helpMessages(void);
 void processingModes(void);
-long getStartingPacket(char inputTime[], const int clock200MHz);
-long getSecondsToPacket(float seconds, const int clock200MHz);
+long getStartingPacket(char inputTime[], const unsigned int clock200MHz);
+long getSecondsToPacket(double seconds, const unsigned int clock200MHz);
 void getStartTimeStringOffset(lofar_udp_reader *reader, char stringBuff[], int offsetSeconds);
 void getStartTimeString(lofar_udp_reader *reader, char stringBuff[]);
 

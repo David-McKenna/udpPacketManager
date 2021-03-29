@@ -5,9 +5,9 @@
 
 #ifndef __LOFAR_SAMPLING_CONSTS
 #define __LOFAR_SAMPLING_CONSTS
-extern const float clock200MHzSteps;
-extern const float clock160MHzSteps;
-extern const float clockStepsDelta;
+extern const double clock200MHzSteps;
+extern const double clock160MHzSteps;
+extern const double clockStepsDelta;
 
 // Time steps per second in each clock mode
 extern const double clock200MHzSample;

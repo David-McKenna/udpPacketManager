@@ -36,7 +36,7 @@ void helpMessages() {
 
 }
 
-void eventsCleanup(int eventCount, char **dateStr, long *startingPackets, long *multiMaxPackets, float *eventSeconds) {
+void CLICleanup(int eventCount, char **dateStr, long *startingPackets, long *multiMaxPackets, float *eventSeconds, lofar_udp_config *config) {
 	if (startingPackets != NULL)
 		free(startingPackets); 
 
@@ -52,6 +52,14 @@ void eventsCleanup(int eventCount, char **dateStr, long *startingPackets, long *
 
 		free(dateStr);
 	}
+
+	if (config != NULL) {
+		if (config->calibrationConfiguration != NULL) {
+			free(config->calibrationConfiguration);
+		}
+		free(config);
+	}
+
 }
 
 
@@ -62,14 +70,16 @@ int main(int argc, char *argv[]) {
 	float seconds = 0.0f;
 	double sampleTime = 0.0;
 	char inputFormat[256] = "./%d", outputFormat[256] = "./output%d_%s_%ld", inputTime[256] = "", eventsFile[256] = "", stringBuff[128], mockHdrArg[2048] = "", mockHdrCmd[8192] = "", workingString[2048] = "";
-	int silent = 0, appendMode = 0, eventCount = 0, returnCounter = 0, callMockHdr = 0, basePort = 0, calPoint = 0, calStrat = 0, dadaInput = 0, dadaOffset = 10, dadaOut = 0, dadaOutKey = 26130, dadaOutOffet = 10;
+	int silent = 0, appendMode = 0, returnCounter = 0, eventCount = 0, callMockHdr = 0, basePort = 0, calPoint = 0, calStrat = 0, dadaInput = 0, dadaOffset = 10, dadaOut = 0, dadaOutKey = 26130, dadaOutOffet = 10;
 	long maxPackets = -1, startingPacket = -1;
 	int clock200MHz = 1;
 	FILE *eventsFilePtr;
 
-	lofar_udp_config config = lofar_udp_config_default;
-	lofar_udp_calibration cal = lofar_udp_calibration_default;
-	config.calibrationConfiguration = &cal;
+	lofar_udp_config *config = calloc(1, sizeof(lofar_udp_config));
+    (*config) = lofar_udp_config_default;
+	lofar_udp_calibration *cal = calloc(1, sizeof(struct lofar_udp_calibration));
+    (*cal) = lofar_udp_calibration_default;
+	config->calibrationConfiguration = cal;
 
 	// Set up reader loop variables
 	int loops = 0, localLoops = 0, returnVal, dummy;
@@ -106,7 +116,7 @@ int main(int argc, char *argv[]) {
 					fprintf(stderr, "ERROR: Specified input ringbuffer after defining an input file, exiting.\n");
 					return 1;
 				}
-				dadaInput = sscanf(optarg, "%d,%d", &(config.dadaKeys[0]), &dadaOffset);
+				dadaInput = sscanf(optarg, "%d,%d", &(config->dadaKeys[0]), &dadaOffset);
 				if (dadaInput < 1) {
 					fprintf(stderr, "ERROR: Failed to parse PSRDADA keys input (%d values parsed), exiting.\n", dadaInput);
 					return 1;
@@ -137,11 +147,11 @@ int main(int argc, char *argv[]) {
 				break;
 
 			case 'm':
-				config.packetsPerIteration = atol(optarg);
+				config->packetsPerIteration = atol(optarg);
 				break;
 
 			case 'u':
-				config.numPorts = atoi(optarg);
+				config->numPorts = atoi(optarg);
 				break;
 
 			case 'n':
@@ -161,7 +171,7 @@ int main(int argc, char *argv[]) {
 				break;
 
 			case 'p':
-				config.processingMode = atoi(optarg);
+				config->processingMode = atoi(optarg);
 				break;
 
 			case 'a':
@@ -170,21 +180,21 @@ int main(int argc, char *argv[]) {
 				break;
 
 			case 'b':
-				sscanf(optarg, "%d,%d", &(config.beamletLimits[0]), &(config.beamletLimits[1]));
+				sscanf(optarg, "%d,%d", &(config->beamletLimits[0]), &(config->beamletLimits[1]));
 				break;
 
 			case 'r':
-				config.replayDroppedPackets = 1;
+				config->replayDroppedPackets = 1;
 				break;
 
 			case 'c':
 				calPoint = 1;
-				strcpy(&(config.calibrationConfiguration->calibrationSubbands[0]), optarg);
+				strcpy(&(config->calibrationConfiguration->calibrationSubbands[0]), optarg);
 				break;
 
 			case 'd':
 				calStrat = 1;
-				sscanf(optarg, "%f,%f,%128s", &(config.calibrationConfiguration->calibrationPointing[0]), &(config.calibrationConfiguration->calibrationPointing[1]), &(config.calibrationConfiguration->calibrationPointingBasis[0]));
+				sscanf(optarg, "%f,%f,%128s", &(config->calibrationConfiguration->calibrationPointing[0]), &(config->calibrationConfiguration->calibrationPointing[1]), &(config->calibrationConfiguration->calibrationPointingBasis[0]));
 				break;
 
 			case 'z':
@@ -200,15 +210,15 @@ int main(int argc, char *argv[]) {
 				break;
 
 			case 'v': 
-                VERBOSE(config.verbose = 1;);
+                VERBOSE(config->verbose = 1;);
 				break;
 
 			case 'V': 
-				VERBOSE(config.verbose = 2;);
+				VERBOSE(config->verbose = 2;);
 				break;
 
 			case 'T':
-				config.ompThreads = atoi(optarg);
+				config->ompThreads = atoi(optarg);
 				break;
 
 
@@ -254,7 +264,7 @@ int main(int argc, char *argv[]) {
 
 	if (calPoint || calStrat) {
 		if (calPoint && calStrat) {
-			config.calibrateData = 1;
+			config->calibrateData = 1;
 		} else {
 			fprintf(stderr, "ERROR: Calibration not fully initialised. You only provided the ");
 			if (calPoint) {
@@ -269,15 +279,15 @@ int main(int argc, char *argv[]) {
 
 	// Sanity check a few inputs
 	if ((strcmp(inputFormat, "") == 0 && dadaInput < 1) || // Input file is sane
-		(dadaInput == 1 && (config.dadaKeys[0] < 1 || dadaOffset < 1)) ||  // Input ringbuffer is sane
+		(dadaInput == 1 && (config->dadaKeys[0] < 1 || dadaOffset < 1)) ||  // Input ringbuffer is sane
 		(dadaInput == 0) || // An input was provided
 		(dadaOut && (dadaOutKey < 1 || dadaOutOffet < 1)) || // Output ringbuffer is sane
-		(config.numPorts <= 0 || config.numPorts > MAX_NUM_PORTS) || // We are processing a sane number of ports
-		(config.packetsPerIteration < 2) || // We are processing a sane number of packets
-		(config.replayDroppedPackets > 1 || config.replayDroppedPackets < 0) || // Replay key was not malformed
-		(config.processingMode > 1000 || config.processingMode < 0) || // Processing mode is sane (may still fail later)
+		(config->numPorts <= 0 || config->numPorts > MAX_NUM_PORTS) || // We are processing a sane number of ports
+		(config->packetsPerIteration < 2) || // We are processing a sane number of packets
+		(config->replayDroppedPackets > 1 || config->replayDroppedPackets < 0) || // Replay key was not malformed
+		(config->processingMode > 1000 || config->processingMode < 0) || // Processing mode is sane (may still fail later)
 		(seconds < 0) || // Time is sane
-		(config.ompThreads < 1)) // Number of threads will allow excution to continue
+		(config->ompThreads < 1)) // Number of threads will allow excution to continue
 	{ 
 
 		fprintf(stderr, "One or more inputs invalid or not fully initialised, exiting.\n");
@@ -288,21 +298,21 @@ int main(int argc, char *argv[]) {
 	if (dadaInput < 1) {
 		// Check if we have a compressed input file
 		if (strstr(inputFormat, "zst") != NULL) {
-			config.readerType = ZSTDCOMPRESSED;
+			config->readerType = ZSTDCOMPRESSED;
 		} else {
-			config.readerType = NORMAL;
+			config->readerType = NORMAL;
 		}
 
 		// Set-up the input files, with checks to ensure they're opened
-		for (int port = basePort; port < config.numPorts + basePort; port++) {
+		for (int port = basePort; port < config->numPorts + basePort; port++) {
 			sprintf(workingString, inputFormat, port);
 
-			if (strcmp(inputFormat, workingString) == 0 && config.numPorts > 1) {
+			if (strcmp(inputFormat, workingString) == 0 && config->numPorts > 1) {
 				fprintf(stderr, "ERROR: Input file was not iterated while trying to load raw data, please ensure it contains a '%%d' value. Exiting.\n");
 				return 1;
 			}
 
-			VERBOSE(if (config.verbose) printf("Opening file at %s\n", workingString));
+			VERBOSE(if (config->verbose) printf("Opening file at %s\n", workingString));
 
 			inputFiles[port - basePort] = fopen(workingString, "r");
 			if (inputFiles[port - basePort] == NULL) {
@@ -313,17 +323,17 @@ int main(int argc, char *argv[]) {
 		}
 
 	} else {
-		config.readerType = DADA_ACTIVE;
-		for (int i = 1; i < config.numPorts; i++) {
-			config.dadaKeys[i] = config.dadaKeys[0] + i * dadaOffset;
+		config->readerType = DADA_ACTIVE;
+		for (int i = 1; i < config->numPorts; i++) {
+			config->dadaKeys[i] = config->dadaKeys[0] + i * dadaOffset;
 		}
 	}
 
 
 	// Make sure mockHeader is on the path if we want to use it.
 	if (callMockHdr) {
-		if (config.processingMode < 99 || config.processingMode > 199) {
-			fprintf(stderr, "WARNING: Processing mode %d may not confirm to the Sigproc spec, but you requested a header. Continuing with caution...\n", config.processingMode);
+		if (config->processingMode < 99 || config->processingMode > 199) {
+			fprintf(stderr, "WARNING: Processing mode %d may not confirm to the Sigproc spec, but you requested a header. Continuing with caution...\n", config->processingMode);
 		}
 		
 		printf("Checking for mockHeader on system path... ");
@@ -335,8 +345,8 @@ int main(int argc, char *argv[]) {
 		}
 
 		sampleTime = clock160MHzSample * (1 - clock200MHz) + clock200MHzSample * clock200MHz;
-		if (config.processingMode > 100) {
-			sampleTime *= 1 << ((config.processingMode % 10));
+		if (config->processingMode > 100) {
+			sampleTime *= 1 << ((config->processingMode % 10));
 		}
 	}
 
@@ -347,7 +357,7 @@ int main(int argc, char *argv[]) {
 		if (dadaInput < 0) {
 			printf("Input File:\t%s\n", inputFormat);
 		} else {
-			printf("Input Ringbuffer/Offset:\t%d, %d\n", config.dadaKeys[0], dadaOffset);
+			printf("Input Ringbuffer/Offset:\t%d, %d\n", config->dadaKeys[0], dadaOffset);
 		}
 
 		if (dadaOut == 0) {
@@ -355,10 +365,10 @@ int main(int argc, char *argv[]) {
 		} else {
 			printf("Output Ringbfr/Offset:\t%d, %d\n", dadaOutKey, dadaOutOffet);
 		}
-		printf("Packets/Gulp:\t%ld\t\t\tPorts:\t%d\n\n", config.packetsPerIteration, config.numPorts);
-		VERBOSE(printf("Verbose:\t%d\n", config.verbose););
-		printf("Proc Mode:\t%03d\t\t\tReader:\t%d\n\n", config.processingMode, config.readerType);
-		printf("Beamlet limits:\t%d, %d\n\n", config.beamletLimits[0], config.beamletLimits[1]);
+		printf("Packets/Gulp:\t%ld\t\t\tPorts:\t%d\n\n", config->packetsPerIteration, config->numPorts);
+		VERBOSE(printf("Verbose:\t%d\n", config->verbose););
+		printf("Proc Mode:\t%03d\t\t\tReader:\t%d\n\n", config->processingMode, config->readerType);
+		printf("Beamlet limits:\t%d, %d\n\n", config->beamletLimits[0], config->beamletLimits[1]);
 	}
 
 
@@ -397,7 +407,7 @@ int main(int argc, char *argv[]) {
 
 			if (returnCounter != 2) {
 				fprintf(stderr, "Unable to parse line %d of events file, exiting ('%s', %lf).\n", idx + 1, stringBuff, seconds);
-				eventsCleanup(eventCount, dateStr, startingPackets, multiMaxPackets, eventSeconds);
+				CLICleanup(eventCount, dateStr, startingPackets, multiMaxPackets, eventSeconds, config);
 				return 1;
 			}
 
@@ -406,7 +416,7 @@ int main(int argc, char *argv[]) {
 			if (startingPackets[idx] == 1) {
 				fprintf(stderr, "ERROR: Failed to get starting packet for event %d, exiting.\n", idx);
 				helpMessages();
-				eventsCleanup(eventCount, dateStr, startingPackets, multiMaxPackets, eventSeconds);
+				CLICleanup(eventCount, dateStr, startingPackets, multiMaxPackets, eventSeconds, config);
 				return 1;
 			}
 
@@ -422,13 +432,13 @@ int main(int argc, char *argv[]) {
 			if (idx > 0) {
 				if (startingPackets[idx] < startingPackets[idx-1]) {
 					fprintf(stderr, "Events %d and %d are out of order, please only use increasing event times, exiting.\n", idx, idx - 1);
-					eventsCleanup(eventCount, dateStr, startingPackets, multiMaxPackets, eventSeconds); 
+					CLICleanup(eventCount, dateStr, startingPackets, multiMaxPackets, eventSeconds, config);
 					return 1;
 				}
 
 				if (startingPackets[idx] < startingPackets[idx-1] + multiMaxPackets[idx -1]) {
 					fprintf(stderr, "Events %d and %d overlap, please combine them or ensure there is some buffer time between them, exiting.", idx, idx -1);
-					eventsCleanup(eventCount, dateStr, startingPackets, multiMaxPackets, eventSeconds);
+					CLICleanup(eventCount, dateStr, startingPackets, multiMaxPackets, eventSeconds, config);
 					return 1;
 				}
 			}
@@ -446,7 +456,7 @@ int main(int argc, char *argv[]) {
 			startingPacket = getStartingPacket(inputTime, clock200MHz);
 			if (startingPacket == 1) {
 				helpMessages();
-				eventsCleanup(eventCount, dateStr, startingPackets, NULL, NULL);
+				CLICleanup(eventCount, dateStr, startingPackets, NULL, NULL, config);
 				return 1;
 			}
 		}
@@ -468,9 +478,9 @@ int main(int argc, char *argv[]) {
 
 
 	// If the largest requested data block is less than the packetsPerIteration input, lower the figure so we aren't doing unnecessary reads/writes
-	if (config.packetsPerIteration > maxPackets)  {
-		if (silent == 0) printf("Packet/Gulp is greater than the maximum packets requested, reducing from %ld to %ld.\n", config.packetsPerIteration, maxPackets);
-		config.packetsPerIteration = maxPackets;
+	if (config->packetsPerIteration > maxPackets)  {
+		if (silent == 0) printf("Packet/Gulp is greater than the maximum packets requested, reducing from %ld to %ld.\n", config->packetsPerIteration, maxPackets);
+		config->packetsPerIteration = maxPackets;
 
 	}
 
@@ -481,22 +491,22 @@ int main(int argc, char *argv[]) {
 	CLICK(tick0);
 
 	// Generate the lofar_udp_reader, this also does I/O to seeks to the required packet and gulps the first input
-	config.inputFiles = &(inputFiles[0]);
-	config.startingPacket = startingPackets[0];
-	config.packetsReadMax = multiMaxPackets[0];
-	lofar_udp_reader *reader =  lofar_udp_meta_file_reader_setup_struct(&(config));
+	config->inputFiles = &(inputFiles[0]);
+	config->startingPacket = startingPackets[0];
+	config->packetsReadMax = multiMaxPackets[0];
+	lofar_udp_reader *reader =  lofar_udp_meta_file_reader_setup_struct(config);
 
 	// Returns null on error, check
 	if (reader == NULL) {
 		fprintf(stderr, "Failed to generate reader. Exiting.\n");
-		eventsCleanup(eventCount, dateStr, startingPackets, multiMaxPackets, eventSeconds);
+		CLICleanup(eventCount, dateStr, startingPackets, multiMaxPackets, eventSeconds, config);
 		return 1;
 	}
 
 	// Sanity check that we were passed the correct clock bit
 	if (((lofar_source_bytes*) &(reader->meta->inputData[0][1]))->clockBit != (unsigned int) clock200MHz) {
 		fprintf(stderr, "ERROR: The clock bit of the first packet does not match the clock state given when starting the CLI. Add or remove -c from your command. Exiting.\n");
-		eventsCleanup(eventCount, dateStr, startingPackets, multiMaxPackets, eventSeconds);
+		CLICleanup(eventCount, dateStr, startingPackets, multiMaxPackets, eventSeconds, config);
 		return 1;
 	}
 
@@ -512,18 +522,18 @@ int main(int argc, char *argv[]) {
 		for (int out = 0; out < reader->meta->numOutputs; out++) {
 			sprintf(workingString, outputFormat, out, dateStr[eventLoop]);
 
-			VERBOSE( if (config.verbose) printf("Checking if file at %s exists / can be written to\n", workingString));
+			VERBOSE( if (config->verbose) printf("Checking if file at %s exists / can be written to\n", workingString));
 			if (!appendMode) {
 				if (access(workingString, F_OK) != -1) {
 					fprintf(stderr, "Output file at %s already exists; exiting.\n", workingString);
-					eventsCleanup(eventCount, dateStr, startingPackets, multiMaxPackets, eventSeconds);
+					CLICleanup(eventCount, dateStr, startingPackets, multiMaxPackets, eventSeconds, config);
 					return 1;
 				}
 			} else {
 				outputFiles[0] = fopen(workingString, "a");
 				if (outputFiles[0] == NULL) {
 					fprintf(stderr, "Output file at %s could not be opened for writing, exiting.\n", workingString);
-					eventsCleanup(eventCount, dateStr, startingPackets, multiMaxPackets, eventSeconds);
+					CLICleanup(eventCount, dateStr, startingPackets, multiMaxPackets, eventSeconds, config);
 					return 1;
 				}
 
@@ -559,7 +569,7 @@ int main(int argc, char *argv[]) {
 		if (loops != 0) {
 			if ((returnVal = lofar_udp_file_reader_reuse(reader, startingPackets[eventLoop], multiMaxPackets[eventLoop])) > 0) {
 				fprintf(stderr, "Error re-initialising reader for event %d (error %d), exiting.\n", eventLoop, returnVal);
-				eventsCleanup(eventCount, dateStr, startingPackets, multiMaxPackets, eventSeconds);
+				CLICleanup(eventCount, dateStr, startingPackets, multiMaxPackets, eventSeconds, config);
 				return 1;
 			}
 		} 
@@ -590,11 +600,11 @@ int main(int argc, char *argv[]) {
 		for (int out = 0; out < reader->meta->numOutputs; out++) {
 			if (dadaOut == 0) {
 				sprintf(workingString, outputFormat, out, dateStr[eventLoop], startingPacket);
-				VERBOSE(if (config.verbose) printf("Testing output file for output %d @ %s\n", out, workingString));
+				VERBOSE(if (config->verbose) printf("Testing output file for output %d @ %s\n", out, workingString));
 				
 				if (appendMode != 1 && access(workingString, F_OK) != -1) {
 					fprintf(stderr, "Output file at %s already exists; exiting.\n", workingString);
-					eventsCleanup(eventCount, dateStr, startingPackets, multiMaxPackets, eventSeconds);
+					CLICleanup(eventCount, dateStr, startingPackets, multiMaxPackets, eventSeconds, config);
 					return 1;
 				}
 				
@@ -607,12 +617,12 @@ int main(int argc, char *argv[]) {
 					if (dummy != 0) fprintf(stderr, "Encountered error while calling mockHeader (%s), continuing with caution.\n", mockHdrCmd);
 				}
 
-				VERBOSE(if (config.verbose) printf("Opening file at %s\n", workingString));
+				VERBOSE(if (config->verbose) printf("Opening file at %s\n", workingString));
 
 				outputFiles[out] = fopen(workingString, "a");
 				if (outputFiles[out] == NULL) {
 					fprintf(stderr, "Output file at %s could not be created, exiting.\n", workingString);
-					eventsCleanup(eventCount, dateStr, startingPackets, multiMaxPackets, eventSeconds);
+					CLICleanup(eventCount, dateStr, startingPackets, multiMaxPackets, eventSeconds, config);
 					return 1;
 				}
 			} else {
@@ -622,7 +632,7 @@ int main(int argc, char *argv[]) {
 			}
 		}
 
-		VERBOSE(if (config.verbose) printf("Begining data extraction loop for event %d\n", eventLoop));
+		VERBOSE(if (config->verbose) printf("Begining data extraction loop for event %d\n", eventLoop));
 		// While we receive new data for the current event,
 		while ((returnVal = lofar_udp_reader_step_timed(reader, timing)) < 1) {
 
@@ -698,7 +708,7 @@ int main(int argc, char *argv[]) {
 		for (int out = 0; out < reader->meta->numOutputs; out++) totalOutLength += reader->meta->packetOutputLength[out];
 		for (int port = 0; port < reader->meta->numPorts; port++) droppedPackets += reader->meta->portTotalDroppedPackets[port];
 
-		printf("Reader loop exited (%d); overall process took %f seconds.\n", returnVal, (double) TICKTOCK(tick, tock));
+		printf("Reader loop exited (%d); overall process took %f seconds.\n", returnVal, TICKTOCK(tick, tock));
 		printf("We processed %ld packets, representing %.03lf seconds of data", packetsProcessed, (float) (reader->meta->numPorts * packetsProcessed * UDPNTIMESLICE) * 5.12e-6f);
 		if (reader->meta->numPorts > 1) printf(" (%.03lf per port)\n", (float) (packetsProcessed * UDPNTIMESLICE) * 5.12e-6f);
 		else printf(".\n");
@@ -715,7 +725,7 @@ int main(int argc, char *argv[]) {
 	if (silent == 0) printf("Reader cleanup performed successfully.\n");
 
 	// Free our malloc'd objects
-	eventsCleanup(eventCount, dateStr, startingPackets, multiMaxPackets, eventSeconds);
+	CLICleanup(eventCount, dateStr, startingPackets, multiMaxPackets, eventSeconds, config);
 
 	if (silent == 0) printf("CLI memory cleaned up successfully. Exiting.\n");
 	return 0;

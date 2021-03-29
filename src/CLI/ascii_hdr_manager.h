@@ -23,14 +23,14 @@
 // We likely don't need half as many keys as provided here, see
 // https://github.com/UCBerkeleySETI/rawspec/blob/master/rawspec_rawutils.c#L155
 //
-// char values are 68 in length as each entry is 80 chars, each key is up to 8
+// char values are 68(+\0) in length as each entry is 80 chars, each key is up to 8
 // chars long, and parsing requires '= ' between the key and value. Two bytes
 // are left as a buffer.
 //
 struct ascii_hdr_s {
-	char src_name[68];
-	char ra_str[68];
-	char dec_str[68];
+	char src_name[69];
+	char ra_str[69];
+	char dec_str[69];
 
 	double obsfreq;
 	double obsbw;
@@ -40,27 +40,27 @@ struct ascii_hdr_s {
 	int nbits;
 	double tbin;
 
-	char fd_poln[68];
-	char trk_mode[68];
-	char obs_mode[68];
-	char cal_mode[68];
+	char fd_poln[69];
+	char trk_mode[69];
+	char obs_mode[69];
+	char cal_mode[69];
 	double scanlen;
 
-	char projid[68];
-	char observer[68];
-	char telescop[68];
-	char frontend[68];
-	char backend[68];
-	char datahost[68];
+	char projid[69];
+	char observer[69];
+	char telescop[69];
+	char frontend[69];
+	char backend[69];
+	char datahost[69];
 	int dataport;
 	int overlap;
 
 	long blocsize;
-	char daqpulse[68];
+	char daqpulse[69];
 	int stt_imjd;
 	int stt_smjd;
 	long pktidx;
-	char pktfmt[68];
+	char pktfmt[69];
 	double stt_offs;
 	int pktsize;
 	double dropblk;

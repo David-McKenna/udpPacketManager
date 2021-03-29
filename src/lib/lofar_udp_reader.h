@@ -34,13 +34,6 @@ typedef struct multilog_t multilog_t;
 #ifndef __LOFAR_UDP_READER_STRUCTS
 #define __LOFAR_UDP_READER_STRUCTS
 
-typedef enum {
-	NORMAL = 1,
-	ZSTDCOMPRESSED = 2,
-	DADA_ACTIVE = 4,
-	BITSHFLCOMPRESSED = 8
-} reader_t;
-
 typedef struct lofar_udp_calibration {
 	// The current calibration step we are on and the amount that have been generated
 	int calibrationStepsGenerated;
@@ -242,7 +235,6 @@ int lofar_udp_file_reader_reuse(lofar_udp_reader *reader, const long startingPac
 int lofar_udp_parse_headers(lofar_udp_meta *meta, char header[MAX_NUM_PORTS][UDPHDRLEN], const int beamletLimits[2]);
 int lofar_udp_setup_processing(lofar_udp_meta *meta);
 int lofar_udp_get_first_packet_alignment(lofar_udp_reader *reader);
-int lofar_udp_get_first_packet_alignment_meta(lofar_udp_reader *reader);
 
 // Raw input data haandlers
 int lofar_udp_reader_step(lofar_udp_reader *reader);
@@ -257,13 +249,6 @@ long lofar_udp_reader_nchars(lofar_udp_reader *reader, const int port, char *tar
 int lofar_udp_reader_cleanup(lofar_udp_reader *reader);
 int lofar_udp_reader_cleanup_f(lofar_udp_reader *reader, const int closeFiles);
 
-
-// Maybe move these to misc?
-int fread_temp_ZSTD(void *outbuf, const size_t size, int num, FILE* inputFile, const int resetSeek);
-#ifndef NODADA
-int fread_temp_dada(void *outbuf, const size_t size, int num, int dadaKey, const int resetSeek);
-#endif
-long fd_file_size(int fd);
 
 #ifdef __cplusplus
 }

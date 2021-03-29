@@ -39,7 +39,7 @@ int main(int argc, char  *argv[]) {
 
 	// Set up input local variables
 	int inputOpt, outputFilesCount, input = 0;
-	float seconds = 0.0;
+	double seconds = 0.0;
 	double sampleTime = 0.0;
 	char inputFormat[256] = "./%d", outputFormat[256] = "./output_%d", inputTime[256] = "", stringBuff[128], hdrFile[2048] = "", timeStr[28] = "";
 	int silent = 0, appendMode = 0, itersPerFile = INT_MAX, basePort = 0, dadaInput = 0, dadaOffset = 10, fifoOut = 0;
@@ -50,7 +50,7 @@ int main(int argc, char  *argv[]) {
 	ascii_hdr header = ascii_hdr_default;
 
 	// Set up reader loop variables
-	int loops = 0, localLoops = 0, returnVal;
+	int loops = 0, localLoops, returnVal;
 	long packetsProcessed = 0, packetsWritten = 0, packetsToWrite;
 	double timing[2] = {0., 0.}, totalReadTime = 0, totalOpsTime = 0, totalWriteTime = 0;
 	struct timespec tick, tick0, tock, tock0;
@@ -422,7 +422,6 @@ int main(int argc, char  *argv[]) {
 	while (!endCondition) {
 		// Reset the local values for each file
 		localLoops = 0;
-		returnVal = 0;
 
 		// Output information about the current/last event if we're performing more than one event
 		getStartTimeString(reader, timeStr);
@@ -569,7 +568,7 @@ int main(int argc, char  *argv[]) {
 		for (int out = 0; out < outputFilesCount; out++) totalOutLength += reader->meta->packetOutputLength[out];
 		for (int port = 0; port < reader->meta->numPorts; port++) droppedPackets += reader->meta->portTotalDroppedPackets[port];
 
-		printf("Reader loop exited (%d); overall process took %f seconds.\n", returnVal, (double) TICKTOCK(tick, tock));
+		printf("Reader loop exited (%d); overall process took %f seconds.\n", returnVal, TICKTOCK(tick, tock));
 		printf("We processed %ld packets, representing %.03lf seconds of data", packetsProcessed, reader->meta->numPorts * packetsProcessed * UDPNTIMESLICE * 5.12e-6);
 		if (reader->meta->numPorts > 1) printf(" (%.03lf per port)\n", packetsProcessed * UDPNTIMESLICE * 5.12e-6);
 		else printf(".\n");
