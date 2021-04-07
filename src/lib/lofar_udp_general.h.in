@@ -1,5 +1,5 @@
-#ifndef __LOFAR_COMPILE_CONSTANTS
-#define __LOFAR_COMPILE_CONSTANTS
+#ifndef LOFAR_COMPILE_CONSTANTS
+#define LOFAR_COMPILE_CONSTANTS
 
 // Library information
 #define UPM_VERSION_MAJOR @PROJECT_VERSION_MAJOR@
@@ -11,9 +11,10 @@
 // Reader / writer enums
 typedef enum {
 	NORMAL = 1,
-	ZSTDCOMPRESSED = 2,
-	DADA_ACTIVE = 4,
-	BITSHFLCOMPRESSED = 8
+	FIFO = 2,
+	ZSTDCOMPRESSED = 4,
+	BITSHFLCOMPRESSED = 8,
+	DADA_ACTIVE = 16
 } reader_t;
 
 
@@ -35,9 +36,10 @@ typedef enum {
 #define CLOCK160MHZ 156250.0
 
 // Execution values
+#define DEF_STR_LEN 2048
 #define OMP_THREADS @OMP_THREADS@
 #define OMP_NESTED TRUE
-
+#define ZSTD_COMP_LEVEL @ZSTD_COMP_LEVEL@
 
 // Header component offsets
 #define CEP_HDR_RSP_VER_OFFSET 0
@@ -48,14 +50,15 @@ typedef enum {
 #define CEP_HDR_TIME_OFFSET 8
 #define CEP_HDR_SEQ_OFFSET 12
 
-#endif
+#endif // End of LOFAR_COMPILE_CONSTANTS
 
 
 
 
 // Decode the 'two source' bytes in the CEP header
-#ifndef __LOFAR_SOURCE_BYTE_STRUCT
-#define __LOFAR_SOURCE_BYTE_STRUCT
+#ifndef LOFAR_SOURCE_BYTE_STRUCT
+#define LOFAR_SOURCE_BYTE_STRUCT
+
 // For unpacking the header source bytes
 typedef struct __attribute__((__packed__)) lofar_source_bytes {
 	unsigned int rsp : 5;
@@ -66,12 +69,13 @@ typedef struct __attribute__((__packed__)) lofar_source_bytes {
 	unsigned int padding1 : 6;
 
 } lofar_source_bytes;
-#endif
+
+#endif // End of LOFAR_SOURCE_BYTE_STRUCT
 
 
 
-#ifndef __LOFAR_UDP_VERBOSE_MACRO
-#define __LOFAR_UDP_VERBOSE_MACRO
+#ifndef LOFAR_UDP_VERBOSE_MACRO
+#define LOFAR_UDP_VERBOSE_MACRO
 
 #ifdef ALLOW_VERBOSE
 #define VERBOSE(MSG) MSG;
@@ -81,26 +85,28 @@ typedef struct __attribute__((__packed__)) lofar_source_bytes {
 #define VERBOSEP(...) while(0) {};
 #endif
 
-#endif
+#endif // End of LOFAR_UDP_VERBOSE_MACRO
 
 
 
 // Slow stopping macro (enable from makefile)
-#ifndef __LOFAR_SLEEP
-#define __LOFAR_SLEEP
+#ifndef LOFAR_SLEEP
+#define LOFAR_SLEEP
 
-#ifdef __SLOWDOWN
+#ifdef SLOWDOWN
 #define PAUSE sleep(1);
 #else
 #define PAUSE while(0) {};
 #endif
 
-#endif
+#endif // End of LOFAR_SLEEP
 
 
 // Timing macro
-#ifndef __LOFAR_UDP_TICKTOCK_MACRO
-#define __LOFAR_UDP_TICKTOCK_MACRO
+#ifndef LOFAR_UDP_TICKTOCK_MACRO
+#define LOFAR_UDP_TICKTOCK_MACRO
+
 #define CLICK(clock) clock_gettime(CLOCK_MONOTONIC_RAW, &clock);
 #define TICKTOCK(tick, tock) ((double) (tock.tv_nsec - tick.tv_nsec) / 1000000000.0) + (tock.tv_sec - tick.tv_sec)
-#endif
+
+#endif // end of LOFAR_UDP_TICKTOCK_MACRO

@@ -20,13 +20,15 @@ project(udpPacketManager 	VERSION 0.7.0
 							DESCRIPTION "C Library for handling CEP packet data from an international LOFAR station"
 							LANGUAGES C CXX
 )
-set(UPM_CLI_VERSION 0.5)
+set(UPM_CLI_VERSION 0.6)
+set(NUM_COMPRESS_THREADS 2)
+set(ZSTD_COMP_LEVEL 2)
 
 set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -W -Wall -DALLOW_VERBOSE -g")
 set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -W -Wall -DALLOW_VERBOSE -g")
-#set (CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -fno-omit-frame-pointer -fsanitize=address")
-#set (CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -fno-omit-frame-pointer -fsanitize=address")
-#set (CMAKE_LINKER_FLAGS_DEBUG "${CMAKE_LINKER_FLAGS_DEBUG} -fno-omit-frame-pointer -fsanitize=address")
+set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -fno-omit-frame-pointer") # -fsanitize=address")
+set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -fno-omit-frame-pointer") # -fsanitize=address")
+set(CMAKE_LINKER_FLAGS_DEBUG "${CMAKE_LINKER_FLAGS_DEBUG} -fno-omit-frame-pointer") # -fsanitize=address")
 
 # Find the OpenMP package on the system
 find_package(OpenMP)
@@ -57,6 +59,7 @@ add_library(lofudpman STATIC
 			src/lib/lofar_udp_reader.c
 			src/CLI/lofar_cli_meta.c
 			src/CLI/ascii_hdr_manager.c
+			src/lib/lofar_udp_structs.c
 )
 # Include all of our headers
 target_include_directories(lofudpman PUBLIC

@@ -1,19 +1,12 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <getopt.h>
-
-#include <stdio.h>
-#include <stdlib.h>
 #include <getopt.h>
 #include <unistd.h>
-#include <string.h>
 
 
 // Grab a couple of defines from the main header
-#include "lofar_udp_general.h"
+#include "lofar_udp_io.h"
 
-#ifndef __ASCII_HDR_H
-#define __ASCII_HDR_H
+#ifndef ASCII_HDR_H
+#define ASCII_HDR_H
 
 // Shorthand for the number of arguments we support
 #define HEADER_ARGS 33

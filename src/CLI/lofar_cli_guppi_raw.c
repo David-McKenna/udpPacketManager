@@ -41,13 +41,18 @@ int main(int argc, char  *argv[]) {
 	int inputOpt, outputFilesCount, input = 0;
 	double seconds = 0.0;
 	double sampleTime = 0.0;
-	char inputFormat[256] = "./%d", outputFormat[256] = "./output_%d", inputTime[256] = "", stringBuff[128], hdrFile[2048] = "", timeStr[28] = "";
-	int silent = 0, appendMode = 0, itersPerFile = INT_MAX, basePort = 0, dadaInput = 0, dadaOffset = 10, fifoOut = 0;
+	char inputTime[256] = "", stringBuff[128], hdrFile[2048] = "", timeStr[28] = "", inputFormat[2048] = "", outputFormat[2048] = "";
+	int silent = 0, itersPerFile = INT_MAX, basePort = 0, inputProvided = 0, outputProvided = 0;
 	unsigned int clock200MHz = 1;
 	
-	lofar_udp_config config = lofar_udp_config_default;
-	config.processingMode = 30;
+
+	lofar_udp_config *config = calloc(1, sizeof(lofar_udp_config));
+    (*config) = lofar_udp_config_default;
+	config->processingMode = 30;
 	ascii_hdr header = ascii_hdr_default;
+
+	lofar_udp_io_write_config *outConfig = calloc(1, sizeof(lofar_udp_io_write_config));
+	(*outConfig) = lofar_udp_io_write_config_default;
 
 	// Set up reader loop variables
 	int loops = 0, localLoops, returnVal;
@@ -68,55 +73,29 @@ int main(int argc, char  *argv[]) {
 		switch(inputOpt) {
 			
 			case 'i':
-				if (dadaInput == 1) {
-					fprintf(stderr, "ERROR: Specified input ringbuffer after defining an input file, exiting.\n");
+				if (lofar_udp_io_read_parse_optarg(config, optarg) < 0) {
+					helpMessages();
 					return 1;
 				}
-				dadaInput = -1;
 				strcpy(inputFormat, optarg);
+				inputProvided = 1;
 				break;
-
-			case 'k':
-#ifndef NODADA
-				if (dadaInput == -1) {
-					fprintf(stderr, "ERROR: Specified input ringbuffer after defining an input file, exiting.\n");
-					return 1;
-				}
-				dadaInput = sscanf(optarg, "%d,%d", &(config.dadaKeys[0]), &dadaOffset);
-				if (dadaInput < 1) {
-					fprintf(stderr, "ERROR: Failed to parse PSRDADA keys input (%d values parsed), exiting.\n", dadaInput);
-					return 1;
-				} 
-				
-				dadaInput = 1;
-				break;
-#else
-				fprintf(stderr, "ERROR: PSRDADA key specified when PSRDADA was disabled at compile time, exiting.\n");
-				return 1;
-#endif
 
 			case 'o':
-				if (strstr(optarg, "FIFO:") != NULL) {
-					fifoOut = 1;
-					if (sscanf(optarg, "FIFO:%s", outputFormat) != 1) {
-						fprintf(stderr, "ERROR: Failed to parse fifo format, exiting.\n");
-						return 1;
-					}
-				} else {
-					strcpy(outputFormat, optarg);
+				if (lofar_udp_io_write_parse_optarg(outConfig, optarg) < 0) {
+					helpMessages();
+					return 1;
 				}
+				strcpy(outputFormat, optarg);
+				outputProvided = 1;
 				break;
 
 			case 'm':
-				config.packetsPerIteration = atol(optarg);
+				config->packetsPerIteration = atol(optarg);
 				break;
 
 			case 'u':
-				config.numPorts = atoi(optarg);
-				break;
-
-			case 'n':
-				basePort = atoi(optarg);
+				config->numPorts = atoi(optarg);
 				break;
 
 			case 't':
@@ -136,11 +115,11 @@ int main(int argc, char  *argv[]) {
 				break;
 
 			case 'b':
-				sscanf(optarg, "%d,%d", &(config.beamletLimits[0]), &(config.beamletLimits[1]));
+				sscanf(optarg, "%d,%d", &(config->beamletLimits[0]), &(config->beamletLimits[1]));
 				break;
 
 			case 'r':
-				config.replayDroppedPackets = 1;
+				config->replayDroppedPackets = 1;
 				break;
 
 			case 'c':
@@ -152,19 +131,19 @@ int main(int argc, char  *argv[]) {
 				break;
 
 			case 'f':
-				appendMode = 1;
+				outConfig->appendExisting = 1;
 				break;
 
 			case 'v': 
-				if (!config.verbose)
-					VERBOSE(config.verbose = 1;);
+				if (!config->verbose)
+					VERBOSE(config->verbose = 1;);
 				break;
 			case 'V': 
-				VERBOSE(config.verbose = 2;);
+				VERBOSE(config->verbose = 2;);
 				break;
 
 			case 'T':
-				config.ompThreads = atoi(optarg);
+				config->ompThreads = atoi(optarg);
 				break;
 
 
@@ -193,8 +172,14 @@ int main(int argc, char  *argv[]) {
 		}
 	}
 
-	if (input == 0) {
+	if (!inputProvided) {
+		fprintf(stderr, "ERROR: An input was not provided, exiting.\n");
 		helpMessages();
+		return 1;
+	}
+
+	if (outConfig->readerType == DADA_ACTIVE) {
+		fprintf(stderr, "ERROR: This CLI does not support outputing the data to a DADA ringubffer, exiting.\n");
 		return 1;
 	}
 
@@ -204,7 +189,7 @@ int main(int argc, char  *argv[]) {
 	outputFilesCount = 1;
 
 	// Sanity check a few inputs
-	if ((strcmp(inputFormat, "") == 0 && dadaInput < 1) || (dadaInput == 1 && (config.dadaKeys[0] < 1 || dadaOffset < 1)) || (dadaInput == 0) ||  (config.numPorts <= 0) || (config.packetsPerIteration < 2)  || (config.replayDroppedPackets > 1 || config.replayDroppedPackets < 0) || (seconds < 0) || (config.ompThreads < 1)) {
+	if ((config->numPorts <= 0) || (config->packetsPerIteration < 2)  || (config->replayDroppedPackets > 1 || config->replayDroppedPackets < 0) || (seconds < 0) || (config->ompThreads < 1)) {
 		fprintf(stderr, "One or more inputs invalid or not fully initialised, exiting.\n");
 		helpMessages();
 		return 1;
@@ -219,41 +204,6 @@ int main(int argc, char  *argv[]) {
 	}
 
 
-	if (dadaInput < 1) {
-		// Check if we have a compressed input file
-		if (strstr(inputFormat, "zst") != NULL) {
-			config.readerType = ZSTDCOMPRESSED;
-		} else {
-			config.readerType = NORMAL;
-		}
-
-		// Set-up the input files, with checks to ensure they're opened
-		for (int port = basePort; port < config.numPorts + basePort; port++) {
-			sprintf(workingString, inputFormat, port);
-
-			if (strcmp(inputFormat, workingString) == 0 && config.numPorts > 1) {
-				fprintf(stderr, "ERROR: Input file was not iterated while trying to load raw data, please ensure it contains a '%%d' value. Exiting.\n");
-				return 1;
-			}
-
-			VERBOSE(if (config.verbose) printf("Opening file at %s\n", workingString));
-
-			inputFiles[port - basePort] = fopen(workingString, "r");
-			if (inputFiles[port - basePort] == NULL) {
-				fprintf(stderr, "Input file at %s does not exist, exiting.\n", workingString);
-				return 1;
-			}
-			PAUSE;
-		}
-	
-	} else {
-		config.readerType = DADA_ACTIVE;
-		for (int i = 1; i < config.numPorts; i++) {
-			config.dadaKeys[i] = config.dadaKeys[0] + i * dadaOffset;
-		}
-	}
-
-
 	// Determine the clock time
 	sampleTime = clock160MHzSample * (1 - clock200MHz) + clock200MHzSample * clock200MHz;
 
@@ -261,16 +211,13 @@ int main(int argc, char  *argv[]) {
 	if (silent == 0) {
 		printf("LOFAR UDP Data extractor (GUPPI v%s, lib v%s)\n\n", UPM_CLI_VERSION, UPM_VERSION);
 		printf("=========== Given configuration ===========\n");
-		if (dadaInput < 0) {
-			printf("Input File:\t%s\n", inputFormat);
-		} else {
-			printf("Input Ringbuffer/Offset:\t%d, %d\n", config.dadaKeys[0], dadaOffset);
-		}
+		printf("Input File:\t%s\n", inputFormat);
+
 		printf("Output File: %s\n\n", outputFormat);
-		printf("Packets/Gulp:\t%ld\t\t\tPorts:\t%d\n\n", config.packetsPerIteration, config.numPorts);
-		VERBOSE(printf("Verbose:\t%d\n", config.verbose););
-		printf("Proc Mode:\t%03d\t\t\tCompressed:\t%d\n\n", config.processingMode, config.readerType);
-		printf("Beamlet limits:\t%d, %d\n\n", config.beamletLimits[0], config.beamletLimits[1]);
+		printf("Packets/Gulp:\t%ld\t\t\tPorts:\t%d\n\n", config->packetsPerIteration, config->numPorts);
+		VERBOSE(printf("Verbose:\t%d\n", config->verbose););
+		printf("Proc Mode:\t%03d\t\t\tCompressed:\t%d\n\n", config->processingMode, config->readerType);
+		printf("Beamlet limits:\t%d, %d\n\n", config->beamletLimits[0], config->beamletLimits[1]);
 	}
 
 
@@ -279,8 +226,8 @@ int main(int argc, char  *argv[]) {
 	dateStr = calloc(1, sizeof(char*));
 	dateStr[0] = calloc(1, sizeof("2020-20-20T-20:20:20"));
 	if (strcmp(inputTime, "") != 0) {
-		config.startingPacket = getStartingPacket(inputTime, clock200MHz);
-		if (config.startingPacket == 1) {
+		config->startingPacket = getStartingPacket(inputTime, clock200MHz);
+		if (config->startingPacket == 1) {
 			helpMessages();
 			free(dateStr[0]); free(dateStr);
 			return 1;
@@ -289,56 +236,21 @@ int main(int argc, char  *argv[]) {
 
 	strcpy(dateStr[0], inputTime);
 
-	if(seconds != 0.0) config.packetsReadMax = getSecondsToPacket(seconds, clock200MHz);
-	else config.packetsReadMax = LONG_MAX;
+	if(seconds != 0.0) config->packetsReadMax = getSecondsToPacket(seconds, clock200MHz);
+	else config->packetsReadMax = LONG_MAX;
 
 	if (silent == 0) printf("Start Time:\t%s\t200MHz Clock:\t%d\n", inputTime, clock200MHz);
-	if (silent == 0) printf("Initial Packet:\t%ld\t\tFinal Packet:\t%ld\n", config.startingPacket, config.startingPacket + config.packetsReadMax);
+	if (silent == 0) printf("Initial Packet:\t%ld\t\tFinal Packet:\t%ld\n", config->startingPacket, config->startingPacket + config->packetsReadMax);
 	if (silent == 0) printf("============ End configuration ============\n\n");
 
 
 	// If the largest requested data block is less than the packetsPerIteration input, lower the figure so we aren't doing unnecessary reads/writes
-	if (config.packetsPerIteration > config.packetsReadMax)  {
-		if (silent == 0) printf("Packet/Gulp is greater than the maximum packets requested, reducing from %ld to %ld.\n", config.packetsPerIteration, config.packetsReadMax);
-		config.packetsPerIteration = config.packetsReadMax;
+	if (config->packetsPerIteration > config->packetsReadMax)  {
+		if (silent == 0) printf("Packet/Gulp is greater than the maximum packets requested, reducing from %ld to %ld.\n", config->packetsPerIteration, config->packetsReadMax);
+		config->packetsPerIteration = config->packetsReadMax;
 
 	}
 
-	// Check that the output files don't already exist (no append mode), or that they can be written to (append mode)		
-	if (strstr(outputFormat, "%ld") != NULL && silent == 0)  {
-		printf("WARNING: we cannot predict whether or not files following the prefix '%s' will exist due to the packet number being variable due to packet loss.\nContinuing with caution.\n\n", outputFormat);
-	} else {
-		for (int out = 0; out < outputFilesCount; out++) {
-			sprintf(workingString, outputFormat, out, dateStr[0]);
-
-			VERBOSE(if (config.verbose) printf("Checking if file at %s exists / can be written to\n", workingString));
-			if (!appendMode) {
-				if (access(workingString, F_OK) != -1) {
-					fprintf(stderr, "Output file at %s already exists; exiting.\n", workingString);
-					free(dateStr[0]); free(dateStr);
-					return 1;
-				}
-			} else {
-				if (fifoOut) {
-					if (mkfifo(workingString, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH) < 0) {
-						fprintf(stderr, "ERROR: failed to make FIFO at %s (errno: %d (%s)), exiting.\n", workingString, errno, strerror(errno));
-						return 1;
-					}
-				}
-				outputFiles[0] = fopen(workingString, "a");
-				if (outputFiles[0] == NULL) {
-					fprintf(stderr, "Output file at %s could not be opened for writing, exiting.\n", workingString);
-					free(dateStr[0]); free(dateStr);
-					return 1;
-				}
-
-				fclose(outputFiles[0]);
-			}
-		}
-	}
-
-
-	
 	if (silent == 0) printf("Starting data read/reform operations...\n");
 
 	// Start our timers early, _setup performs the first read operation in order to seek if needed
@@ -346,8 +258,7 @@ int main(int argc, char  *argv[]) {
 	CLICK(tick0);
 
 	// Generate the lofar_udp_reader, this also does I/O for the first input or seeks to the required packet
-	config.inputFiles = &(inputFiles[0]);
-	lofar_udp_reader *reader =  lofar_udp_meta_file_reader_setup_struct(&(config));
+	lofar_udp_reader *reader =  lofar_udp_reader_setup(config);
 
 	// Returns null on error, check
 	if (reader == NULL) {
@@ -408,14 +319,7 @@ int main(int argc, char  *argv[]) {
 	}
 
 
-	// Prepare the first FIFO if needed (we'll make future FIFOs after every set of iterations, before closing the current one)
-	if (fifoOut) {
-		if (mkfifo(workingString, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH) < 0) {
-			fprintf(stderr, "ERROR: failed to make FIFO at %s (errno: %d (%s)), exiting.\n", workingString, errno, strerror(errno));
-			return 1;
-		}
-	}
-	
+
 	// Start iterating
 	int endCondition = 0;
 	int totalDropped = 0, blockDropped = 0;
@@ -427,30 +331,11 @@ int main(int argc, char  *argv[]) {
 		getStartTimeString(reader, timeStr);
 
 		// Open the output files for this event
-		for (int out = 0; out < outputFilesCount; out++) {
-			sprintf(workingString, outputFormat, loops / itersPerFile);
-			VERBOSE(if (config.verbose) printf("Testing output file for output %d @ %s\n", out, workingString));
-			
-			if (appendMode != 1 && access(workingString, F_OK) != -1) {
-				fprintf(stderr, "Output file at %s already exists; exiting.\n", workingString);
-				free(dateStr[0]); free(dateStr);
-				return 1;
-			}
-			
-			VERBOSE(if (config.verbose) printf("Opening file at %s\n", workingString));
-			outputFiles[out] = fopen(workingString, "a");
-			if (outputFiles[out] == NULL) {
-				fprintf(stderr, "Output file at %s could not be created, exiting.\n", workingString);
-				free(dateStr[0]); free(dateStr);
-				return 1;
-			}
-
-			if (loops > 0) {
-				if (silent == 0) printf("\n\nCompleted work for %d iterations, creating new file at %s\n\n\n", loops, workingString);
-			}
+		if (lofar_udp_io_write_setup(outConfig, reader->meta, loops / itersPerFile) < 0) {
+			return 1;
 		}
 
-		VERBOSE(if (config.verbose) printf("Begining data extraction loop for event %d\n", loops));
+		VERBOSE(if (config->verbose) printf("Begining data extraction loop for event %d\n", loops));
 		// While we receive new data for the current event,
 		while ((returnVal = lofar_udp_reader_step_timed(reader, timing)) < 1) {
 
@@ -473,7 +358,6 @@ int main(int argc, char  *argv[]) {
 
 			CLICK(tick0);
 			
-			#ifndef BENCHMARKING
 			for (int out = 0; out < reader->meta->numOutputs; out++) {
 				// Update header parameters, then write it to disk before we write the next block of data
 				header.blocsize = packetsToWrite * reader->meta->packetOutputLength[out];
@@ -489,12 +373,14 @@ int main(int argc, char  *argv[]) {
 					header.pktidx = packetsWritten;
 				}
 
-				writeHdr(outputFiles[out], &header);
+				writeHdr(outConfig->outputFiles[out], &header);
 				
 				VERBOSE(printf("Writing %ld bytes (%ld packets) to disk for output %d...\n", packetsToWrite * reader->meta->packetOutputLength[out], packetsToWrite, out));
-				fwrite(reader->meta->outputData[out], sizeof(char), packetsToWrite * reader->meta->packetOutputLength[out], outputFiles[out]);
+				if (lofar_udp_io_write(outConfig, out, reader->meta->outputData[out], packetsToWrite * reader->meta->packetOutputLength[out]) < 0) {
+					endCondition = 1;
+					break;
+				}
 			}
-			#endif
 
 			// Count the number of packets written + processed (should always be the same for the GUPPI CLI)
 			packetsWritten += packetsToWrite;
@@ -536,25 +422,14 @@ int main(int argc, char  *argv[]) {
 			endCondition = 1;
 		}
 
-		// Make the next FIFO early if we aren't exiting
-		if (!endCondition && fifoOut) {
-			sprintf(workingString, outputFormat, loops / itersPerFile);
-			if (mkfifo(workingString, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH) < 0) {
-				fprintf(stderr, "ERROR: failed to make FIFO at %s (errno: %d (%s)), exiting.\n", workingString, errno, strerror(errno));
-				return 1;
-			}
+		for (int outp = 0; outp < reader->meta->numOutputs; outp++) {
+			lofar_udp_io_write_cleanup(outConfig, outp, 0);
 		}
 
-		// Close the output files before we open new ones or exit
-		for (int out = 0; out < outputFilesCount; out++) fclose(outputFiles[out]);
+	}
 
-		if (fifoOut) {
-			sprintf(workingString, outputFormat, (loops / itersPerFile) - 1);
-			if (remove(workingString) != 0) {
-				fprintf(stderr, "WARNING: Failed to remove old FIFO at %s (errno %d: %s).\n", workingString, errno, strerror(errno));
-			}
-		}
-
+	for (int outp = 0; outp < reader->meta->numOutputs; outp++) {
+		lofar_udp_io_write_cleanup(outConfig, outp, 1);
 	}
 
 	CLICK(tock);

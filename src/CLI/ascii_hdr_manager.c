@@ -61,12 +61,10 @@ int parseHdrFile(char inputFile[], ascii_hdr *header) {
 	// Open the header file, find it's length and load it into memory
 	FILE* fileRef = fopen(inputFile, "r");
 
-	fseek(fileRef, 0, SEEK_END);
-	unsigned long fileSize = ftell(fileRef);
-	fseek(fileRef, 0, SEEK_SET);
+	size_t fileSize = FILE_file_size(fileRef);
 
 	char *fileData = calloc(fileSize, sizeof(char));
-	unsigned long readlen = fread(fileData, 1, fileSize, fileRef);
+	size_t readlen = fread(fileData, 1, fileSize, fileRef);
 
 	// Sanity check the old vs new length
 	if (readlen != fileSize) {
