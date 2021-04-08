@@ -95,7 +95,7 @@ PREFIX ?= /usr/local
 CASACOREDIR ?= /usr/share/casacore/data/
 
 
-.INTERMEDIATE : ./tests/obj-generated-$(LIB_VER).$(LIB_VER_MINOR)
+.INTERMEDIATE : ./test_old/obj-generated-$(LIB_VER).$(LIB_VER_MINOR)
 
 # C -> CC
 %.o: %.c
@@ -173,7 +173,7 @@ clean:
 	-rm ./compiler_report_*.log
 	-rm ./lofar_udp_extractor
 	-rm ./lofar_udp_guppi_raw
-	-rm ./tests/output_*
+	-rm ./test_old/output_*
 
 # Uninstall the software from the system
 remove:
@@ -206,9 +206,9 @@ remove-local:
 # 
 # The generated hashes were generated using -ffast-math and will
 # not be correct without that flag.
-test: ./tests/obj-generated-$(LIB_VER).$(LIB_VER_MINOR)
+test: ./test_old/obj-generated-$(LIB_VER).$(LIB_VER_MINOR)
 	# . === source
-	. ./tests/hashVariables.txt; for output in ./tests/output*; do \
+	. ./test_old/hashVariables.txt; for output in ./test_old/output*; do \
 		base=$$(basename $$output); \
 		md5hash=($$(md5sum $$output)); \
 		echo "$$base: $${md5hash[0]}, $${!base}"; \
@@ -219,19 +219,19 @@ test: ./tests/obj-generated-$(LIB_VER).$(LIB_VER_MINOR)
 	\
 	# TODO: check overlapping outputs, eg 100, 150, 160 against each other.
 
-	rm ./tests/output*
+	rm ./test_old/output*
 
 
 # Build the objects to test
 # Stress test: multiple ports, compressed and uncompressed, every processing mode, an odd/small number of packets
 # In futre: consider dropping a few packets from the test case
-./tests/obj-generated-$(LIB_VER).$(LIB_VER_MINOR): test-samples
-	-rm ./tests/output*
+./test_old/obj-generated-$(LIB_VER).$(LIB_VER_MINOR): test-samples
+	-rm ./test_old/output*
 
 
 	for procMode in 0 1 2 10 11 20 21 30 31 32; do \
-		echo "Running lofar_udp_extractor -i ./tests/udp_1613%d_sample.zst -o './tests/output_'$$procModeStokes'_%d' -p $$procMode -m 501 -u 2"; \
-		lofar_udp_extractor -i ./tests/udp_1613%d_sample -o './tests/output_'$$procMode'_%d' -p $$procMode -m 501 -u 2; \
+		echo "Running lofar_udp_extractor -i ./test_old/udp_1613%d_sample.zst -o './test_old/output_'$$procModeStokes'_%d' -p $$procMode -m 501 -u 2"; \
+		lofar_udp_extractor -i ./test_old/udp_1613%d_sample -o './test_old/output_'$$procMode'_%d' -p $$procMode -m 501 -u 2; \
 	done
 
 	for procMode in 100 110 120 130 150 160; do \
@@ -240,32 +240,32 @@ test: ./tests/obj-generated-$(LIB_VER).$(LIB_VER_MINOR)
 			workingMode="`expr $$procMode + $$order`"; \
 			for offset in 0 1 2 3 4; do \
 				procModeStokes="`expr $$workingMode + $$offset`"; \
-				echo "Running lofar_udp_extractor -i ./tests/udp_1613%d_sample.zst -o './tests/output_'$$procModeStokes'_%d' -p $$procModeStokes -m 501 -u 2"; \
-				lofar_udp_extractor -i ./tests/udp_1613%d_sample.zst -o './tests/output_'$$procModeStokes'_%d' -p $$procModeStokes -m 501 -u 2; \
+				echo "Running lofar_udp_extractor -i ./test_old/udp_1613%d_sample.zst -o './test_old/output_'$$procModeStokes'_%d' -p $$procModeStokes -m 501 -u 2"; \
+				lofar_udp_extractor -i ./test_old/udp_1613%d_sample.zst -o './test_old/output_'$$procModeStokes'_%d' -p $$procModeStokes -m 501 -u 2; \
 			done; \
 		done; \
 	done
 
-	touch ./tests/obj-generated-$(LIB_VER).$(LIB_VER_MINOR)
-	rm ./tests/udp_*_sample
+	touch ./test_old/obj-generated-$(LIB_VER).$(LIB_VER_MINOR)
+	rm ./test_old/udp_*_sample
 
 # Decompress the input data
 test-samples:
-	for fil in ./tests/*zst; do \
+	for fil in ./test_old/*zst; do \
 		zstd -d $$fil; \
 	done;
 
 # Generate hashes for the current output files
-test-make-hashes: ./tests/obj-generated-$(LIB_VER).$(LIB_VER_MINOR)
-	-rm ./tests/hashVariables.txt
-	touch ./tests/hashVariables_tmp.txt
-	for fil in ./tests/output*; \
+test-make-hashes: test_old
+	-rm ./test_old/hashVariables.txt
+	touch ./test_old/hashVariables_tmp.txt
+	for fil in ./test_old/output*; \
 		do outp=($$(md5sum $$fil)); \
 		base=$$(basename $$fil); \
-		echo $$base='"'"$${outp[0]}"'"' >> ./tests/hashVariables_tmp.txt; \
+		echo $$base='"'"$${outp[0]}"'"' >> ./test_old/hashVariables_tmp.txt; \
 	done; \
-	cat ./tests/hashVariables_tmp.txt | sort -t_ -k 2 -n  > ./tests/hashVariables.txt; \
-	rm ./tests/hashVariables_tmp.txt 
+	cat ./test_old/hashVariables_tmp.txt | sort -t_ -k 2 -n  > ./test_old/hashVariables.txt; \
+	rm ./test_old/hashVariables_tmp.txt 
 
 
 # Build the base image for the docker container (apt-get compilers + setup ENVs)

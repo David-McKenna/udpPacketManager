@@ -564,7 +564,7 @@ int lofar_udp_io_write_setup_ZSTD(lofar_udp_io_write_config *config, const lofar
 	if (config->cstream[outp] == NULL) {
 		size_t zstdReturn;
 		for (int port = 0; port < meta->numOutputs; port++) {
-			zstdReturn = ZSTD_initCStream(config->cstream[port], ZSTD_COMP_LEVEL);
+			zstdReturn = ZSTD_initCStream(config->cstream[port], 3); //ZSTD_COMP_LEVEL);
 
 			if (ZSTD_isError(zstdReturn)) {
 				fprintf(stderr,

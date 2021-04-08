@@ -20,9 +20,12 @@ project(udpPacketManager 	VERSION 0.7.0
 							DESCRIPTION "C Library for handling CEP packet data from an international LOFAR station"
 							LANGUAGES C CXX
 )
+
 set(UPM_CLI_VERSION 0.6)
-set(NUM_COMPRESS_THREADS 2)
-set(ZSTD_COMP_LEVEL 2)
+
+# Add the tests directory
+add_subdirectory(tests)
+
 
 set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -W -Wall -DALLOW_VERBOSE -g")
 set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -W -Wall -DALLOW_VERBOSE -g")
