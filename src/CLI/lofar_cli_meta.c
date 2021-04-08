@@ -1,8 +1,10 @@
 #include "lofar_cli_meta.h"
 
-const char exitReasons[4][1024] = {"", "",
-							 "Reached the packet limit set at start-up",
-							 "Read less data than requested from file (near EOF or disk error)"};					 
+
+const char exitReasons[4][1024] = { "", "",
+									"Reached the packet limit set at start-up",
+									"Read less data than requested from file (near EOF or disk error)" };
+
 void processingModes(void) {
 	printf("\n\nProcessing modes:\n");
 	printf("0: Raw UDP to Single Output: read in a given set of packet captures, rewrite packets on each port with padding for dropped / out of order packets.\n");
@@ -12,7 +14,7 @@ void processingModes(void) {
 
 	printf("10: Raw UDP to Beamlet Major Output: Reverse the major order in the output (no headers).\n");
 	printf("11: Raw UDP to Beamlet Major Split Pols Output: combine (2) and (10).\n\n");
-	
+
 	printf("20: Raw UDP to Beamlet Major, Frequency Reversed Output: Reverse the major order and beamlet order in the output\n");
 	printf("21: Raw UDP to Beamlet Major, Frequency Reversed, Split Pols Output: combine (2) and (20).\n\n");
 
@@ -45,12 +47,12 @@ long getStartingPacket(char inputTime[], const unsigned int clock200MHz) {
 	struct tm unixTm;
 	time_t unixEpoch;
 
-	if(strptime(inputTime, "%Y-%m-%dT%H:%M:%S", &unixTm) != NULL) {
+	if (strptime(inputTime, "%Y-%m-%dT%H:%M:%S", &unixTm) != NULL) {
 		unixEpoch = timegm(&unixTm);
 		return beamformed_packno((unsigned long) unixEpoch, 0, clock200MHz);
 	} else {
 		fprintf(stderr, "Invalid time string, exiting.\n");
-		
+
 		return 1;
 	}
 
@@ -65,7 +67,8 @@ long getStartingPacket(char inputTime[], const unsigned int clock200MHz) {
  * @return     The number of packets generated
  */
 long getSecondsToPacket(double seconds, const unsigned int clock200MHz) {
-	return (long) (seconds * (clock200MHz * clock200MHzSteps + (float) (1 - clock200MHz) * clock160MHzSteps) / (float) UDPNTIMESLICE);
+	return (long) (seconds * (clock200MHz * clock200MHzSteps + (float) (1 - clock200MHz) * clock160MHzSteps) /
+				   (float) UDPNTIMESLICE);
 }
 
 /**

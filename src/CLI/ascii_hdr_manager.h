@@ -5,6 +5,7 @@
 // Grab a couple of defines from the main header
 #include "lofar_udp_io.h"
 
+
 #ifndef ASCII_HDR_H
 #define ASCII_HDR_H
 
@@ -72,4 +73,5 @@ void writeInt(FILE *fileRef, char key[], int val);
 void writeLong(FILE *fileRef, char key[], long val);
 void writeDouble(FILE *fileRef, char key[], double val);
 int parseHdrFile(char inputFile[], ascii_hdr *header);
+
 #endif

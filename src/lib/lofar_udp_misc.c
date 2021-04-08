@@ -1,5 +1,6 @@
 #include "lofar_udp_misc.h"
 
+
 const double clock200MHzSteps = CLOCK200MHZ;
 const double clock160MHzSteps = CLOCK160MHZ;
 const double clockStepsDelta = CLOCK200MHZ - CLOCK160MHZ;
@@ -8,10 +9,19 @@ const double clock200MHzSample = 1.0 / CLOCK200MHZ;
 const double clock160MHzSample = 1.0 / CLOCK160MHZ;
 
 
-// Taken from Olaf Wucknitz' VBLI recorder, with modifiedcations for aribtrary input data
+// Taken from Olaf Wucknitz' VBLI recorder, with modifiedcations for aribtrary
+// input data
+//
+// @param[in]  timestamp    The timestamp
+// @param[in]  sequence     The sequence
+// @param[in]  clock200MHz  The clock 200 m hz
+//
+// @return     { description_of_the_return_value }
+//
 long beamformed_packno(unsigned int timestamp, unsigned int sequence, unsigned int clock200MHz) {
- 	//VERBOSE(printf("Packetno: %d, %d, %d\n", timestamp, sequence, clock200MHz););
-	return ((timestamp*1000000l*(160+40*clock200MHz)+512)/1024+sequence)/16;
+	// VERBOSE(printf("Packetno: %d, %d, %d\n", timestamp, sequence,
+	// clock200MHz););
+	return ((timestamp * 1000000l * (160 + 40 * clock200MHz) + 512) / 1024 + sequence) / 16;
 }
 
 
@@ -29,7 +39,9 @@ long beamformed_packno(unsigned int timestamp, unsigned int sequence, unsigned i
  * @return     The packet number
  */
 long lofar_get_packet_number(char *inputData) {
-	return beamformed_packno(*((unsigned int*) &(inputData[CEP_HDR_TIME_OFFSET])), *((unsigned int*) &(inputData[CEP_HDR_SEQ_OFFSET])), ((lofar_source_bytes*) &(inputData[CEP_HDR_SRC_OFFSET]))->clockBit);
+	return beamformed_packno(*((unsigned int *) &(inputData[CEP_HDR_TIME_OFFSET])),
+							 *((unsigned int *) &(inputData[CEP_HDR_SEQ_OFFSET])),
+							 ((lofar_source_bytes *) &(inputData[CEP_HDR_SRC_OFFSET]))->clockBit);
 }
 
 /**
@@ -43,8 +55,10 @@ long lofar_get_packet_number(char *inputData) {
  */
 unsigned int lofar_get_next_packet_sequence(char *inputData) {
 	return (unsigned int) ((16 * \
-			(beamformed_packno(*((unsigned int*) &(inputData[CEP_HDR_TIME_OFFSET])), *((unsigned int*) &(inputData[CEP_HDR_SEQ_OFFSET])), ((lofar_source_bytes*) &(inputData[CEP_HDR_SRC_OFFSET]))->clockBit) + 1)) 
-			- (*((unsigned int*) &(inputData[CEP_HDR_TIME_OFFSET]))*1000000l*200+512)/1024);
+            (beamformed_packno(*((unsigned int *) &(inputData[CEP_HDR_TIME_OFFSET])),
+							   *((unsigned int *) &(inputData[CEP_HDR_SEQ_OFFSET])),
+							   ((lofar_source_bytes *) &(inputData[CEP_HDR_SRC_OFFSET]))->clockBit) + 1))
+						   - (*((unsigned int *) &(inputData[CEP_HDR_TIME_OFFSET])) * 1000000l * 200 + 512) / 1024);
 }
 
 /**
@@ -69,7 +83,9 @@ long lofar_get_packet_difference(unsigned int ts, long packetNumber, unsigned in
  * @return     Unix time double
  */
 double lofar_get_packet_time(char *inputData) {
-	return (double) *((unsigned int*) &(inputData[CEP_HDR_TIME_OFFSET])) + ((double) *((unsigned int*) &(inputData[CEP_HDR_SEQ_OFFSET])) / (clock160MHzSteps + clockStepsDelta * ((lofar_source_bytes*) &(inputData[CEP_HDR_SRC_OFFSET]))->clockBit));
+	return (double) *((unsigned int *) &(inputData[CEP_HDR_TIME_OFFSET])) +
+		   ((double) *((unsigned int *) &(inputData[CEP_HDR_SEQ_OFFSET])) /
+			(clock160MHzSteps + clockStepsDelta * ((lofar_source_bytes *) &(inputData[CEP_HDR_SRC_OFFSET]))->clockBit));
 }
 
 /**
@@ -134,7 +150,7 @@ int lofar_get_station_name(int stationID, char *stationCode) {
 			break;
 
 
-		// Remote Stations
+			// Remote Stations
 		case 106:
 			sprintf(stationCode, "RS%03d", stationID);
 			break;
@@ -161,8 +177,8 @@ int lofar_get_station_name(int stationID, char *stationCode) {
 			break;
 
 
-		// Intl Stations
-		// DE
+			// Intl Stations
+			// DE
 		case 201 ... 205:
 			sprintf(stationCode, "DE%03d", 601 + (stationID % 201));
 			break;
@@ -172,48 +188,49 @@ int lofar_get_station_name(int stationID, char *stationCode) {
 			break;
 
 
-		// FR
+			// FR
 		case 206:
 			sprintf(stationCode, "FR606");
 			break;
 
-		// SE
+			// SE
 		case 207:
 			sprintf(stationCode, "SE207");
 			break;
 
-		// UK
+			// UK
 		case 208:
 			sprintf(stationCode, "UK208");
 			break;
 
-		// PL
+			// PL
 		case 211 ... 213:
 			sprintf(stationCode, "PL%03d", 610 + (stationID % 211));
 			break;
 
-		// IE
+			// IE
 		case 214:
 			sprintf(stationCode, "IE613");
 			break;
 
-		// LV
+			// LV
 		case 215:
 			sprintf(stationCode, "LV614");
 			break;
 
-		// KAIRA
+			// KAIRA
 		case 901:
 			sprintf(stationCode, "FI901");
 			break;
 
-		// LOFAR4SW test station
+			// LOFAR4SW test station
 		case 902:
 			sprintf(stationCode, "UK902");
 			break;
 
 		default:
-			fprintf(stderr, "Unknown telescope ID %d. Was a new station added to the array? Update lofar_udp_misc.c\n", stationID);
+			fprintf(stderr, "Unknown telescope ID %d. Was a new station added to the array? Update lofar_udp_misc.c\n",
+					stationID);
 			return 1;
 	}
 

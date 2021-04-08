@@ -10,6 +10,7 @@
 
 // Reader / writer enums
 typedef enum {
+	NONE = -1,
 	NORMAL = 1,
 	FIFO = 2,
 	ZSTDCOMPRESSED = 4,
@@ -61,17 +62,16 @@ typedef enum {
 
 // For unpacking the header source bytes
 typedef struct __attribute__((__packed__)) lofar_source_bytes {
-	unsigned int rsp : 5;
-	unsigned int padding0 : 1;
-	unsigned int errorBit : 1;
-	unsigned int clockBit : 1;
-	unsigned int bitMode  : 2;
-	unsigned int padding1 : 6;
+	unsigned int rsp: 5;
+	unsigned int padding0: 1;
+	unsigned int errorBit: 1;
+	unsigned int clockBit: 1;
+	unsigned int bitMode: 2;
+	unsigned int padding1: 6;
 
 } lofar_source_bytes;
 
 #endif // End of LOFAR_SOURCE_BYTE_STRUCT
-
 
 
 #ifndef LOFAR_UDP_VERBOSE_MACRO

@@ -1,47 +1,48 @@
 #include "ascii_hdr_manager.h"
 
+
 // Default values for the ASCII header
-ascii_hdr ascii_hdr_default = {	"J0000+0000", "00:00:00.0000", "+00:00:00.0000", 149.90234375, 95.3125, 0.1953125, 488, 4, 8, 5.12e-6, \
-								"LIN", "TRACK", "RAW", "OFF", 0., "UDP2RAW", "Unknown", "ILT", "LOFAR-RSP", "LOFAR-UDP", "0.0.0.0", \
-								16130, 0, 0, "", 50000, 0, 0, "1SFA", 0., 0, 0., 0.};
+ascii_hdr ascii_hdr_default = { "J0000+0000", "00:00:00.0000", "+00:00:00.0000", 149.90234375, 95.3125, 0.1953125, 488,
+								4, 8, 5.12e-6, "LIN", "TRACK", "RAW", "OFF", 0., "UDP2RAW", "Unknown", "ILT", "LOFAR-RSP", 
+                                "LOFAR-UDP", "0.0.0.0", 16130, 0, 0, "", 50000, 0, 0, "1SFA", 0., 0, 0., 0. };
 
 // Setup the getopt_long keys + short keys
 // https://www.gnu.org/software/libc/manual/html_node/Getopt-Long-Option-Example.html
 static struct option long_options[] = {
-	{ "src_name", required_argument, NULL, 'a'},
-	{ "ra_str", required_argument, NULL, 'b'},
-	{ "dec_str", required_argument, NULL, 'c'},
-	{ "obsfreq", required_argument, NULL, 'd'},
-	{ "obsbw", required_argument, NULL, 'e'},
-	{ "chan_bw", required_argument, NULL, 'f'},
-	{ "obsnchan", required_argument, NULL, 'g'},
-	{ "npol", required_argument, NULL, 'h'},
-	{ "nbits", required_argument, NULL, 'i'},
-	{ "tbin", required_argument, NULL, 'j'},
-	{ "fd_poln", required_argument, NULL, 'k'},
-	{ "trk_mode", required_argument, NULL, 'l'},
-	{ "obs_mode", required_argument, NULL, 'm'},
-	{ "cal_mode", required_argument, NULL, 'n'},
-	{ "scanlen", required_argument, NULL, 'o'},
-	{ "projid", required_argument, NULL, 'p'},
-	{ "observer", required_argument, NULL, 'q'},
-	{ "telescop", required_argument, NULL, 'r'},
-	{ "frontend", required_argument, NULL, 's'},
-	{ "backend", required_argument, NULL, 't'},
-	{ "datahost", required_argument, NULL, 'u'},
-	{ "dataport", required_argument, NULL, 'v'},
-	{ "overlap", required_argument, NULL, 'w'},
-	{ "blocsize", required_argument, NULL, 'x'},
-	{ "daqpulse", required_argument, NULL, 'y'},
-	{ "stt_imjd", required_argument, NULL, 'z'},
-	{ "stt_smjd", required_argument, NULL, 'A'},
-	{ "pktidx", required_argument, NULL, 'B'},
-	{ "pktfmt", required_argument, NULL, 'C'},
-	{ "stt_offs", required_argument, NULL, 'D'},
-	{ "pktsize", required_argument, NULL, 'E'},
-	{ "dropblk", required_argument, NULL, 'F'},
-	{ "droptot", required_argument, NULL, 'G'},
-	{0, 0, NULL, 0}
+	{ "src_name", required_argument, NULL, 'a' },
+	{ "ra_str",   required_argument, NULL, 'b' },
+	{ "dec_str",  required_argument, NULL, 'c' },
+	{ "obsfreq",  required_argument, NULL, 'd' },
+	{ "obsbw",    required_argument, NULL, 'e' },
+	{ "chan_bw",  required_argument, NULL, 'f' },
+	{ "obsnchan", required_argument, NULL, 'g' },
+	{ "npol",     required_argument, NULL, 'h' },
+	{ "nbits",    required_argument, NULL, 'i' },
+	{ "tbin",     required_argument, NULL, 'j' },
+	{ "fd_poln",  required_argument, NULL, 'k' },
+	{ "trk_mode", required_argument, NULL, 'l' },
+	{ "obs_mode", required_argument, NULL, 'm' },
+	{ "cal_mode", required_argument, NULL, 'n' },
+	{ "scanlen",  required_argument, NULL, 'o' },
+	{ "projid",   required_argument, NULL, 'p' },
+	{ "observer", required_argument, NULL, 'q' },
+	{ "telescop", required_argument, NULL, 'r' },
+	{ "frontend", required_argument, NULL, 's' },
+	{ "backend",  required_argument, NULL, 't' },
+	{ "datahost", required_argument, NULL, 'u' },
+	{ "dataport", required_argument, NULL, 'v' },
+	{ "overlap",  required_argument, NULL, 'w' },
+	{ "blocsize", required_argument, NULL, 'x' },
+	{ "daqpulse", required_argument, NULL, 'y' },
+	{ "stt_imjd", required_argument, NULL, 'z' },
+	{ "stt_smjd", required_argument, NULL, 'A' },
+	{ "pktidx",   required_argument, NULL, 'B' },
+	{ "pktfmt",   required_argument, NULL, 'C' },
+	{ "stt_offs", required_argument, NULL, 'D' },
+	{ "pktsize",  required_argument, NULL, 'E' },
+	{ "dropblk",  required_argument, NULL, 'F' },
+	{ "droptot",  required_argument, NULL, 'G' },
+	{ 0, 0,                          NULL, 0 }
 };
 
 
@@ -59,7 +60,7 @@ int parseHdrFile(char inputFile[], ascii_hdr *header) {
 
 
 	// Open the header file, find it's length and load it into memory
-	FILE* fileRef = fopen(inputFile, "r");
+	FILE *fileRef = fopen(inputFile, "r");
 
 	size_t fileSize = FILE_file_size(fileRef);
 
@@ -70,13 +71,13 @@ int parseHdrFile(char inputFile[], ascii_hdr *header) {
 	if (readlen != fileSize) {
 		fprintf(stderr, "Header file size changed during read operation, continuing with caution...\n");
 	}
-	
+
 	fclose(fileRef);
 
 	VERBOSE(printf("%s\n", fileData));
 
-	// Overall method modified from https://stackoverflow.com/posts/39841506/ 
-	// 
+	// Overall method modified from https://stackoverflow.com/posts/39841506/
+	//
 	// I have no idea about the 10 offset though. getopt_long just seems to be
 	// refusing to parse the first 9-10 inputs. Just empty-string pad to work
 	// around it.
