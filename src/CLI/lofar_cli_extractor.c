@@ -37,7 +37,7 @@ void helpMessages() {
 }
 
 void CLICleanup(int eventCount, char **dateStr, long *startingPackets, long *multiMaxPackets, float *eventSeconds,
-				lofar_udp_config *config) {
+				lofar_udp_config *config, lofar_udp_io_write_config *outConfig) {
 	if (startingPackets != NULL) {
 		free(startingPackets);
 	}
@@ -62,6 +62,10 @@ void CLICleanup(int eventCount, char **dateStr, long *startingPackets, long *mul
 			free(config->calibrationConfiguration);
 		}
 		free(config);
+	}
+
+	if (outConfig != NULL) {
+		free(outConfig);
 	}
 
 }
@@ -357,7 +361,7 @@ int main(int argc, char *argv[]) {
 			if (returnCounter != 2) {
 				fprintf(stderr, "Unable to parse line %d of events file, exiting ('%s', %lf).\n", idx + 1, stringBuff,
 						seconds);
-				CLICleanup(eventCount, dateStr, startingPackets, multiMaxPackets, eventSeconds, config);
+				CLICleanup(eventCount, dateStr, startingPackets, multiMaxPackets, eventSeconds, config, outConfig);
 				return 1;
 			}
 
@@ -366,7 +370,7 @@ int main(int argc, char *argv[]) {
 			if (startingPackets[idx] == 1) {
 				fprintf(stderr, "ERROR: Failed to get starting packet for event %d, exiting.\n", idx);
 				helpMessages();
-				CLICleanup(eventCount, dateStr, startingPackets, multiMaxPackets, eventSeconds, config);
+				CLICleanup(eventCount, dateStr, startingPackets, multiMaxPackets, eventSeconds, config, outConfig);
 				return 1;
 			}
 
@@ -387,7 +391,7 @@ int main(int argc, char *argv[]) {
 					fprintf(stderr,
 							"Events %d and %d are out of order, please only use increasing event times, exiting.\n",
 							idx, idx - 1);
-					CLICleanup(eventCount, dateStr, startingPackets, multiMaxPackets, eventSeconds, config);
+					CLICleanup(eventCount, dateStr, startingPackets, multiMaxPackets, eventSeconds, config, outConfig);
 					return 1;
 				}
 
@@ -395,7 +399,7 @@ int main(int argc, char *argv[]) {
 					fprintf(stderr,
 							"Events %d and %d overlap, please combine them or ensure there is some buffer time between them, exiting.",
 							idx, idx - 1);
-					CLICleanup(eventCount, dateStr, startingPackets, multiMaxPackets, eventSeconds, config);
+					CLICleanup(eventCount, dateStr, startingPackets, multiMaxPackets, eventSeconds, config, outConfig);
 					return 1;
 				}
 			}
@@ -413,7 +417,7 @@ int main(int argc, char *argv[]) {
 			startingPacket = getStartingPacket(inputTime, clock200MHz);
 			if (startingPacket == 1) {
 				helpMessages();
-				CLICleanup(eventCount, dateStr, startingPackets, NULL, NULL, config);
+				CLICleanup(eventCount, dateStr, startingPackets, NULL, NULL, config, outConfig);
 				return 1;
 			}
 		}
@@ -460,7 +464,7 @@ int main(int argc, char *argv[]) {
 	// Returns null on error, check
 	if (reader == NULL) {
 		fprintf(stderr, "Failed to generate reader. Exiting.\n");
-		CLICleanup(eventCount, dateStr, startingPackets, multiMaxPackets, eventSeconds, config);
+		CLICleanup(eventCount, dateStr, startingPackets, multiMaxPackets, eventSeconds, config, outConfig);
 		return 1;
 	}
 
@@ -468,7 +472,7 @@ int main(int argc, char *argv[]) {
 	if (((lofar_source_bytes *) &(reader->meta->inputData[0][1]))->clockBit != (unsigned int) clock200MHz) {
 		fprintf(stderr,
 				"ERROR: The clock bit of the first packet does not match the clock state given when starting the CLI. Add or remove -c from your command. Exiting.\n");
-		CLICleanup(eventCount, dateStr, startingPackets, multiMaxPackets, eventSeconds, config);
+		CLICleanup(eventCount, dateStr, startingPackets, multiMaxPackets, eventSeconds, config, outConfig);
 		return 1;
 	}
 
@@ -506,7 +510,7 @@ int main(int argc, char *argv[]) {
 														 multiMaxPackets[eventLoop])) > 0) {
 				fprintf(stderr, "Error re-initialising reader for event %d (error %d), exiting.\n", eventLoop,
 						returnVal);
-				CLICleanup(eventCount, dateStr, startingPackets, multiMaxPackets, eventSeconds, config);
+				CLICleanup(eventCount, dateStr, startingPackets, multiMaxPackets, eventSeconds, config, outConfig);
 				return 1;
 			}
 		}
@@ -539,7 +543,7 @@ int main(int argc, char *argv[]) {
 		startingPacket = reader->meta->leadingPacket;
 
 		if (lofar_udp_io_write_setup(outConfig, reader->meta, eventLoop) < 0) {
-			CLICleanup(eventCount, dateStr, startingPackets, multiMaxPackets, eventSeconds, config);
+			CLICleanup(eventCount, dateStr, startingPackets, multiMaxPackets, eventSeconds, config, outConfig);
 			return 1;
 		}
 
@@ -587,7 +591,7 @@ int main(int argc, char *argv[]) {
 				if (returnVal < 0)
 					for (int port = 0; port < reader->meta->numPorts; port++)
 						if (reader->meta->portLastDroppedPackets[port] != 0)
-							printf("During this iteration there were %d dropped packets on port %d.\n",
+							printf("During this iteration there were %ld dropped packets on port %d.\n",
 								   reader->meta->portLastDroppedPackets[port], port);
 				printf("\n");
 			}
@@ -650,7 +654,7 @@ int main(int argc, char *argv[]) {
 	if (silent == 0) { printf("Reader cleanup performed successfully.\n"); }
 
 	// Free our malloc'd objects
-	CLICleanup(eventCount, dateStr, startingPackets, multiMaxPackets, eventSeconds, config);
+	CLICleanup(eventCount, dateStr, startingPackets, multiMaxPackets, eventSeconds, config, outConfig);
 
 	if (silent == 0) { printf("CLI memory cleaned up successfully. Exiting.\n"); }
 	return 0;

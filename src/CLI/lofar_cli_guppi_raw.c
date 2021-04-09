@@ -431,7 +431,7 @@ int main(int argc, char *argv[]) {
 				if (returnVal < 0)
 					for (int port = 0; port < reader->meta->numPorts; port++)
 						if (reader->meta->portLastDroppedPackets[port] != 0)
-							printf("During this iteration there were %d dropped packets on port %d.\n",
+							printf("During this iteration there were %ld dropped packets on port %d.\n",
 								   reader->meta->portLastDroppedPackets[port], port);
 				printf("\n");
 			}
