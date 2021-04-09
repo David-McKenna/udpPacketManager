@@ -4,25 +4,30 @@
 /**
  * @brief      { function_description }
  *
- * @param[in]  optarg      The optarg
+ * @param[in]  optargc     The optarg
  * @param      fileFormat  The file format
  * @param      baseVal     The base value
  * @param      offsetVal   The offset value
  *
  * @return     { description_of_the_return_value }
  */
-reader_t lofar_udp_io_parse_type_optarg(const char optarg[], char *fileFormat, int *baseVal, int *offsetVal) {
+reader_t lofar_udp_io_parse_type_optarg(const char optargc[], char *fileFormat, int *baseVal, int *offsetVal) {
 
 	reader_t reader;
 
-	if (optarg[4] == ':') {
-		sscanf(optarg, "%*[^:]:%[^,],%d,%d", fileFormat, baseVal, offsetVal);
+	if (strstr(optargc, "%") != NULL) {
+		fprintf(stderr, "\n\nWARNING: A %% was detected in your input, UPM v0.7+ no longer uses these for indexing.\n");
+		fprintf(stderr, "WARNING: Use [[port]], [[outp]], and [[iter]] instead, check the docs for more details.\n\n");
+	}
 
-		if (strstr(optarg, "FILE:") != NULL) {
+	if (optargc[4] == ':') {
+		sscanf(optargc, "%*[^:]:%[^,],%d,%d", fileFormat, baseVal, offsetVal);
+
+		if (strstr(optargc, "FILE:") != NULL) {
 			reader = NORMAL;
-		} else if (strstr(optarg, "FIFO:") != NULL) {
+		} else if (strstr(optargc, "FIFO:") != NULL) {
 			reader = FIFO;
-		} else if (strstr(optarg, "DADA:") != NULL) {
+		} else if (strstr(optargc, "DADA:") != NULL) {
 			reader = DADA_ACTIVE;
 		} else {
 			// Unknown prefix
@@ -30,7 +35,7 @@ reader_t lofar_udp_io_parse_type_optarg(const char optarg[], char *fileFormat, i
 		}
 	} else {
 		reader = NORMAL;
-		sscanf(optarg, "%[^,],%d,%d", fileFormat, baseVal, offsetVal);
+		sscanf(optargc, "%[^,],%d,%d", fileFormat, baseVal, offsetVal);
 	}
 
 
@@ -132,11 +137,11 @@ int lofar_udp_io_parse_format(char *dest, const char format[], int port, int ite
  * @brief      { function_description }
  *
  * @param      config  The configuration
- * @param[in]  optarg  The optarg
+ * @param[in]  optargc  The optarg
  *
  * @return     { description_of_the_return_value }
  */
-int lofar_udp_io_read_parse_optarg(lofar_udp_config *config, const char optarg[]) {
+int lofar_udp_io_read_parse_optarg(lofar_udp_config *config, const char optargc[]) {
 
 	if (config == NULL) {
 		fprintf(stderr, "ERROR: Input config is NULL, exiting.\n");
@@ -146,10 +151,10 @@ int lofar_udp_io_read_parse_optarg(lofar_udp_config *config, const char optarg[]
 	char fileFormat[DEF_STR_LEN];
 	int baseVal = 0;
 	int offsetVal = 1;
-	config->readerType = lofar_udp_io_parse_type_optarg(optarg, fileFormat, &baseVal, &offsetVal);
+	config->readerType = lofar_udp_io_parse_type_optarg(optargc, fileFormat, &baseVal, &offsetVal);
 
 	if (config->readerType == -1) {
-		fprintf(stderr, "ERROR: Failed to parse input pattern (%s), exiting.\n", optarg);
+		fprintf(stderr, "ERROR: Failed to parse input pattern (%s), exiting.\n", optargc);
 		return -1;
 	}
 
@@ -200,22 +205,22 @@ int lofar_udp_io_read_parse_optarg(lofar_udp_config *config, const char optarg[]
  * @brief      { function_description }
  *
  * @param      config  The configuration
- * @param[in]  optarg  The optarg
+ * @param[in]  optargc  The optarg
  *
  * @return     { description_of_the_return_value }
  */
-int lofar_udp_io_write_parse_optarg(lofar_udp_io_write_config *config, const char optarg[]) {
+int lofar_udp_io_write_parse_optarg(lofar_udp_io_write_config *config, const char optargc[]) {
 
 	if (config == NULL) {
 		fprintf(stderr, "ERROR: Input config is NULL, exiting.\n");
 		return -1;
 	}
 
-	config->readerType = lofar_udp_io_parse_type_optarg(optarg, config->outputFormat, &(config->baseVal),
+	config->readerType = lofar_udp_io_parse_type_optarg(optargc, config->outputFormat, &(config->baseVal),
 														&(config->offsetVal));
 
 	if (config->readerType == -1) {
-		fprintf(stderr, "ERROR: Failed to parse input pattern (%s), exiting.\n", optarg);
+		fprintf(stderr, "ERROR: Failed to parse input pattern (%s), exiting.\n", optargc);
 		return -1;
 	}
 
@@ -389,7 +394,7 @@ lofar_udp_io_read_setup_ZSTD(lofar_udp_reader_input *input, const lofar_udp_conf
 	returnVal = madvise(tmpPtr, fileSize, MADV_SEQUENTIAL);
 
 	if (returnVal == -1) {
-		fprintf(stderr, "ERROR: Failed to advise the kernel on mmap read stratgy on port %d. Errno: %d. Exiting.\n",
+		fprintf(stderr, "ERROR: Failed to advise the kernel on mmap read strategy on port %d. Errno: %d. Exiting.\n",
 				port, errno);
 		return -3;
 
@@ -454,7 +459,7 @@ lofar_udp_io_read_setup_DADA(lofar_udp_reader_input *input, const lofar_udp_conf
 		}
 	}
 
-	input->dadaPageSize[port] = ipcbuf_get_bufsz((ipcbuf_t *) input->dadaReader[port]->data_block);
+	input->dadaPageSize[port] = (long) ipcbuf_get_bufsz((ipcbuf_t *) input->dadaReader[port]->data_block);
 	if (input->dadaPageSize[port] < 1) {
 		fprintf(stderr, "ERROR: Failed to get PSRDADA buffer size on ringbuffer %d for port %d, exiting.\n", dadaKey,
 				port);
@@ -605,9 +610,7 @@ int lofar_udp_io_write_setup_ZSTD(lofar_udp_io_write_config *config, const lofar
 		return -1;
 	}
 
-
-	return -1;
-	//return 0;
+	return 0;
 }
 
 /**
@@ -730,7 +733,7 @@ long lofar_udp_io_read(lofar_udp_reader_input *input, int port, char *targetArra
 long lofar_udp_io_read_FILE(lofar_udp_reader_input *input, const int port, char *targetArray, const long nchars) {
 	// Decompressed file: Read and return the data as needed
 	VERBOSE(printf("reader_nchars: Entering read request (normal): %d, %ld\n", port, nchars));
-	return fread(targetArray, sizeof(char), nchars, input->fileRef[port]);
+	return (long) fread(targetArray, sizeof(char), nchars, input->fileRef[port]);
 }
 
 /**
@@ -746,9 +749,9 @@ long lofar_udp_io_read_ZSTD(lofar_udp_reader_input *input, int port, long nchars
 	// Compressed file: Perform streaming decompression on a zstandard compressed file
 	VERBOSE(printf("reader_nchars: Entering read request (compressed): %d, %ld\n", port, nchars));
 
-	long dataRead = 0, byteDelta = 0;
-	size_t previousDecompressionPos = 0;
-	int returnVal = 0;
+	long dataRead = 0, byteDelta;
+	size_t previousDecompressionPos;
+	size_t returnVal;
 
 	VERBOSE(printf("reader_nchars: start of ZSTD read loop, %ld, %ld, %ld, %ld\n", input->readingTracker[port].pos,
 				   input->readingTracker[port].size, input->decompressionTracker[port].pos, dataRead););
@@ -760,9 +763,9 @@ long lofar_udp_io_read_ZSTD(lofar_udp_reader_input *input, int port, long nchars
 		returnVal = ZSTD_decompressStream(input->dstream[port], &(input->decompressionTracker[port]),
 										  &(input->readingTracker[port]));
 		if (ZSTD_isError(returnVal)) {
-			fprintf(stderr, "ZSTD encountered an error decompressing a frame (code %d, %s), exiting data read early.\n",
+			fprintf(stderr, "ZSTD encountered an error decompressing a frame (code %ld, %s), exiting data read early.\n",
 					returnVal, ZSTD_getErrorName(returnVal));
-			return dataRead;
+			break;
 		}
 
 		// Determine how much data we just added to the buffer
@@ -775,18 +778,26 @@ long lofar_udp_io_read_ZSTD(lofar_udp_reader_input *input, int port, long nchars
 		});
 
 		if (dataRead >= nchars) {
-			return dataRead;
+			break;
 		}
 
 		if (input->decompressionTracker[port].pos == input->decompressionTracker[port].size) {
 			fprintf(stderr,
 					"Failed to read %ld/%ld chars on port %d before filling the buffer. Attempting to continue...\n",
 					dataRead, nchars, port);
-			return dataRead;
+			break;
 		}
 	}
 
-	// EOF: return everything we read
+	// Completed or EOF: unmap used memory and return everything we read
+	if (madvise(((void *) input->readingTracker[port].src), input->readingTracker[port].pos,
+					MADV_DONTNEED) < 0) {
+		fprintf(stderr,
+				"ERROR: Failed to apply MADV_DONTNEED after read operation on port %d (errno %d: %s).\n", port,
+				errno, strerror(errno));
+	}
+
+
 	return dataRead;
 }
 
@@ -849,7 +860,7 @@ long lofar_udp_io_read_DADA(lofar_udp_reader_input *input, const int port, char 
  *
  * @return     { description_of_the_return_value }
  */
-long lofar_udp_io_write(lofar_udp_io_write_config *config, int outp, char *src, const long nchars) {
+long lofar_udp_io_write(lofar_udp_io_write_config *config, int outp, const char *src, const long nchars) {
 	// Sanity check input
 	if (nchars < 0) {
 		fprintf(stderr, "ERROR: Requested negative write size %ld on output %d, exiting.\n", nchars, outp);
@@ -891,8 +902,8 @@ long lofar_udp_io_write(lofar_udp_io_write_config *config, int outp, char *src, 
  *
  * @return     { description_of_the_return_value }
  */
-long lofar_udp_io_write_FILE(lofar_udp_io_write_config *config, int outp, char *src, const long nchars) {
-	return fwrite(src, sizeof(char), nchars, config->outputFiles[outp]);
+long lofar_udp_io_write_FILE(lofar_udp_io_write_config *config, int outp, const char *src, const long nchars) {
+	return (long) fwrite(src, sizeof(char), nchars, config->outputFiles[outp]);
 }
 
 /**
@@ -906,7 +917,7 @@ long lofar_udp_io_write_FILE(lofar_udp_io_write_config *config, int outp, char *
  * @return     { description_of_the_return_value }
  */
 long
-lofar_udp_io_write_ZSTD(lofar_udp_io_write_config *config, int outp, char *src, const long nchars) {
+lofar_udp_io_write_ZSTD(lofar_udp_io_write_config *config, int outp, const char *src, const long nchars) {
 
 	ZSTD_inBuffer input = { src, nchars, 0 };
 	ZSTD_outBuffer output = { config->outputBuffer[outp].dst, config->outputBuffer[outp].size, 0 };
@@ -919,7 +930,7 @@ lofar_udp_io_write_ZSTD(lofar_udp_io_write_config *config, int outp, char *src, 
 		}
 	}
 
-	if (lofar_udp_io_write_FILE(config, outp, config->outputBuffer[outp].dst, config->outputBuffer[outp].pos) < 0) {
+	if (lofar_udp_io_write_FILE(config, outp, config->outputBuffer[outp].dst, (long) config->outputBuffer[outp].pos) < 0) {
 		return -1;
 	}
 
@@ -938,7 +949,7 @@ lofar_udp_io_write_ZSTD(lofar_udp_io_write_config *config, int outp, char *src, 
  * @return     { description_of_the_return_value }
  */
 long
-lofar_udp_io_write_DADA(lofar_udp_io_write_config *config, int outp, char *src, const long nchars) {
+lofar_udp_io_write_DADA(lofar_udp_io_write_config *config, int outp, const char *src, const long nchars) {
 
 	long writtenBytes = ipcio_write(config->dadaWriter[outp][0], src, nchars);
 	if (writtenBytes < 0) {
@@ -1008,10 +1019,10 @@ int lofar_udp_io_fread_temp_FILE(void *outbuf, const size_t size, const int num,
 		return -1;
 	}
 
-	size_t readlen = fread(inputFilePtr, size, num, outbuf);
+	size_t readlen = fread(outbuf, size, num, inputFilePtr);
 
 	if (resetSeek) {
-		if (fseek(inputFilePtr, size * -num, SEEK_CUR) != 0) {
+		if (fseek(inputFilePtr, (long) size * -num, SEEK_CUR) != 0) {
 			fprintf(stderr, "Failed to reset seek head, exiting.\n");
 			fclose(inputFilePtr);
 			return -2;
@@ -1020,12 +1031,12 @@ int lofar_udp_io_fread_temp_FILE(void *outbuf, const size_t size, const int num,
 
 	fclose(inputFilePtr);
 
-	if (readlen != size) {
+	if (readlen != (size * num)) {
 		fprintf(stderr, "Unable to read %ld elements from file, exiting.\n", size * num);
 		return -1;
 	}
 
-	return 0;
+	return readlen;
 }
 
 
@@ -1044,7 +1055,7 @@ int lofar_udp_io_fread_temp_FILE(void *outbuf, const size_t size, const int num,
 int lofar_udp_io_fread_temp_ZSTD(void *outbuf, const size_t size, const int num, const char inputFile[],
 								 const int resetSeek) {
 	printf("%s, %ld\n", inputFile, strlen(inputFile));
-	FILE *inputFilePtr = fopen(inputFile, "r");
+	FILE *inputFilePtr = fopen(inputFile, "rb");
 	if (inputFilePtr == NULL) {
 		fprintf(stderr, "ERROR: Unable to open normal file at %s, exiting.\n", inputFile);
 		return -1;
@@ -1064,8 +1075,8 @@ int lofar_udp_io_fread_temp_ZSTD(void *outbuf, const size_t size, const int num,
 	ZSTD_outBuffer tmpDecom = { localOutBuff, minOut * sizeof(char), 0 };
 
 	// Read in the compressed data
-	size_t readLen = fread(inBuff, sizeof(char), minRead, inputFilePtr);
-	if (readLen != minRead) {
+	long readlen = (long) fread(inBuff, sizeof(char), minRead, inputFilePtr);
+	if (readlen != (long) minRead) {
 		fprintf(stderr, "Unable to read in header from file; exiting.\n");
 		fclose(inputFilePtr);
 		ZSTD_freeDStream(dstreamTmp);
@@ -1076,7 +1087,7 @@ int lofar_udp_io_fread_temp_ZSTD(void *outbuf, const size_t size, const int num,
 
 	// Move the read head back to the start of the packer
 	if (resetSeek) {
-		if (fseek(inputFilePtr, -minRead, SEEK_CUR) != 0) {
+		if (fseek(inputFilePtr, - (long) minRead, SEEK_CUR) != 0) {
 			fprintf(stderr, "Failed to reset seek head, exiting.\n");
 			fclose(inputFilePtr);
 			return -2;
@@ -1100,8 +1111,8 @@ int lofar_udp_io_fread_temp_ZSTD(void *outbuf, const size_t size, const int num,
 	}
 
 	// Cap the return value of the data
-	readLen = tmpDecom.pos;
-	if (readLen > size * num) { readLen = size * num; }
+	readlen = (long) tmpDecom.pos;
+	if (readlen > (long) size * num) { readlen = size * num; }
 
 	// Copy the output and cleanup
 	memcpy(outbuf, localOutBuff, size * num);
@@ -1109,7 +1120,7 @@ int lofar_udp_io_fread_temp_ZSTD(void *outbuf, const size_t size, const int num,
 	free(inBuff);
 	free(localOutBuff);
 
-	return readLen;
+	return readlen;
 
 }
 
@@ -1202,7 +1213,7 @@ lofar_udp_io_fread_temp_DADA(void *outbuf, const size_t size, const int num, con
 		return -1;
 	}
 
-	return returnlen;
+	return (int) returnlen;
 #else
 	fprintf(stderr, "ERROR: PSRDADA not enabled at compile time, exiting.\n");
 			return -1;
@@ -1211,12 +1222,15 @@ lofar_udp_io_fread_temp_DADA(void *outbuf, const size_t size, const int num, con
 
 
 // Cleanup functions
-//
-// @param      input  The input
-// @param[in]  port   The port
-//
-// @return     { description_of_the_return_value }
-//
+
+/**
+ * @brief      { function_description }
+ *
+ * @param      input      The input
+ * @param[in]  port       The port
+ *
+ * @return     { description_of_the_return_value }
+ */
 int lofar_udp_io_read_cleanup(lofar_udp_reader_input *input, const int port) {
 
 	switch (input->readerType) {

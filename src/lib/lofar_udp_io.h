@@ -34,10 +34,10 @@ long lofar_udp_io_read(lofar_udp_reader_input *input, int port, char *targetArra
 long lofar_udp_io_read_FILE(lofar_udp_reader_input *input, int port, char *targetArray, long nchars);
 long lofar_udp_io_read_ZSTD(lofar_udp_reader_input *input, int port, long nchars);
 long lofar_udp_io_read_DADA(lofar_udp_reader_input *input, int port, char *targetArray, long nchars);
-long lofar_udp_io_write(lofar_udp_io_write_config *config, int outp, char *src, const long nchars);
-long lofar_udp_io_write_FILE(lofar_udp_io_write_config *config, int outp, char *src, const long nchars);
-long lofar_udp_io_write_ZSTD(lofar_udp_io_write_config *config, int outp, char *src, const long nchars);
-long lofar_udp_io_write_DADA(lofar_udp_io_write_config *config, int outp, char *src, const long nchars);
+long lofar_udp_io_write(lofar_udp_io_write_config *config, int outp, const char *src, const long nchars);
+long lofar_udp_io_write_FILE(lofar_udp_io_write_config *config, int outp, const char *src, const long nchars);
+long lofar_udp_io_write_ZSTD(lofar_udp_io_write_config *config, int outp, const char *src, const long nchars);
+long lofar_udp_io_write_DADA(lofar_udp_io_write_config *config, int outp, const char *src, const long nchars);
 int lofar_udp_io_read_cleanup(lofar_udp_reader_input *input, int port);
 int lofar_udp_io_read_cleanup_FILE(lofar_udp_reader_input *input, int port);
 int lofar_udp_io_read_cleanup_ZSTD(lofar_udp_reader_input *input, int port);
