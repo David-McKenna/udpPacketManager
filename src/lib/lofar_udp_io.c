@@ -17,7 +17,7 @@ reader_t lofar_udp_io_parse_type_optarg(const char optargc[], char *fileFormat, 
 
 	if (strstr(optargc, "%") != NULL) {
 		fprintf(stderr, "\n\nWARNING: A %% was detected in your input, UPM v0.7+ no longer uses these for indexing.\n");
-		fprintf(stderr, "WARNING: Use [[port]], [[outp]], and [[iter]] instead, check the docs for more details.\n\n");
+		fprintf(stderr, "WARNING: Use [[port]], [[outp]], [[pack]] and [[iter]] instead, check the docs for more details.\n\n");
 	}
 
 	if (optargc[4] == ':') {
@@ -69,7 +69,7 @@ int lofar_udp_io_parse_format(char *dest, const char format[], int port, int ite
 
 	/*
 	if ((sizeof(dest) / sizeof(dest[0])) < (sizeof(format) / sizeof(format[0]))) {
-		fprintf(stderr, "ERROR: Destrination is smaller than the input (%ld vs %ld), it is unsafe to continue, exiting.\n", sizeof(dest) / sizeof(dest[0]), sizeof(format) / sizeof(format[0]));
+		fprintf(stderr, "ERROR: Destination is smaller than the input (%ld vs %ld), it is unsafe to continue, exiting.\n", sizeof(dest) / sizeof(dest[0]), sizeof(format) / sizeof(format[0]));
 		return -1;
 	}
 	*/

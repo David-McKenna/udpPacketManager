@@ -112,8 +112,8 @@ typedef struct lofar_udp_meta {
 
 	// Track the number of ports to process and the packet loss on each
 	int numPorts;
-	int portLastDroppedPackets[MAX_NUM_PORTS];
-	int portTotalDroppedPackets[MAX_NUM_PORTS];
+	long portLastDroppedPackets[MAX_NUM_PORTS];
+	long portTotalDroppedPackets[MAX_NUM_PORTS];
 
 	// Configuration: replay last packet or copy a 0 packed file, set the processing mode and it's related processing function
 	int replayDroppedPackets;

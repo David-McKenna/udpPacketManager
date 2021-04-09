@@ -9,7 +9,7 @@ const double clock200MHzSample = 1.0 / CLOCK200MHZ;
 const double clock160MHzSample = 1.0 / CLOCK160MHZ;
 
 
-// Taken from Olaf Wucknitz' VBLI recorder, with modifiedcations for aribtrary
+// Taken from Olaf Wucknitz' VLBI recorder, with modifications for arbitrary
 // input data
 //
 // @param[in]  timestamp    The timestamp
@@ -38,7 +38,7 @@ long beamformed_packno(unsigned int timestamp, unsigned int sequence, unsigned i
  *
  * @return     The packet number
  */
-long lofar_get_packet_number(char *inputData) {
+long lofar_get_packet_number(const char *inputData) {
 	return beamformed_packno(*((unsigned int *) &(inputData[CEP_HDR_TIME_OFFSET])),
 							 *((unsigned int *) &(inputData[CEP_HDR_SEQ_OFFSET])),
 							 ((lofar_source_bytes *) &(inputData[CEP_HDR_SRC_OFFSET]))->clockBit);
@@ -53,7 +53,7 @@ long lofar_get_packet_number(char *inputData) {
  *
  * @return     The suggested sequence value
  */
-unsigned int lofar_get_next_packet_sequence(char *inputData) {
+unsigned int lofar_get_next_packet_sequence(const char *inputData) {
 	return (unsigned int) ((16 * \
             (beamformed_packno(*((unsigned int *) &(inputData[CEP_HDR_TIME_OFFSET])),
 							   *((unsigned int *) &(inputData[CEP_HDR_SEQ_OFFSET])),
@@ -62,7 +62,7 @@ unsigned int lofar_get_next_packet_sequence(char *inputData) {
 }
 
 /**
- * @brief      The the number of packet sbetween a Unix timestamp and a given
+ * @brief      The the number of packets between a Unix timestamp and a given
  *             packet number
  *
  * @param[in]  ts            The reference unix time
@@ -71,7 +71,7 @@ unsigned int lofar_get_next_packet_sequence(char *inputData) {
  *
  * @return     Packet delta
  */
-long lofar_get_packet_difference(unsigned int ts, long packetNumber, unsigned int clock200MHz) {
+__attribute__((unused)) long lofar_get_packet_difference(unsigned int ts, long packetNumber, unsigned int clock200MHz) {
 	return beamformed_packno(ts, 0, clock200MHz) - packetNumber;
 }
 
@@ -82,7 +82,7 @@ long lofar_get_packet_difference(unsigned int ts, long packetNumber, unsigned in
  *
  * @return     Unix time double
  */
-double lofar_get_packet_time(char *inputData) {
+double lofar_get_packet_time(const char *inputData) {
 	return (double) *((unsigned int *) &(inputData[CEP_HDR_TIME_OFFSET])) +
 		   ((double) *((unsigned int *) &(inputData[CEP_HDR_SEQ_OFFSET])) /
 			(clock160MHzSteps + clockStepsDelta * ((lofar_source_bytes *) &(inputData[CEP_HDR_SRC_OFFSET]))->clockBit));
@@ -95,7 +95,7 @@ double lofar_get_packet_time(char *inputData) {
  *
  * @return     MJD double
  */
-double lofar_get_packet_time_mjd(char *inputData) {
+double lofar_get_packet_time_mjd(const char *inputData) {
 	double unixTime = lofar_get_packet_time(inputData);
 
 	return (unixTime / 86400.0) + 40587.0;
@@ -104,7 +104,7 @@ double lofar_get_packet_time_mjd(char *inputData) {
 
 /**
  * @brief      Convert the station ID to the station code
- * 				RSP station ID != intll station ID. See
+ * 				RSP station ID != intl station ID. See
  * 				https://git.astron.nl/ro/lofar/-/raw/master/MAC/Deployment/data/StaticMetaData/StationInfo.dat
  * 				RSP hdr byte 4 reports 32 * ID code in result above. Divide by 32 on any port to round down to target code.
  *

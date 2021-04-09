@@ -24,13 +24,13 @@ extern "C" {
 
 long beamformed_packno(unsigned int timestamp, unsigned int sequence, unsigned int clock200MHz);
 
-long lofar_get_packet_number(char *inputData);
+long lofar_get_packet_number(const char *inputData);
 
-unsigned int lofar_get_next_packet_sequence(char *inputData);
+unsigned int lofar_get_next_packet_sequence(const char *inputData);
 
-double lofar_get_packet_time(char *inputData);
+double lofar_get_packet_time(const char *inputData);
 
-double lofar_get_packet_time_mjd(char *inputData);
+double lofar_get_packet_time_mjd(const char *inputData);
 
 int lofar_get_station_name(int stationID, char *stationCode);
 

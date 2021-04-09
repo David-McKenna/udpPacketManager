@@ -16,8 +16,8 @@ const lofar_udp_calibration lofar_udp_calibration_default = {
 		.calibrationStepsGenerated = 0,
 		.calibrationFifo = "/tmp/udp_calibation_pipe",
 		.calibrationSubbands = "HBA,12:499",
-		.calibrationDuration = 3600.0,
-		.calibrationPointing = { 0.0, 0.7853982 },
+		.calibrationDuration = 3600.0f,
+		.calibrationPointing = { 0.0f, 0.7853982f },
 		.calibrationPointingBasis = "AZELGO"
 };
 
