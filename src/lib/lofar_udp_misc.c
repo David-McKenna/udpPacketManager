@@ -8,6 +8,9 @@ const double clockStepsDelta = CLOCK200MHZ - CLOCK160MHZ;
 const double clock200MHzSample = 1.0 / CLOCK200MHZ;
 const double clock160MHzSample = 1.0 / CLOCK160MHZ;
 
+const double clock200MHzPacketRate = CLOCK200MHZ / 16;
+const double clock160MHzPacketRate = CLOCK160MHZ / 16;
+
 
 // Taken from Olaf Wucknitz' VLBI recorder, with modifications for arbitrary
 // input data

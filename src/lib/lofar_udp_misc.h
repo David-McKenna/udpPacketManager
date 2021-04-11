@@ -13,6 +13,10 @@ extern const double clockStepsDelta;
 // Time steps per second in each clock mode
 extern const double clock200MHzSample;
 extern const double clock160MHzSample;
+
+// Packets per second in each clock mode
+extern const double clock200MHzPacketRate;
+extern const double clock160MHzPacketRate;
 #endif
 
 

@@ -35,35 +35,27 @@ void helpMessages() {
 
 void CLICleanup(int eventCount, char **dateStr, long *startingPackets, long *multiMaxPackets, float *eventSeconds,
 				lofar_udp_config *config, lofar_udp_io_write_config *outConfig) {
-	if (startingPackets != NULL) {
-		free(startingPackets);
-	}
 
-	if (multiMaxPackets != NULL) {
-		free(multiMaxPackets);
-	}
-
-	if (eventSeconds != NULL) {
-		free(eventSeconds);
-	}
+	FREE_NOT_NULL(startingPackets);
+	FREE_NOT_NULL(multiMaxPackets);
+	FREE_NOT_NULL(eventSeconds);
+	FREE_NOT_NULL(outConfig);
 
 	if (dateStr != NULL) {
-		for (int i = 0; i < eventCount; i++)
-			free(dateStr[i]);
-
-		free(dateStr);
+		for (int i = 0; i < eventCount; i++) {
+			FREE_NOT_NULL(dateStr[i]);
+		}
+		FREE_NOT_NULL(dateStr);
 	}
+
 
 	if (config != NULL) {
-		if (config->calibrationConfiguration != NULL) {
-			free(config->calibrationConfiguration);
-		}
-		free(config);
+		FREE_NOT_NULL(config->calibrationConfiguration);
+		FREE_NOT_NULL(config);
 	}
 
-	if (outConfig != NULL) {
-		free(outConfig);
-	}
+
+
 
 }
 

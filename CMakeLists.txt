@@ -48,18 +48,21 @@ configure_file(	"${PROJECT_SOURCE_DIR}/src/CLI/lofar_cli_meta.h.in"
 
 # Setup the base library object
 add_library(lofudpman STATIC
-			src/lib/lofar_udp_backends.cpp
-			src/lib/lofar_udp_misc.c
-			src/lib/lofar_udp_io.c
-			src/lib/lofar_udp_reader.c
-			src/CLI/lofar_cli_meta.c
-			src/CLI/ascii_hdr_manager.c
-			src/lib/lofar_udp_structs.c
-)
+            src/lib/lofar_udp_backends.cpp
+            src/lib/lofar_udp_misc.c
+            src/lib/lofar_udp_io.c
+            src/lib/lofar_udp_reader.c
+            src/lib/lofar_udp_structs.c
+            src/CLI/lofar_cli_meta.c
+            src/metadata/lofar_udp_metadata.c
+            src/metadata/ascii_hdr_manager.c
+            src/metadata/sigproc_hdr_manager.c 
+            src/metadata/sigproc_hdr_manager.h)
 # Include all of our headers
 target_include_directories(lofudpman PUBLIC
 		${PROJECT_SOURCE_DIR}/src/lib
 		${PROJECT_SOURCE_DIR}/src/CLI
+		${PROJECT_SOURCE_DIR}/src/metadata
 )
 file(GLOB_RECURSE UDP_INCLUDE_FILES "${PROJECT_SOURCE_DIR}/src/*/*.h")
 
@@ -127,4 +130,4 @@ install(TARGETS lofudpman lofar_udp_extractor lofar_udp_guppi_raw
 install(FILES ${UDP_INCLUDE_FILES} DESTINATION include)
 
 # Add the tests directory
-add_subdirectory(tests)
+add_subdirectory(tests EXCLUDE_FROM_ALL)

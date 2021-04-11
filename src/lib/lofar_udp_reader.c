@@ -841,7 +841,7 @@ lofar_udp_reader *lofar_udp_reader_setup(lofar_udp_config *config) {
 		readlen = lofar_udp_io_fread_temp(config, port, &(inputHeaders[port]), sizeof(char), UDPHDRLEN, 1);
 		if (readlen != UDPHDRLEN) {
 			fprintf(stderr, "Unable to read header on port %d, exiting.\n", port);
-			free(meta);
+			FREE_NOT_NULL(meta);
 			return NULL;
 		}
 
@@ -857,7 +857,7 @@ lofar_udp_reader *lofar_udp_reader_setup(lofar_udp_config *config) {
 		// Standard setup
 		if (lofar_udp_parse_headers(meta, inputHeaders, beamletLimits) > 0) {
 			fprintf(stderr, "Unable to setup metadata using given headers; exiting.\n");
-			free(meta);
+			FREE_NOT_NULL(meta);
 			return NULL;
 
 			// If we are only parsing a subset of beamlets
@@ -898,7 +898,7 @@ lofar_udp_reader *lofar_udp_reader_setup(lofar_udp_config *config) {
 				fprintf(stderr,
 						"ERROR: Upon updating beamletLimits, we found the upper beamlet is in a port higher than the lower port (%d, %d), exiting.\n",
 						upperPort, lowerPort);
-				free(meta);
+				FREE_NOT_NULL(meta);
 				return NULL;
 			}
 
@@ -1054,13 +1054,6 @@ lofar_udp_reader *lofar_udp_reader_setup(lofar_udp_config *config) {
 }
 
 
-void freeNotNull(void *ptr) {
-	if (ptr != NULL) {
-		free(ptr);
-		ptr = NULL;
-	}
-}
-
 /**
  * @brief      Optionally lose input files, free alloc'd memory, free zstd
  *             decompression streams once we are finished.
@@ -1074,17 +1067,20 @@ int lofar_udp_reader_cleanup(lofar_udp_reader *reader) {
 
 	// Cleanup the malloc/calloc'd memory addresses, close the input files.
 	for (int i = 0; i < reader->meta->numOutputs; i++) {
-		freeNotNull(reader->meta->outputData[i]);
+		FREE_NOT_NULL(reader->meta->outputData[i]);
 	}
 
 	for (int i = 0; i < reader->meta->numPorts; i++) {
 		// Free input data pointer (from the correct offset)
 		if (reader->meta->inputData[i] != NULL) {
+			
 			VERBOSE(if (reader->meta->VERBOSE) {
 				printf("On port: %d freeing inputData at %p\n", i, reader->meta->inputData[i] -
 																   2 * reader->meta->portPacketLength[i]);
 			});
-			free(reader->meta->inputData[i] - 2 * reader->meta->portPacketLength[i]);
+
+			char *tmpPtr = (reader->meta->inputData[i] - 2 * reader->meta->portPacketLength[i]);
+			FREE_NOT_NULL(tmpPtr);
 			reader->meta->inputData[i] = NULL;
 		}
 		if (reader->input != NULL) {
@@ -1095,15 +1091,15 @@ int lofar_udp_reader_cleanup(lofar_udp_reader *reader) {
 	// Cleanup Jones matrices if they are allocated
 	if (reader->meta->jonesMatrices != NULL) {
 		for (int i = 0; i < reader->calibration->calibrationStepsGenerated; i++) {
-			freeNotNull(reader->meta->jonesMatrices[i]);
+			FREE_NOT_NULL(reader->meta->jonesMatrices[i]);
 		}
-		freeNotNull(reader->meta->jonesMatrices);
+		FREE_NOT_NULL(reader->meta->jonesMatrices);
 	}
 
 	// Free the reader
-	freeNotNull(reader->meta);
-	freeNotNull(reader->input);
-	freeNotNull(reader);
+	FREE_NOT_NULL(reader->meta);
+	FREE_NOT_NULL(reader->input);
+	FREE_NOT_NULL(reader);
 
 	return 0;
 }
@@ -1226,9 +1222,9 @@ int lofar_udp_reader_calibration(lofar_udp_reader *reader) {
 	} else if (numTimesamples > reader->calibration->calibrationStepsGenerated) {
 		// Free the old data
 		for (int timeIdx = 0; timeIdx < reader->calibration->calibrationStepsGenerated; timeIdx += 1) {
-			free(reader->meta->jonesMatrices[timeIdx]);
+			FREE_NOT_NULL(reader->meta->jonesMatrices[timeIdx]);
 		}
-		free(reader->meta->jonesMatrices);
+		FREE_NOT_NULL(reader->meta->jonesMatrices);
 
 		// Reallocate the data
 		reader->meta->jonesMatrices = calloc(numTimesamples, sizeof(float *));
@@ -1239,7 +1235,7 @@ int lofar_udp_reader_calibration(lofar_udp_reader *reader) {
 	} else if (numTimesamples < reader->calibration->calibrationStepsGenerated) {
 		// Free the extra time steps
 		for (int timeIdx = reader->calibration->calibrationStepsGenerated; timeIdx < numTimesamples; timeIdx += 1) {
-			free(reader->meta->jonesMatrices[timeIdx]);
+			FREE_NOT_NULL(reader->meta->jonesMatrices[timeIdx]);
 		}
 	}
 
@@ -1294,7 +1290,7 @@ int lofar_udp_reader_calibration(lofar_udp_reader *reader) {
 		fprintf(stderr, "ERROR: Unable to remove calibration FIFO (%d). Exiting.\n", errno);
 		return 1;
 	}
-	free(fifoName);
+	FREE_NOT_NULL(fifoName);
 
 	// Update the calibration state
 	reader->meta->calibrationStep = 0;
@@ -1365,7 +1361,7 @@ int lofar_udp_reader_read_step(lofar_udp_reader *reader) {
 
 		// Raise a warning if we received less data than requested (EOF/file error)
 		if (charsRead < charsToRead) {
-			printf("%ld, %f, %ld\n", charsRead, (float) reader->meta->inputDataOffset[port] / reader->meta->portPacketLength[port], reader->meta->portPacketLength[port]);
+			printf("%ld, %f, %d\n", charsRead, (float) reader->meta->inputDataOffset[port] / reader->meta->portPacketLength[port], reader->meta->portPacketLength[port]);
 			packetPerIter =
 					(charsRead + reader->meta->inputDataOffset[port]) / reader->meta->portPacketLength[port];
 #pragma omp critical (packetCheck)

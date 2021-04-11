@@ -82,13 +82,13 @@ int lofar_udp_io_parse_format(char *dest, const char format[], int port, int ite
 	char *formatCopyOne = calloc(DEF_STR_LEN, sizeof(char));
 	if (formatCopyOne == NULL || (strcpy(formatCopyOne, format) != formatCopyOne)) {
 		fprintf(stderr, "ERROR: Failed to make a copy of the input format (1, %s), exiting.\n", format);
-		free(formatCopyOne);
+		FREE_NOT_NULL(formatCopyOne);
 		return -1;
 	}
 	char *formatCopyTwo = calloc(DEF_STR_LEN, sizeof(char));
 	if (formatCopyTwo == NULL || (strcpy(formatCopyTwo, format) != formatCopyTwo)) {
 		fprintf(stderr, "ERROR: Failed to make a copy of the input format (2, %s), exiting.\n", format);
-		free(formatCopyOne); free(formatCopyTwo);
+		FREE_NOT_NULL(formatCopyOne); FREE_NOT_NULL(formatCopyTwo);
 		return -1;
 	}
 
@@ -99,7 +99,7 @@ int lofar_udp_io_parse_format(char *dest, const char format[], int port, int ite
 	char *suffix = calloc(DEF_STR_LEN, sizeof(char));
 	if (prefix == NULL || suffix == NULL) {
 		fprintf(stderr, "ERROR: Failed to allocate memory for prefix / suffix, exiting.\n");
-		free(prefix); free(suffix); free(formatCopyOne); free(formatCopyTwo);
+		FREE_NOT_NULL(prefix); FREE_NOT_NULL(suffix); FREE_NOT_NULL(formatCopyOne); FREE_NOT_NULL(formatCopyTwo);
 	}
 	char *startSubStr;
 	// Please don't ever bring up how disgusting this loop is.
@@ -130,7 +130,7 @@ int lofar_udp_io_parse_format(char *dest, const char format[], int port, int ite
 	}
 
 	int returnBool = (dest == strcpy(dest, formatCopySrc));
-	free(formatCopyOne); free(formatCopyTwo); free(prefix); free(suffix);
+	FREE_NOT_NULL(formatCopyOne); FREE_NOT_NULL(formatCopyTwo); FREE_NOT_NULL(prefix); FREE_NOT_NULL(suffix);
 	return returnBool;
 
 }
@@ -1087,8 +1087,8 @@ int lofar_udp_io_fread_temp_ZSTD(void *outbuf, const size_t size, const int num,
 		fprintf(stderr, "Unable to read in data from file; exiting.\n");
 		fclose(inputFilePtr);
 		ZSTD_freeDStream(dstreamTmp);
-		free(inBuff);
-		free(localOutBuff);
+		FREE_NOT_NULL(inBuff);
+		FREE_NOT_NULL(localOutBuff);
 		return -1;
 	}
 
@@ -1112,8 +1112,8 @@ int lofar_udp_io_fread_temp_ZSTD(void *outbuf, const size_t size, const int num,
 		fprintf(stderr, "ZSTD encountered an error while doing temp read (code %ld, %s), exiting.\n", output,
 				ZSTD_getErrorName(output));
 		ZSTD_freeDStream(dstreamTmp);
-		free(inBuff);
-		free(localOutBuff);
+		FREE_NOT_NULL(inBuff);
+		FREE_NOT_NULL(localOutBuff);
 		return -1;
 	}
 
@@ -1124,8 +1124,8 @@ int lofar_udp_io_fread_temp_ZSTD(void *outbuf, const size_t size, const int num,
 	// Copy the output and cleanup
 	memcpy(outbuf, localOutBuff, size * num);
 	ZSTD_freeDStream(dstreamTmp);
-	free(inBuff);
-	free(localOutBuff);
+	FREE_NOT_NULL(inBuff);
+	FREE_NOT_NULL(localOutBuff);
 
 	return readlen;
 
@@ -1379,14 +1379,16 @@ int lofar_udp_io_read_cleanup_DADA(lofar_udp_reader_input *input, const int port
 int lofar_udp_io_write_cleanup_FILE(lofar_udp_io_write_config *config, int outp, int fullClean) {
 	if (config->outputFiles[outp] != NULL) {
 		fclose(config->outputFiles[outp]);
+		config->outputFiles[outp] = NULL;
+	}
 
-		if (fullClean && config->readerType == FIFO) {
-			if (remove(config->outputLocations[outp]) != 0) {
-				fprintf(stderr, "WARNING: Failed to remove old FIFO at %s, continuing.\n",
-						config->outputLocations[outp]);
-			}
+	if (fullClean && config->readerType == FIFO) {
+		if (remove(config->outputLocations[outp]) != 0) {
+			fprintf(stderr, "WARNING: Failed to remove old FIFO at %s, continuing.\n",
+					config->outputLocations[outp]);
 		}
 	}
+
 	return 0;
 }
 
@@ -1404,10 +1406,10 @@ int lofar_udp_io_write_cleanup_ZSTD(lofar_udp_io_write_config *config, int outp,
 
 	if (fullClean && config->cstream[outp] != NULL) {
 		ZSTD_freeCStream(config->cstream[outp]);
-
+		config->cstream[outp] = NULL;
+		
 		if (config->outputBuffer[outp].dst != NULL) {
-			free(config->outputBuffer[outp].dst);
-			config->outputBuffer[outp].dst = NULL;
+			FREE_NOT_NULL(config->outputBuffer[outp].dst);
 		}
 	}
 

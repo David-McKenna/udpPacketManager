@@ -110,3 +110,13 @@ typedef struct __attribute__((__packed__)) lofar_source_bytes {
 #define TICKTOCK(tick, tock) ((double) (tock.tv_nsec - tick.tv_nsec) / 1000000000.0) + (tock.tv_sec - tick.tv_sec)
 
 #endif // end of LOFAR_UDP_TICKTOCK_MACRO
+
+
+#ifndef LOFAR_UDP_GENERAL_H
+#define LOFAR_UDP_GENERAL_H
+
+#include <stddef.h>
+#include <stdlib.h>
+#define FREE_NOT_NULL(x) free(x); x = NULL;
+
+#endif // End of LOFAR_UDP_GENERAL_H

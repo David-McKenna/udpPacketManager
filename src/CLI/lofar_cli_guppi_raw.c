@@ -40,7 +40,7 @@ int main(int argc, char *argv[]) {
 	int inputOpt, outputFilesCount, input = 0;
 	double seconds = 0.0;
 	double sampleTime = 0.0;
-	char inputTime[256] = "", stringBuff[128], hdrFile[2048] = "", timeStr[28] = "", inputFormat[2048] = "", outputFormat[2048] = "";
+	char inputTime[256] = "", stringBuff[128], hdrFile[2048] = "", timeStr[28] = "", inputFormat[2048] = "", outputFormat[2048] = "", headerBuffer[4 * DEF_STR_LEN] = "";
 	int silent = 0, itersPerFile = INT_MAX, inputProvided = 0, outputProvided = 0;
 	unsigned int clock200MHz = 1;
 
@@ -238,8 +238,8 @@ int main(int argc, char *argv[]) {
 		config->startingPacket = getStartingPacket(inputTime, clock200MHz);
 		if (config->startingPacket == 1) {
 			helpMessages();
-			free(dateStr[0]);
-			free(dateStr);
+			FREE_NOT_NULL(dateStr[0]);
+			FREE_NOT_NULL(dateStr);
 			return 1;
 		}
 	}
@@ -279,8 +279,8 @@ int main(int argc, char *argv[]) {
 	// Returns null on error, check
 	if (reader == NULL) {
 		fprintf(stderr, "Failed to generate reader. Exiting.\n");
-		free(dateStr[0]);
-		free(dateStr);
+		FREE_NOT_NULL(dateStr[0]);
+		FREE_NOT_NULL(dateStr);
 		return 1;
 	}
 
@@ -288,8 +288,8 @@ int main(int argc, char *argv[]) {
 	if (((lofar_source_bytes *) &(reader->meta->inputData[0][1]))->clockBit != clock200MHz) {
 		fprintf(stderr,
 				"ERROR: The clock bit of the first packet does not match the clock state given when starting the CLI. Add or remove -c from your command. Exiting.\n");
-		free(dateStr[0]);
-		free(dateStr);
+		FREE_NOT_NULL(dateStr[0]);
+		FREE_NOT_NULL(dateStr);
 		return 1;
 	}
 
@@ -297,8 +297,8 @@ int main(int argc, char *argv[]) {
 	if (strcmp(hdrFile, "") != 0) {
 		if (parseHdrFile(hdrFile, &header) > 0) {
 			fprintf(stderr, "ERROR: Error initialising ASCII header struct, exiting.");
-			free(dateStr[0]);
-			free(dateStr);
+			FREE_NOT_NULL(dateStr[0]);
+			FREE_NOT_NULL(dateStr);
 			return 1;
 		}
 	}
@@ -361,7 +361,7 @@ int main(int argc, char *argv[]) {
 			return 1;
 		}
 
-		VERBOSE(if (config->verbose) { printf("Begining data extraction loop for event %d\n", loops); });
+		VERBOSE(if (config->verbose) { printf("Beginning data extraction loop for event %d\n", loops); });
 		// While we receive new data for the current event,
 		while ((returnVal = lofar_udp_reader_step_timed(reader, timing)) < 1) {
 
@@ -405,7 +405,14 @@ int main(int argc, char *argv[]) {
 					header.pktidx = packetsWritten;
 				}
 
-				writeHdr(outConfig->outputFiles[out], &header);
+				// Write out the new version of the buffer
+				lofar_udp_metadata_write_ASCII(headerBuffer, sizeof headerBuffer, &header);
+				if (lofar_udp_io_write(outConfig, 0, headerBuffer, strlen(headerBuffer)) != (long) strlen(headerBuffer)) {
+					endCondition = 1;
+					break;
+				}
+				// Reset the buffer for the next iteration
+				memset(headerBuffer, 0, sizeof headerBuffer);
 
 				VERBOSE(printf("Writing %ld bytes (%ld packets) to disk for output %d...\n",
 							   packetsToWrite * reader->meta->packetOutputLength[out], packetsToWrite, out));
@@ -468,6 +475,7 @@ int main(int argc, char *argv[]) {
 	}
 
 	for (int outp = 0; outp < reader->meta->numOutputs; outp++) {
+		printf("Full cleanup...\n");
 		lofar_udp_io_write_cleanup(outConfig, outp, 1);
 	}
 
@@ -504,8 +512,8 @@ int main(int argc, char *argv[]) {
 	if (silent == 0) { printf("Reader cleanup performed successfully.\n"); }
 
 	// Free our malloc'd objects
-	free(dateStr[0]);
-	free(dateStr);
+	FREE_NOT_NULL(dateStr[0]);
+	FREE_NOT_NULL(dateStr);
 
 	if (silent == 0) { printf("CLI memory cleaned up successfully. Exiting.\n"); }
 	return 0;

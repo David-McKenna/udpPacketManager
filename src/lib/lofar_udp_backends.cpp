@@ -781,6 +781,7 @@ int lofar_udp_cpp_loop_interface(lofar_udp_meta *meta) {
 
 
 // LUT for 4-bit data, faster than re-calculating upper/lower nibble for every sample.
+//@formatter:off
 const char bitmodeConversion[256][2] = {
 		{ 0 , 0 }, { 0 , 1 }, { 0 , 2 }, { 0 , 3 }, { 0 , 4 },
 		{ 0 , 5 }, { 0 , 6 }, { 0 , 7 }, { 0 , -8 }, { 0 , -7 },
@@ -835,3 +836,4 @@ const char bitmodeConversion[256][2] = {
 		{ -1 , -6 }, { -1 , -5 }, { -1 , -4 }, { -1 , -3 }, { -1 , -2 },
 		{ -1 , -1 }
 };
+//@formatter:on
