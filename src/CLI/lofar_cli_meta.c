@@ -49,9 +49,9 @@ long getStartingPacket(char inputTime[], const unsigned int clock200MHz) {
 
 	if (strptime(inputTime, "%Y-%m-%dT%H:%M:%S", &unixTm) != NULL) {
 		unixEpoch = timegm(&unixTm);
-		return beamformed_packno((unsigned long) unixEpoch, 0, clock200MHz);
+		return beamformed_packno(unixEpoch, 0, clock200MHz);
 	} else {
-		fprintf(stderr, "Invalid time string, exiting.\n");
+		fprintf(stderr, "Invalid time string, %s, exiting.\n", inputTime);
 
 		return 1;
 	}

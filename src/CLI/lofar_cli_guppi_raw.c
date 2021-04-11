@@ -11,11 +11,8 @@ void helpMessages() {
 
 	printf("\n\n");
 
-	printf("-i: <format>	Input file name format (default: './%%d')\n");
-#ifndef NODADA
-	printf("-k: <key>		Input PSRDADA ringbuffer keys, a base value and an offset (>2 to allow for headers) (default: '', example ('16130,10'))\n");
-#endif
-	printf("-o: <format>	Output file name format (provide %%d to fill in the output file number) (default: './output%%d')\n");
+	printf("-i: <format>	[OUTDATED] Input file name format (default: './%%d')\n");
+	printf("-o: <format>	[OUTDATED] Output file name format (provide %%d to fill in the output file number) (default: './output%%d')\n");
 	printf("-m: <numPack>	Number of packets to process in each read request (default: 65536)\n");
 	printf("-u: <numPort>	Number of ports to combine (default: 4)\n");
 	printf("-n: <baseNum>	Base value to iterate when choosing ports (default: 0)\n");
@@ -373,9 +370,10 @@ int main(int argc, char *argv[]) {
 				timing[0] = TICKTOCK(tick0, tock0) -
 							timing[1];
 			} // _file_reader_step or _reader_reuse does first I/O operation; approximate the time here
-			if (silent == 0)
+			if (silent == 0) {
 				printf("Read complete for operation %d after %f seconds (I/O: %lf, MemOps: %lf), return value: %d\n",
 					   loops, TICKTOCK(tick0, tock0), timing[0], timing[1], returnVal);
+			}
 
 			totalReadTime += timing[0];
 			totalOpsTime += timing[1];
@@ -428,11 +426,13 @@ int main(int argc, char *argv[]) {
 				timing[0] = 9.;
 				timing[1] = 0.;
 				printf("Disk writes completed for operation %d after %f seconds.\n", loops, TICKTOCK(tick0, tock0));
-				if (returnVal < 0)
+				if (returnVal < 0) {
 					for (int port = 0; port < reader->meta->numPorts; port++)
-						if (reader->meta->portLastDroppedPackets[port] != 0)
+						if (reader->meta->portLastDroppedPackets[port] != 0) {
 							printf("During this iteration there were %ld dropped packets on port %d.\n",
 								   reader->meta->portLastDroppedPackets[port], port);
+						}
+				}
 				printf("\n");
 			}
 

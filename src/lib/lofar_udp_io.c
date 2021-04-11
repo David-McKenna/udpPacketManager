@@ -88,7 +88,7 @@ int lofar_udp_io_parse_format(char *dest, const char format[], int port, int ite
 	char *formatCopyTwo = calloc(DEF_STR_LEN, sizeof(char));
 	if (formatCopyTwo == NULL || (strcpy(formatCopyTwo, format) != formatCopyTwo)) {
 		fprintf(stderr, "ERROR: Failed to make a copy of the input format (2, %s), exiting.\n", format);
-		free(formatCopyTwo);
+		free(formatCopyOne); free(formatCopyTwo);
 		return -1;
 	}
 
@@ -97,6 +97,10 @@ int lofar_udp_io_parse_format(char *dest, const char format[], int port, int ite
 
 	char *prefix = calloc(DEF_STR_LEN, sizeof(char));
 	char *suffix = calloc(DEF_STR_LEN, sizeof(char));
+	if (prefix == NULL || suffix == NULL) {
+		fprintf(stderr, "ERROR: Failed to allocate memory for prefix / suffix, exiting.\n");
+		free(prefix); free(suffix); free(formatCopyOne); free(formatCopyTwo);
+	}
 	char *startSubStr;
 	// Please don't ever bring up how disgusting this loop is.
 	while (strstr(formatCopySrc, "[[")) {
@@ -126,9 +130,7 @@ int lofar_udp_io_parse_format(char *dest, const char format[], int port, int ite
 	}
 
 	int returnBool = (dest == strcpy(dest, formatCopySrc));
-	free(formatCopyOne); free(formatCopyTwo);
-	free(prefix);
-	free(suffix);
+	free(formatCopyOne); free(formatCopyTwo); free(prefix); free(suffix);
 	return returnBool;
 
 }
@@ -564,41 +566,44 @@ int lofar_udp_io_write_setup_ZSTD(lofar_udp_io_write_config *config, const lofar
 		}
 	}
 
-	ZSTD_CCtx_setParameter(config->cstream[outp], ZSTD_c_nbWorkers, 4);
-
 	if (config->cstream[outp] == NULL) {
 		size_t zstdReturn;
-		for (int port = 0; port < meta->numOutputs; port++) {
-			zstdReturn = ZSTD_initCStream(config->cstream[port], 3); //ZSTD_COMP_LEVEL);
 
-			if (ZSTD_isError(zstdReturn)) {
-				fprintf(stderr,
-						"ZSTD encountered an error while creating compression stream for [%d] (code %ld, %s), exiting.\n",
-						port, zstdReturn, ZSTD_getErrorName(zstdReturn));
-				lofar_udp_io_write_cleanup(config, outp, 1);
-				return -1;
-			}
+		config->cstream[outp] = ZSTD_createCStream();
+		if (config->cstream[outp] == NULL) {
+			fprintf(stderr, "ERROR: Failed to create compression stream on output %d, exiting.\n", outp);
+			return -1;
+		}
+		zstdReturn = ZSTD_initCStream(config->cstream[outp], 3); //ZSTD_COMP_LEVEL);
+
+		if (ZSTD_isError(zstdReturn)) {
+			fprintf(stderr,
+					"ZSTD encountered an error while creating compression stream for [%d] (code %ld, %s), exiting.\n",
+					outp, zstdReturn, ZSTD_getErrorName(zstdReturn));
+			lofar_udp_io_write_cleanup(config, outp, 1);
+			return -1;
 		}
 
 		long inputSize;
-		for (int port = 0; port < meta->numOutputs; port++) {
-			inputSize = meta->packetsPerIteration * meta->packetOutputLength[outp];
-			if (inputSize % ZSTD_CStreamInSize() != 0) {
-				inputSize += (long) ZSTD_CStreamInSize() - (inputSize % (long) ZSTD_CStreamInSize());
-			}
 
-
-			if (inputSize % ZSTD_CStreamOutSize() != 0) {
-				inputSize += (long) ZSTD_CStreamInSize() - (inputSize % (long) ZSTD_CStreamOutSize());
-			}
-			config->outputBuffer[outp].dst = calloc(inputSize, sizeof(char));
-
-			if (config->outputBuffer[outp].dst == NULL) {
-				fprintf(stderr, "ERROR: Failed to allocate memory for ZTSD compression, exiting.\n");
-			}
-			config->outputBuffer[outp].size = inputSize;
-
+		inputSize = meta->packetsPerIteration * meta->packetOutputLength[outp];
+		if (inputSize % ZSTD_CStreamInSize() != 0) {
+			inputSize += (long) ZSTD_CStreamInSize() - (inputSize % (long) ZSTD_CStreamInSize());
 		}
+
+
+		if (inputSize % ZSTD_CStreamOutSize() != 0) {
+			inputSize += (long) ZSTD_CStreamInSize() - (inputSize % (long) ZSTD_CStreamOutSize());
+		}
+		config->outputBuffer[outp].dst = calloc(inputSize, sizeof(char));
+
+		if (config->outputBuffer[outp].dst == NULL) {
+			fprintf(stderr, "ERROR: Failed to allocate memory for ZTSD compression, exiting.\n");
+		}
+		config->outputBuffer[outp].size = inputSize;
+
+
+		ZSTD_CCtx_setParameter(config->cstream[outp], ZSTD_c_nbWorkers, 4);
 	}
 
 	if (ZSTD_isError(ZSTD_CCtx_reset(config->cstream[outp], ZSTD_reset_session_only))) {
@@ -790,8 +795,7 @@ long lofar_udp_io_read_ZSTD(lofar_udp_reader_input *input, int port, long nchars
 	}
 
 	// Completed or EOF: unmap used memory and return everything we read
-	if (madvise(((void *) input->readingTracker[port].src), input->readingTracker[port].pos,
-					MADV_DONTNEED) < 0) {
+	if (madvise(((void *) input->readingTracker[port].src), input->readingTracker[port].pos, MADV_DONTNEED) < 0) {
 		fprintf(stderr,
 				"ERROR: Failed to apply MADV_DONTNEED after read operation on port %d (errno %d: %s).\n", port,
 				errno, strerror(errno));
@@ -922,7 +926,7 @@ lofar_udp_io_write_ZSTD(lofar_udp_io_write_config *config, int outp, const char 
 	ZSTD_inBuffer input = { src, nchars, 0 };
 	ZSTD_outBuffer output = { config->outputBuffer[outp].dst, config->outputBuffer[outp].size, 0 };
 	while (!(input.size == input.pos)) {
-		size_t returnVal = ZSTD_compressStream2(config->cstream[outp], &output, &input, ZSTD_e_continue);
+		size_t returnVal = ZSTD_compressStream2(config->cstream[outp], &output, &input, ZSTD_e_end);
 		if (ZSTD_isError(returnVal)) {
 			fprintf(stderr, "ERROR: Failed to compressed data with ZSTD (%ld, %s)\n", returnVal,
 					ZSTD_getErrorName(returnVal));
@@ -930,7 +934,9 @@ lofar_udp_io_write_ZSTD(lofar_udp_io_write_config *config, int outp, const char 
 		}
 	}
 
-	if (lofar_udp_io_write_FILE(config, outp, config->outputBuffer[outp].dst, (long) config->outputBuffer[outp].pos) < 0) {
+	config->outputBuffer[outp].pos = output.pos;
+
+	if (lofar_udp_io_write_FILE(config, outp, config->outputBuffer[outp].dst, (long) output.pos) < 0) {
 		return -1;
 	}
 
@@ -1063,8 +1069,9 @@ int lofar_udp_io_fread_temp_ZSTD(void *outbuf, const size_t size, const int num,
 
 	// Build the decompression stream
 	ZSTD_DStream *dstreamTmp = ZSTD_createDStream();
-	const size_t minRead = ZSTD_DStreamInSize();
-	const size_t minOut = ZSTD_DStreamOutSize();
+	int readFactor = ((size * num) / ZSTD_DStreamInSize()) + 1;
+	size_t minRead = ZSTD_DStreamInSize() * readFactor;
+	size_t minOut = ZSTD_DStreamOutSize() * readFactor;
 	ZSTD_initDStream(dstreamTmp);
 
 	// Allocate the buffer memory, build the buffer structs
@@ -1077,7 +1084,7 @@ int lofar_udp_io_fread_temp_ZSTD(void *outbuf, const size_t size, const int num,
 	// Read in the compressed data
 	long readlen = (long) fread(inBuff, sizeof(char), minRead, inputFilePtr);
 	if (readlen != (long) minRead) {
-		fprintf(stderr, "Unable to read in header from file; exiting.\n");
+		fprintf(stderr, "Unable to read in data from file; exiting.\n");
 		fclose(inputFilePtr);
 		ZSTD_freeDStream(dstreamTmp);
 		free(inBuff);
@@ -1087,7 +1094,7 @@ int lofar_udp_io_fread_temp_ZSTD(void *outbuf, const size_t size, const int num,
 
 	// Move the read head back to the start of the packer
 	if (resetSeek) {
-		if (fseek(inputFilePtr, - (long) minRead, SEEK_CUR) != 0) {
+		if (fseek(inputFilePtr, -(long) minRead, SEEK_CUR) != 0) {
 			fprintf(stderr, "Failed to reset seek head, exiting.\n");
 			fclose(inputFilePtr);
 			return -2;
@@ -1102,7 +1109,7 @@ int lofar_udp_io_fread_temp_ZSTD(void *outbuf, const size_t size, const int num,
 	VERBOSE(printf("Header decompression code: %ld, %s\n", output, ZSTD_getErrorName(output)));
 
 	if (ZSTD_isError(output)) {
-		fprintf(stderr, "ZSTD enountered an error while doing temp read (code %ld, %s), exiting.\n", output,
+		fprintf(stderr, "ZSTD encountered an error while doing temp read (code %ld, %s), exiting.\n", output,
 				ZSTD_getErrorName(output));
 		ZSTD_freeDStream(dstreamTmp);
 		free(inBuff);

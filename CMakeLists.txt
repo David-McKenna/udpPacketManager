@@ -1,19 +1,15 @@
 # Based on what I learnt from https://cliutils.gitlab.io/modern-cmake
-
-# Check CMAKE version, change if required for compatibility
-cmake_minimum_required(VERSION 3.9...3.19)
-if(${CMAKE_VERSION} VERSION_LESS 3.12)
-    cmake_policy(VERSION ${CMAKE_MAJOR_VERSION}.${CMAKE_MINOR_VERSION})
-endif()
-
+cmake_minimum_required(VERSION 3.13...3.19)
 
 # Create a release output by default
 set(default_build_type "Release")
 
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_C_STANDARD 11)
+
 if(CMAKE_BUILD_TYPE STREQUAL Debug)
 	set(CMAKE_VERBOSE_MAKEFILE ON)
 endif()
-
 
 # Describe the project
 project(udpPacketManager 	VERSION 0.7.0
@@ -23,15 +19,11 @@ project(udpPacketManager 	VERSION 0.7.0
 
 set(UPM_CLI_VERSION 0.6)
 
-# Add the tests directory
-add_subdirectory(tests)
-
-
 set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -W -Wall -DALLOW_VERBOSE -g")
 set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -W -Wall -DALLOW_VERBOSE -g")
-set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -fno-omit-frame-pointer") # -fsanitize=address")
-set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -fno-omit-frame-pointer") # -fsanitize=address")
-set(CMAKE_LINKER_FLAGS_DEBUG "${CMAKE_LINKER_FLAGS_DEBUG} -fno-omit-frame-pointer") # -fsanitize=address")
+set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -fno-omit-frame-pointer -fsanitize=address")
+set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -fno-omit-frame-pointer -fsanitize=address")
+set(CMAKE_LINKER_FLAGS_DEBUG "${CMAKE_LINKER_FLAGS_DEBUG} -fno-omit-frame-pointer -fsanitize=address")
 
 # Find the OpenMP package on the system
 find_package(OpenMP)
@@ -71,14 +63,6 @@ target_include_directories(lofudpman PUBLIC
 )
 file(GLOB_RECURSE UDP_INCLUDE_FILES "${PROJECT_SOURCE_DIR}/src/*/*.h")
 
-
-# Describe the target C(++) standard
-set_property(TARGET lofudpman
-		PROPERTY CXX_STANDARD 17
-)
-set_property(TARGET lofudpman
-		PROPERTY C_STANDARD 11
-)
 # Set a few extra compiler options
 set(CMAKE_CXX_IMPLICIT_LINK_LIBRARIES "")
 set(CMAKE_CXX_IMPLICIT_LINK_DIRECTORIES "")
@@ -141,3 +125,6 @@ install(TARGETS lofudpman lofar_udp_extractor lofar_udp_guppi_raw
 		RUNTIME DESTINATION bin
 )
 install(FILES ${UDP_INCLUDE_FILES} DESTINATION include)
+
+# Add the tests directory
+add_subdirectory(tests)

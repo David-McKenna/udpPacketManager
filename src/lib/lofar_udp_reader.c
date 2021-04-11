@@ -166,9 +166,8 @@ int lofar_udp_parse_headers(lofar_udp_meta *meta, char header[MAX_NUM_PORTS][UDP
 		// Determine the size of the input array
 		// 4-bit: half the size per sample
 		// 16-bit: 2x the size per sample
-		bitMul = 1.0f - (0.5f * (float) (meta->inputBitMode == 4)) +  (float) (meta->inputBitMode == 16); // 4bit = 0.5x, 16bit = 2x
-		meta->portPacketLength[port] = (int) ((UDPHDRLEN) +
-											  (meta->portRawBeamlets[port] * ((int) bitMul * UDPNTIMESLICE * UDPNPOL)));
+		bitMul = 1.0f - (0.5f * (float) (meta->inputBitMode == 4)) + (float) (meta->inputBitMode == 16);
+		meta->portPacketLength[port] = ((UDPHDRLEN) + (meta->portRawBeamlets[port] * ((int) bitMul * UDPNTIMESLICE * UDPNPOL)));
 
 		if (port > 1) {
 			if (meta->portPacketLength[port] != meta->portPacketLength[port - 1]) {
@@ -232,8 +231,8 @@ int lofar_udp_skip_to_packet(lofar_udp_reader *reader) {
 			reader->meta->portLastDroppedPackets[port] = reader->meta->packetsPerIteration;
 		} else {
 			reader->meta->portLastDroppedPackets[port] =
-					lofar_get_packet_number(&(reader->meta->inputData[port][lastPacketOffset])) -
-					(currentPacket + reader->meta->packetsPerIteration);
+				lofar_get_packet_number(&(reader->meta->inputData[port][lastPacketOffset])) -
+				(currentPacket + reader->meta->packetsPerIteration);
 		}
 
 		if (reader->meta->portLastDroppedPackets[port] < 0) {
@@ -285,8 +284,8 @@ int lofar_udp_skip_to_packet(lofar_udp_reader *reader) {
 				} else {
 					// Read at least a fraction of the data on this port
 					reader->meta->portLastDroppedPackets[portInner] =
-							lofar_get_packet_number(&(reader->meta->inputData[portInner][lastPacketOffset])) -
-							(currentPacket + reader->meta->packetsPerIteration);
+						lofar_get_packet_number(&(reader->meta->inputData[portInner][lastPacketOffset])) -
+						(currentPacket + reader->meta->packetsPerIteration);
 				}
 				VERBOSE(if (reader->meta->portLastDroppedPackets[portInner]) {
 					printf("Port %d scan: %ld packets lost.\n", portInner,
@@ -340,8 +339,8 @@ int lofar_udp_skip_to_packet(lofar_udp_reader *reader) {
 			currentPacket = reader->packetsPerIteration / 2;
 		}
 		guessPacket = lofar_get_packet_number(
-				&(reader->meta->inputData[port][(reader->meta->lastPacket - currentPacket) *
-												reader->meta->portPacketLength[port]]));
+			&(reader->meta->inputData[port][(reader->meta->lastPacket - currentPacket) *
+											reader->meta->portPacketLength[port]]));
 
 		VERBOSE(printf("lofar_udp_skip_to_packet: searching within current array starting index %ld (max %ld)...\n",
 					   (reader->meta->lastPacket - currentPacket) * reader->meta->portPacketLength[port],
@@ -371,13 +370,13 @@ int lofar_udp_skip_to_packet(lofar_udp_reader *reader) {
 
 			// Make a new guess at our starting offset
 			guessPacket = lofar_get_packet_number(
-					&(reader->meta->inputData[port][packetShift[port] * reader->meta->portPacketLength[port]]));
+				&(reader->meta->inputData[port][packetShift[port] * reader->meta->portPacketLength[port]]));
 
 			// Iterate until we reach a target packet
 			while (guessPacket != reader->meta->lastPacket) {
 				VERBOSE(printf(
-						"lofar_udp_skip_to_packet: meta search: currentGuess %ld, lastGuess %ld, target %ld...\n",
-						guessPacket, lastPacketOffset, reader->meta->lastPacket););
+					"lofar_udp_skip_to_packet: meta search: currentGuess %ld, lastGuess %ld, target %ld...\n",
+					guessPacket, lastPacketOffset, reader->meta->lastPacket););
 				if (endOff > reader->packetsPerIteration || endOff < 0) {
 					fprintf(stderr,
 							"WARNING: lofar_udp_skip_to_packet just attempted to do an illegal memory access, resetting search end offset to %ld (%ld).\n",
@@ -404,7 +403,7 @@ int lofar_udp_skip_to_packet(lofar_udp_reader *reader) {
 
 				// Find the packet number of the next guess
 				guessPacket = lofar_get_packet_number(
-						&(reader->meta->inputData[port][nextOff * reader->meta->portPacketLength[port]]));
+					&(reader->meta->inputData[port][nextOff * reader->meta->portPacketLength[port]]));
 
 				// Binary search updates
 				if (guessPacket > reader->meta->lastPacket) {
@@ -688,7 +687,7 @@ int lofar_udp_setup_processing(lofar_udp_meta *meta) {
 		}
 	} else {
 		// Calculate the number of output char-sized elements
-		workingData = (int) (meta->numPorts * (hdrOffset + UDPHDRLEN)) + (meta->totalProcBeamlets * UDPNPOL *  (int) (((float) meta->inputBitMode / 8.0f) * UDPNTIMESLICE));
+		workingData = (meta->numPorts * (hdrOffset + UDPHDRLEN)) + (meta->totalProcBeamlets * UDPNPOL * (int) (((float) meta->inputBitMode / 8.0f) * UDPNTIMESLICE));
 
 		// Adjust for scaling factor, output bitmode and number of outputs
 		workingData = (int) (workingData * (((float) meta->outputBitMode / (float) meta->inputBitMode) * mulFactor));
