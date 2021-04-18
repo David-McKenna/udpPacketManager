@@ -54,17 +54,17 @@ add_library(lofudpman STATIC
             src/lib/lofar_udp_reader.c
             src/lib/lofar_udp_structs.c
             src/CLI/lofar_cli_meta.c
-            src/metadata/lofar_udp_metadata.c
+            src/lib/lofar_udp_metadata.c
             src/metadata/ascii_hdr_manager.c
-            src/metadata/sigproc_hdr_manager.c 
-            src/metadata/sigproc_hdr_manager.h)
+            src/metadata/sigproc_hdr_manager.c src/metadata/metadata_structs.h src/metadata/metadata_structs.c
+            src/metadata/dada_hdr_manager.c)
 # Include all of our headers
 target_include_directories(lofudpman PUBLIC
 		${PROJECT_SOURCE_DIR}/src/lib
 		${PROJECT_SOURCE_DIR}/src/CLI
 		${PROJECT_SOURCE_DIR}/src/metadata
 )
-file(GLOB_RECURSE UDP_INCLUDE_FILES "${PROJECT_SOURCE_DIR}/src/*/*.h")
+file(GLOB_RECURSE UDP_INCLUDE_FILES "${PROJECT_SOURCE_DIR}/src/*/*.h" "${PROJECT_SOURCE_DIR}/src/*/*.hpp")
 
 # Set a few extra compiler options
 set(CMAKE_CXX_IMPLICIT_LINK_LIBRARIES "")

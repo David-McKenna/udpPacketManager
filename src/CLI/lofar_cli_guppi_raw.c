@@ -34,6 +34,24 @@ void helpMessages() {
 }
 
 
+void CLICleanup(int eventCount, char **dateStr, lofar_udp_config *config, lofar_udp_io_write_config *outConfig, lofar_udp_reader *reader) {
+	if (dateStr != NULL) {
+		for (int i = 0; i < eventCount; i++) {
+			FREE_NOT_NULL(dateStr[i]);
+		}
+		FREE_NOT_NULL(dateStr);
+	}
+
+	FREE_NOT_NULL(config);
+
+	for (int outp = 0; outp < outConfig->numOutputs; outp++) {
+		lofar_udp_io_write_cleanup(outConfig, outp, 1);
+	}
+	FREE_NOT_NULL(outConfig);
+
+	lofar_udp_reader_cleanup(reader);
+}
+
 int main(int argc, char *argv[]) {
 
 	// Set up input local variables
@@ -50,8 +68,16 @@ int main(int argc, char *argv[]) {
 	config->processingMode = 30;
 	ascii_hdr header = ascii_hdr_default;
 
+	lofar_udp_reader *reader = NULL;
+
 	lofar_udp_io_write_config *outConfig = calloc(1, sizeof(lofar_udp_io_write_config));
 	(*outConfig) = lofar_udp_io_write_config_default;
+
+	if (config == NULL || outConfig == NULL) {
+		fprintf(stderr, "ERROR: Failed to allocate memory for configuration structs (something has gone very wrong...), exiting.\n");
+		FREE_NOT_NULL(config); FREE_NOT_NULL(outConfig);
+		return 1;
+	}
 
 	// Set up reader loop variables
 	int loops = 0, localLoops, returnVal;
@@ -60,7 +86,9 @@ int main(int argc, char *argv[]) {
 	struct timespec tick, tick0, tock, tock0;
 
 	// Malloc'd variables: need to be free'd later.
-	char **dateStr; // Sub elements need to be free'd too.
+	char **dateStr = NULL; // Sub elements need to be free'd too.
+	int eventCount = 1;
+
 
 	// Standard ugly input flags parser
 	while ((inputOpt = getopt(argc, argv, "rcqfvVi:o:m:u:t:s:e:a:n:b:k:T:")) != -1) {
@@ -70,6 +98,7 @@ int main(int argc, char *argv[]) {
 			case 'i':
 				if (lofar_udp_io_read_parse_optarg(config, optarg) < 0) {
 					helpMessages();
+					CLICleanup(eventCount, dateStr, config, outConfig, reader);
 					return 1;
 				}
 				strcpy(inputFormat, optarg);
@@ -79,6 +108,7 @@ int main(int argc, char *argv[]) {
 			case 'o':
 				if (lofar_udp_io_write_parse_optarg(outConfig, optarg) < 0) {
 					helpMessages();
+					CLICleanup(eventCount, dateStr, config, outConfig, reader);
 					return 1;
 				}
 				strcpy(outputFormat, optarg);
@@ -163,6 +193,7 @@ int main(int argc, char *argv[]) {
 #pragma GCC diagnostic pop
 
 				helpMessages();
+				CLICleanup(eventCount, dateStr, config, outConfig, reader);
 				return 1;
 
 		}
@@ -171,25 +202,24 @@ int main(int argc, char *argv[]) {
 	if (!input) {
 		fprintf(stderr, "ERROR: No inputs provided, exiting.\n");
 		helpMessages();
+		CLICleanup(eventCount, dateStr, config, outConfig, reader);
 		return 1;
 	}
 
 	if (!inputProvided) {
 		fprintf(stderr, "ERROR: An input was not provided, exiting.\n");
 		helpMessages();
+		CLICleanup(eventCount, dateStr, config, outConfig, reader);
 		return 1;
 	}
 
 	if (!outputProvided) {
 		fprintf(stderr, "ERROR: An output was not provided, exiting.\n");
 		helpMessages();
+		CLICleanup(eventCount, dateStr, config, outConfig, reader);
 		return 1;
 	}
 
-	if (outConfig->readerType == DADA_ACTIVE) {
-		fprintf(stderr, "ERROR: This CLI does not support outputing the data to a DADA ringubffer, exiting.\n");
-		return 1;
-	}
 
 	// GUPPI_RAW will only output to a single file
 	outputFilesCount = 1;
@@ -200,6 +230,7 @@ int main(int argc, char *argv[]) {
 		(config->ompThreads < 1)) {
 		fprintf(stderr, "One or more inputs invalid or not fully initialised, exiting.\n");
 		helpMessages();
+		CLICleanup(eventCount, dateStr, config, outConfig, reader);
 		return 1;
 	}
 
@@ -209,6 +240,7 @@ int main(int argc, char *argv[]) {
 				"WARNING: A header file was not provided; we are using the default values for the output file.\n");
 	} else if (access(hdrFile, F_OK) == -1) {
 		fprintf(stderr, "Header file does not exist at given location %s; exiting.\n", hdrFile);
+		CLICleanup(eventCount, dateStr, config, outConfig, reader);
 		return 1;
 	}
 
@@ -238,8 +270,7 @@ int main(int argc, char *argv[]) {
 		config->startingPacket = getStartingPacket(inputTime, clock200MHz);
 		if (config->startingPacket == 1) {
 			helpMessages();
-			FREE_NOT_NULL(dateStr[0]);
-			FREE_NOT_NULL(dateStr);
+			CLICleanup(eventCount, dateStr, config, outConfig, reader);
 			return 1;
 		}
 	}
@@ -274,13 +305,12 @@ int main(int argc, char *argv[]) {
 	CLICK(tick0);
 
 	// Generate the lofar_udp_reader, this also does I/O for the first input or seeks to the required packet
-	lofar_udp_reader *reader = lofar_udp_reader_setup(config);
+	reader = lofar_udp_reader_setup(config);
 
 	// Returns null on error, check
 	if (reader == NULL) {
 		fprintf(stderr, "Failed to generate reader. Exiting.\n");
-		FREE_NOT_NULL(dateStr[0]);
-		FREE_NOT_NULL(dateStr);
+		CLICleanup(eventCount, dateStr, config, outConfig, reader);
 		return 1;
 	}
 
@@ -288,8 +318,7 @@ int main(int argc, char *argv[]) {
 	if (((lofar_source_bytes *) &(reader->meta->inputData[0][1]))->clockBit != clock200MHz) {
 		fprintf(stderr,
 				"ERROR: The clock bit of the first packet does not match the clock state given when starting the CLI. Add or remove -c from your command. Exiting.\n");
-		FREE_NOT_NULL(dateStr[0]);
-		FREE_NOT_NULL(dateStr);
+		CLICleanup(eventCount, dateStr, config, outConfig, reader);
 		return 1;
 	}
 
@@ -297,8 +326,7 @@ int main(int argc, char *argv[]) {
 	if (strcmp(hdrFile, "") != 0) {
 		if (parseHdrFile(hdrFile, &header) > 0) {
 			fprintf(stderr, "ERROR: Error initialising ASCII header struct, exiting.");
-			FREE_NOT_NULL(dateStr[0]);
-			FREE_NOT_NULL(dateStr);
+			CLICleanup(eventCount, dateStr, config, outConfig, reader);
 			return 1;
 		}
 	}
@@ -357,7 +385,8 @@ int main(int argc, char *argv[]) {
 		getStartTimeString(reader, timeStr);
 
 		// Open the output files for this event
-		if (lofar_udp_io_write_setup(outConfig, reader->meta, loops / itersPerFile) < 0) {
+		if (lofar_udp_io_write_setup_helper(outConfig, reader->meta, loops / itersPerFile) < 0) {
+			CLICleanup(eventCount, dateStr, config, outConfig, reader);
 			return 1;
 		}
 
@@ -406,7 +435,7 @@ int main(int argc, char *argv[]) {
 				}
 
 				// Write out the new version of the buffer
-				lofar_udp_metadata_write_ASCII(headerBuffer, sizeof headerBuffer, &header);
+				lofar_udp_metadata_write_GUPPI(headerBuffer, sizeof headerBuffer, &header);
 				if (lofar_udp_io_write(outConfig, 0, headerBuffer, strlen(headerBuffer)) != (long) strlen(headerBuffer)) {
 					endCondition = 1;
 					break;
@@ -512,8 +541,7 @@ int main(int argc, char *argv[]) {
 	if (silent == 0) { printf("Reader cleanup performed successfully.\n"); }
 
 	// Free our malloc'd objects
-	FREE_NOT_NULL(dateStr[0]);
-	FREE_NOT_NULL(dateStr);
+	CLICleanup(eventCount, dateStr, config, outConfig, reader);
 
 	if (silent == 0) { printf("CLI memory cleaned up successfully. Exiting.\n"); }
 	return 0;

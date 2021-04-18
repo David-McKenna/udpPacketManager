@@ -2,6 +2,7 @@
 #define LOFAR_UDP_STRUCTS_H
 
 #include "lofar_udp_general.h"
+#include "../metadata/metadata_structs.h"
 
 // Input includes
 // Unlock advanced ZSTD features
@@ -19,8 +20,8 @@
 #include <dada_hdu.h>
 #include <ipcio.h>
 
-
-#define DADA_DEFAULT_HEADER_SIZE 8192
+// Expand DADA header default since we'll likely store the beamctl command in the output header
+#define DADA_DEFAULT_HEADER_SIZE 16384
 #else
 typedef struct dada_hdu_t dada_hdu_t;
 typedef struct multilog_t multilog_t;
@@ -39,7 +40,7 @@ typedef struct lofar_udp_calibration {
 	// Calibration strategy to use with dreamBeam (see documentation)
 	// Maximum length: both antenna set (2x 5), all 3-digit subbands (4 ea), in 4-bit mode (976 subbands)
 	// ~= 10 + 3904 = 3914
-	char calibrationSubbands[4096];
+	char calibrationSubbands[2 * DEF_STR_LEN];
 
 	// Estimated duration of observation (used to determine number of steps to calibrate)
 	float calibrationDuration;
@@ -51,24 +52,35 @@ typedef struct lofar_udp_calibration {
 } lofar_udp_calibration;
 extern const lofar_udp_calibration lofar_udp_calibration_default;
 
-typedef struct lofar_udp_reader_input {
+typedef struct lofar_udp_io_read_config {
+	// Reader configuration, these must be set prior to calling read_setup
 	reader_t readerType;
-	// Raw file pointers
+	long readBufSize[MAX_NUM_PORTS];
+	int portPacketLength[MAX_NUM_PORTS];
+	int numInputs;
+
+	// Inputs pre- and post-formatting
+	char inputFormat[DEF_STR_LEN];
+	char inputLocations[MAX_NUM_PORTS][DEF_STR_LEN];
+	int dadaKeys[MAX_NUM_PORTS];
+	int baseVal;
+	int offsetVal;
+
+	// Main reading objects
 	FILE *fileRef[MAX_NUM_PORTS];
+	ZSTD_DStream *dstream[MAX_NUM_PORTS];
+	dada_hdu_t *dadaReader[MAX_NUM_PORTS];
 
 	// ZSTD requirements
-	ZSTD_DStream *dstream[MAX_NUM_PORTS];
 	ZSTD_inBuffer readingTracker[MAX_NUM_PORTS];
 	ZSTD_outBuffer decompressionTracker[MAX_NUM_PORTS];
 
-	// PSRDADA keys, buffers
-	int dadaKey[MAX_NUM_PORTS];
+	// PSRDADA requirements
 	multilog_t *multilog[MAX_NUM_PORTS];
-	dada_hdu_t *dadaReader[MAX_NUM_PORTS];
 	long dadaPageSize[MAX_NUM_PORTS];
 
-} lofar_udp_reader_input;
-extern const lofar_udp_reader_input lofar_udp_reader_input_default;
+} lofar_udp_io_read_config;
+extern const lofar_udp_io_read_config lofar_udp_io_read_config_default;
 
 // Metadata struct
 typedef struct lofar_udp_meta {
@@ -140,7 +152,7 @@ extern const lofar_udp_meta lofar_udp_meta_default;
 // File data + decompression struct
 typedef struct lofar_udp_reader {
 	// Data sources struct
-	lofar_udp_reader_input *input;
+	lofar_udp_io_read_config *input;
 
 	// Metadata / input data array struct
 	lofar_udp_meta *meta;
@@ -207,24 +219,52 @@ extern const lofar_udp_config lofar_udp_config_default;
 
 // Output wrapper struct
 typedef struct lofar_udp_io_write_config {
+	// Writer configuration, these must be set prior to calling write_setup
 	reader_t readerType;
-
+	long writeBufSize[MAX_OUTPUT_DIMS];
 	int appendExisting;
+	int numOutputs;
 
+	// Outputs pre- and post-formatting
 	char outputFormat[DEF_STR_LEN];
 	char outputLocations[MAX_OUTPUT_DIMS][DEF_STR_LEN];
+	int outputDadaKeys[MAX_OUTPUT_DIMS];
 	int baseVal;
 	int offsetVal;
+	long firstPacket;
 
+	// Main writer objects
 	FILE *outputFiles[MAX_OUTPUT_DIMS];
-	// ZSTD requirements
-	ZSTD_CStream *cstream[MAX_OUTPUT_DIMS];
-	ZSTD_CCtx_params *cparams;
-	ZSTD_outBuffer outputBuffer[MAX_OUTPUT_DIMS];
+	struct {
+		ZSTD_CStream *cstream;
+		ZSTD_outBuffer compressionBuffer;
+	} zstdWriter[MAX_OUTPUT_DIMS];
+	struct {
+		ipcio_t *ringbuffer;
+		ipcio_t *header;
+		multilog_t *multilog;
+	} dadaWriter[MAX_OUTPUT_DIMS];
 
-	// PSRDADA keys, buffers
-	int outputDadaKeys[MAX_OUTPUT_DIMS];
-	ipcio_t *dadaWriter[MAX_OUTPUT_DIMS][2];
+
+	struct {
+		int compressionLevel;
+
+	} zstdConfig;
+	struct {
+		uint64_t nbufs;
+		uint64_t header_size;
+		unsigned int num_readers;
+		char syslog;
+		char programName[64];
+		float cleanup_timeout;
+	} dadaConfig;
+
+
+	// ZSTD requirements
+	ZSTD_CCtx_params *cparams;
+
+	// PSRDADA requirements
+	int enableMultilog;
 
 } lofar_udp_io_write_config;
 extern const lofar_udp_io_write_config lofar_udp_io_write_config_default;

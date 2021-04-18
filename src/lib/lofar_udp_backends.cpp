@@ -59,6 +59,8 @@ int lofar_udp_cpp_loop_interface(lofar_udp_meta *meta) {
 							return lofar_udp_raw_loop<signed char, float, 4031, 1>(meta);
 						case 32:
 							return lofar_udp_raw_loop<signed char, float, 4032, 1>(meta);
+						case 35:
+							return lofar_udp_raw_loop<signed char, float, 4035, 1>(meta);
 
 
 
@@ -142,6 +144,87 @@ int lofar_udp_cpp_loop_interface(lofar_udp_meta *meta) {
 						case 164:
 							return lofar_udp_raw_loop<signed char, float, 4164, 1>(meta);
 
+
+						// Non-decimated Stokes
+						case 200:
+							return lofar_udp_raw_loop<signed char, float, 4200, 1>(meta);
+						case 210:
+							return lofar_udp_raw_loop<signed char, float, 4210, 1>(meta);
+						case 220:
+							return lofar_udp_raw_loop<signed char, float, 4220, 1>(meta);
+						case 230:
+							return lofar_udp_raw_loop<signed char, float, 4230, 1>(meta);
+						case 250:
+							return lofar_udp_raw_loop<signed char, float, 4250, 1>(meta);
+						case 260:
+							return lofar_udp_raw_loop<signed char, float, 4260, 1>(meta);
+
+
+
+							// Decimated Stokes I
+						case 201:
+							return lofar_udp_raw_loop<signed char, float, 4201, 1>(meta);
+						case 202:
+							return lofar_udp_raw_loop<signed char, float, 4202, 1>(meta);
+						case 203:
+							return lofar_udp_raw_loop<signed char, float, 4203, 1>(meta);
+						case 204:
+							return lofar_udp_raw_loop<signed char, float, 4204, 1>(meta);
+
+
+							// Deciates Stokes Q
+						case 211:
+							return lofar_udp_raw_loop<signed char, float, 4211, 1>(meta);
+						case 212:
+							return lofar_udp_raw_loop<signed char, float, 4212, 1>(meta);
+						case 213:
+							return lofar_udp_raw_loop<signed char, float, 4213, 1>(meta);
+						case 214:
+							return lofar_udp_raw_loop<signed char, float, 4214, 1>(meta);
+
+
+							// Decimated Stokes U
+						case 221:
+							return lofar_udp_raw_loop<signed char, float, 4221, 1>(meta);
+						case 222:
+							return lofar_udp_raw_loop<signed char, float, 4222, 1>(meta);
+						case 223:
+							return lofar_udp_raw_loop<signed char, float, 4223, 1>(meta);
+						case 224:
+							return lofar_udp_raw_loop<signed char, float, 4224, 1>(meta);
+
+
+							// Decimated Stokes V
+						case 231:
+							return lofar_udp_raw_loop<signed char, float, 4231, 1>(meta);
+						case 232:
+							return lofar_udp_raw_loop<signed char, float, 4232, 1>(meta);
+						case 233:
+							return lofar_udp_raw_loop<signed char, float, 4233, 1>(meta);
+						case 234:
+							return lofar_udp_raw_loop<signed char, float, 4234, 1>(meta);
+
+							// Decimated Full Stokes
+						case 251:
+							return lofar_udp_raw_loop<signed char, float, 4251, 1>(meta);
+						case 252:
+							return lofar_udp_raw_loop<signed char, float, 4252, 1>(meta);
+						case 253:
+							return lofar_udp_raw_loop<signed char, float, 4253, 1>(meta);
+						case 254:
+							return lofar_udp_raw_loop<signed char, float, 4254, 1>(meta);
+
+
+							// Decimated Useful Stokes
+						case 261:
+							return lofar_udp_raw_loop<signed char, float, 4261, 1>(meta);
+						case 262:
+							return lofar_udp_raw_loop<signed char, float, 4262, 1>(meta);
+						case 263:
+							return lofar_udp_raw_loop<signed char, float, 4263, 1>(meta);
+						case 264:
+							return lofar_udp_raw_loop<signed char, float, 4264, 1>(meta);
+
 						default:
 							fprintf(stderr, "Unknown processing mode %d (%d, %d). Exiting.\n", processingMode,
 									inputBitMode, calibrateData);
@@ -178,6 +261,8 @@ int lofar_udp_cpp_loop_interface(lofar_udp_meta *meta) {
 							return lofar_udp_raw_loop<signed char, float, 31, 1>(meta);
 						case 32:
 							return lofar_udp_raw_loop<signed char, float, 32, 1>(meta);
+						case 35:
+							return lofar_udp_raw_loop<signed char, float, 35, 1>(meta);
 
 
 
@@ -262,6 +347,88 @@ int lofar_udp_cpp_loop_interface(lofar_udp_meta *meta) {
 						case 164:
 							return lofar_udp_raw_loop<signed char, float, 164, 1>(meta);
 
+
+							// Non-decimated Stokes
+						case 200:
+							return lofar_udp_raw_loop<signed char, float, 200, 1>(meta);
+						case 210:
+							return lofar_udp_raw_loop<signed char, float, 210, 1>(meta);
+						case 220:
+							return lofar_udp_raw_loop<signed char, float, 220, 1>(meta);
+						case 230:
+							return lofar_udp_raw_loop<signed char, float, 230, 1>(meta);
+						case 250:
+							return lofar_udp_raw_loop<signed char, float, 250, 1>(meta);
+						case 260:
+							return lofar_udp_raw_loop<signed char, float, 260, 1>(meta);
+
+
+
+							// Decimated Stokes I
+						case 201:
+							return lofar_udp_raw_loop<signed char, float, 201, 1>(meta);
+						case 202:
+							return lofar_udp_raw_loop<signed char, float, 202, 1>(meta);
+						case 203:
+							return lofar_udp_raw_loop<signed char, float, 203, 1>(meta);
+						case 204:
+							return lofar_udp_raw_loop<signed char, float, 204, 1>(meta);
+
+
+							// Deciates Stokes Q
+						case 211:
+							return lofar_udp_raw_loop<signed char, float, 211, 1>(meta);
+						case 212:
+							return lofar_udp_raw_loop<signed char, float, 212, 1>(meta);
+						case 213:
+							return lofar_udp_raw_loop<signed char, float, 213, 1>(meta);
+						case 214:
+							return lofar_udp_raw_loop<signed char, float, 214, 1>(meta);
+
+
+							// Decimated Stokes U
+						case 221:
+							return lofar_udp_raw_loop<signed char, float, 221, 1>(meta);
+						case 222:
+							return lofar_udp_raw_loop<signed char, float, 222, 1>(meta);
+						case 223:
+							return lofar_udp_raw_loop<signed char, float, 223, 1>(meta);
+						case 224:
+							return lofar_udp_raw_loop<signed char, float, 224, 1>(meta);
+
+
+							// Decimated Stokes V
+						case 231:
+							return lofar_udp_raw_loop<signed char, float, 231, 1>(meta);
+						case 232:
+							return lofar_udp_raw_loop<signed char, float, 232, 1>(meta);
+						case 233:
+							return lofar_udp_raw_loop<signed char, float, 233, 1>(meta);
+						case 234:
+							return lofar_udp_raw_loop<signed char, float, 234, 1>(meta);
+
+
+							// Decimated Full Stokes
+						case 251:
+							return lofar_udp_raw_loop<signed char, float, 251, 1>(meta);
+						case 252:
+							return lofar_udp_raw_loop<signed char, float, 252, 1>(meta);
+						case 253:
+							return lofar_udp_raw_loop<signed char, float, 253, 1>(meta);
+						case 254:
+							return lofar_udp_raw_loop<signed char, float, 254, 1>(meta);
+
+
+							// Decimated Useful Stokes
+						case 261:
+							return lofar_udp_raw_loop<signed char, float, 261, 1>(meta);
+						case 262:
+							return lofar_udp_raw_loop<signed char, float, 262, 1>(meta);
+						case 263:
+							return lofar_udp_raw_loop<signed char, float, 263, 1>(meta);
+						case 264:
+							return lofar_udp_raw_loop<signed char, float, 264, 1>(meta);
+
 						default:
 							fprintf(stderr, "Unknown processing mode %d (%d, %d). Exiting.\n", processingMode,
 									inputBitMode, calibrateData);
@@ -298,6 +465,8 @@ int lofar_udp_cpp_loop_interface(lofar_udp_meta *meta) {
 							return lofar_udp_raw_loop<signed char, float, 31, 1>(meta);
 						case 32:
 							return lofar_udp_raw_loop<signed char, float, 32, 1>(meta);
+						case 35:
+							return lofar_udp_raw_loop<signed char, float, 35, 1>(meta);
 
 
 
@@ -382,6 +551,87 @@ int lofar_udp_cpp_loop_interface(lofar_udp_meta *meta) {
 						case 164:
 							return lofar_udp_raw_loop<signed short, float, 164, 1>(meta);
 
+								// Non-decimated Stokes
+						case 200:
+							return lofar_udp_raw_loop<signed short, float, 200, 1>(meta);
+						case 210:
+							return lofar_udp_raw_loop<signed short, float, 210, 1>(meta);
+						case 220:
+							return lofar_udp_raw_loop<signed short, float, 220, 1>(meta);
+						case 230:
+							return lofar_udp_raw_loop<signed short, float, 230, 1>(meta);
+						case 250:
+							return lofar_udp_raw_loop<signed short, float, 250, 1>(meta);
+						case 260:
+							return lofar_udp_raw_loop<signed short, float, 260, 1>(meta);
+
+
+
+							// Decimated Stokes I
+						case 201:
+							return lofar_udp_raw_loop<signed short, float, 201, 1>(meta);
+						case 202:
+							return lofar_udp_raw_loop<signed short, float, 202, 1>(meta);
+						case 203:
+							return lofar_udp_raw_loop<signed short, float, 203, 1>(meta);
+						case 204:
+							return lofar_udp_raw_loop<signed short, float, 204, 1>(meta);
+
+
+							// Deciates Stokes Q
+						case 211:
+							return lofar_udp_raw_loop<signed short, float, 211, 1>(meta);
+						case 212:
+							return lofar_udp_raw_loop<signed short, float, 212, 1>(meta);
+						case 213:
+							return lofar_udp_raw_loop<signed short, float, 213, 1>(meta);
+						case 214:
+							return lofar_udp_raw_loop<signed short, float, 214, 1>(meta);
+
+
+							// Decimated Stokes U
+						case 221:
+							return lofar_udp_raw_loop<signed short, float, 221, 1>(meta);
+						case 222:
+							return lofar_udp_raw_loop<signed short, float, 222, 1>(meta);
+						case 223:
+							return lofar_udp_raw_loop<signed short, float, 223, 1>(meta);
+						case 224:
+							return lofar_udp_raw_loop<signed short, float, 224, 1>(meta);
+
+
+							// Decimated Stokes V
+						case 231:
+							return lofar_udp_raw_loop<signed short, float, 231, 1>(meta);
+						case 232:
+							return lofar_udp_raw_loop<signed short, float, 232, 1>(meta);
+						case 233:
+							return lofar_udp_raw_loop<signed short, float, 233, 1>(meta);
+						case 234:
+							return lofar_udp_raw_loop<signed short, float, 234, 1>(meta);
+
+
+							// Decimated Full Stokes
+						case 251:
+							return lofar_udp_raw_loop<signed short, float, 251, 1>(meta);
+						case 252:
+							return lofar_udp_raw_loop<signed short, float, 252, 1>(meta);
+						case 253:
+							return lofar_udp_raw_loop<signed short, float, 253, 1>(meta);
+						case 254:
+							return lofar_udp_raw_loop<signed short, float, 254, 1>(meta);
+
+
+							// Decimated Useful Stokes
+						case 261:
+							return lofar_udp_raw_loop<signed short, float, 261, 1>(meta);
+						case 262:
+							return lofar_udp_raw_loop<signed short, float, 262, 1>(meta);
+						case 263:
+							return lofar_udp_raw_loop<signed short, float, 263, 1>(meta);
+						case 264:
+							return lofar_udp_raw_loop<signed short, float, 264, 1>(meta);
+
 						default:
 							fprintf(stderr, "Unknown processing mode %d (%d, %d). Exiting.\n", processingMode,
 									inputBitMode, calibrateData);
@@ -432,6 +682,8 @@ int lofar_udp_cpp_loop_interface(lofar_udp_meta *meta) {
 							return lofar_udp_raw_loop<signed char, signed char, 4031, 0>(meta);
 						case 32:
 							return lofar_udp_raw_loop<signed char, signed char, 4032, 0>(meta);
+						case 35:
+							return lofar_udp_raw_loop<signed char, float, 4035, 0>(meta);
 
 
 
@@ -515,6 +767,87 @@ int lofar_udp_cpp_loop_interface(lofar_udp_meta *meta) {
 						case 164:
 							return lofar_udp_raw_loop<signed char, float, 4164, 0>(meta);
 
+
+							// Non-decimated Stokes
+						case 200:
+							return lofar_udp_raw_loop<signed char, float, 4200, 0>(meta);
+						case 210:
+							return lofar_udp_raw_loop<signed char, float, 4210, 0>(meta);
+						case 220:
+							return lofar_udp_raw_loop<signed char, float, 4220, 0>(meta);
+						case 230:
+							return lofar_udp_raw_loop<signed char, float, 4230, 0>(meta);
+						case 250:
+							return lofar_udp_raw_loop<signed char, float, 4250, 0>(meta);
+						case 260:
+							return lofar_udp_raw_loop<signed char, float, 4260, 0>(meta);
+
+
+
+							// Decimated Stokes I
+						case 201:
+							return lofar_udp_raw_loop<signed char, float, 4201, 0>(meta);
+						case 202:
+							return lofar_udp_raw_loop<signed char, float, 4202, 0>(meta);
+						case 203:
+							return lofar_udp_raw_loop<signed char, float, 4203, 0>(meta);
+						case 204:
+							return lofar_udp_raw_loop<signed char, float, 4204, 0>(meta);
+
+
+							// Deciates Stokes Q
+						case 211:
+							return lofar_udp_raw_loop<signed char, float, 4211, 0>(meta);
+						case 212:
+							return lofar_udp_raw_loop<signed char, float, 4212, 0>(meta);
+						case 213:
+							return lofar_udp_raw_loop<signed char, float, 4213, 0>(meta);
+						case 214:
+							return lofar_udp_raw_loop<signed char, float, 4214, 0>(meta);
+
+
+							// Decimated Stokes U
+						case 221:
+							return lofar_udp_raw_loop<signed char, float, 4221, 0>(meta);
+						case 222:
+							return lofar_udp_raw_loop<signed char, float, 4222, 0>(meta);
+						case 223:
+							return lofar_udp_raw_loop<signed char, float, 4223, 0>(meta);
+						case 224:
+							return lofar_udp_raw_loop<signed char, float, 4224, 0>(meta);
+
+
+							// Decimated Stokes V
+						case 231:
+							return lofar_udp_raw_loop<signed char, float, 4231, 0>(meta);
+						case 232:
+							return lofar_udp_raw_loop<signed char, float, 4232, 0>(meta);
+						case 233:
+							return lofar_udp_raw_loop<signed char, float, 4233, 0>(meta);
+						case 234:
+							return lofar_udp_raw_loop<signed char, float, 4234, 0>(meta);
+
+							// Decimated Full Stokes
+						case 251:
+							return lofar_udp_raw_loop<signed char, float, 4251, 0>(meta);
+						case 252:
+							return lofar_udp_raw_loop<signed char, float, 4252, 0>(meta);
+						case 253:
+							return lofar_udp_raw_loop<signed char, float, 4253, 0>(meta);
+						case 254:
+							return lofar_udp_raw_loop<signed char, float, 4254, 0>(meta);
+
+
+							// Decimated Useful Stokes
+						case 261:
+							return lofar_udp_raw_loop<signed char, float, 4261, 0>(meta);
+						case 262:
+							return lofar_udp_raw_loop<signed char, float, 4262, 0>(meta);
+						case 263:
+							return lofar_udp_raw_loop<signed char, float, 4263, 0>(meta);
+						case 264:
+							return lofar_udp_raw_loop<signed char, float, 4264, 0>(meta);
+
 						default:
 							fprintf(stderr, "Unknown processing mode %d (%d, %d). Exiting.\n", processingMode,
 									inputBitMode, calibrateData);
@@ -554,6 +887,8 @@ int lofar_udp_cpp_loop_interface(lofar_udp_meta *meta) {
 							return lofar_udp_raw_loop<signed char, signed char, 31, 0>(meta);
 						case 32:
 							return lofar_udp_raw_loop<signed char, signed char, 32, 0>(meta);
+						case 35:
+							return lofar_udp_raw_loop<signed char, float, 35, 0>(meta);
 
 
 
@@ -638,6 +973,87 @@ int lofar_udp_cpp_loop_interface(lofar_udp_meta *meta) {
 						case 164:
 							return lofar_udp_raw_loop<signed char, float, 164, 0>(meta);
 
+							// Non-decimated Stokes
+						case 200:
+							return lofar_udp_raw_loop<signed char, float, 200, 0>(meta);
+						case 210:
+							return lofar_udp_raw_loop<signed char, float, 210, 0>(meta);
+						case 220:
+							return lofar_udp_raw_loop<signed char, float, 220, 0>(meta);
+						case 230:
+							return lofar_udp_raw_loop<signed char, float, 230, 0>(meta);
+						case 250:
+							return lofar_udp_raw_loop<signed char, float, 250, 0>(meta);
+						case 260:
+							return lofar_udp_raw_loop<signed char, float, 260, 0>(meta);
+
+
+
+							// Decimated Stokes I
+						case 201:
+							return lofar_udp_raw_loop<signed char, float, 201, 0>(meta);
+						case 202:
+							return lofar_udp_raw_loop<signed char, float, 202, 0>(meta);
+						case 203:
+							return lofar_udp_raw_loop<signed char, float, 203, 0>(meta);
+						case 204:
+							return lofar_udp_raw_loop<signed char, float, 204, 0>(meta);
+
+
+							// Deciates Stokes Q
+						case 211:
+							return lofar_udp_raw_loop<signed char, float, 211, 0>(meta);
+						case 212:
+							return lofar_udp_raw_loop<signed char, float, 212, 0>(meta);
+						case 213:
+							return lofar_udp_raw_loop<signed char, float, 213, 0>(meta);
+						case 214:
+							return lofar_udp_raw_loop<signed char, float, 214, 0>(meta);
+
+
+							// Decimated Stokes U
+						case 221:
+							return lofar_udp_raw_loop<signed char, float, 221, 0>(meta);
+						case 222:
+							return lofar_udp_raw_loop<signed char, float, 222, 0>(meta);
+						case 223:
+							return lofar_udp_raw_loop<signed char, float, 223, 0>(meta);
+						case 224:
+							return lofar_udp_raw_loop<signed char, float, 224, 0>(meta);
+
+
+							// Decimated Stokes V
+						case 231:
+							return lofar_udp_raw_loop<signed char, float, 231, 0>(meta);
+						case 232:
+							return lofar_udp_raw_loop<signed char, float, 232, 0>(meta);
+						case 233:
+							return lofar_udp_raw_loop<signed char, float, 233, 0>(meta);
+						case 234:
+							return lofar_udp_raw_loop<signed char, float, 234, 0>(meta);
+
+
+							// Decimated Full Stokes
+						case 251:
+							return lofar_udp_raw_loop<signed char, float, 251, 0>(meta);
+						case 252:
+							return lofar_udp_raw_loop<signed char, float, 252, 0>(meta);
+						case 253:
+							return lofar_udp_raw_loop<signed char, float, 253, 0>(meta);
+						case 254:
+							return lofar_udp_raw_loop<signed char, float, 254, 0>(meta);
+
+
+							// Decimated Useful Stokes
+						case 261:
+							return lofar_udp_raw_loop<signed char, float, 261, 0>(meta);
+						case 262:
+							return lofar_udp_raw_loop<signed char, float, 262, 0>(meta);
+						case 263:
+							return lofar_udp_raw_loop<signed char, float, 263, 0>(meta);
+						case 264:
+							return lofar_udp_raw_loop<signed char, float, 264, 0>(meta);
+
 						default:
 							fprintf(stderr, "Unknown processing mode %d (%d, %d). Exiting.\n", processingMode,
 									inputBitMode, calibrateData);
@@ -677,6 +1093,8 @@ int lofar_udp_cpp_loop_interface(lofar_udp_meta *meta) {
 							return lofar_udp_raw_loop<signed char, signed short, 31, 0>(meta);
 						case 32:
 							return lofar_udp_raw_loop<signed char, signed short, 32, 0>(meta);
+						case 35:
+							return lofar_udp_raw_loop<signed char, float, 35, 0>(meta);
 
 
 
@@ -760,6 +1178,88 @@ int lofar_udp_cpp_loop_interface(lofar_udp_meta *meta) {
 							return lofar_udp_raw_loop<signed short, float, 163, 0>(meta);
 						case 164:
 							return lofar_udp_raw_loop<signed short, float, 164, 0>(meta);
+
+
+							// Non-decimated Stokes
+						case 200:
+							return lofar_udp_raw_loop<signed short, float, 200, 0>(meta);
+						case 210:
+							return lofar_udp_raw_loop<signed short, float, 210, 0>(meta);
+						case 220:
+							return lofar_udp_raw_loop<signed short, float, 220, 0>(meta);
+						case 230:
+							return lofar_udp_raw_loop<signed short, float, 230, 0>(meta);
+						case 250:
+							return lofar_udp_raw_loop<signed short, float, 250, 0>(meta);
+						case 260:
+							return lofar_udp_raw_loop<signed short, float, 260, 0>(meta);
+
+
+
+							// Decimated Stokes I
+						case 201:
+							return lofar_udp_raw_loop<signed short, float, 201, 0>(meta);
+						case 202:
+							return lofar_udp_raw_loop<signed short, float, 202, 0>(meta);
+						case 203:
+							return lofar_udp_raw_loop<signed short, float, 203, 0>(meta);
+						case 204:
+							return lofar_udp_raw_loop<signed short, float, 204, 0>(meta);
+
+
+							// Deciates Stokes Q
+						case 211:
+							return lofar_udp_raw_loop<signed short, float, 211, 0>(meta);
+						case 212:
+							return lofar_udp_raw_loop<signed short, float, 212, 0>(meta);
+						case 213:
+							return lofar_udp_raw_loop<signed short, float, 213, 0>(meta);
+						case 214:
+							return lofar_udp_raw_loop<signed short, float, 214, 0>(meta);
+
+
+							// Decimated Stokes U
+						case 221:
+							return lofar_udp_raw_loop<signed short, float, 221, 0>(meta);
+						case 222:
+							return lofar_udp_raw_loop<signed short, float, 222, 0>(meta);
+						case 223:
+							return lofar_udp_raw_loop<signed short, float, 223, 0>(meta);
+						case 224:
+							return lofar_udp_raw_loop<signed short, float, 224, 0>(meta);
+
+
+							// Decimated Stokes V
+						case 231:
+							return lofar_udp_raw_loop<signed short, float, 231, 0>(meta);
+						case 232:
+							return lofar_udp_raw_loop<signed short, float, 232, 0>(meta);
+						case 233:
+							return lofar_udp_raw_loop<signed short, float, 233, 0>(meta);
+						case 234:
+							return lofar_udp_raw_loop<signed short, float, 234, 0>(meta);
+
+
+							// Decimated Full Stokes
+						case 251:
+							return lofar_udp_raw_loop<signed short, float, 251, 0>(meta);
+						case 252:
+							return lofar_udp_raw_loop<signed short, float, 252, 0>(meta);
+						case 253:
+							return lofar_udp_raw_loop<signed short, float, 253, 0>(meta);
+						case 254:
+							return lofar_udp_raw_loop<signed short, float, 254, 0>(meta);
+
+
+							// Decimated Useful Stokes
+						case 261:
+							return lofar_udp_raw_loop<signed short, float, 261, 0>(meta);
+						case 262:
+							return lofar_udp_raw_loop<signed short, float, 262, 0>(meta);
+						case 263:
+							return lofar_udp_raw_loop<signed short, float, 263, 0>(meta);
+						case 264:
+							return lofar_udp_raw_loop<signed short, float, 264, 0>(meta);
 
 						default:
 							fprintf(stderr, "Unknown processing mode %d (%d, %d). Exiting.\n", processingMode,

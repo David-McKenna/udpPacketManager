@@ -10,7 +10,7 @@
 
 // Reader / writer enums
 typedef enum {
-	NONE = -1,
+	NO_INPUT = -1,
 	NORMAL = 1,
 	FIFO = 2,
 	ZSTDCOMPRESSED = 4,
@@ -18,6 +18,13 @@ typedef enum {
 	DADA_ACTIVE = 16
 } reader_t;
 
+// Output metadata formats
+typedef enum metadata_t {
+	NO_META = -1,
+	GUPPI = 1,
+	DADA = 2,
+	SIGPROC = 4
+} metadata_t;
 
 // I/O array sizes
 #define MAX_NUM_PORTS 4

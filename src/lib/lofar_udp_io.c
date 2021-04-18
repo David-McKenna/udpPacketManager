@@ -1,6 +1,188 @@
 #include "lofar_udp_io.h"
 
 
+// Internal functions
+void lofar_udp_io_cleanup_DADA_loop(ipcbuf_t *buff, float timeout);
+int lofar_udp_io_write_setup_DADA_ringbuffer(ipcio_t **ringbuffer, int dadaKey, uint64_t nbufs, long bufSize, unsigned int numReaders, int appendExisting);
+
+// Setup functions
+//
+// @param      input   The input
+// @param[in]  config  The configuration
+// @param[in]  meta    The meta
+// @param[in]  port    The port
+//
+// @return     { description_of_the_return_value }
+//
+int lofar_udp_io_read_setup(lofar_udp_io_read_config *input, int port) {
+
+	switch (input->readerType) {
+		// Normal files and FIFOs use the same read interface
+		case NORMAL:
+		case FIFO:
+			return lofar_udp_io_read_setup_FILE(input, input->inputLocations[port], port);
+
+
+		case ZSTDCOMPRESSED:
+			return lofar_udp_io_read_setup_ZSTD(input, input->inputLocations[port], port);
+
+
+		case DADA_ACTIVE:
+			return lofar_udp_io_read_setup_DADA(input, input->dadaKeys[port], port);
+
+
+		default:
+			fprintf(stderr, "ERROR: Unknown reader (%d) provided, exiting.\n", input->readerType);
+			return -1;
+	}
+
+}
+
+
+
+/**
+ * @brief      { function_description }
+ *
+ * @param      config  The configuration
+ * @param[in]  iter    The iterator
+ *
+ * @return     { description_of_the_return_value }
+ */
+int lofar_udp_io_write_setup(lofar_udp_io_write_config *config, int iter) {
+	int returnVal = 0;
+	for (int outp = 0; outp < config->numOutputs; outp++) {
+		switch (config->readerType) {
+			case NORMAL:
+			case FIFO:
+				returnVal = (returnVal == -1) ? returnVal : lofar_udp_io_write_setup_FILE(config, outp, iter);
+				break;
+
+			case ZSTDCOMPRESSED:
+				returnVal = (returnVal == -1) ? returnVal : lofar_udp_io_write_setup_ZSTD(config, outp, iter);
+				break;
+
+
+			case DADA_ACTIVE:
+				returnVal = (returnVal == -1) ? returnVal : lofar_udp_io_write_setup_DADA(config, outp);
+				break;
+
+
+			default:
+				fprintf(stderr, "ERROR: Unknown reader (%d) provided, exiting.\n", config->readerType);
+				return -1;
+		}
+	}
+
+	return returnVal;
+}
+
+
+int lofar_udp_io_read_setup_helper(lofar_udp_io_read_config *input, const lofar_udp_config *config, const lofar_udp_meta *meta,
+                                   int port) {
+	if (input->readerType == NO_INPUT) {
+		input->readerType = config->readerType;
+	}
+
+	if (input->readerType != config->readerType) {
+		fprintf(stderr, "ERROR: Mismatch between reader types on port %d (%d vs %d), exiting.\n", port, input->readerType, config->readerType);
+		return -1;
+	}
+
+	input->portPacketLength[port] = meta->portPacketLength[port];
+	input->readBufSize[port] = meta->packetsPerIteration * meta->portPacketLength[port];
+
+	if (input->readerType == ZSTDCOMPRESSED) {
+		input->decompressionTracker[port].dst = meta->inputData[port];
+	}
+
+	if (input->readerType == DADA_ACTIVE) {
+		input->dadaKeys[port] = config->dadaKeys[port];
+	}
+
+	if (strcpy(input->inputLocations[port], config->inputLocations[port]) != input->inputLocations[port]) {
+		fprintf(stderr, "ERROR: Failed to copy input location to reader on port %d, exiting.\n", port);
+		return -1;
+	}
+
+	return lofar_udp_io_read_setup(input, port);
+}
+
+int lofar_udp_io_write_setup_helper(lofar_udp_io_write_config *config, const lofar_udp_meta *meta, int iter) {
+	config->numOutputs = meta->numOutputs;
+	for (int outp = 0; outp < config->numOutputs; outp++) {
+		config->writeBufSize[outp] = meta->packetsPerIteration * meta->packetOutputLength[outp];
+	}
+
+	return lofar_udp_io_write_setup(config, iter);
+}
+
+
+// Cleanup functions
+
+/**
+ * @brief      { function_description }
+ *
+ * @param      input      The input
+ * @param[in]  port       The port
+ *
+ * @return     { description_of_the_return_value }
+ */
+int lofar_udp_io_read_cleanup(lofar_udp_io_read_config *input, const int port) {
+
+	switch (input->readerType) {
+		// Normal files and FIFOs use the same interface
+		case NORMAL:
+		case FIFO:
+			return lofar_udp_io_read_cleanup_FILE(input, port);
+
+
+		case ZSTDCOMPRESSED:
+			return lofar_udp_io_read_cleanup_ZSTD(input, port);
+
+
+		case DADA_ACTIVE:
+			return lofar_udp_io_read_cleanup_DADA(input, port);
+
+
+		default:
+			fprintf(stderr, "ERROR: Unknown reader (%d) provided, exiting.\n", input->readerType);
+			return -1;
+	}
+}
+
+/**
+ * @brief      { function_description }
+ *
+ * @param      config     The configuration
+ * @param[in]  outp       The outp
+ * @param[in]  fullClean  The full clean
+ *
+ * @return     { description_of_the_return_value }
+ */
+int lofar_udp_io_write_cleanup(lofar_udp_io_write_config *config, const int outp, const int fullClean) {
+
+	switch (config->readerType) {
+		// Normal files and FIFOs use the same interface
+		case NORMAL:
+		case FIFO:
+			return lofar_udp_io_write_cleanup_FILE(config, outp);
+
+
+		case ZSTDCOMPRESSED:
+			return lofar_udp_io_write_cleanup_ZSTD(config, outp, fullClean);
+
+
+		case DADA_ACTIVE:
+			return lofar_udp_io_write_cleanup_DADA(config, outp, fullClean);
+
+
+		default:
+			fprintf(stderr, "ERROR: Unknown type (%d) provided, exiting.\n", config->readerType);
+			return -1;
+	}
+}
+
+
 /**
  * @brief      { function_description }
  *
@@ -31,7 +213,7 @@ reader_t lofar_udp_io_parse_type_optarg(const char optargc[], char *fileFormat, 
 			reader = DADA_ACTIVE;
 		} else {
 			// Unknown prefix
-			reader = NONE;
+			reader = NO_INPUT;
 		}
 	} else {
 		reader = NORMAL;
@@ -45,12 +227,6 @@ reader_t lofar_udp_io_parse_type_optarg(const char optargc[], char *fileFormat, 
 	}
 
 	return reader;
-}
-
-void swapCharPtr(char **a, char **b) {
-	char *tmp = *a;
-	*a = *b;
-	*b = tmp;
 }
 
 /**
@@ -260,80 +436,6 @@ int lofar_udp_io_write_parse_optarg(lofar_udp_io_write_config *config, const cha
 }
 
 
-// Setup functions
-//
-// @param      input   The input
-// @param[in]  config  The configuration
-// @param[in]  meta    The meta
-// @param[in]  port    The port
-//
-// @return     { description_of_the_return_value }
-//
-int lofar_udp_io_read_setup(lofar_udp_reader_input *input, const lofar_udp_config *config, const lofar_udp_meta *meta,
-							int port) {
-
-	switch (config->readerType) {
-		// Normal files and FIFOs use the same read interface
-		case NORMAL:
-		case FIFO:
-			return lofar_udp_io_read_setup_FILE(input, config, port);
-
-
-		case ZSTDCOMPRESSED:
-			return lofar_udp_io_read_setup_ZSTD(input, config, meta, port);
-
-
-		case DADA_ACTIVE:
-			return lofar_udp_io_read_setup_DADA(input, config, meta, port);
-
-
-		default:
-			fprintf(stderr, "ERROR: Unknown reader (%d) provided, exiting.\n", config->readerType);
-			return -1;
-	}
-
-}
-
-
-/**
- * @brief      { function_description }
- *
- * @param      config  The configuration
- * @param[in]  meta    The meta
- * @param[in]  iter    The iterator
- *
- * @return     { description_of_the_return_value }
- */
-int lofar_udp_io_write_setup(lofar_udp_io_write_config *config, const lofar_udp_meta *meta, int iter) {
-	int returnVal = 0;
-	for (int outp = 0; outp < meta->numOutputs; outp++) {
-		printf("Writer %d/%d\n", outp, meta->numOutputs);
-		switch (config->readerType) {
-			case NORMAL:
-			case FIFO:
-				returnVal = (returnVal == -1) ? returnVal : lofar_udp_io_write_setup_FILE(config, meta, outp, iter);
-				break;
-
-			case ZSTDCOMPRESSED:
-				returnVal = (returnVal == -1) ? returnVal : lofar_udp_io_write_setup_ZSTD(config, meta, outp, iter);
-				break;
-
-
-			case DADA_ACTIVE:
-				returnVal = (returnVal == -1) ? returnVal : lofar_udp_io_write_setup_DADA(config, meta, outp);
-				break;
-
-
-			default:
-				fprintf(stderr, "ERROR: Unknown reader (%d) provided, exiting.\n", config->readerType);
-				return -1;
-		}
-	}
-
-	return returnVal;
-}
-
-
 /**
  * @brief      { function_description }
  *
@@ -343,8 +445,8 @@ int lofar_udp_io_write_setup(lofar_udp_io_write_config *config, const lofar_udp_
  *
  * @return     { description_of_the_return_value }
  */
-int lofar_udp_io_read_setup_FILE(lofar_udp_reader_input *input, const lofar_udp_config *config, const int port) {
-	input->fileRef[port] = fopen(config->inputLocations[port], "rb");
+int lofar_udp_io_read_setup_FILE(lofar_udp_io_read_config *input, const char *inputLocation, const int port) {
+	input->fileRef[port] = fopen(inputLocation, "rb");
 	return 0;
 }
 
@@ -359,12 +461,11 @@ int lofar_udp_io_read_setup_FILE(lofar_udp_reader_input *input, const lofar_udp_
  * @return     { description_of_the_return_value }
  */
 int
-lofar_udp_io_read_setup_ZSTD(lofar_udp_reader_input *input, const lofar_udp_config *config, const lofar_udp_meta *meta,
-							 const int port) {
+lofar_udp_io_read_setup_ZSTD(lofar_udp_io_read_config *input, const char *inputLocation, const int port) {
 	// Copy the file reference into input
 	// Leave in boilerplate return encase the function gets more complicated in future
 	int returnVal;
-	if ((returnVal = lofar_udp_io_read_setup_FILE(input, config, port)) != 0) {
+	if ((returnVal = lofar_udp_io_read_setup_FILE(input, inputLocation, port)) != 0) {
 		return returnVal;
 	}
 
@@ -372,7 +473,7 @@ lofar_udp_io_read_setup_ZSTD(lofar_udp_reader_input *input, const lofar_udp_conf
 	long fileSize = FILE_file_size(input->fileRef[port]);
 	// Ensure there wasn't an error
 	if (fileSize < 0) {
-		fprintf(stderr, "ERROR: Failed to get size of file at %s, exiting.\n", config->inputLocations[port]);
+		fprintf(stderr, "ERROR: Failed to get size of file at %s, exiting.\n", inputLocation);
 		return -1;
 	}
 
@@ -403,13 +504,14 @@ lofar_udp_io_read_setup_ZSTD(lofar_udp_reader_input *input, const lofar_udp_conf
 	}
 
 	// Setup the decompressed data buffer/struct
-	long bufferSize = meta->packetsPerIteration * meta->portPacketLength[port];
+	long bufferSize = input->readBufSize[port];
 	VERBOSE(printf("reader_setup: expending decompression buffer by %ld bytes\n",
 				   (long) ZSTD_DStreamOutSize() - (bufferSize % (long) ZSTD_DStreamOutSize())));
 	bufferSize += (long) ZSTD_DStreamOutSize() - (bufferSize % (long) ZSTD_DStreamOutSize());
 	input->decompressionTracker[port].size = bufferSize;
 	input->decompressionTracker[port].pos = 0; // Initialisation for our step-by-step reader
-	input->decompressionTracker[port].dst = meta->inputData[port];
+
+	input->readBufSize[port] = bufferSize;
 
 	return 0;
 }
@@ -425,8 +527,7 @@ lofar_udp_io_read_setup_ZSTD(lofar_udp_reader_input *input, const lofar_udp_conf
  * @return     { description_of_the_return_value }
  */
 int
-lofar_udp_io_read_setup_DADA(lofar_udp_reader_input *input, const lofar_udp_config *config, const lofar_udp_meta *meta,
-							 const int port) {
+lofar_udp_io_read_setup_DADA(lofar_udp_io_read_config *input, const int dadaKey, const int port) {
 #ifndef NODADA
 	// Init the logger and HDU
 	input->multilog[port] = multilog_open("udpPacketManager", 0);
@@ -438,7 +539,6 @@ lofar_udp_io_read_setup_DADA(lofar_udp_reader_input *input, const lofar_udp_conf
 	}
 
 	// If successful, connect to the ingbuffer as a given reader type
-	int dadaKey = config->dadaKeys[port];
 	if (dadaKey < 0) {
 		fprintf(stderr, "ERROR: Invalid PSRDADA ringbuffer key (%d) on port %d, exiting.\n", dadaKey, port);
 		return -2;
@@ -454,7 +554,7 @@ lofar_udp_io_read_setup_DADA(lofar_udp_reader_input *input, const lofar_udp_conf
 	}
 
 	// If we are restarting, align to the expected packet length
-	if ((ipcio_tell(input->dadaReader[port]->data_block) % meta->portPacketLength[port]) != 0) {
+	if ((ipcio_tell(input->dadaReader[port]->data_block) % input->portPacketLength[port]) != 0) {
 		if (ipcio_seek(input->dadaReader[port]->data_block,
 					   7824 - (int64_t) (ipcio_tell(input->dadaReader[port]->data_block) % 7824), SEEK_CUR) < 0) {
 			return -5;
@@ -467,8 +567,6 @@ lofar_udp_io_read_setup_DADA(lofar_udp_reader_input *input, const lofar_udp_conf
 				port);
 		return -6;
 	}
-
-	input->dadaKey[port] = dadaKey;
 
 	return 0;
 
@@ -500,15 +598,14 @@ int lofar_udp_io_write_setup_check_exists(char filePath[], int appendMode) {
  * @brief      { function_description }
  *
  * @param      config  The configuration
- * @param[in]  meta    The meta
  * @param[in]  outp    The outp
  * @param[in]  iter    The iterator
  *
  * @return     { description_of_the_return_value }
  */
-int lofar_udp_io_write_setup_FILE(lofar_udp_io_write_config *config, const lofar_udp_meta *meta, int outp, int iter) {
+int lofar_udp_io_write_setup_FILE(lofar_udp_io_write_config *config, int outp, int iter) {
 	char outputLocation[DEF_STR_LEN];
-	if (lofar_udp_io_parse_format(outputLocation, config->outputFormat, -1, iter, outp, meta->lastPacket) < 0) {
+	if (lofar_udp_io_parse_format(outputLocation, config->outputFormat, -1, iter, outp, config->firstPacket) < 0) {
 		return -1;
 	}
 
@@ -547,14 +644,13 @@ int lofar_udp_io_write_setup_FILE(lofar_udp_io_write_config *config, const lofar
  * @brief      { function_description }
  *
  * @param      config  The configuration
- * @param[in]  meta    The meta
  * @param[in]  outp    The outp
  * @param[in]  iter    The iterator
  *
  * @return     { description_of_the_return_value }
  */
-int lofar_udp_io_write_setup_ZSTD(lofar_udp_io_write_config *config, const lofar_udp_meta *meta, int outp, int iter) {
-	if (lofar_udp_io_write_setup_FILE(config, meta, outp, iter) < 0) {
+int lofar_udp_io_write_setup_ZSTD(lofar_udp_io_write_config *config, int outp, int iter) {
+	if (lofar_udp_io_write_setup_FILE(config, outp, iter) < 0) {
 		return -1;
 	}
 
@@ -566,15 +662,15 @@ int lofar_udp_io_write_setup_ZSTD(lofar_udp_io_write_config *config, const lofar
 		}
 	}
 
-	if (config->cstream[outp] == NULL) {
+	if (config->zstdWriter[outp].cstream == NULL) {
 		size_t zstdReturn;
 
-		config->cstream[outp] = ZSTD_createCStream();
-		if (config->cstream[outp] == NULL) {
+		config->zstdWriter[outp].cstream = ZSTD_createCStream();
+		if (config->zstdWriter[outp].cstream == NULL) {
 			fprintf(stderr, "ERROR: Failed to create compression stream on output %d, exiting.\n", outp);
 			return -1;
 		}
-		zstdReturn = ZSTD_initCStream(config->cstream[outp], 3); //ZSTD_COMP_LEVEL);
+		zstdReturn = ZSTD_initCStream(config->zstdWriter[outp].cstream, 3); //ZSTD_COMP_LEVEL);
 
 		if (ZSTD_isError(zstdReturn)) {
 			fprintf(stderr,
@@ -584,9 +680,7 @@ int lofar_udp_io_write_setup_ZSTD(lofar_udp_io_write_config *config, const lofar
 			return -1;
 		}
 
-		long inputSize;
-
-		inputSize = meta->packetsPerIteration * meta->packetOutputLength[outp];
+		long inputSize = config->writeBufSize[outp];
 		if (inputSize % ZSTD_CStreamInSize() != 0) {
 			inputSize += (long) ZSTD_CStreamInSize() - (inputSize % (long) ZSTD_CStreamInSize());
 		}
@@ -595,22 +689,23 @@ int lofar_udp_io_write_setup_ZSTD(lofar_udp_io_write_config *config, const lofar
 		if (inputSize % ZSTD_CStreamOutSize() != 0) {
 			inputSize += (long) ZSTD_CStreamInSize() - (inputSize % (long) ZSTD_CStreamOutSize());
 		}
-		config->outputBuffer[outp].dst = calloc(inputSize, sizeof(char));
+		config->zstdWriter[outp].compressionBuffer.dst = calloc(inputSize, sizeof(char));
 
-		if (config->outputBuffer[outp].dst == NULL) {
+		if (config->zstdWriter[outp].compressionBuffer.dst == NULL) {
 			fprintf(stderr, "ERROR: Failed to allocate memory for ZTSD compression, exiting.\n");
 		}
-		config->outputBuffer[outp].size = inputSize;
+		config->zstdWriter[outp].compressionBuffer.size = inputSize;
+		config->writeBufSize[outp] = inputSize;
 
 
-		ZSTD_CCtx_setParameter(config->cstream[outp], ZSTD_c_nbWorkers, 4);
+		ZSTD_CCtx_setParameter(config->zstdWriter[outp].cstream, ZSTD_c_nbWorkers, 4);
 	}
 
-	if (ZSTD_isError(ZSTD_CCtx_reset(config->cstream[outp], ZSTD_reset_session_only))) {
+	if (ZSTD_isError(ZSTD_CCtx_reset(config->zstdWriter[outp].cstream, ZSTD_reset_session_only))) {
 		fprintf(stderr, "ERROR: Failed to reset ZSTD context; exiting.\n");
 		return -1;
 	}
-	if (ZSTD_isError(ZSTD_CCtx_setParametersUsingCCtxParams(config->cstream[outp], config->cparams))) {
+	if (ZSTD_isError(ZSTD_CCtx_setParametersUsingCCtxParams(config->zstdWriter[outp].cstream, config->cparams))) {
 		fprintf(stderr, "ERROR: Failed to initialise compression parameters, exiting.\n");
 		return -1;
 	}
@@ -622,55 +717,75 @@ int lofar_udp_io_write_setup_ZSTD(lofar_udp_io_write_config *config, const lofar
  * @brief      { function_description }
  *
  * @param      config  The configuration
- * @param[in]  meta    The meta
  * @param[in]  outp    The outp
  *
  * @return     { description_of_the_return_value }
  */
-int lofar_udp_io_write_setup_DADA(lofar_udp_io_write_config *config, const lofar_udp_meta *meta, int outp) {
+int lofar_udp_io_write_setup_DADA(lofar_udp_io_write_config *config, int outp) {
 #ifndef NODADA
 
-	if (config->dadaWriter[outp][0] == NULL) {
-		config->dadaWriter[outp][0] = calloc(1, sizeof(ipcio_t));
-		config->dadaWriter[outp][1] = calloc(1, sizeof(ipcio_t));
-		*(config->dadaWriter[outp][0]) = IPCIO_INIT;
-		*(config->dadaWriter[outp][1]) = IPCIO_INIT;
-		// Create  and connect to the ringbuffer instance
-		if (ipcio_create(config->dadaWriter[outp][0], config->outputDadaKeys[outp], 8,
-						 meta->packetsPerIteration * meta->packetOutputLength[outp], 1) < 0) {
-			// ipcio_create(...) prints error to stderr, so we just need to exit.
+	if (config->dadaWriter[outp].multilog == NULL && config->enableMultilog == 1) {
+		config->dadaWriter[outp].multilog = multilog_open(config->dadaConfig.programName, config->dadaConfig.syslog);
+
+		if (config->dadaWriter[outp].multilog == NULL) {
+			fprintf(stderr, "ERROR: Failed to initialise multilog struct on output %d, exiting.\n", outp);
 			return -1;
 		}
 
-		// Create  and connect to the header buffer instance
-		if (ipcio_create(config->dadaWriter[outp][1], config->outputDadaKeys[outp] + 1, 1, DADA_DEFAULT_HEADER_SIZE,
-						 1) < 0) {
-			// ipcio_create(...) prints error to stderr, so we just need to exit.
+		multilog_add(config->dadaWriter[outp].multilog, stdout);
+	}
+
+	if (config->dadaWriter[outp].ringbuffer == NULL) {
+		if (lofar_udp_io_write_setup_DADA_ringbuffer(&(config->dadaWriter[outp].ringbuffer), config->outputDadaKeys[outp],
+											   config->dadaConfig.nbufs, config->writeBufSize[outp], config->dadaConfig.num_readers,
+											   config->appendExisting) < 0) {
 			return -1;
 		}
 
 		if (sprintf(config->outputLocations[outp], "PSRDADA:%d", config->outputDadaKeys[outp])) {
 			fprintf(stderr, "ERROR: Failed to copy output file path (PSRDADA:%d), exiting.\n",
-					config->outputDadaKeys[outp]);
+			        config->outputDadaKeys[outp]);
 			return -1;
 		}
+	}
 
-		// Open the ringbuffer instance as the primary writer
-		if (ipcio_open(config->dadaWriter[outp][0], 'W') < 0) {
-			// ipcio_open(...) prints error to stderr, so we just need to exit.
-			return -2;
-		}
-
-		// Open the header buffer instance as the primary writer
-		if (ipcio_open(config->dadaWriter[outp][1], 'W') < 0) {
-			// ipcio_open(...) prints error to stderr, so we just need to exit.
-			return -2;
+	if (config->dadaWriter[outp].header == NULL) {
+		if (lofar_udp_io_write_setup_DADA_ringbuffer(&(config->dadaWriter[outp].header), config->outputDadaKeys[outp] + 1,
+		                                             1, config->dadaConfig.header_size, config->dadaConfig.num_readers,
+		                                             config->appendExisting) < 0) {
+			return -1;
 		}
 	}
-#else
 
+	return 0;
 #endif
+	// If PSRDADA was disabled at compile time, error	
 	return -1;
+}
+
+int lofar_udp_io_write_setup_DADA_ringbuffer(ipcio_t **ringbuffer, int dadaKey, uint64_t nbufs, long bufSize, unsigned int numReaders, int appendExisting) {
+	(*ringbuffer) = calloc(1, sizeof(ipcio_t));
+	**(ringbuffer) = IPCIO_INIT;
+
+	if (ipcio_create(*ringbuffer, dadaKey, nbufs, bufSize, numReaders) < 0) {
+		// ipcio_create(...) prints error to stderr, so we just need to exit.
+		if (appendExisting) {
+			fprintf(stderr, "WARNING: Failed to create ringbuffer, but appendExisting int is set, attempting to connect to given ringbuffer %d...\n", dadaKey);
+			if (ipcio_connect(*ringbuffer, dadaKey) < 0) {
+				return -1;
+			}
+		} else {
+			return -1;
+		}
+	}
+
+	// Open the ringbuffer instance as the primary writer
+	if (ipcio_open(*ringbuffer, 'W') < 0) {
+		// ipcio_open(...) prints error to stderr, so we just need to exit.
+		return -1;
+	}
+
+	return 0;
 }
 
 
@@ -692,7 +807,7 @@ int lofar_udp_io_write_setup_DADA(lofar_udp_io_write_config *config, const lofar
 //
 // @return     long: bytes read */
 //
-long lofar_udp_io_read(lofar_udp_reader_input *input, int port, char *targetArray, long nchars) {
+long lofar_udp_io_read(lofar_udp_io_read_config *input, int port, char *targetArray, long nchars) {
 
 	// Sanity check input
 	if (nchars < 0) {
@@ -735,7 +850,7 @@ long lofar_udp_io_read(lofar_udp_reader_input *input, int port, char *targetArra
  *
  * @return     { description_of_the_return_value }
  */
-long lofar_udp_io_read_FILE(lofar_udp_reader_input *input, const int port, char *targetArray, const long nchars) {
+long lofar_udp_io_read_FILE(lofar_udp_io_read_config *input, const int port, char *targetArray, const long nchars) {
 	// Decompressed file: Read and return the data as needed
 	VERBOSE(printf("reader_nchars: Entering read request (normal): %d, %ld\n", port, nchars));
 	return (long) fread(targetArray, sizeof(char), nchars, input->fileRef[port]);
@@ -750,7 +865,7 @@ long lofar_udp_io_read_FILE(lofar_udp_reader_input *input, const int port, char 
  *
  * @return     { description_of_the_return_value }
  */
-long lofar_udp_io_read_ZSTD(lofar_udp_reader_input *input, int port, long nchars) {
+long lofar_udp_io_read_ZSTD(lofar_udp_io_read_config *input, int port, long nchars) {
 	// Compressed file: Perform streaming decompression on a zstandard compressed file
 	VERBOSE(printf("reader_nchars: Entering read request (compressed): %d, %ld\n", port, nchars));
 
@@ -758,8 +873,8 @@ long lofar_udp_io_read_ZSTD(lofar_udp_reader_input *input, int port, long nchars
 	size_t previousDecompressionPos;
 	size_t returnVal;
 
-	VERBOSE(printf("reader_nchars: start of ZSTD read loop, %ld, %ld, %ld, %ld\n", input->readingTracker[port].pos,
-				   input->readingTracker[port].size, input->decompressionTracker[port].pos, dataRead););
+	VERBOSE(printf("reader_nchars %d: start of ZSTD read loop, %ld, %ld, %ld, %ld, %ld\n", port, input->readingTracker[port].pos,
+				   input->readingTracker[port].size, input->decompressionTracker[port].pos, dataRead, nchars););
 
 	// Loop across while decompressing the data (zstd decompressed in frame iterations, so it may take a few iterations)
 	while (input->readingTracker[port].pos < input->readingTracker[port].size) {
@@ -779,7 +894,7 @@ long lofar_udp_io_read_ZSTD(lofar_udp_reader_input *input, int port, long nchars
 		// Update the total data read + check if we have reached our goal
 		dataRead += byteDelta;
 		VERBOSE(if (dataRead >= nchars) {
-			printf("Reader terminating: %ld read, %ld requested, %ld\n", dataRead, nchars, nchars - dataRead);
+			printf("Reader terminating: %ld read, %ld requested, overflow %ld\n", dataRead, nchars, dataRead - nchars);
 		});
 
 		if (dataRead >= nchars) {
@@ -815,10 +930,10 @@ long lofar_udp_io_read_ZSTD(lofar_udp_reader_input *input, int port, long nchars
  *
  * @return     { description_of_the_return_value }
  */
-long lofar_udp_io_read_DADA(lofar_udp_reader_input *input, const int port, char *targetArray, const long nchars) {
+long lofar_udp_io_read_DADA(lofar_udp_io_read_config *input, const int port, char *targetArray, const long nchars) {
 #ifndef NODADA
 
-	VERBOSE(printf("reader_nchars: Entering read request (dada): %d, %d, %ld\n", port, input->dadaKey[port], nchars));
+	VERBOSE(printf("reader_nchars: Entering read request (dada): %d, %d, %ld\n", port, input->dadaKeys[port], nchars));
 
 	long dataRead = 0, currentRead;
 
@@ -859,12 +974,12 @@ long lofar_udp_io_read_DADA(lofar_udp_reader_input *input, const int port, char 
  *
  * @param      config  The configuration
  * @param[in]  outp    The outp
- * @param      src     The source
+ * @param      src     The source (non-const due to ipcio_write being non-const)
  * @param[in]  nchars  The nchars
  *
  * @return     { description_of_the_return_value }
  */
-long lofar_udp_io_write(lofar_udp_io_write_config *config, int outp, const char *src, const long nchars) {
+long lofar_udp_io_write(lofar_udp_io_write_config *config, int outp, char *src, const long nchars) {
 	// Sanity check input
 	if (nchars < 0) {
 		fprintf(stderr, "ERROR: Requested negative write size %ld on output %d, exiting.\n", nchars, outp);
@@ -924,9 +1039,9 @@ long
 lofar_udp_io_write_ZSTD(lofar_udp_io_write_config *config, int outp, const char *src, const long nchars) {
 
 	ZSTD_inBuffer input = { src, nchars, 0 };
-	ZSTD_outBuffer output = { config->outputBuffer[outp].dst, config->outputBuffer[outp].size, 0 };
+	ZSTD_outBuffer output = { config->zstdWriter[outp].compressionBuffer.dst, config->zstdWriter[outp].compressionBuffer.size, 0 };
 	while (!(input.size == input.pos)) {
-		size_t returnVal = ZSTD_compressStream2(config->cstream[outp], &output, &input, ZSTD_e_end);
+		size_t returnVal = ZSTD_compressStream2(config->zstdWriter[outp].cstream, &output, &input, ZSTD_e_end);
 		if (ZSTD_isError(returnVal)) {
 			fprintf(stderr, "ERROR: Failed to compressed data with ZSTD (%ld, %s)\n", returnVal,
 					ZSTD_getErrorName(returnVal));
@@ -934,9 +1049,9 @@ lofar_udp_io_write_ZSTD(lofar_udp_io_write_config *config, int outp, const char 
 		}
 	}
 
-	config->outputBuffer[outp].pos = output.pos;
+	config->zstdWriter[outp].compressionBuffer.pos = output.pos;
 
-	if (lofar_udp_io_write_FILE(config, outp, config->outputBuffer[outp].dst, (long) output.pos) < 0) {
+	if (lofar_udp_io_write_FILE(config, outp, config->zstdWriter[outp].compressionBuffer.dst, (long) output.pos) < 0) {
 		return -1;
 	}
 
@@ -955,9 +1070,9 @@ lofar_udp_io_write_ZSTD(lofar_udp_io_write_config *config, int outp, const char 
  * @return     { description_of_the_return_value }
  */
 long
-lofar_udp_io_write_DADA(lofar_udp_io_write_config *config, int outp, const char *src, const long nchars) {
+lofar_udp_io_write_DADA(lofar_udp_io_write_config *config, int outp, char *src, const long nchars) {
 
-	long writtenBytes = ipcio_write(config->dadaWriter[outp][0], src, nchars);
+	long writtenBytes = ipcio_write(config->dadaWriter[outp].ringbuffer, src, nchars);
 	if (writtenBytes < 0) {
 		return -1;
 	}
@@ -1228,71 +1343,6 @@ lofar_udp_io_fread_temp_DADA(void *outbuf, const size_t size, const int num, con
 }
 
 
-// Cleanup functions
-
-/**
- * @brief      { function_description }
- *
- * @param      input      The input
- * @param[in]  port       The port
- *
- * @return     { description_of_the_return_value }
- */
-int lofar_udp_io_read_cleanup(lofar_udp_reader_input *input, const int port) {
-
-	switch (input->readerType) {
-		// Normal files and FIFOs use the same interface
-		case NORMAL:
-		case FIFO:
-			return lofar_udp_io_read_cleanup_FILE(input, port);
-
-
-		case ZSTDCOMPRESSED:
-			return lofar_udp_io_read_cleanup_ZSTD(input, port);
-
-
-		case DADA_ACTIVE:
-			return lofar_udp_io_read_cleanup_DADA(input, port);
-
-
-		default:
-			fprintf(stderr, "ERROR: Unknown reader (%d) provided, exiting.\n", input->readerType);
-			return -1;
-	}
-}
-
-/**
- * @brief      { function_description }
- *
- * @param      config     The configuration
- * @param[in]  outp       The outp
- * @param[in]  fullClean  The full clean
- *
- * @return     { description_of_the_return_value }
- */
-int lofar_udp_io_write_cleanup(lofar_udp_io_write_config *config, const int outp, const int fullClean) {
-
-	switch (config->readerType) {
-		// Normal files and FIFOs use the same interface
-		case NORMAL:
-		case FIFO:
-			return lofar_udp_io_write_cleanup_FILE(config, outp, fullClean);
-
-
-		case ZSTDCOMPRESSED:
-			return lofar_udp_io_write_cleanup_ZSTD(config, outp, fullClean);
-
-
-		case DADA_ACTIVE:
-			return lofar_udp_io_write_cleanup_DADA(config, outp, fullClean);
-
-
-		default:
-			fprintf(stderr, "ERROR: Unknown type (%d) provided, exiting.\n", config->readerType);
-			return -1;
-	}
-}
-
 /**
  * @brief      { function_description }
  *
@@ -1301,7 +1351,7 @@ int lofar_udp_io_write_cleanup(lofar_udp_io_write_config *config, const int outp
  *
  * @return     { description_of_the_return_value }
  */
-int lofar_udp_io_read_cleanup_FILE(lofar_udp_reader_input *input, const int port) {
+int lofar_udp_io_read_cleanup_FILE(lofar_udp_io_read_config *input, const int port) {
 	if (input->fileRef[port] != NULL) {
 		VERBOSE(printf("On port: %d closing file\n", port))
 		fclose(input->fileRef[port]);
@@ -1319,7 +1369,7 @@ int lofar_udp_io_read_cleanup_FILE(lofar_udp_reader_input *input, const int port
  *
  * @return     { description_of_the_return_value }
  */
-int lofar_udp_io_read_cleanup_ZSTD(lofar_udp_reader_input *input, const int port) {
+int lofar_udp_io_read_cleanup_ZSTD(lofar_udp_io_read_config *input, const int port) {
 	if (lofar_udp_io_read_cleanup_FILE(input, port) != 0) {
 		fprintf(stderr, "ERROR: Failed to close file on port %d\n", port);
 	}
@@ -1344,15 +1394,15 @@ int lofar_udp_io_read_cleanup_ZSTD(lofar_udp_reader_input *input, const int port
  *
  * @return     { description_of_the_return_value }
  */
-int lofar_udp_io_read_cleanup_DADA(lofar_udp_reader_input *input, const int port) {
+int lofar_udp_io_read_cleanup_DADA(lofar_udp_io_read_config *input, const int port) {
 #ifndef NODADA
 	if (input->dadaReader[port] != NULL) {
 		if (dada_hdu_unlock_read(input->dadaReader[port]) < 0) {
-			fprintf(stderr, "ERROR: Failed to close PSRDADA buffer %d on port %d.\n", input->dadaKey[port], port);
+			fprintf(stderr, "ERROR: Failed to close PSRDADA buffer %d on port %d.\n", input->dadaKeys[port], port);
 		}
 
 		if (dada_hdu_disconnect(input->dadaReader[port]) < 0) {
-			fprintf(stderr, "ERROR: Failed to disconnect from PSRDADA buffer %d on port %d.\n", input->dadaKey[port],
+			fprintf(stderr, "ERROR: Failed to disconnect from PSRDADA buffer %d on port %d.\n", input->dadaKeys[port],
 					port);
 		}
 	}
@@ -1376,13 +1426,13 @@ int lofar_udp_io_read_cleanup_DADA(lofar_udp_reader_input *input, const int port
  *
  * @return     { description_of_the_return_value }
  */
-int lofar_udp_io_write_cleanup_FILE(lofar_udp_io_write_config *config, int outp, int fullClean) {
+int lofar_udp_io_write_cleanup_FILE(lofar_udp_io_write_config *config, int outp) {
 	if (config->outputFiles[outp] != NULL) {
 		fclose(config->outputFiles[outp]);
 		config->outputFiles[outp] = NULL;
 	}
 
-	if (fullClean && config->readerType == FIFO) {
+	if (config->readerType == FIFO) {
 		if (remove(config->outputLocations[outp]) != 0) {
 			fprintf(stderr, "WARNING: Failed to remove old FIFO at %s, continuing.\n",
 					config->outputLocations[outp]);
@@ -1402,14 +1452,14 @@ int lofar_udp_io_write_cleanup_FILE(lofar_udp_io_write_config *config, int outp,
  * @return     { description_of_the_return_value }
  */
 int lofar_udp_io_write_cleanup_ZSTD(lofar_udp_io_write_config *config, int outp, int fullClean) {
-	lofar_udp_io_write_cleanup_FILE(config, outp, fullClean);
+	lofar_udp_io_write_cleanup_FILE(config, outp);
 
-	if (fullClean && config->cstream[outp] != NULL) {
-		ZSTD_freeCStream(config->cstream[outp]);
-		config->cstream[outp] = NULL;
+	if (fullClean && config->zstdWriter[outp].cstream != NULL) {
+		ZSTD_freeCStream(config->zstdWriter[outp].cstream);
+		config->zstdWriter[outp].cstream = NULL;
 		
-		if (config->outputBuffer[outp].dst != NULL) {
-			FREE_NOT_NULL(config->outputBuffer[outp].dst);
+		if (config->zstdWriter[outp].compressionBuffer.dst != NULL) {
+			FREE_NOT_NULL(config->zstdWriter[outp].compressionBuffer.dst);
 		}
 	}
 
@@ -1430,12 +1480,66 @@ int lofar_udp_io_write_cleanup_ZSTD(lofar_udp_io_write_config *config, int outp,
  *
  * @return     { description_of_the_return_value }
  */
-__attribute__((deprecated)) int
-lofar_udp_io_write_cleanup_DADA(lofar_udp_io_write_config *config, int outp, int fullClean) {
-	return -1;
+int lofar_udp_io_write_cleanup_DADA(lofar_udp_io_write_config *config, int outp, int fullClean) {
+	// Close the ringbuffer writers
+	if (fullClean) {
+		if (config->dadaWriter[outp].ringbuffer != NULL) {
+			ipcio_stop(config->dadaWriter[outp].ringbuffer);
+			ipcio_close(config->dadaWriter[outp].ringbuffer);
+		}
+
+		if (config->dadaWriter[outp].header != NULL) {
+			ipcio_stop(config->dadaWriter[outp].header);
+			ipcio_close(config->dadaWriter[outp].header);
+		}
+
+		// Wait for readers to finish up and exit, or timeout (ipcio_read can hang if it requests data past the EOD point)
+		if (config->dadaWriter[outp].ringbuffer != NULL) {
+			lofar_udp_io_cleanup_DADA_loop((ipcbuf_t*) config->dadaWriter[outp].ringbuffer, config->dadaConfig.cleanup_timeout);
+			ipcio_destroy(config->dadaWriter[outp].ringbuffer);
+		}
+
+		if (config->dadaWriter[outp].ringbuffer != NULL) {
+			lofar_udp_io_cleanup_DADA_loop((ipcbuf_t*) config->dadaWriter[outp].ringbuffer, config->dadaConfig.cleanup_timeout);
+			ipcio_destroy(config->dadaWriter[outp].header);
+		}
+
+		// Destroy the ringbuffer instances
+		FREE_NOT_NULL(config->dadaWriter[outp].ringbuffer);
+		FREE_NOT_NULL(config->dadaWriter[outp].header);
+	}
+
+	return 0;
 }
 
-// Metadata functions /**
+void lofar_udp_io_cleanup_DADA_loop(ipcbuf_t *buff, float timeout) {
+	float totalSleep = 0.0f;
+
+	while (totalSleep < timeout) {
+		if (ipcbuf_get_reader_conn(buff) != 0) {
+			break;
+		}
+
+		if (((int) totalSleep * 1000) % 5000 == 0) {
+			printf("Waiting on DADA writer readers to exit (%f / %fs before timing out).\n", totalSleep, 30.0f);
+		}
+
+		usleep(1000 * 5);
+		totalSleep += 0.005;
+	}
+
+}
+
+// Metadata functions
+
+
+void swapCharPtr(char **a, char **b) {
+	char *tmp = *a;
+	*a = *b;
+	*b = tmp;
+}
+
+/**
 //  * { list_item_description }
 // @brief      Get the size of a file ptr on disk
 //

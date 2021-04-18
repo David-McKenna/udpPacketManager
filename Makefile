@@ -231,7 +231,7 @@ test: ./test_old/obj-generated-$(LIB_VER).$(LIB_VER_MINOR)
 
 	for procMode in 0 1 2 10 11 20 21 30 31 32; do \
 		echo "Running lofar_udp_extractor -i ./test_old/udp_1613%d_sample.zst -o './test_old/output_'$$procModeStokes'_%d' -p $$procMode -m 501 -u 2"; \
-		lofar_udp_extractor -i ./test_old/udp_1613[[port]]_sample -o './test_old/output_'$$procMode'_[[outp]]' -p $$procMode -m 501 -u 2; \
+		./build/lofar_udp_extractor -v -i ./test_old/udp_1613[[port]]_sample -o './test_old/output_'$$procMode'_[[outp]]' -p $$procMode -m 501 -u 2; \
 	done
 
 	for procMode in 100 110 120 130 150 160; do \
@@ -241,7 +241,7 @@ test: ./test_old/obj-generated-$(LIB_VER).$(LIB_VER_MINOR)
 			for offset in 0 1 2 3 4; do \
 				procModeStokes="`expr $$workingMode + $$offset`"; \
 				echo "Running lofar_udp_extractor -i ./test_old/udp_1613%d_sample.zst -o './test_old/output_'$$procModeStokes'_%d' -p $$procModeStokes -m 501 -u 2"; \
-				lofar_udp_extractor -i ./test_old/udp_1613[[port]]_sample.zst -o './test_old/output_'$$procModeStokes'_[[outp]]' -p $$procModeStokes -m 501 -u 2; \
+				./build/lofar_udp_extractor -v -i ./test_old/udp_1613[[port]]_sample -o './test_old/output_'$$procModeStokes'_[[outp]]' -p $$procModeStokes -m 501 -u 2; \
 			done; \
 		done; \
 	done
