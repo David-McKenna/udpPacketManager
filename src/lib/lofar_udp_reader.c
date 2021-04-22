@@ -829,7 +829,7 @@ lofar_udp_reader *lofar_udp_reader_setup(lofar_udp_config *config) {
 
 	// Scan in the first header on each port
 	for (int port = 0; port < meta->numPorts; port++) {
-		readlen = lofar_udp_io_fread_temp(config, port, &(inputHeaders[port]), sizeof(char), UDPHDRLEN, 1);
+		readlen = lofar_udp_io_read_temp(config, port, &(inputHeaders[port]), sizeof(char), UDPHDRLEN, 1);
 		if (readlen != UDPHDRLEN) {
 			fprintf(stderr, "Unable to read header on port %d, exiting.\n", port);
 			FREE_NOT_NULL(meta);

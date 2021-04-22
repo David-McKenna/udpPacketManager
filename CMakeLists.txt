@@ -1,5 +1,5 @@
 # Based on what I learnt from https://cliutils.gitlab.io/modern-cmake
-cmake_minimum_required(VERSION 3.13...3.19)
+cmake_minimum_required(VERSION 3.14...3.19)
 
 # Create a release output by default
 set(default_build_type "Release")
@@ -19,6 +19,8 @@ project(udpPacketManager 	VERSION 0.7.0
 
 set(UPM_CLI_VERSION 0.6)
 
+message("Building udpPacketManager Version ${PROJECT_VERSION}")
+
 set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -W -Wall -DALLOW_VERBOSE -g")
 set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -W -Wall -DALLOW_VERBOSE -g")
 set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -fno-omit-frame-pointer -fsanitize=address")
@@ -26,15 +28,52 @@ set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -fno-omit-frame-pointer -fsa
 set(CMAKE_LINKER_FLAGS_DEBUG "${CMAKE_LINKER_FLAGS_DEBUG} -fno-omit-frame-pointer -fsanitize=address")
 
 # Find the OpenMP package on the system
+
+message("Configuring OpenMP...")
 find_package(OpenMP)
 if(OpenMP_C_LIB_NAMES MATCHES ".*(iomp).*")
+	message ("Intel OpenMP Detected.")
 	# Determine the optimal number of threads for this machine (when using Intel OpenMP Libraries)
 	execute_process(COMMAND bash -c "cat /proc/cpuinfo | uniq | grep -m 2 \"siblings\" | cut -d \":\" -f 2 | sort --numeric --unique | xargs echo"
 			OUTPUT_VARIABLE OMP_THREADS
 	)
 else()
+	message(WARNING "Other OpenMP implementation Detected (performance may be degraded, we highly recommend using the Intel OpenMP libraries)")
 	set(OMP_THREADS 8)
 endif()
+
+# Find the zstandard libraries on the system
+message("Configuring Zstandard")
+include(FetchContent)
+FetchContent_Declare(zstd
+                     GIT_REPOSITORY https://github.com/facebook/zstd.git
+                     GIT_TAG v1.4.9
+                     )
+FetchContent_MakeAvailable(zstd)
+add_subdirectory(${zstd_SOURCE_DIR}/build/cmake/)
+message("")
+
+message ("Configuring PSRDADA")
+include(ExternalProject)
+# Find the PSRDADA libraries on the system (or set NODADA if not found)
+ExternalProject_Add(internal_PSRDADA
+                    GIT_REPOSITORY https://git.code.sf.net/p/psrdada/code
+                    GIT_TAG ba2b88
+                    PREFIX ${CMAKE_CURRENT_BINARY_DIR}/_deps/psrdada
+                    BINARY_DIR ${CMAKE_CURRENT_BINARY_DIR}/_deps/psrdada/src/external_PSRDADA/src/
+                    CONFIGURE_COMMAND cd .. && ./bootstrap && ./configure
+                    BUILD_COMMAND "make" "libpsrdada.la"
+                    INSTALL_COMMAND ""
+                    UPDATE_COMMAND ""
+                    )
+ExternalProject_Get_Property(internal_PSRDADA install_dir)
+add_library(psrdada STATIC IMPORTED)
+set_property(TARGET psrdada PROPERTY IMPORTED_LOCATION ${install_dir}/src/external_PSRDADA/src/.libs/libpsrdada.a)
+add_dependencies(psrdada internal_PSRDADA)
+message("")
+
+
+
 
 
 # Include compile-time parameters into the headers
@@ -55,9 +94,9 @@ add_library(lofudpman STATIC
             src/lib/lofar_udp_structs.c
             src/CLI/lofar_cli_meta.c
             src/lib/lofar_udp_metadata.c
-            src/metadata/ascii_hdr_manager.c
-            src/metadata/sigproc_hdr_manager.c src/metadata/metadata_structs.h src/metadata/metadata_structs.c
-            src/metadata/dada_hdr_manager.c)
+            src/lib/metadata/ascii_hdr_manager.c
+            src/lib/metadata/sigproc_hdr_manager.c src/lib/metadata/metadata_structs.h src/lib/metadata/metadata_structs.c
+            src/lib/metadata/dada_hdr_manager.c)
 # Include all of our headers
 target_include_directories(lofudpman PUBLIC
 		${PROJECT_SOURCE_DIR}/src/lib
@@ -65,6 +104,9 @@ target_include_directories(lofudpman PUBLIC
 		${PROJECT_SOURCE_DIR}/src/metadata
 )
 file(GLOB_RECURSE UDP_INCLUDE_FILES "${PROJECT_SOURCE_DIR}/src/*/*.h" "${PROJECT_SOURCE_DIR}/src/*/*.hpp")
+
+target_link_libraries(lofudpman INTERFACE psrdada)
+target_link_libraries(lofudpman INTERFACE zstd)
 
 # Set a few extra compiler options
 set(CMAKE_CXX_IMPLICIT_LINK_LIBRARIES "")
@@ -79,19 +121,6 @@ if(OpenMP_CXX_FOUND)
 	target_link_libraries(lofudpman PUBLIC OpenMP::OpenMP_CXX OpenMP::OpenMP_C)
 else()
 	message(FATAL_ERROR "ERROR: OpenMP Not found.")
-endif()
-
-# Find the zstandard libraries on the system
-find_library(ZSTD_LIB NAMES zstd)
-target_link_libraries(lofudpman INTERFACE ${ZSTD_LIB})
-
-# Find the PSRDADA libraries on the system (or set NODADA if not found)
-find_library(PSRDADA_LIB NAMES psrdada)
-if (NOT PSRDADA_LIB)
-	add_definitions(-DNODADA)
-	message(WARNING "PSRDADA Not found; disabling.")
-else()
-	target_link_libraries(lofudpman INTERFACE ${PSRDADA_LIB})
 endif()
 
 

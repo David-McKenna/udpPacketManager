@@ -1,5 +1,5 @@
 #include "lofar_cli_meta.h"
-#include "ascii_hdr_manager.h"
+#include "../lib/metadata/ascii_hdr_manager.h"
 
 
 // Unique prototype to this CLI

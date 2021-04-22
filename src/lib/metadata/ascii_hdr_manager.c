@@ -104,7 +104,7 @@ int writeStr(char *headerBuffer, char key[], char val[]) {
  */
 int writeInt(char *headerBuffer, char key[], int val) {
 	char tmpStr[81];
-	char intStr[21];
+	char intStr[71];
 	sprintf(intStr, "%d", val);
 	int parseChars = sprintf(tmpStr, "%-8s= %-70.s", key, intStr);
 	return (strcat(headerBuffer, tmpStr) != headerBuffer) + (parseChars != 80);
@@ -119,7 +119,7 @@ int writeInt(char *headerBuffer, char key[], int val) {
  */
 int writeLong(char *headerBuffer, char key[], long val) {
 	char tmpStr[81];
-	char intStr[21];
+	char intStr[71];
 	sprintf(intStr, "%ld", val);
 	int parseChars = sprintf(tmpStr, "%-8s= %-70.s", key, intStr);
 	return (strcat(headerBuffer, tmpStr) != headerBuffer) + (parseChars != 80);
@@ -134,7 +134,7 @@ int writeLong(char *headerBuffer, char key[], long val) {
  */
 int writeDouble(char *headerBuffer, char key[], double val) {
 	char tmpStr[81];
-	char intStr[21];
+	char intStr[71];
 	sprintf(intStr, "%lf", val);
 	int parseChars = sprintf(tmpStr, "%-8s= %-70.s", key, intStr);
 	return (strcat(headerBuffer, tmpStr) != headerBuffer) + (parseChars != 80);
@@ -340,6 +340,13 @@ int parseHdrFile(char inputFile[], ascii_hdr *header) {
 }
 
 
+__attribute_deprecated__ int lofar_udp_metadata_setup_GUPPI(lofar_udp_metadata *metadata) {
+
+
+
+	return 0;
+}
+
 /**
  * @brief      Writes an ASCII header to disk based on the current values of the
  *             struct
@@ -347,7 +354,7 @@ int parseHdrFile(char inputFile[], ascii_hdr *header) {
  * @param      fileRef  The file reference
  * @param      header   The ASCII header struct
  */
-int lofar_udp_metadata_write_ASCII(char *headerBuffer, size_t headerLength, ascii_hdr *headerStruct) {
+int lofar_udp_metadata_write_GUPPI(char *headerBuffer, size_t headerLength, ascii_hdr *headerStruct) {
 	// 35 * 80 + (1x \0) byte entries -> need headerLength to be larger than this or we'll have a bad time.
 	if (headerLength <= (HDR_MEMBS * 80 + 1)) {
 		fprintf(stderr, "ERROR: Passed header buffer is too small (%ld vs minimum of %d), exiting.", headerLength, (HDR_MEMBS * 80 + 1));

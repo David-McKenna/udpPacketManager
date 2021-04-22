@@ -2,7 +2,7 @@
 #define LOFAR_UDP_STRUCTS_H
 
 #include "lofar_udp_general.h"
-#include "../metadata/metadata_structs.h"
+#include "./metadata/metadata_structs.h"
 
 // Input includes
 // Unlock advanced ZSTD features
