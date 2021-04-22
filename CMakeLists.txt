@@ -60,7 +60,7 @@ ExternalProject_Add(internal_PSRDADA
                     GIT_REPOSITORY https://git.code.sf.net/p/psrdada/code
                     GIT_TAG ba2b88
                     PREFIX ${CMAKE_CURRENT_BINARY_DIR}/_deps/psrdada
-                    BINARY_DIR ${CMAKE_CURRENT_BINARY_DIR}/_deps/psrdada/src/external_PSRDADA/src/
+                    BINARY_DIR ${CMAKE_CURRENT_BINARY_DIR}/_deps/psrdada/src/internal_PSRDADA/src/
                     CONFIGURE_COMMAND cd .. && ./bootstrap && ./configure
                     BUILD_COMMAND "make" "libpsrdada.la"
                     INSTALL_COMMAND ""
@@ -68,7 +68,7 @@ ExternalProject_Add(internal_PSRDADA
                     )
 ExternalProject_Get_Property(internal_PSRDADA install_dir)
 add_library(psrdada STATIC IMPORTED)
-set_property(TARGET psrdada PROPERTY IMPORTED_LOCATION ${install_dir}/src/external_PSRDADA/src/.libs/libpsrdada.a)
+set_property(TARGET psrdada PROPERTY IMPORTED_LOCATION ${install_dir}/src/internal_PSRDADA/src/.libs/libpsrdada.a)
 add_dependencies(psrdada internal_PSRDADA)
 message("")
 
