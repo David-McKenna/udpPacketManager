@@ -54,7 +54,6 @@ add_subdirectory(${zstd_SOURCE_DIR}/build/cmake/)
 include_directories(${zstd_SOURCE_DIR}/lib/)
 message("")
 
-if (NODADA EXISTS)
 message ("Configuring PSRDADA")
 include(ExternalProject)
 # Find the PSRDADA libraries on the system (or set NODADA if not found)
