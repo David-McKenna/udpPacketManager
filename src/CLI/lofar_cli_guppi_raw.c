@@ -6,7 +6,7 @@
 void getStartTimeStringDAQ(lofar_udp_reader *reader, char stringBuff[]);
 
 void helpMessages() {
-	printf("LOFAR UDP Data extractor (GUPPI v%s, lib v%s)\n\n", UPM_CLI_VERSION, UPM_VERSION);
+	printf("LOFAR UDP Data extractor (GUPPI CLI v%s, lib v%s)\n\n", UPM_CLI_VERSION, UPM_VERSION);
 	printf("Usage: ./lofar_cli_extractor <flags>");
 
 	printf("\n\n");

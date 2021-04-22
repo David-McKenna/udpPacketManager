@@ -30,7 +30,7 @@ set(CMAKE_LINKER_FLAGS_DEBUG "${CMAKE_LINKER_FLAGS_DEBUG} -fno-omit-frame-pointe
 # Find the OpenMP package on the system
 
 message("Configuring OpenMP...")
-find_package(OpenMP)
+find_package(OpenMP REQUIRED)
 if(OpenMP_C_LIB_NAMES MATCHES ".*(iomp).*")
 	message ("Intel OpenMP Detected.")
 	# Determine the optimal number of threads for this machine (when using Intel OpenMP Libraries)
@@ -51,8 +51,10 @@ FetchContent_Declare(zstd
                      )
 FetchContent_MakeAvailable(zstd)
 add_subdirectory(${zstd_SOURCE_DIR}/build/cmake/)
+include_directories(${zstd_SOURCE_DIR}/lib/)
 message("")
 
+if (NODADA EXISTS)
 message ("Configuring PSRDADA")
 include(ExternalProject)
 # Find the PSRDADA libraries on the system (or set NODADA if not found)
@@ -70,6 +72,7 @@ ExternalProject_Get_Property(internal_PSRDADA install_dir)
 add_library(psrdada STATIC IMPORTED)
 set_property(TARGET psrdada PROPERTY IMPORTED_LOCATION ${install_dir}/src/internal_PSRDADA/src/.libs/libpsrdada.a)
 add_dependencies(psrdada internal_PSRDADA)
+include_directories(${install_dir}/src/internal_PSRDADA/src/)
 message("")
 
 
@@ -97,6 +100,7 @@ add_library(lofudpman STATIC
             src/lib/metadata/ascii_hdr_manager.c
             src/lib/metadata/sigproc_hdr_manager.c src/lib/metadata/metadata_structs.h src/lib/metadata/metadata_structs.c
             src/lib/metadata/dada_hdr_manager.c)
+add_dependencies(lofudpman libzstd_static psrdada)
 # Include all of our headers
 target_include_directories(lofudpman PUBLIC
 		${PROJECT_SOURCE_DIR}/src/lib
@@ -106,7 +110,7 @@ target_include_directories(lofudpman PUBLIC
 file(GLOB_RECURSE UDP_INCLUDE_FILES "${PROJECT_SOURCE_DIR}/src/*/*.h" "${PROJECT_SOURCE_DIR}/src/*/*.hpp")
 
 target_link_libraries(lofudpman INTERFACE psrdada)
-target_link_libraries(lofudpman INTERFACE zstd)
+target_link_libraries(lofudpman INTERFACE libzstd_static)
 
 # Set a few extra compiler options
 set(CMAKE_CXX_IMPLICIT_LINK_LIBRARIES "")

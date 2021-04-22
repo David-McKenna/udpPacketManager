@@ -42,6 +42,12 @@ Requirements
   libzstd1-dev on Ubuntu 16.04, may require the restricted tool chain PPA)
 - (Optional) [PSRDADA](http://psrdada.sourceforge.net/) for ring-buffer support, can be disabled at compile time by
   setting `NODADA=1` in your environment.
+- CSH, autoconf, libtool for PSRDADA compile
+
+```shell
+apt-get install git autoconf csh libtool
+pip install cmake
+```
 
 While we try to ensure full support for both gcc and icc (LLVM derivatives are not tested at the moment), they have
 different performance profiles. Due to differences in the OpenMP libraries between GCC GOMP and Intel's Classic OpenMP,
