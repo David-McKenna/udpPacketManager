@@ -21,6 +21,7 @@ void processingModes(void) {
 	printf("30: Raw UDP to Time Major Output: Time-continuous output\n");
 	printf("31: Raw UDP to Time Major, Split Pols Output: Time-continuous output: combine (2) and (30)\n");
 	printf("32: Raw UDP to Time Major, Dual Pols Output: Time-continuous output, to antenna polarisation output (X/Y Split, FFTW format)\n\n");
+	printf("35: Raw UDP to Time Major, Dual Pols Floats Output: Mode 32, but output is always a float.\n\n");
 
 	printf("100: Raw UDP to Stokes I: Form a 32-bit float Stokes I for the input.\n");
 	printf("110: Raw UDP to Stokes Q: Form a 32-bit float Stokes Q for the input.\n");
@@ -31,7 +32,9 @@ void processingModes(void) {
 	printf("160: Raw UDP to Full Stokes: Form a 32-bit float Stokes Vector for the input (I, V output files)\n\n");
 
 	printf("Stokes outputs can be decimated in orders of 2, up to 16x by adjusting the last digit of their processing mode.\n");
-	printf("This is handled in orders of two, so 101 will give a Stokes I with 2x decimation, 102, will give 4x, 103 will give 8x and 104 will give 16x.\n");
+	printf("This is handled in orders of two, so 101 will give a Stokes I with 2x decimation, 102, will give 4x, 103 will give 8x and 104 will give 16x.\n\n");
+	printf("Similarly, by default the beamlet order is reversed (negative frequency offset). By adding 100 to each Stokes output, e.g. changing mode 104 to 204,"
+		"the frequency order will be changed to be increasing (positive frequency offset, matching the telescope configuration).\n");
 }
 
 

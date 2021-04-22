@@ -63,8 +63,6 @@ lofar_udp_io_read_setup_ZSTD(lofar_udp_io_read_config *input, const char *inputL
 	input->decompressionTracker[port].size = bufferSize;
 	input->decompressionTracker[port].pos = 0; // Initialisation for our step-by-step reader
 
-	input->readBufSize[port] = bufferSize;
-
 	return 0;
 }
 
@@ -181,6 +179,90 @@ int lofar_udp_io_read_temp_ZSTD(void *outbuf, const size_t size, const int num, 
 
 }
 
+/**
+ * @brief      { function_description }
+ *
+ * @param      input   The input
+ * @param[in]  port    The port
+ * @param[in]  nchars  The nchars
+ *
+ * @return     { description_of_the_return_value }
+ */
+long lofar_udp_io_read_ZSTD(lofar_udp_io_read_config *input, int port, char *targetArray, long nchars) {
+	// Compressed file: Perform streaming decompression on a zstandard compressed file
+	VERBOSE(printf("reader_nchars: Entering read request (compressed): %d, %ld\n", port, nchars));
+
+	long dataRead = 0, byteDelta;
+	size_t previousDecompressionPos;
+	size_t returnVal;
+
+	VERBOSE(printf("reader_nchars %d: start of ZSTD read loop, %ld, %ld, %ld, %ld, %ld\n", port, input->readingTracker[port].pos,
+	               input->readingTracker[port].size, input->decompressionTracker[port].pos, dataRead, nchars););
+
+	// Move the trailing end of the buffer to the start of the target read
+	if ((long) input->decompressionTracker[port].pos > input->readBufSize[port]) {
+		dataRead = input->decompressionTracker[port].pos - input->readBufSize[port];
+		if (memmove(targetArray, &(((char*) input->decompressionTracker[port].dst)[input->readBufSize[port]]), dataRead) != targetArray) {
+			fprintf(stderr, "ERROR: Failed to copy end of ZSTD buffer, exiting.\n");
+			return -1;
+		}
+		// Update the position marker
+		input->decompressionTracker[port].pos = targetArray - (char*) input->decompressionTracker[port].dst + dataRead;
+
+		VERBOSE(printf("ZSTD READ %d, base offset, read: %ld, %ld\n", port, input->decompressionTracker[port].pos, dataRead));
+	} else {
+		// Update the position marker
+		input->decompressionTracker[port].pos = targetArray - ((char*) input->decompressionTracker[port].dst);
+		VERBOSE(printf("ZSTD READ%d, base offset: %ld\n", port, input->decompressionTracker[port].pos));
+	}
+
+	VERBOSE(printf("ZSTD Read: starting loop with %ld/%ld\n", dataRead, nchars));
+
+	// Loop across while decompressing the data (zstd decompressed in frame iterations, so it may take a few iterations)
+	while (input->readingTracker[port].pos < input->readingTracker[port].size && dataRead < nchars) {
+		previousDecompressionPos = input->decompressionTracker[port].pos;
+		// zstd streaming decompression + check for errors
+		returnVal = ZSTD_decompressStream(input->dstream[port], &(input->decompressionTracker[port]),
+		                                  &(input->readingTracker[port]));
+		if (ZSTD_isError(returnVal)) {
+			fprintf(stderr, "ZSTD encountered an error decompressing a frame (code %ld, %s), exiting data read early.\n",
+			        returnVal, ZSTD_getErrorName(returnVal));
+			break;
+		}
+
+		// Determine how much data we just added to the buffer
+		byteDelta = ((long) input->decompressionTracker[port].pos - (long) previousDecompressionPos);
+
+		// Update the total data read + check if we have reached our goal
+		dataRead += byteDelta;
+
+		if (dataRead >= nchars) {
+			break;
+		}
+
+		if (input->decompressionTracker[port].pos == input->decompressionTracker[port].size) {
+			fprintf(stderr,
+			        "Failed to read %ld/%ld chars on port %d before filling the buffer. Attempting to continue...\n",
+			        dataRead, nchars, port);
+			break;
+		}
+	}
+
+	VERBOSE(if (dataRead >= nchars) {
+		printf("Reader terminating: %ld read, %ld requested, overflow %ld\n", dataRead, nchars, dataRead - nchars);
+	});
+
+	// Completed or EOF: unmap used memory and return everything we read
+	if (madvise(((void *) input->readingTracker[port].src), input->readingTracker[port].pos, MADV_DONTNEED) < 0) {
+		fprintf(stderr,
+		        "ERROR: Failed to apply MADV_DONTNEED after read operation on port %d (errno %d: %s).\n", port,
+		        errno, strerror(errno));
+	}
+
+
+	return dataRead;
+}
+
 
 
 
@@ -262,70 +344,6 @@ int lofar_udp_io_write_setup_ZSTD(lofar_udp_io_write_config *config, int outp, i
 }
 
 
-
-/**
- * @brief      { function_description }
- *
- * @param      input   The input
- * @param[in]  port    The port
- * @param[in]  nchars  The nchars
- *
- * @return     { description_of_the_return_value }
- */
-long lofar_udp_io_read_ZSTD(lofar_udp_io_read_config *input, int port, long nchars) {
-	// Compressed file: Perform streaming decompression on a zstandard compressed file
-	VERBOSE(printf("reader_nchars: Entering read request (compressed): %d, %ld\n", port, nchars));
-
-	long dataRead = 0, byteDelta;
-	size_t previousDecompressionPos;
-	size_t returnVal;
-
-	VERBOSE(printf("reader_nchars %d: start of ZSTD read loop, %ld, %ld, %ld, %ld, %ld\n", port, input->readingTracker[port].pos,
-				   input->readingTracker[port].size, input->decompressionTracker[port].pos, dataRead, nchars););
-
-	// Loop across while decompressing the data (zstd decompressed in frame iterations, so it may take a few iterations)
-	while (input->readingTracker[port].pos < input->readingTracker[port].size) {
-		previousDecompressionPos = input->decompressionTracker[port].pos;
-		// zstd streaming decompression + check for errors
-		returnVal = ZSTD_decompressStream(input->dstream[port], &(input->decompressionTracker[port]),
-										  &(input->readingTracker[port]));
-		if (ZSTD_isError(returnVal)) {
-			fprintf(stderr, "ZSTD encountered an error decompressing a frame (code %ld, %s), exiting data read early.\n",
-					returnVal, ZSTD_getErrorName(returnVal));
-			break;
-		}
-
-		// Determine how much data we just added to the buffer
-		byteDelta = ((long) input->decompressionTracker[port].pos - (long) previousDecompressionPos);
-
-		// Update the total data read + check if we have reached our goal
-		dataRead += byteDelta;
-		VERBOSE(if (dataRead >= nchars) {
-			printf("Reader terminating: %ld read, %ld requested, overflow %ld\n", dataRead, nchars, dataRead - nchars);
-		});
-
-		if (dataRead >= nchars) {
-			break;
-		}
-
-		if (input->decompressionTracker[port].pos == input->decompressionTracker[port].size) {
-			fprintf(stderr,
-					"Failed to read %ld/%ld chars on port %d before filling the buffer. Attempting to continue...\n",
-					dataRead, nchars, port);
-			break;
-		}
-	}
-
-	// Completed or EOF: unmap used memory and return everything we read
-	if (madvise(((void *) input->readingTracker[port].src), input->readingTracker[port].pos, MADV_DONTNEED) < 0) {
-		fprintf(stderr,
-				"ERROR: Failed to apply MADV_DONTNEED after read operation on port %d (errno %d: %s).\n", port,
-				errno, strerror(errno));
-	}
-
-
-	return dataRead;
-}
 
 /**
  * @brief      { function_description }

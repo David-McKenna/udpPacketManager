@@ -469,7 +469,7 @@ long lofar_udp_io_read(lofar_udp_io_read_config *input, int port, char *targetAr
 
 
 		case ZSTDCOMPRESSED:
-			return lofar_udp_io_read_ZSTD(input, port, nchars);
+			return lofar_udp_io_read_ZSTD(input, port, targetArray, nchars);
 
 
 		case DADA_ACTIVE:

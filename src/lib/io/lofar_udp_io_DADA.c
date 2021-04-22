@@ -86,8 +86,8 @@ long lofar_udp_io_read_DADA(lofar_udp_io_read_config *input, const int port, cha
 	// To prevent a lock up when we call ipcio_stop, read the data in gulps
 	long readChars = ((dataRead + input->dadaPageSize[port]) > nchars) ? (nchars - dataRead)
 																	   : input->dadaPageSize[port];
-	// Loop until we read the requested amount of data
-	while (dataRead < nchars) {
+	// Loop until we read the requested amount of data, or the ringbuffer is marked as finished
+	while (dataRead < nchars && !ipcbuf_eod((ipcbuf_t*) input->dadaReader[port]->data_block)) {
 		if ((currentRead = ipcio_read(input->dadaReader[port]->data_block, &(targetArray[dataRead]), readChars)) < 0) {
 			fprintf(stderr, "ERROR: Failed to complete DADA read on port %d (%ld / %ld), returning partial data.\n",
 					port, dataRead, nchars);
@@ -253,7 +253,7 @@ lofar_udp_io_read_temp_DADA(void *outbuf, const size_t size, const int num, cons
 int lofar_udp_io_write_setup_DADA(lofar_udp_io_write_config *config, int outp) {
 #ifndef NODADA
 
-	if (config->dadaWriter[outp].multilog == NULL && config->enableMultilog == 1) {
+	if (config->dadaWriter[outp].multilog == NULL) {
 		config->dadaWriter[outp].multilog = multilog_open(config->dadaConfig.programName, config->dadaConfig.syslog);
 
 		if (config->dadaWriter[outp].multilog == NULL) {
@@ -264,27 +264,25 @@ int lofar_udp_io_write_setup_DADA(lofar_udp_io_write_config *config, int outp) {
 		multilog_add(config->dadaWriter[outp].multilog, stdout);
 	}
 
-	if (config->dadaWriter[outp].ringbuffer == NULL) {
-		if (lofar_udp_io_write_setup_DADA_ringbuffer(&(config->dadaWriter[outp].ringbuffer), config->outputDadaKeys[outp],
-											   config->dadaConfig.nbufs, config->writeBufSize[outp], config->dadaConfig.num_readers,
-											   config->appendExisting) < 0) {
+	if (config->dadaWriter[outp].hdu == NULL) {
+		config->dadaWriter[outp].hdu = dada_hdu_create(config->dadaWriter[outp].multilog);
+		dada_hdu_set_key(config->dadaWriter[outp].hdu, config->outputDadaKeys[outp]);
+
+		if (dada_hdu_connect(config->dadaWriter[outp].hdu) < 0) {
 			return -1;
 		}
 
-		if (sprintf(config->outputLocations[outp], "PSRDADA:%d", config->outputDadaKeys[outp])) {
+		if (dada_hdu_lock_write(config->dadaWriter[outp].hdu) < 0) {
+			return -1;
+		}
+
+		if (sprintf(config->outputLocations[outp], "PSRDADA:%d", config->outputDadaKeys[outp]) < 7) {
 			fprintf(stderr, "ERROR: Failed to copy output file path (PSRDADA:%d), exiting.\n",
 			        config->outputDadaKeys[outp]);
 			return -1;
 		}
 	}
 
-	if (config->dadaWriter[outp].header == NULL) {
-		if (lofar_udp_io_write_setup_DADA_ringbuffer(&(config->dadaWriter[outp].header), config->outputDadaKeys[outp] + 1,
-		                                             1, config->dadaConfig.header_size, config->dadaConfig.num_readers,
-		                                             config->appendExisting) < 0) {
-			return -1;
-		}
-	}
 
 	return 0;
 #endif
@@ -292,30 +290,6 @@ int lofar_udp_io_write_setup_DADA(lofar_udp_io_write_config *config, int outp) {
 	return -1;
 }
 
-int lofar_udp_io_write_setup_DADA_ringbuffer(ipcio_t **ringbuffer, int dadaKey, uint64_t nbufs, long bufSize, unsigned int numReaders, int appendExisting) {
-	(*ringbuffer) = calloc(1, sizeof(ipcio_t));
-	**(ringbuffer) = IPCIO_INIT;
-
-	if (ipcio_create(*ringbuffer, dadaKey, nbufs, bufSize, numReaders) < 0) {
-		// ipcio_create(...) prints error to stderr, so we just need to exit.
-		if (appendExisting) {
-			fprintf(stderr, "WARNING: Failed to create ringbuffer, but appendExisting int is set, attempting to connect to given ringbuffer %d...\n", dadaKey);
-			if (ipcio_connect(*ringbuffer, dadaKey) < 0) {
-				return -1;
-			}
-		} else {
-			return -1;
-		}
-	}
-
-	// Open the ringbuffer instance as the primary writer
-	if (ipcio_open(*ringbuffer, 'W') < 0) {
-		// ipcio_open(...) prints error to stderr, so we just need to exit.
-		return -1;
-	}
-
-	return 0;
-}
 
 /**
  * @brief      { function_description }
@@ -330,7 +304,7 @@ int lofar_udp_io_write_setup_DADA_ringbuffer(ipcio_t **ringbuffer, int dadaKey, 
 long
 lofar_udp_io_write_DADA(lofar_udp_io_write_config *config, int outp, char *src, const long nchars) {
 
-	long writtenBytes = ipcio_write(config->dadaWriter[outp].ringbuffer, src, nchars);
+	long writtenBytes = ipcio_write(config->dadaWriter[outp].hdu->data_block, src, nchars);
 	if (writtenBytes < 0) {
 		return -1;
 	}
@@ -352,30 +326,21 @@ lofar_udp_io_write_DADA(lofar_udp_io_write_config *config, int outp, char *src, 
 int lofar_udp_io_write_cleanup_DADA(lofar_udp_io_write_config *config, int outp, int fullClean) {
 	// Close the ringbuffer writers
 	if (fullClean) {
-		if (config->dadaWriter[outp].ringbuffer != NULL) {
-			ipcio_stop(config->dadaWriter[outp].ringbuffer);
-			ipcio_close(config->dadaWriter[outp].ringbuffer);
+		if (config->dadaWriter[outp].hdu != NULL) {
+			ipcio_stop(config->dadaWriter[outp].hdu->data_block);
+			dada_hdu_unlock_write(config->dadaWriter[outp].hdu);
+
+			// Wait for readers to finish up and exit, or timeout (ipcio_read can hang if it requests data past the EOD point)
+			lofar_udp_io_cleanup_DADA_loop((ipcbuf_t*) config->dadaWriter[outp].hdu->data_block, config->dadaConfig.cleanup_timeout);
+			FREE_NOT_NULL(config->dadaWriter[outp].hdu->data_block->buf_ptrs); // Work around a bug in PSRDADA: free ipcio->buf_pts prior to destroying the ringbuffer to remove a memory leak
+			dada_hdu_destroy(config->dadaWriter[outp].hdu);
+			config->dadaWriter[outp].hdu = NULL;
 		}
 
-		if (config->dadaWriter[outp].header != NULL) {
-			ipcio_stop(config->dadaWriter[outp].header);
-			ipcio_close(config->dadaWriter[outp].header);
+		if (config->dadaWriter[outp].multilog != NULL) {
+			multilog_close(config->dadaWriter[outp].multilog);
+			config->dadaWriter[outp].multilog = NULL;
 		}
-
-		// Wait for readers to finish up and exit, or timeout (ipcio_read can hang if it requests data past the EOD point)
-		if (config->dadaWriter[outp].ringbuffer != NULL) {
-			lofar_udp_io_cleanup_DADA_loop((ipcbuf_t*) config->dadaWriter[outp].ringbuffer, config->dadaConfig.cleanup_timeout);
-			ipcio_destroy(config->dadaWriter[outp].ringbuffer);
-		}
-
-		if (config->dadaWriter[outp].ringbuffer != NULL) {
-			lofar_udp_io_cleanup_DADA_loop((ipcbuf_t*) config->dadaWriter[outp].ringbuffer, config->dadaConfig.cleanup_timeout);
-			ipcio_destroy(config->dadaWriter[outp].header);
-		}
-
-		// Destroy the ringbuffer instances
-		FREE_NOT_NULL(config->dadaWriter[outp].ringbuffer);
-		FREE_NOT_NULL(config->dadaWriter[outp].header);
 	}
 
 	return 0;
@@ -383,18 +348,24 @@ int lofar_udp_io_write_cleanup_DADA(lofar_udp_io_write_config *config, int outp,
 
 void lofar_udp_io_cleanup_DADA_loop(ipcbuf_t *buff, float timeout) {
 	float totalSleep = 0.0f;
-
+	long previousBuffer = ipcbuf_get_read_count(buff);
 	while (totalSleep < timeout) {
 		if (ipcbuf_get_reader_conn(buff) != 0) {
 			break;
 		}
 
-		if (((int) totalSleep * 1000) % 5000 == 0) {
+		if (((int) totalSleep) % 5 == 0) {
 			printf("Waiting on DADA writer readers to exit (%f / %fs before timing out).\n", totalSleep, 30.0f);
 		}
 
 		usleep(1000 * 5);
 		totalSleep += 0.005;
+
+		printf("%ld, %ld, %ld\n", previousBuffer, ipcbuf_get_read_count(buff), (ipcbuf_get_write_count(buff) - previousBuffer));
+
+		if (previousBuffer == ipcbuf_get_read_count(buff) && (ipcbuf_get_write_count(buff) - previousBuffer) < 2 && totalSleep > 0.05 * timeout) {
+			break;
+		}
 	}
 
 }

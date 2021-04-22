@@ -49,7 +49,7 @@ int lofar_udp_io_write_setup_DADA(lofar_udp_io_write_config *config, int outp);
 
 // Operate functions
 long lofar_udp_io_read_FILE(lofar_udp_io_read_config *input, int port, char *targetArray, long nchars);
-long lofar_udp_io_read_ZSTD(lofar_udp_io_read_config *input, int port, long nchars);
+long lofar_udp_io_read_ZSTD(lofar_udp_io_read_config *input, int port, char *targetArray, long nchars);
 long lofar_udp_io_read_DADA(lofar_udp_io_read_config *input, int port, char *targetArray, long nchars);
 
 long lofar_udp_io_write_FILE(lofar_udp_io_write_config *config, int outp, const char *src, const long nchars);

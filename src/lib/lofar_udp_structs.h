@@ -2,7 +2,7 @@
 #define LOFAR_UDP_STRUCTS_H
 
 #include "lofar_udp_general.h"
-#include "./metadata/metadata_structs.h"
+#include "metadata_structs.h"
 
 // Input includes
 // Unlock advanced ZSTD features
@@ -240,8 +240,7 @@ typedef struct lofar_udp_io_write_config {
 		ZSTD_outBuffer compressionBuffer;
 	} zstdWriter[MAX_OUTPUT_DIMS];
 	struct {
-		ipcio_t *ringbuffer;
-		ipcio_t *header;
+		dada_hdu_t *hdu;
 		multilog_t *multilog;
 	} dadaWriter[MAX_OUTPUT_DIMS];
 
@@ -263,8 +262,6 @@ typedef struct lofar_udp_io_write_config {
 	// ZSTD requirements
 	ZSTD_CCtx_params *cparams;
 
-	// PSRDADA requirements
-	int enableMultilog;
 
 } lofar_udp_io_write_config;
 extern const lofar_udp_io_write_config lofar_udp_io_write_config_default;

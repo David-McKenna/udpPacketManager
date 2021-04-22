@@ -1552,13 +1552,6 @@ int lofar_udp_shift_remainder_packets(lofar_udp_reader *reader, const long shift
 	for (int port = 0; port < reader->meta->numPorts; port++) {
 		reader->meta->inputDataOffset[port] = 0;
 		totalShift += shiftPackets[port];
-
-		if (reader->input->readerType == ZSTDCOMPRESSED) {
-			if ((long) reader->input->decompressionTracker[port].pos >
-				reader->meta->portPacketLength[port] * reader->meta->packetsPerIteration) {
-				fixBuffer = 1;
-			}
-		}
 	}
 
 	if (totalShift < 1 && fixBuffer == 0) { return 0; }
@@ -1612,24 +1605,6 @@ int lofar_udp_shift_remainder_packets(lofar_udp_reader *reader, const long shift
 					   destOffset + byteShift);
 			});
 
-			if (reader->input->readerType == ZSTDCOMPRESSED) {
-				if ((long) reader->input->decompressionTracker[port].pos >
-					reader->meta->portPacketLength[port] * reader->meta->packetsPerIteration) {
-					byteShift += ((long) reader->input->decompressionTracker[port].pos) -
-								 reader->meta->portPacketLength[port] * reader->meta->packetsPerIteration;
-				}
-				reader->input->decompressionTracker[port].pos = destOffset + byteShift;
-				VERBOSE(if (reader->meta->VERBOSE) {
-					printf("Compressed offset: P: %d, SO: %ld, DO: %d, BS: %ld IDO: %ld\n", port, sourceOffset,
-						   destOffset, byteShift, destOffset + byteShift);
-				});
-
-			}
-
-			VERBOSE(if (reader->meta->VERBOSE) {
-				printf("P: %d, SO: %ld, DO: %d, BS: %ld IDO: %ld\n", port, sourceOffset, destOffset, byteShift,
-					   destOffset + byteShift);
-			});
 
 			// Memmove the data as needed (memcpy can't act on the same array)
 			memmove(&(inputData[destOffset]), &(inputData[sourceOffset]), byteShift);

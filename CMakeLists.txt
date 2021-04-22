@@ -50,7 +50,7 @@ FetchContent_Declare(zstd
                      GIT_TAG v1.4.9
                      )
 FetchContent_MakeAvailable(zstd)
-add_subdirectory(${zstd_SOURCE_DIR}/build/cmake/)
+add_subdirectory(${zstd_SOURCE_DIR}/build/cmake/ EXCLUDE_FROM_ALL)
 include_directories(${zstd_SOURCE_DIR}/lib/)
 message("")
 
@@ -97,7 +97,7 @@ add_library(lofudpman STATIC
             src/CLI/lofar_cli_meta.c
             src/lib/lofar_udp_metadata.c
             src/lib/metadata/ascii_hdr_manager.c
-            src/lib/metadata/sigproc_hdr_manager.c src/lib/metadata/metadata_structs.h src/lib/metadata/metadata_structs.c
+            src/lib/metadata/sigproc_hdr_manager.c src/lib/metadata_structs.h src/lib/metadata/metadata_structs.c
             src/lib/metadata/dada_hdr_manager.c)
 add_dependencies(lofudpman libzstd_static psrdada)
 # Include all of our headers
@@ -160,6 +160,26 @@ install(TARGETS lofudpman lofar_udp_extractor lofar_udp_guppi_raw
 		RUNTIME DESTINATION bin
 )
 install(FILES ${UDP_INCLUDE_FILES} DESTINATION include)
+install(FILES src/misc/dreamBeamJonesGenerator.py DESTINATION bin)
 
 # Add the tests directory
 add_subdirectory(tests EXCLUDE_FROM_ALL)
+
+
+#include(CMakePackageConfigHelpers)
+#write_basic_package_version_file(
+#		lofudpmanConfig.cmake
+#		VERSION ${PACKAGE_VERSION}
+#		COMPATIBILITY SameMajorVersion
+#)
+#set(ConfigPackageLocation ${CMAKE_INSTALL_LIBDIR}/cmake/lofudpman)
+#install(EXPORT lofudpman
+#        FILE lofudpmanTargets.cmake
+#        NAMESPACE lofudpman::
+#        DESTINATION ${ConfigPackageLocation}
+#)
+#install(FILES
+#        lofudpmanConfig.cmake
+#        "${CMAKE_CURRENT_BINARY_DIR}/lofudpmanConfigVersion.cmake"
+#        DESTINATION ${ConfigPackageLocation}
+#)
