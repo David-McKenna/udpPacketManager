@@ -424,7 +424,7 @@ int lofar_udp_skip_to_packet(lofar_udp_reader *reader) {
 		if (returnVal < 0) { return -1; }
 
 		// Find the amount of data needed, and read in new data to fill the gap left at the end of the array after the shift
-		nchars = (reader->meta->packetsPerIteration - packetShift[port]) * reader->meta->portPacketLength[port];
+		nchars = (reader->meta->packetsPerIteration * reader->meta->portPacketLength[port]) - reader->meta->inputDataOffset[port];
 		if (nchars > 0) {
 			returnLen = lofar_udp_io_read(reader->input, port,
 										  &(reader->meta->inputData[port][reader->meta->inputDataOffset[port]]),
@@ -1033,13 +1033,29 @@ lofar_udp_reader *lofar_udp_reader_setup(lofar_udp_config *config) {
 	}
 	reader->meta->inputDataReady = 0;
 
+
+			for (int port = 0; port < meta->numPorts; port++) {
+				printf("Packs: %ld, %ld, %ld\n", lofar_get_packet_number(meta->inputData[port]), lofar_get_packet_number(&(meta->inputData[port][(meta->packetsPerIteration - 1) * meta->portPacketLength[port]])),lofar_get_packet_number(meta->inputData[port]) -  lofar_get_packet_number(&(meta->inputData[port][(meta->packetsPerIteration - 1) * meta->portPacketLength[port]])));
+			}
 	VERBOSE(if (meta->VERBOSE) { printf("reader_setup: First packet %ld\n", meta->lastPacket); });
 
 	// If we have been given a starting packet, search for it and align the data to it
 	if (reader->meta->lastPacket > LFREPOCH) {
 		if (lofar_udp_skip_to_packet(reader) < 0) {
-			lofar_udp_reader_cleanup(reader);
-			return NULL;
+			for (int port = 0; port < meta->numPorts; port++) {
+				if (lofar_get_packet_number(meta->inputData[port]) > meta->lastPacket) {
+					meta->lastPacket = lofar_get_packet_number(meta->inputData[port]);
+				}
+
+				printf("Packs: %ld, %ld, %ld\n", lofar_get_packet_number(meta->inputData[port]), lofar_get_packet_number(&(meta->inputData[port][(meta->packetsPerIteration - 1) * meta->portPacketLength[port]])),lofar_get_packet_number(meta->inputData[port]) -  lofar_get_packet_number(&(meta->inputData[port][(meta->packetsPerIteration - 1) * meta->portPacketLength[port]])));
+			}
+
+			fprintf(stderr, "WARNING: Falling back to first packet, %ld.\n", meta->lastPacket);
+			if (lofar_udp_skip_to_packet(reader) < 0) {
+				fprintf(stderr, "ERROR: Failed to find secondary starting point, exiting.\n");
+				lofar_udp_reader_cleanup(reader);
+				return NULL;
+			}
 		}
 	}
 

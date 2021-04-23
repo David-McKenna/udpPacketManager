@@ -64,6 +64,7 @@ const lofar_udp_io_write_config lofar_udp_io_write_config_default = {
 
 	// Misc options
 	.cparams = NULL, // ZSTD configuration
+	.enableMultilog = 1,
 
 };
 

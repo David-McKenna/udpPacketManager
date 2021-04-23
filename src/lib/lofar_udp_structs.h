@@ -240,7 +240,8 @@ typedef struct lofar_udp_io_write_config {
 		ZSTD_outBuffer compressionBuffer;
 	} zstdWriter[MAX_OUTPUT_DIMS];
 	struct {
-		dada_hdu_t *hdu;
+		ipcio_t *ringbuffer;
+		ipcio_t *header;
 		multilog_t *multilog;
 	} dadaWriter[MAX_OUTPUT_DIMS];
 
@@ -261,6 +262,9 @@ typedef struct lofar_udp_io_write_config {
 
 	// ZSTD requirements
 	ZSTD_CCtx_params *cparams;
+
+	// PSRDADA requirements
+	int enableMultilog;
 
 
 } lofar_udp_io_write_config;
