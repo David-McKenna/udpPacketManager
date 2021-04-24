@@ -237,7 +237,7 @@ reader_t lofar_udp_io_parse_type_optarg(const char optargc[], char *fileFormat, 
  *
  * @return     { description_of_the_return_value }
  */
-int lofar_udp_io_parse_format(char *dest, const char format[], int port, int iter, int outp, long pack) {
+int lofar_udp_io_parse_format(char *dest, const char format[], int port, int iter, int idx, long pack) {
 
 	/*
 	if ((sizeof(dest) / sizeof(dest[0])) < (sizeof(format) / sizeof(format[0]))) {
@@ -288,9 +288,9 @@ int lofar_udp_io_parse_format(char *dest, const char format[], int port, int ite
 			swapCharPtr(&formatCopyDst, &formatCopySrc);
 		}
 
-		if ((startSubStr = strstr(formatCopySrc, "[[outp]]"))) {
+		if ((startSubStr = strstr(formatCopySrc, "[[idx]]"))) {
 			(*startSubStr) = '\0';
-			sprintf(formatCopyDst, "%s%d%s", formatCopySrc, outp, startSubStr + sizeof("[outp]]"));
+			sprintf(formatCopyDst, "%s%d%s", formatCopySrc, outp, startSubStr + sizeof("[idx]]"));
 			swapCharPtr(&formatCopyDst, &formatCopySrc);
 		}
 
@@ -337,7 +337,7 @@ int lofar_udp_io_read_parse_optarg(lofar_udp_config *config, const char optargc[
 		case FIFO:
 		case ZSTDCOMPRESSED:
 			for (int i = 0; i < MAX_NUM_PORTS; i++) {
-				lofar_udp_io_parse_format(config->inputLocations[i], fileFormat, baseVal + i * offsetVal, -1, -1, -1);
+				lofar_udp_io_parse_format(config->inputLocations[i], fileFormat, baseVal + i * offsetVal, -1, i, -1);
 			}
 			break;
 
