@@ -62,7 +62,7 @@ ExternalProject_Add(internal_PSRDADA
                     GIT_TAG ba2b88
                     PREFIX ${CMAKE_CURRENT_BINARY_DIR}/_deps/psrdada
                     BINARY_DIR ${CMAKE_CURRENT_BINARY_DIR}/_deps/psrdada/src/internal_PSRDADA/src/
-                    CONFIGURE_COMMAND cd .. && ./bootstrap && ./configure
+                    CONFIGURE_COMMAND cd .. && ./bootstrap && ./configure --with-cuda-dir=no
                     BUILD_COMMAND "make" "libpsrdada.la"
                     INSTALL_COMMAND ""
                     UPDATE_COMMAND ""
