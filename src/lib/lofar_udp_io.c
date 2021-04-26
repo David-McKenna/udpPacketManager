@@ -290,7 +290,7 @@ int lofar_udp_io_parse_format(char *dest, const char format[], int port, int ite
 
 		if ((startSubStr = strstr(formatCopySrc, "[[idx]]"))) {
 			(*startSubStr) = '\0';
-			sprintf(formatCopyDst, "%s%d%s", formatCopySrc, outp, startSubStr + sizeof("[idx]]"));
+			sprintf(formatCopyDst, "%s%d%s", formatCopySrc, idx, startSubStr + sizeof("[idx]]"));
 			swapCharPtr(&formatCopyDst, &formatCopySrc);
 		}
 
