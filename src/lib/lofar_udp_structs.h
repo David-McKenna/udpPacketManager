@@ -221,6 +221,7 @@ extern const lofar_udp_config lofar_udp_config_default;
 typedef struct lofar_udp_io_write_config {
 	// Writer configuration, these must be set prior to calling write_setup
 	reader_t readerType;
+	lofar_udp_metadata metadata;
 	long writeBufSize[MAX_OUTPUT_DIMS];
 	int appendExisting;
 	int numOutputs;
