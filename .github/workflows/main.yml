@@ -1,0 +1,14 @@
+on: [push]
+
+jobs:
+  build_container:
+    runs-on: ubuntu-latest
+    name: Docker Build & Test
+    steps:
+      # To use this repository's private action,
+      # you must check out the repository
+      - name: Checkout
+        uses: actions/checkout@v2
+      - name: Docker Build Step
+        uses: ./ # Uses an action in the root directory
+        id: Build
