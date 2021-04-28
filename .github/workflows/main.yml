@@ -10,5 +10,4 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v2
       - name: Docker Build Step
-        uses: ./ # Uses an action in the root directory
-        id: build
+        run: docker build . --file src/docker/Dockerfile_github

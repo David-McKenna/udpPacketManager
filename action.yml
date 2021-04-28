@@ -1,7 +1,0 @@
-# action.yml
-name: 'udpPacketManagerDockerBuilld'
-author: 'David McKenna'
-description: 'Build a container containing UPM and run the test suite.'
-runs:
-  using: 'docker'
-  image: './src/docker/dockerfile_github'
