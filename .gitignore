@@ -1,6 +1,7 @@
 # General ignores
 output*
-test*
+test_old/*
+
 
 # Compilation artefacts
 *.pyc
