@@ -54,7 +54,7 @@ int lofar_udp_setup_metadata(lofar_udp_metadata *metadata, metadata_t meta, char
 
 int lofar_udp_metadata_parse_input_file(lofar_udp_metadata *metadata, const char inputFile[]) {
 	char *inputLine = NULL, *strPtr = NULL;
-	FILE *input = fopen(inputFile, 'r');
+	FILE *input = fopen(inputFile, "r");
 	
 	int lineLength;
 	size_t buffLen = 0;
@@ -254,6 +254,8 @@ int lofar_udp_metadata_parse_subbands(lofar_udp_metadata  *metadata, float subba
 			case 5:
 				baseBw = 100.0;
 				break;
+
+			// case 6 -- 160MHz clock.
 
 			case 7:
 				baseBw = 200.0;

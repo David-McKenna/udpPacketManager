@@ -99,6 +99,8 @@ typedef struct sigproc_hdr {
 #define META_STR_LEN 65
 typedef struct lofar_udp_metadata {
 
+	metadata_t type;
+
 	// DADA + DSPSR Defined header values
 	double hdr_version; // Lib
 
@@ -116,6 +118,10 @@ typedef struct lofar_udp_metadata {
 	char dec[META_STR_LEN]; // beamctl
 	double ra_rad; // beamctl
 	double dec_rad; // beamctl
+	char ra_analog[META_STR_LEN]; // beamctl -- HBA
+	char dec_analog[META_STR_LEN]; // beamctl -- HBA
+	double ra_rad_analog; // beamctl -- HBA
+	double dec_rad_analog; // beamctl -- HBA
 	char coord_basis[META_STR_LEN]; // beamctl
 	char obs_id[META_STR_LEN]; // External
 	char utc_start[META_STR_LEN]; // Lib
@@ -128,7 +134,10 @@ typedef struct lofar_udp_metadata {
 
 	double freq; // beamctl
 	double bw; // beamctl
-	int nchan; // beamctl
+	double ftop; // beamctl
+	double fbottom; // beamctl
+	int nchan; // beamctl / Library?
+	int nrcu; // beamctl
 	int npol; // Standard
 	int nbit; // Lib
 	int resolution; // Standard?
@@ -148,6 +157,7 @@ typedef struct lofar_udp_metadata {
 	int upm_calibrated;
 
 	int upm_bitmode;
+	int upm_rcumode;
 	int upm_rawbeamlets;
 	int upm_upperbeam;
 	int upm_lowerbeam;

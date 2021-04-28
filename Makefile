@@ -26,7 +26,7 @@ CASACOREDIR ?= /usr/share/casacore/data/
 
 calibration-prep:
 	# Install the python dependencies \
-	pip3 install lofarantpos python-casacore astropy git+https://github.com/2baOrNot2ba/AntPat.git git+https://github.com/2baOrNot2ba/dreamBeam.git; \
+	python -m pip install lofarantpos python-casacore astropy git+https://github.com/2baOrNot2ba/AntPat.git git+https://github.com/2baOrNot2ba/dreamBeam.git; \
 	# Get the base casacore-data \
 	apt-get install -y --upgrade rsync casacore-data; \
 	# Update the out-of-date components of casacore-data \
@@ -36,7 +36,7 @@ calibration-prep:
 
 
 docker-build:
-	docker build --build-arg BUILD_CORES=$(BUILD_CORES) --build-arg BUILD_COMMIT=$(BUILD_COMMIT) --build-arg ARCH=$(ARCH) -t lofar-upm:$(LIB_VER).$(LIB_VER_MINOR) -f src/docker/Dockerfile .
+	docker build --build-arg BUILD_CORES=$(BUILD_CORES) --build-arg BUILD_COMMIT=$(BUILD_COMMIT) -t lofar-upm:$(LIB_VER).$(LIB_VER_MINOR) -f src/docker/Dockerfile .
 
 
 

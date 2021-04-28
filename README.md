@@ -45,7 +45,7 @@ Requirements
 - CSH, autoconf, libtool for PSRDADA compile
 
 ```shell
-apt-get install git autoconf csh libtool
+apt-get install git autoconf csh libtool wget
 pip install cmake
 ```
 

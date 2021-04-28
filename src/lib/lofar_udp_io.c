@@ -519,7 +519,7 @@ long lofar_udp_io_write(lofar_udp_io_write_config *config, int outp, char *src, 
 
 
 		case DADA_ACTIVE:
-			return lofar_udp_io_write_DADA(config, outp, src, nchars);
+			return lofar_udp_io_write_DADA(config, config->dadaWriter[outp].ringbuffer, outp, src, nchars);
 
 
 		default:
