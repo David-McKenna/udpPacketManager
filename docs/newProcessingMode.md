@@ -1,20 +1,15 @@
 Adding New Processing Modes
 ---------
 
-1. Create the CPP/C bridge `if--else` statements in `lofar_udp_backends.cpp`, the main function is
-   called `int lofar_udp_cpp_loop_interface(lofar_udp_meta *meta)`. You will need to pick both a processing mode int
-   enum (any value greater than 0 and not in use by other modes) and an output data format. -- You will need to add the
-   statement 6 times in total: with / without calibration (of disable calibration as an option) and for the 3 input bit
-   modes, 4, 8 and 16. -- Calibration takes a 1 when enabled, 0 when disabled. -- Input type is always signed char for
-   4-bit and 8-bit inputs, 16-bit takes signed short as the input. -- For copy methods, the output datatype should be
-   the same as the input. Though you can change it, eg to convert to float by using float as the output datatype. Be
-   sure to account for this later on when calculating output sizes. -- The 4-bit processing enum is (almost) always 4000
-   larger than the default enum, to signal to the processing loop that the data packet needs to have the bits upacked
-   before proceeding. If you have a processing mode that just performs a data move, eg memcpy, this change is not
-   needed.
+
+1. Create the CPP/C bridge `if--else` statements in `lofar_udp_backends.cpp`, the main function is called `int lofar_udp_cpp_loop_interface(lofar_udp_meta *meta)`. You will need to pick both a processing mode int enum (any value greater than 0 and not in use by other modes) and an output data format. 
+-- You will need to add the statement 6 times in total: with / without calibration (of disable calibration as an option) and for the 3 input bit modes, 4, 8 and 16.
+-- Calibration takes a 1 when enabled, 0 when disabled.
+-- Input type is always signed char for 4-bit and 8-bit inputs, 16-bit takes signed short as the input.
+-- For copy methods, the output datatype should be the same as the input. Though you can change it, eg to convert to float by using float as the output datatype. Be sure to account for this later on when calculating output sizes.
+-- The 4-bit processing enum is (almost) always 4000 larger than the default enum, to signal to the processing loop that the data packet needs to have the bits upacked before proceeding. If you have a processing mode that just performs a data move, eg memcpy, this change is not needed. 
 
 Here's an example of what mode 30 looks like in the function.
-
 ```
 int lofar_udp_cpp_loop_interface(lofar_udp_meta *meta) {
 	if (calibrateData == 1) {
@@ -96,8 +91,7 @@ int lofar_udp_cpp_loop_interface(lofar_udp_meta *meta) {
 
 ```
 
-3. Create the task kernel in `lofar_udp_backends.hpp`, following the format below. Have a look at the existing kernels
-   and you'll likely be able to find an input/output idx calculation that suits what you are doing.
+3. Create the task kernel in `lofar_udp_backends.hpp`, following the format below. Have a look at the existing kernels and you'll likely be able to find an input/output idx calculation that suits what you are doing.
 
 ```
 template<typename I, typename O>
@@ -200,16 +194,8 @@ else if (trueState == KERNEL_ENUM_VAL) {
 
 ```
 
-5. Go to `lofar_udp_reader.c` and find the `int lofar_udp_setup_processing(lofar_udp_meta *meta)` function. You will
-   need to add your mode to two switch statements here. One is a simple fall-through to check that the mode is defned.
-   For the second, you'll need to determine the input / output data sizes and add your processing mode to the second
-   switch statement. If adding a completely new calculation, be sure to add a `break;` statement afterwards, as the
-   compiler warning is disabled for this switch statement. In the case of a re-rodering operation, you will just need to
-   define the number of output arrays.
+5. Go to `lofar_udp_reader.c` and find the `int lofar_udp_setup_processing(lofar_udp_meta *meta)` function. You will need to add your mode to two switch statements here. One is a simple fall-through to check that the mode is defned. For the second, you'll need to determine the input / output data sizes and add your processing mode to the second switch statement. If adding a completely new calculation, be sure to add a `break;` statement afterwards, as the compiler warning is disabled for this switch statement. In the case of a re-rodering operation, you will just need to define the number of output arrays.
 
 6. Add documentation to `README_CLI.md` and `lofar_cli_meta.c`.
 
-7. Generate hashes for the output mode by adding it to the
-   makefiles' `./tests/obj-generated-$(LIB_VER).$(LIB_VER_MINOR)` target, either in the compressed or uncompressed
-   loop. `make test-make-hashes` will generate an output and add a hash to tests/hashVariables.txt file in the git repo.
-   Ensure no other mode hashes change.
+7. Generate hashes for the output mode by adding it to the makefiles' `./tests/obj-generated-$(LIB_VER).$(LIB_VER_MINOR)` target, either in the compressed or uncompressed loop. `make test-make-hashes` will generate an output and add a hash to tests/hashVariables.txt file in the git repo. Ensure no other mode hashes change.
