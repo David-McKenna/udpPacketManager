@@ -26,13 +26,13 @@ CASACOREDIR ?= /usr/share/casacore/data/
 
 calibration-prep:
 	# Install the python dependencies \
-	python3 -m pip install lofarantpos python-casacore astropy git+https://github.com/2baOrNot2ba/AntPat.git git+https://github.com/2baOrNot2ba/dreamBeam.git; \
+	python3 -m pip install lofarantpos python-casacore astropy git+https://github.com/2baOrNot2ba/AntPat.git git+https://github.com/2baOrNot2ba/dreamBeam.git > /dev/null; \
 	# Get the base casacore-data \
-	apt-get install -y --upgrade rsync casacore-data; \
+	apt-get install -y --upgrade rsync casacore-data > /dev/null; \
 	# Update the out-of-date components of casacore-data \
-	rsync -avz rsync://casa-rsync.nrao.edu/casa-data/ephemerides rsync://casa-rsync.nrao.edu/casa-data/geodetic $(CASACOREDIR); \
-	wget ftp://ftp.astron.nl/outgoing/Measures/WSRT_Measures.ztar -O $(CASACOREDIR)WSRT_Measures.ztar; \
-	tar -xzvf $(CASACOREDIR)WSRT_Measures.ztar -C /usr/share/casacore/data/; \
+	rsync -avz rsync://casa-rsync.nrao.edu/casa-data/ephemerides rsync://casa-rsync.nrao.edu/casa-data/geodetic $(CASACOREDIR) > /dev/null; \
+	wget ftp://ftp.astron.nl/outgoing/Measures/WSRT_Measures.ztar -O $(CASACOREDIR)WSRT_Measures.ztar > /dev/null; \
+	tar -xzvf $(CASACOREDIR)WSRT_Measures.ztar -C /usr/share/casacore/data/ > /dev/null; \
 
 
 docker-build:
