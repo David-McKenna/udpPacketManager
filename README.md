@@ -7,13 +7,13 @@ stations. It is used at the Irish LOFAR station (I-LOFAR) in conjunction with Ol
 software, but in principle can be used with any packet capture that keeps the last 16 bytes of the UDP header attached
 to CEP packets.
 
-
 This library allows for the entire or partial extraction and processing of LOFAR CEP packet streams, re-aligning data to
 account for packet loss or misalignment on the first packet, to produce one of several data products, ranging from raw
 voltages (reordered or not) to a full Stokes vector output.
 
-A guide on how to integrate the software in your project is provided in the [**README_INTEGRATION.md**](docs/README_INTEGRATION.md) file, 
-and example implementations can be found in the provided [**lofar_cli_extractor.c**](src/CLI/lofar_cli_extractor.c) and my fork of Cees Bassa's coherent dedispersion GPU
+A guide on how to integrate the software in your project is provided in the [**
+README_INTEGRATION.md**](docs/README_INTEGRATION.md) file, and example implementations can be found in the provided [**
+lofar_cli_extractor.c**](src/CLI/lofar_cli_extractor.c) and my fork of Cees Bassa's coherent dedispersion GPU
 software [CDMT](https://github.com/David-McKenna/cdmt).
 
 Caveats & TODOs
@@ -29,20 +29,21 @@ Future work should not break the exiting load/process/output loop, and may consi
 
 - Creating a wrapper python library to allow for easer interfacing within python scripts rather than requiring a C
   program (pybind11?)
-
+- Support more decompression algorithms (arbitrary reader input struct?)
 
 Requirements
 ------------
 
 ### Building / Using the Library
+
 - A modern C and C++ compiler with OpenMP 4.5 and C++17 support (gcc/g++-10 used for development, icc/icpc-2021.01 used
   in production)
-- A modern CMake version (>3.14, can be installed with pip)
+- [Zstandard](https://github.com/facebook/zstd) library/development headers (ver > 1.3, libzstd-dev on Ubuntu 18.04+,
+  libzstd1-dev on Ubuntu 16.04, may require the restricted tool chain PPA)
+- (Optional) [PSRDADA](http://psrdada.sourceforge.net/) for ring-buffer support, can be disabled at compile time by
+  setting `NODADA=1` in your environment.
 - CSH, autoconf, libtool for PSRDADA compile
 
-The library will build fixed version of [Zstandard](https://github.com/facebook/zstd) and [PSRDADA](http://psrdada.sourceforge.net/) which have been tested and found to work. Furuther/past versions can be forced by modifying the [**CMakeLists.txt**](./CMakeLists.txt) file.
-
-To automatically install the dependencies on Debian-based systems, the following commands should suffice.
 ```shell
 apt-get install git autoconf csh libtool wget
 pip install cmake
@@ -64,7 +65,6 @@ v0.6 ICC icc version 2021.1 Beta (gcc version 7.5.0 compatibility):
 dreamBeam:	Total Read Time:	290.89		Total CPU Ops Time:	66.14	Total Write Time:	0.01
 No dreamBeam:	Total Read Time:	285.35		Total CPU Ops Time:	49.42	Total Write Time:	0.01
 ```
-
 
 Performance can be improved in the GCC path by modifying the default THREADS variable to be between 8 and the number of
 raw cores (not including hyper-threads) per CPU installed in your machine, though including too many threads causes
@@ -93,16 +93,16 @@ nvcc (alt): -ccbin=icpc
 
 ### Building / Using the Example CLI
 
+As well as the requirements for building the library, the CLI (optionally) depends on
+
+- An install of [mockHeader](https://github.com/David-McKenna/mockHeader) to
+  attach [SigProc](https://github.com/SixByNine/sigproc) headers to output files -- This can be downloaded and compiled
+  automatically with the `make mockHeader` target
+
 Installing
 ----------
-Once the pre-requisites are met, running the following set of commands will build and install the library.
-
-```shell
-mkdir build; cd build
-cmake ..
-cmake --build . -- -j8
-cmake --install . -- -j8
-```
+Once the pre-requisites are met, a simple `make all` should suffice to build the library, while `make install`
+and `make install-local` will copy the CLI and headers to the /usr/local or \~/.local/ folders.
 
 ### Calibration Installation Notes
 
