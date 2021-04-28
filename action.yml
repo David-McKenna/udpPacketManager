@@ -1,5 +1,5 @@
 # action.yml
-name: 'udpPacketManager Build & Test'
+name: 'udpPacketManagerDockerBuilld'
 author: 'David McKenna'
 description: 'Build a container containing UPM and run the test suite.'
 runs:
