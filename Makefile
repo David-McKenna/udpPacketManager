@@ -26,7 +26,7 @@ CASACOREDIR ?= /usr/share/casacore/data/
 
 calibration-prep:
 	# Install the python dependencies \
-	python -m pip install lofarantpos python-casacore astropy git+https://github.com/2baOrNot2ba/AntPat.git git+https://github.com/2baOrNot2ba/dreamBeam.git; \
+	python3 -m pip install lofarantpos python-casacore astropy git+https://github.com/2baOrNot2ba/AntPat.git git+https://github.com/2baOrNot2ba/dreamBeam.git; \
 	# Get the base casacore-data \
 	apt-get install -y --upgrade rsync casacore-data; \
 	# Update the out-of-date components of casacore-data \
