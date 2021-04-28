@@ -25,7 +25,7 @@ WORKDIR $SOFT/udpPacketManager
 RUN echo "Building udpPacketManager" && \
 	\
 	apt-get update && \
-	apt-get install -y git autoconf csh libtool wget && python -m pip install cmake && \
+	apt-get install -y git autoconf csh libtool wget && python3 -m pip install cmake && \
 	find ./src && \
 	make calibration-prep && \
 	mkdir build && cd build && cmake .. && cmake --build . -- -j $BUILD_CORES && cmake --install . && \
