@@ -6,6 +6,7 @@ set(default_build_type "Release")
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_C_STANDARD 11)
+set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
 if(CMAKE_BUILD_TYPE STREQUAL Debug)
 	set(CMAKE_VERBOSE_MAKEFILE ON)
@@ -31,12 +32,15 @@ set(CMAKE_LINKER_FLAGS_DEBUG "${CMAKE_LINKER_FLAGS_DEBUG} -fno-omit-frame-pointe
 
 message("Configuring OpenMP...")
 find_package(OpenMP REQUIRED)
-if(OpenMP_C_LIB_NAMES MATCHES ".*(iomp).*")
+find_library(IOMP_LIB iomp5 HINTS /opt/intel/oneapi/compiler/latest/linux/compiler/lib/)
+
+if(OpenMP_C_LIB_NAMES MATCHES ".*(iomp).*" OR IOMP_LIB)
 	message ("Intel OpenMP Detected.")
 	# Determine the optimal number of threads for this machine (when using Intel OpenMP Libraries)
 	execute_process(COMMAND bash -c "cat /proc/cpuinfo | uniq | grep -m 2 \"siblings\" | cut -d \":\" -f 2 | sort --numeric --unique | xargs echo"
 			OUTPUT_VARIABLE OMP_THREADS
 	)
+
 else()
 	message(WARNING "Other OpenMP implementation Detected (performance may be degraded, we highly recommend using the Intel OpenMP libraries)")
 	set(OMP_THREADS 8)
@@ -99,6 +103,7 @@ add_library(lofudpman STATIC
             src/lib/metadata/ascii_hdr_manager.c
             src/lib/metadata/sigproc_hdr_manager.c src/lib/metadata_structs.h src/lib/metadata/metadata_structs.c
             src/lib/metadata/dada_hdr_manager.c)
+
 add_dependencies(lofudpman libzstd_static psrdada)
 # Include all of our headers
 target_include_directories(lofudpman PUBLIC
@@ -116,12 +121,13 @@ set(CMAKE_CXX_IMPLICIT_LINK_LIBRARIES "")
 set(CMAKE_CXX_IMPLICIT_LINK_DIRECTORIES "")
 set_property(TARGET lofudpman PROPERTY LINKER_LANGUAGE C)
 set_property(TARGET lofudpman PROPERTY LINK_WHAT_YOU_USE ON)
-set_property(TARGET lofudpman PROPERTY POSITION_INDEPENDENT_CODE ON)
 #set_property(TARGET lofudpman PROPERTY INTERPROCEDURAL_OPTIMIZATION ON) # Static + IPO -> build failures?
 
 # Link OpenMP
-if(OpenMP_CXX_FOUND)
+if((OpenMP_C_LIB_NAMES MATCHES ".*(iomp).*" OR OPENMP_CXX_FOUND) AND NOT IOMP_LIB)
 	target_link_libraries(lofudpman PUBLIC OpenMP::OpenMP_CXX OpenMP::OpenMP_C)
+elseif(IOMP_LIB)
+	target_link_libraries(lofudpman PUBLIC ${IOMP_LIB})
 else()
 	message(FATAL_ERROR "ERROR: OpenMP Not found.")
 endif()

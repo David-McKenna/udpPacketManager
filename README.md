@@ -35,15 +35,14 @@ Requirements
 ------------
 
 ### Building / Using the Library
-
 - A modern C and C++ compiler with OpenMP 4.5 and C++17 support (gcc/g++-10 used for development, icc/icpc-2021.01 used
   in production)
-- [Zstandard](https://github.com/facebook/zstd) library/development headers (ver > 1.3, libzstd-dev on Ubuntu 18.04+,
-  libzstd1-dev on Ubuntu 16.04, may require the restricted tool chain PPA)
-- (Optional) [PSRDADA](http://psrdada.sourceforge.net/) for ring-buffer support, can be disabled at compile time by
-  setting `NODADA=1` in your environment.
+- A modern CMake version (>3.14, can be installed with pip)
 - CSH, autoconf, libtool for PSRDADA compile
 
+The library will build fixed version of [Zstandard](https://github.com/facebook/zstd) and [PSRDADA](http://psrdada.sourceforge.net/) which have been tested and found to work. Furuther/past versions can be forced by modifying the [**CMakeLists.txt**](./CMakeLists.txt) file.
+
+To automatically install the dependencies on Debian-based systems, the following commands should suffice.
 ```shell
 apt-get install git autoconf csh libtool wget
 pip install cmake
@@ -70,10 +69,8 @@ Performance can be improved in the GCC path by modifying the default THREADS var
 raw cores (not including hyper-threads) per CPU installed in your machine, though including too many threads causes
 performance degradation extremely quickly. The number of threads can be set at run time as well.
 
-Installing ICC is now free using
-the [Intel oneAPI repositories](https://software.intel.com/content/www/us/en/develop/articles/installing-intel-oneapi-toolkits-via-apt.html)
-, or you can just install the IOMP library (`intel-oneapi-openmp intel-oneapi-runtime-openmp`) and use GCC if you
-include `IOMP=1` as a enviroment or Makefile input flag.
+The Intel OpenMP library is most easily downloaded by using a modern version of Clang, installing ICC (is now free using the [Intel oneAPI repositories](https://software.intel.com/content/www/us/en/develop/articles/installing-intel-oneapi-toolkits-via-apt.html))
+, or just installing the specific IOMP library via oneAPI (`intel-oneapi-openmp intel-oneapi-runtime-openmp`).
 
 #### Using ICC built objects with GCC/NVCC
 
@@ -93,16 +90,16 @@ nvcc (alt): -ccbin=icpc
 
 ### Building / Using the Example CLI
 
-As well as the requirements for building the library, the CLI (optionally) depends on
-
-- An install of [mockHeader](https://github.com/David-McKenna/mockHeader) to
-  attach [SigProc](https://github.com/SixByNine/sigproc) headers to output files -- This can be downloaded and compiled
-  automatically with the `make mockHeader` target
-
 Installing
 ----------
-Once the pre-requisites are met, a simple `make all` should suffice to build the library, while `make install`
-and `make install-local` will copy the CLI and headers to the /usr/local or \~/.local/ folders.
+Once the pre-requisites are met, running the following set of commands will build and install the library.
+
+```shell
+mkdir build; cd build
+cmake ..
+cmake --build . -- -j8
+cmake --install . -- -j8
+```
 
 ### Calibration Installation Notes
 

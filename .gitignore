@@ -1,7 +1,7 @@
 # General ignores
 output*
 test_old/*
-
+build/*
 
 # Compilation artefacts
 *.pyc
@@ -12,7 +12,7 @@ lofar_udp_extractor
 lofar_udp_guppi_raw
 cmake-*
 .idea/*
-build/*
+build*/*
 
 # Templated files
 src/lib/lofar_udp_general.h

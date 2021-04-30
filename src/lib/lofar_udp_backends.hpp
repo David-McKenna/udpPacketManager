@@ -216,7 +216,7 @@ udp_copySplitPols(long iLoop, char *inputPortData, O **outputData, long lastInpu
 			UNUSED(beamletJones); UNUSED(jonesMatrix); UNUSED(Xr); UNUSED(Xi); UNUSED(Yr); UNUSED(Yi);
 		}
 
-		#pragma omp simd
+		#pragma omp simd nontemporal
 		for (int ts = 0; ts < UDPNTIMESLICE; ts++) {
 			long tsInOffset = tsInOffsetBase + ts * (4 * timeStepSize);
 			long tsOutOffset = tsOutOffsetBase + ts;
@@ -261,7 +261,7 @@ udp_channelMajor(long iLoop, char *inputPortData, O **outputData, long lastInput
 			UNUSED(beamletJones); UNUSED(jonesMatrix); UNUSED(Xr); UNUSED(Xi); UNUSED(Yr); UNUSED(Yi);
 		}
 
-		#pragma omp simd
+		#pragma omp simd nontemporal
 		for (int ts = 0; ts < UDPNTIMESLICE; ts++) {
 			long tsInOffset = tsInOffsetBase + ts * (4 * timeStepSize);
 			long tsOutOffset = tsOutOffsetBase + ts * (totalBeamlets * UDPNPOL);
@@ -304,7 +304,7 @@ void inline udp_channelMajorSplitPols(long iLoop, char *inputPortData, O **outpu
 			UNUSED(beamletJones); UNUSED(jonesMatrix); UNUSED(Xr); UNUSED(Xi); UNUSED(Yr); UNUSED(Yi);
 		}
 
-		#pragma omp simd
+		#pragma omp simd nontemporal
 		for (int ts = 0; ts < UDPNTIMESLICE; ts++) {
 			long tsInOffset = tsInOffsetBase + ts * (4 * timeStepSize);
 			long tsOutOffset = tsOutOffsetBase + ts * totalBeamlets;
@@ -348,7 +348,7 @@ void inline udp_reversedChannelMajor(long iLoop, char *inputPortData, O **output
 			UNUSED(beamletJones); UNUSED(jonesMatrix); UNUSED(Xr); UNUSED(Xi); UNUSED(Yr); UNUSED(Yi);
 		}
 
-		#pragma omp simd
+		#pragma omp simd nontemporal
 		for (int ts = 0; ts < UDPNTIMESLICE; ts++) {
 			long tsInOffset = tsInOffsetBase + ts * (4 * timeStepSize);
 			long tsOutOffset = tsOutOffsetBase + ts * (totalBeamlets * UDPNPOL);
@@ -393,7 +393,7 @@ udp_reversedChannelMajorSplitPols(long iLoop, char *inputPortData, O **outputDat
 			UNUSED(beamletJones); UNUSED(jonesMatrix); UNUSED(Xr); UNUSED(Xi); UNUSED(Yr); UNUSED(Yi);
 		}
 
-		#pragma omp simd
+		#pragma omp simd nontemporal
 		for (int ts = 0; ts < UDPNTIMESLICE; ts++) {
 			long tsInOffset = tsInOffsetBase + ts * (4 * timeStepSize);
 			long tsOutOffset = tsOutOffsetBase + ts * totalBeamlets;
@@ -437,7 +437,7 @@ void inline udp_timeMajor(long iLoop, char *inputPortData, O **outputData, long 
 			UNUSED(beamletJones); UNUSED(jonesMatrix); UNUSED(Xr); UNUSED(Xi); UNUSED(Yr); UNUSED(Yi);
 		}
 
-		#pragma omp simd
+		#pragma omp simd nontemporal
 		for (int ts = 0; ts < UDPNTIMESLICE; ts++) {
 			long tsInOffset = tsInOffsetBase + ts * (4 * timeStepSize);
 			long tsOutOffset = tsOutOffsetBase + ts * 4;
@@ -481,7 +481,7 @@ udp_timeMajorSplitPols(long iLoop, char *inputPortData, O **outputData, long las
 			UNUSED(beamletJones); UNUSED(jonesMatrix); UNUSED(Xr); UNUSED(Xi); UNUSED(Yr); UNUSED(Yi);
 		}
 
-		#pragma omp simd
+		#pragma omp simd nontemporal
 		for (int ts = 0; ts < UDPNTIMESLICE; ts++) {
 			long tsInOffset = tsInOffsetBase + ts * (4 * timeStepSize);
 			long tsOutOffset = tsOutOffsetBase + ts;
@@ -527,7 +527,7 @@ udp_timeMajorDualPols(long iLoop, char *inputPortData, O **outputData, long last
 			UNUSED(beamletJones); UNUSED(jonesMatrix); UNUSED(Xr); UNUSED(Xi); UNUSED(Yr); UNUSED(Yi);
 		}
 
-		#pragma omp simd
+		#pragma omp simd nontemporal
 		for (int ts = 0; ts < UDPNTIMESLICE; ts++) {
 			long tsInOffset = tsInOffsetBase + ts * (4 * timeStepSize);
 			long tsOutOffset = tsOutOffsetBase + ts * 2;
@@ -590,7 +590,7 @@ udp_stokes(long iLoop, char *inputPortData, O **outputData, long lastInputPacket
 			UNUSED(beamletJones); UNUSED(jonesMatrix); UNUSED(Xr); UNUSED(Xi); UNUSED(Yr); UNUSED(Yi);
 		}
 
-		#pragma omp simd
+		#pragma omp simd nontemporal
 		for (int ts = 0; ts < UDPNTIMESLICE; ts++) {
 			long tsInOffset = tsInOffsetBase + ts * (4 * timeStepSize);
 			long tsOutOffset;
@@ -661,7 +661,7 @@ void inline udp_stokesDecimation(long iLoop, char *inputPortData, O **outputData
 
 		long tsOutOffset = tsOutOffsetBase;
 
-		#pragma omp simd
+		#pragma omp simd nontemporal(outputData)
 		for (int ts = 0; ts < UDPNTIMESLICE; ts++) {
 			long tsInOffset = tsInOffsetBase + ts * (4 * timeStepSize);
 
@@ -729,7 +729,7 @@ udp_fullStokes(long iLoop, char *inputPortData, O **outputData, long lastInputPa
 			UNUSED(beamletJones); UNUSED(jonesMatrix); UNUSED(Xr); UNUSED(Xi); UNUSED(Yr); UNUSED(Yi);
 		}
 
-		#pragma omp simd
+		#pragma omp simd nontemporal
 		for (int ts = 0; ts < UDPNTIMESLICE; ts++) {
 			long tsInOffset = tsInOffsetBase + ts * (4 * timeStepSize);
 			long tsOutOffset;
@@ -821,7 +821,7 @@ void inline udp_fullStokesDecimation(long iLoop, char *inputPortData, O **output
 
 		long tsOutOffset = tsOutOffsetBase;
 
-		#pragma omp simd
+		#pragma omp simd nontemporal(outputData)
 		for (int ts = 0; ts < UDPNTIMESLICE; ts++) {
 			long tsInOffset = tsInOffsetBase + ts * (UDPNPOL * timeStepSize);
 
@@ -860,7 +860,7 @@ void inline udp_fullStokesDecimation(long iLoop, char *inputPortData, O **output
 
 		tsOutOffset = tsOutOffsetBase;
 
-		#pragma omp simd
+		#pragma omp simd nontemporal(outputData)
 		for (int ts = 0; ts < UDPNTIMESLICE; ts++) {
 			long tsInOffset = tsInOffsetBase + ts * (UDPNPOL * timeStepSize);
 
@@ -940,7 +940,7 @@ udp_usefulStokes(long iLoop, char *inputPortData, O **outputData, long lastInput
 			UNUSED(beamletJones); UNUSED(jonesMatrix); UNUSED(Xr); UNUSED(Xi); UNUSED(Yr); UNUSED(Yi);
 		}
 
-		#pragma omp simd
+		#pragma omp simd nontemporal
 		for (int ts = 0; ts < UDPNTIMESLICE; ts++) {
 			long tsInOffset = tsInOffsetBase + ts * (UDPNPOL * timeStepSize);
 			long tsOutOffset;
@@ -1017,7 +1017,7 @@ void inline udp_usefulStokesDecimation(long iLoop, char *inputPortData, O **outp
 		tempValI = (float) 0.0;
 		tempValV = (float) 0.0;
 
-		#pragma omp simd
+		#pragma omp simd nontemporal(outputData)
 		for (int ts = 0; ts < UDPNTIMESLICE; ts++) {
 			long tsInOffset = tsInOffsetBase + ts * (UDPNPOL * timeStepSize);
 

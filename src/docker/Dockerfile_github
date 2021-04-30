@@ -25,11 +25,12 @@ WORKDIR $SOFT/udpPacketManager
 RUN echo "Building udpPacketManager" && \
 	\
 	apt-get update > /dev/null && \
-	apt-get install -y autoconf csh g++-10 gcc-10 git python3 python3-pip libtool wget > /dev/null && \
+	apt-get install -y autoconf csh g++-10 gcc-10 clang git python3 python3-pip libtool wget > /dev/null && \
 	python3 -m pip install cmake > /dev/null && \
 	find ./src && \
-	make calibration-prep && \
-	mkdir build && cd build && cmake .. && cmake --build . -- -j $BUILD_CORES && cmake --install . && \
+	mkdir build && cd build && cmake .. && cmake --build . -- -j $BUILD_CORES && \
+	cd .. && rm -rf ./build/ && \
+	mkdir build && cd build && CC=clang CXX=clang++ cmake .. && CC=clang CXX=clang++ cmake --build . -- -j $BUILD_CORES && \
 	rm -rf /var/lib/apt/lists/*
 
 WORKDIR /home/user
