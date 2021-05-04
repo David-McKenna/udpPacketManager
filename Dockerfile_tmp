@@ -27,9 +27,9 @@ RUN echo "Building udpPacketManager" && \
 	apt-get update && \
 	apt-get install -y autoconf csh curl fftw3-dev git locate libtool wget libzstd-dev && \
 	updatedb && ldconfig && \
-	python3 -m pip install git+https://github.com/David-McKenna/sigpyproc3.git@medianDownsample && \
-	curl https://gist.githubusercontent.com/David-McKenna/0200de78fb4d8f99957e87a3b5654e19/raw/e77c68b5800adf04d9f497c9dc1229726adc1ce5/sigproc_downsample.py -o /usr/local/bin/sigproc_downsample.py && \
-	chmod ugo+x /usr/local/bin/sigproc_downsample.py && \
+	python3 -m pip install --force git+https://github.com/David-McKenna/sigpyproc3.git@medianDownsample && \
+	curl https://gist.githubusercontent.com/David-McKenna/0200de78fb4d8f99957e87a3b5654e19/raw/e411b06ba23f77f61bf8d58f49e95798e96232f6/sigproc_downsample.py -o /usr/local/bin/sigproc_downsample.py && \
+	chmod +x /usr/local/bin/sigproc_downsample.py && \
 	CC=icc CXX=icpc make mockHeader all install -j8 > /dev/null && \
 	rm -rf /var/lib/apt/lists/*
 
