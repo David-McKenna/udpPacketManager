@@ -58,8 +58,8 @@ FetchContent_Declare(zstd
                      GIT_TAG v1.4.9
                      )
 FetchContent_MakeAvailable(zstd)
-// MakeAvailable doesn't allow for libzstd_static to be used as a target
-// Related? https://github.com/facebook/zstd/issues/2377
+# MakeAvailable doesn't allow for libzstd_static to be used as a target
+# Related? https://github.com/facebook/zstd/issues/2377
 add_subdirectory(${zstd_SOURCE_DIR}/build/cmake/ ${zstd_BINARY_DIR} EXCLUDE_FROM_ALL)
 include_directories(${zstd_SOURCE_DIR}/lib/)
 
