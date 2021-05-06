@@ -3,7 +3,7 @@
 #include <unistd.h>
 
 // XOPEN -> strptime requirement
-#define __USE_XOPEN
+#define __USE_XOPEN 1
 #include <time.h>
 
 #include "lofar_udp_reader.h"
