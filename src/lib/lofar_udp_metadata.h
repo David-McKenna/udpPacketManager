@@ -47,7 +47,7 @@ int lofar_udp_metadata_write_SIGPROC(char *headerBuffer, size_t headerLength, si
 
 // Internal functions
 int lofar_udp_metadata_parse_input_file(lofar_udp_metadata *metadata, const char inputFile[]);
-int lofar_udp_metadata_parse_reader(lofar_udp_metadata *metadata, lofar_udp_reader *reader);
+int lofar_udp_metadata_parse_reader(lofar_udp_metadata *metadata, lofar_udp_reader *reader, const int *beamctlData);
 int lofar_udp_metadata_parse_subbands(lofar_udp_metadata *metadata, const char *inputLine, int *results);
 int lofar_udp_metadata_parse_pointing(lofar_udp_metadata *metadata, const char inputStr[], int digi);
 int lofar_udp_metadata_parse_rcumode(lofar_udp_metadata *metadata, char *inputStr, int *beamctlData);

@@ -20,7 +20,7 @@ project(udpPacketManager 	VERSION 0.7.0
 
 set(UPM_CLI_VERSION 0.6)
 
-message("Building udpPacketManager Version ${PROJECT_VERSION}")
+message("Building udpPacketManager Version ${PROJECT_VERSION}\n\n")
 
 set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -W -Wall -DALLOW_VERBOSE -g")
 set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -W -Wall -DALLOW_VERBOSE -g")
@@ -45,17 +45,24 @@ else()
 	message(WARNING "Other OpenMP implementation Detected (performance may be degraded, we highly recommend using the Intel OpenMP libraries)")
 	set(OMP_THREADS 8)
 endif()
+message("")
 
 # Find the zstandard libraries on the system
 message("Configuring Zstandard")
 include(FetchContent)
+
+set(ZSTD_BUILD_STATIC ON CACHE INTERNAL "")
+set(ZSTD_BUILD_SHARED OFF CACHE INTERNAL "")
 FetchContent_Declare(zstd
                      GIT_REPOSITORY https://github.com/facebook/zstd.git
                      GIT_TAG v1.4.9
                      )
 FetchContent_MakeAvailable(zstd)
-#add_subdirectory(${zstd_SOURCE_DIR}/build/cmake/ ${zstd_BINARY_DIR} EXCLUDE_FROM_ALL)
+// MakeAvailable doesn't allow for libzstd_static to be used as a target
+// Related? https://github.com/facebook/zstd/issues/2377
+add_subdirectory(${zstd_SOURCE_DIR}/build/cmake/ ${zstd_BINARY_DIR} EXCLUDE_FROM_ALL)
 include_directories(${zstd_SOURCE_DIR}/lib/)
+
 message("")
 
 message ("Configuring PSRDADA")
@@ -116,7 +123,7 @@ target_link_libraries(lofudpman INTERFACE libzstd_static)
 # Set a few extra compiler options
 set(CMAKE_CXX_IMPLICIT_LINK_LIBRARIES "")
 set(CMAKE_CXX_IMPLICIT_LINK_DIRECTORIES "")
-set_property(TARGET lofudpman PROPERTY LINKER_LANGUAGE C)
+set_property(TARGET lofudpman PROPERTY LINKER_LANGUAGE CXX)
 set_property(TARGET lofudpman PROPERTY LINK_WHAT_YOU_USE ON)
 #set_property(TARGET lofudpman PROPERTY INTERPROCEDURAL_OPTIMIZATION ON) # Static + IPO -> build failures?
 
