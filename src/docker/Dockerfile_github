@@ -31,7 +31,7 @@ RUN echo "Building udpPacketManager" && \
 	find ./src && \
 	mkdir build && cd build && cmake .. && cmake --build . -- -j $BUILD_CORES && \
 	cd .. && rm -rf ./build/ && \
-	mkdir build && cd build && CC=clang CXX=clang++ cmake .. && CC=clang CXX=clang++ cmake --build . -- -j $BUILD_CORES && \
+	mkdir build && cd build && CC=clang-11 CXX=clang++-11 cmake .. && CC=clang CXX=clang++ cmake --build . -- -j $BUILD_CORES && \
 	rm -rf /var/lib/apt/lists/*
 
 WORKDIR /home/user
