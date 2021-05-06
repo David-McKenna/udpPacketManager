@@ -98,18 +98,18 @@ int lofar_udp_metadata_parse_input_file(lofar_udp_metadata *metadata, const char
 
 __attribute_deprecated__ lofar_udp_metadata_parse_reader(lofar_udp_metadata *metadata, lofar_udp_reader *reader) {
 
-	int baseBeamlet = reader->input->offsetVal;
-	// Parse the combined beamctl data to determine the frequency information
-	double channelBw = ((double) metadata->upm_rcuclock) / 1024;
-	int minSubband = beamctlData[1];
-	double meanSubband = (double) beamctlData[2] / (double) metadata->nchan;
-	int maxSubband = beamctlData[3];
+	// int baseBeamlet = reader->input->offsetVal;
+	// // Parse the combined beamctl data to determine the frequency information
+	// double channelBw = ((double) metadata->upm_rcuclock) / 1024;
+	// int minSubband = beamctlData[1];
+	// double meanSubband = (double) beamctlData[2] / (double) metadata->nchan;
+	// int maxSubband = beamctlData[3];
 
-	// Offset frequency by half a subband to get central frequencies rather than base frequencies
-	metadata->fbottom = channelBw * (0.5 + minSubband);
-	metadata->freq = channelBw * (0.5 + meanSubband);
-	metadata->ftop = channelBw * (0.5 + maxSubband);
-	metadata->bw += metadata->nchan * channelBw;
+	// // Offset frequency by half a subband to get central frequencies rather than base frequencies
+	// metadata->fbottom = channelBw * (0.5 + minSubband);
+	// metadata->freq = channelBw * (0.5 + meanSubband);
+	// metadata->ftop = channelBw * (0.5 + maxSubband);
+	// metadata->bw += metadata->nchan * channelBw;
 
 	return 0;
 }
