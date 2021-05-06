@@ -54,7 +54,7 @@ FetchContent_Declare(zstd
                      GIT_TAG v1.4.9
                      )
 FetchContent_MakeAvailable(zstd)
-add_subdirectory(${zstd_SOURCE_DIR} ${zstd_BINARY_DIR} EXCLUDE_FROM_ALL)
+add_subdirectory(${zstd_SOURCE_DIR}/build/cmake/ ${zstd_BINARY_DIR} EXCLUDE_FROM_ALL)
 include_directories(${zstd_SOURCE_DIR}/lib/)
 message("")
 
