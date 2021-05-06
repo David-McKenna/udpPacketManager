@@ -1,8 +1,7 @@
 #ifndef LOFAR_UDP_STRUCTS_H
 #define LOFAR_UDP_STRUCTS_H
 
-#include "lofar_udp_general.h"
-#include "metadata_structs.h"
+#include "lofar_udp_structs_metadata.h"
 
 // Input includes
 // Unlock advanced ZSTD features
@@ -15,20 +14,13 @@
 #ifndef DADA_INCLUDES
 #define DADA_INCLUDES
 
-#ifndef NODADA
-
 #include <dada_hdu.h>
 #include <ipcio.h>
 
 // Expand DADA header default since we'll likely store the beamctl command in the output header
 #define DADA_DEFAULT_HEADER_SIZE 16384
-#else
-typedef struct dada_hdu_t dada_hdu_t;
-typedef struct multilog_t multilog_t;
-typedef struct icpio_t ipcio_t;
-#endif
 
-#endif
+#endif // End of DADA_INCLUDES
 
 typedef struct lofar_udp_calibration {
 	// The current calibration step we are on and the amount that have been generated
@@ -174,7 +166,10 @@ typedef struct lofar_udp_config {
 	// Points to input files, compressed or uncompressed
 	char inputLocations[MAX_NUM_PORTS][DEF_STR_LEN];
 
-	// Number of ports of raw data being provided in inputFiles
+	// Number of valid ports of raw data being provided in inputFiles
+	// Base port and offsetPort can be set by using the io_parse_read function
+	int basePort;
+	int offsetPort;
 	int numPorts;
 
 	// Configure whether to path with 0's (0) or replay last packet (1) when we
@@ -231,7 +226,7 @@ typedef struct lofar_udp_io_write_config {
 	char outputLocations[MAX_OUTPUT_DIMS][DEF_STR_LEN];
 	int outputDadaKeys[MAX_OUTPUT_DIMS];
 	int baseVal;
-	int offsetVal;
+	int stepSize;
 	long firstPacket;
 
 	// Main writer objects
@@ -271,4 +266,4 @@ typedef struct lofar_udp_io_write_config {
 } lofar_udp_io_write_config;
 extern const lofar_udp_io_write_config lofar_udp_io_write_config_default;
 
-#endif
+#endif // End of LOFAR_UDP_STRUCTS_H

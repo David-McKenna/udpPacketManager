@@ -102,11 +102,6 @@ int main(int argc, char *argv[]) {
 		switch (inputOpt) {
 
 			case 'i':
-				if (lofar_udp_io_read_parse_optarg(config, optarg) < 0) {
-					helpMessages();
-					CLICleanup(eventCount, dateStr, startingPackets, multiMaxPackets, eventSeconds, config, outConfig);
-					return 1;
-				}
 				strcpy(inputFormat, optarg);
 				inputProvided = 1;
 				break;
@@ -239,6 +234,19 @@ int main(int argc, char *argv[]) {
 		return 1;
 	}
 
+	if (!inputProvided) {
+		fprintf(stderr, "ERROR: An input was not provided, exiting.\n");
+		helpMessages();
+		CLICleanup(eventCount, dateStr, startingPackets, multiMaxPackets, eventSeconds, config, outConfig);
+		return 1;
+	}
+
+	if (lofar_udp_io_read_parse_optarg(config, inputFormat) < 0) {
+		helpMessages();
+		CLICleanup(eventCount, dateStr, startingPackets, multiMaxPackets, eventSeconds, config, outConfig);
+		return 1;
+	}
+
 	// DADA outputs should not be fragments, or require writing to disk (mockHeader deleted files and rewrites...)
 	if (config->readerType == DADA_ACTIVE && strcmp(eventsFile, "") != 0) {
 		fprintf(stderr, "ERROR: DADA output does not support events parsing, exiting.\n");
@@ -247,13 +255,6 @@ int main(int argc, char *argv[]) {
 	}
 	if (outConfig->readerType == DADA_ACTIVE && callMockHdr) {
 		fprintf(stderr, "ERROR: DADA output does not support attaching a sigproc header, exiting.\n");
-		CLICleanup(eventCount, dateStr, startingPackets, multiMaxPackets, eventSeconds, config, outConfig);
-		return 1;
-	}
-
-	if (!inputProvided) {
-		fprintf(stderr, "ERROR: An input was not provided, exiting.\n");
-		helpMessages();
 		CLICleanup(eventCount, dateStr, startingPackets, multiMaxPackets, eventSeconds, config, outConfig);
 		return 1;
 	}

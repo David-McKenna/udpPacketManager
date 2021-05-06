@@ -336,7 +336,7 @@ int lofar_udp_io_write_setup_DADA_ringbuffer(ipcio_t **ringbuffer, int dadaKey, 
  * @return     { description_of_the_return_value }
  */
 long
-lofar_udp_io_write_DADA(lofar_udp_io_write_config *config, ipcio_t *ringbuffer, int outp, char *src, const long nchars) {
+lofar_udp_io_write_DADA(ipcio_t *ringbuffer, int outp, char *src, const long nchars) {
 	/*
 	printf("1 %p ,%p\n", src, config->dadaWriter[outp].ringbufferptr);
 	char *buffer = config->dadaWriter[outp].ringbufferptr ?: ipcbuf_get_next_write((ipcbuf_t*) config->dadaWriter[outp].ringbuffer);

@@ -1,5 +1,9 @@
 #include "lofar_udp_structs.h"
 
+
+// Merge in the metadata structs
+#include "lofar_udp_structs_metadata.c"
+
 // Reader struct default
 const lofar_udp_io_read_config lofar_udp_io_read_config_default = {
 	.readerType = NO_INPUT,
@@ -40,7 +44,7 @@ const lofar_udp_io_write_config lofar_udp_io_write_config_default = {
 	.outputLocations = { "" },
 	.outputDadaKeys = { -1 },
 	.baseVal = 0,
-	.offsetVal = 1,
+	.stepSize = 1,
 	.firstPacket = 0,
 
 	// Main writing objects

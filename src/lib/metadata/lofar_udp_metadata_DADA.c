@@ -1,4 +1,21 @@
-#include "dada_hdr_manager.h"
+int lofar_udp_dada_parse_header(lofar_udp_metadata *hdr, char *header);
+int lofar_udp_generate_generic_hdr(char *header, lofar_udp_metadata *hdr);
+int lofar_udp_generate_upm_header(char *header, lofar_udp_metadata *hdr, lofar_udp_reader *reader);
+
+
+int writeStr_DADA(char *header, const char *key, const char *value);
+int writeInt_DADA(char *header, const char *key, const int value);
+int writeLong_DADA(char *header, const char *key, const long value);
+int writeDouble_DADA(char *header, const char *key, const double value);
+int getStr_DADA(char *header, const char *key, const char *value);
+int getInt_DADA(char *header, const char *key, const int *value);
+int getLong_DADA(char *header, const char *key, const long *value);
+int getDouble_DADA(char *header, const char *key, const double *value);
+
+int isEmpty(const char *string);
+int intNotSet(int input);
+int longNotSet(long input);
+int doubleNotSet(double input);
 
 /**
  * @brief      { function_description }
@@ -54,8 +71,8 @@ int lofar_udp_dada_generate_header(lofar_udp_metadata *hdr, lofar_udp_reader *re
 		}
 
 
-		if (isEmpty(hdr->primary)) {
-			if (gethostname(hdr->primary, 64) < 0) { fprintf(stderr, "ERROR: gethostname failed, errno %d (%s), exiting.\n", errno, strerror(errno)); }
+		if (isEmpty(hdr->machine)) {
+			if (gethostname(hdr->machine, 64) < 0) { fprintf(stderr, "ERROR: gethostname failed, errno %d (%s), exiting.\n", errno, strerror(errno)); }
 		}
 		if (isEmpty(hdr->hostname)) {
 			if (gethostname(hdr->hostname, 64) < 0) { fprintf(stderr, "ERROR: gethostname failed, errno %d (%s), exiting.\n", errno, strerror(errno)); }
@@ -79,11 +96,11 @@ int lofar_udp_dada_generate_header(lofar_udp_metadata *hdr, lofar_udp_reader *re
 					(reader->meta->outputBitMode / 8) * reader->meta->totalProcBeamlets * ((packetTime - ((long) packetTime) + timeRemainder) / hdr->tsamp);
 			}
 
-			getStartTimeString(reader, hdr->utc_start);
+			getStartTimeStringDAQ(reader, hdr->utc_start);
 
 		}
 
-		if (doubleNotSet(hdr->mjd_start)) { hdr->mjd_start = lofar_get_packet_time_mjd(reader->meta->inputData[0]); }
+		if (doubleNotSet(hdr->obs_mjd_start)) { hdr->obs_mjd_start = lofar_get_packet_time_mjd(reader->meta->inputData[0]); }
 
 
 		if (doubleNotSet(hdr->bw)) { hdr->bw = (reader->meta->clockBit ? 0.156250 : 0.1953125) * reader->meta->totalProcBeamlets; }
@@ -131,35 +148,35 @@ int lofar_udp_dada_generate_header(lofar_udp_metadata *hdr, lofar_udp_reader *re
  */
 int lofar_udp_generate_generic_hdr(char *header, lofar_udp_metadata *hdr) {
 	int returnVal = 0;
-	returnVal += wrap_ascii_header_set_double(header, "HDR_VERSION", hdr->hdr_version);
-	returnVal += wrap_ascii_header_set_char(header, "INSTRUMENT", hdr->instrument);
-	returnVal += wrap_ascii_header_set_char(header, "TELESCOPE", hdr->telescope);
-	returnVal += wrap_ascii_header_set_char(header, "RECIEVER", hdr->reciever);
-	returnVal += wrap_ascii_header_set_char(header, "PRIMARY", hdr->primary);
-	returnVal += wrap_ascii_header_set_char(header, "HOSTNAME", hdr->hostname);
-	returnVal += wrap_ascii_header_set_char(header, "FILE_NAME", hdr->file_name);
-	returnVal += wrap_ascii_header_set_int(header, "FILE_NUMBER", hdr->file_number);
+	returnVal += writeDouble_DADA(header, "HDR_VERSION", hdr->hdr_version);
+	returnVal += writeStr_DADA(header, "INSTRUMENT", hdr->instrument);
+	returnVal += writeStr_DADA(header, "TELESCOPE", hdr->telescope);
+	returnVal += writeStr_DADA(header, "RECIEVER", hdr->reciever);
+	returnVal += writeStr_DADA(header, "PRIMARY", hdr->machine);
+	returnVal += writeStr_DADA(header, "HOSTNAME", hdr->hostname);
+	returnVal += writeStr_DADA(header, "FILE_NAME", hdr->file_name);
+	returnVal += writeInt_DADA(header, "FILE_NUMBER", hdr->file_number);
 
-	returnVal += wrap_ascii_header_set_char(header, "SOURCE", hdr->source);
-	returnVal += wrap_ascii_header_set_char(header, "RA", hdr->ra);
-	returnVal += wrap_ascii_header_set_char(header, "DEC", hdr->dec);
-	returnVal += wrap_ascii_header_set_char(header, "OBS_ID", hdr->obs_id);
-	returnVal += wrap_ascii_header_set_char(header, "UTC_START", hdr->utc_start);
-	returnVal += wrap_ascii_header_set_double(header, "MJD_START", hdr->mjd_start);
-	returnVal += wrap_ascii_header_set_long(header, "obs_OFFSET", hdr->obs_offset);
-	returnVal += wrap_ascii_header_set_long(header, "OBS_OVERLAP", hdr->obs_overlap);
-	returnVal += wrap_ascii_header_set_char(header, "BASIS", hdr->basis);
-	returnVal += wrap_ascii_header_set_char(header, "MODE", hdr->mode);
+	returnVal += writeStr_DADA(header, "SOURCE", hdr->source);
+	returnVal += writeStr_DADA(header, "RA", hdr->ra);
+	returnVal += writeStr_DADA(header, "DEC", hdr->dec);
+	returnVal += writeStr_DADA(header, "OBS_ID", hdr->obs_id);
+	returnVal += writeStr_DADA(header, "UTC_START", hdr->utc_start);
+	returnVal += writeDouble_DADA(header, "MJD_START", hdr->obs_mjd_start);
+	returnVal += writeLong_DADA(header, "obs_OFFSET", hdr->obs_offset);
+	returnVal += writeLong_DADA(header, "OBS_OVERLAP", hdr->obs_overlap);
+	returnVal += writeStr_DADA(header, "BASIS", hdr->basis);
+	returnVal += writeStr_DADA(header, "MODE", hdr->mode);
 
-	returnVal += wrap_ascii_header_set_double(header, "FREQ", hdr->freq);
-	returnVal += wrap_ascii_header_set_double(header, "BW", hdr->bw);
-	returnVal += wrap_ascii_header_set_int(header, "NCHAN", hdr->nchan);
-	returnVal += wrap_ascii_header_set_int(header, "NPOL", hdr->npol);
-	returnVal += wrap_ascii_header_set_int(header, "NBIT", hdr->nbit);
-	returnVal += wrap_ascii_header_set_int(header, "RESOLUTION", hdr->resolution);
-	returnVal += wrap_ascii_header_set_int(header, "NDIM", hdr->ndim);
-	returnVal += wrap_ascii_header_set_double(header, "TSAMP", hdr->tsamp);
-	returnVal += wrap_ascii_header_set_char(header, "STATE", hdr->state);
+	returnVal += writeDouble_DADA(header, "FREQ", hdr->freq);
+	returnVal += writeDouble_DADA(header, "BW", hdr->bw);
+	returnVal += writeInt_DADA(header, "NCHAN", hdr->nchan);
+	returnVal += writeInt_DADA(header, "NPOL", hdr->npol);
+	returnVal += writeInt_DADA(header, "NBIT", hdr->nbit);
+	returnVal += writeInt_DADA(header, "RESOLUTION", hdr->resolution);
+	returnVal += writeInt_DADA(header, "NDIM", hdr->ndim);
+	returnVal += writeDouble_DADA(header, "TSAMP", hdr->tsamp);
+	returnVal += writeStr_DADA(header, "STATE", hdr->state);
 
 	return returnVal;
 }
@@ -175,17 +192,17 @@ int lofar_udp_generate_generic_hdr(char *header, lofar_udp_metadata *hdr) {
  */
 int lofar_udp_generate_upm_header(char *header, lofar_udp_metadata *hdr, lofar_udp_reader *reader) {
 	int returnVal = 0;
-	returnVal += wrap_ascii_header_set_char(header, "UPM_VERSION", hdr->upm_version);
-	returnVal += wrap_ascii_header_set_char(header, "REC_VERSION", hdr->rec_version);
-	returnVal += wrap_ascii_header_set_char(header, "UPM_PROC", hdr->upm_proc);
-	returnVal += wrap_ascii_header_set_int(header, "UPM_READER", hdr->upm_reader);
-	returnVal += wrap_ascii_header_set_int(header, "UPM_MODE", hdr->upm_mode);
-	returnVal += wrap_ascii_header_set_int(header, "UPM_REPLAY", hdr->upm_replay);
-	returnVal += wrap_ascii_header_set_int(header, "UPM_CALIBRATED", hdr->upm_calibrated);
-	returnVal += wrap_ascii_header_set_int(header, "UPM_BITMODE", hdr->upm_bitmode);
-	returnVal += wrap_ascii_header_set_int(header, "UPM_RAWBEAMLETS", hdr->upm_rawbeamlets);
-	returnVal += wrap_ascii_header_set_int(header, "UPM_UPPERBEAMLET", hdr->upm_upperbeam);
-	returnVal += wrap_ascii_header_set_int(header, "UPM_LOWERBEAMLET", hdr->upm_lowerbeam);
+	returnVal += writeStr_DADA(header, "UPM_VERSION", hdr->upm_version);
+	returnVal += writeStr_DADA(header, "REC_VERSION", hdr->rec_version);
+	returnVal += writeStr_DADA(header, "UPM_PROC", hdr->upm_proc);
+	returnVal += writeInt_DADA(header, "UPM_READER", hdr->upm_reader);
+	returnVal += writeInt_DADA(header, "UPM_MODE", hdr->upm_mode);
+	returnVal += writeInt_DADA(header, "UPM_REPLAY", hdr->upm_replay);
+	returnVal += writeInt_DADA(header, "UPM_CALIBRATED", hdr->upm_calibrated);
+	returnVal += writeInt_DADA(header, "UPM_BITMODE", hdr->upm_bitmode);
+	returnVal += writeInt_DADA(header, "UPM_RAWBEAMLETS", hdr->upm_rawbeamlets);
+	returnVal += writeInt_DADA(header, "UPM_UPPERBEAMLET", hdr->upm_upperbeam);
+	returnVal += writeInt_DADA(header, "UPM_LOWERBEAMLET", hdr->upm_lowerbeam);
 
 	return returnVal;
 }
@@ -203,47 +220,47 @@ int lofar_udp_dada_parse_header(lofar_udp_metadata *hdr, char *header) {
 	if (isEmpty(header)) { return 0; }
 
 	int returnVal = 0;
-	returnVal += wrap_ascii_header_get_double(header, "HDR_VERSION", &(hdr->hdr_version));
-	returnVal += wrap_ascii_header_get_char(header, "INSTRUMENT", &(hdr->instrument[0]));
-	returnVal += wrap_ascii_header_get_char(header, "TELESCOPE", &(hdr->telescope[0]));
-	returnVal += wrap_ascii_header_get_char(header, "RECIEVER", &(hdr->reciever[0]));
-	returnVal += wrap_ascii_header_get_char(header, "PRIMARY", &(hdr->primary[0]));
-	returnVal += wrap_ascii_header_get_char(header, "HOSTNAME", &(hdr->hostname[0]));
-	returnVal += wrap_ascii_header_get_char(header, "FILE_NAME", &(hdr->file_name[0]));
-	returnVal += wrap_ascii_header_get_int(header, "FILE_NUMBER", &(hdr->file_number));
+	returnVal += getDouble_DADA(header, "HDR_VERSION", &(hdr->hdr_version));
+	returnVal += getStr_DADA(header, "INSTRUMENT", &(hdr->instrument[0]));
+	returnVal += getStr_DADA(header, "TELESCOPE", &(hdr->telescope[0]));
+	returnVal += getStr_DADA(header, "RECIEVER", &(hdr->reciever[0]));
+	returnVal += getStr_DADA(header, "PRIMARY", &(hdr->machine[0]));
+	returnVal += getStr_DADA(header, "HOSTNAME", &(hdr->hostname[0]));
+	returnVal += getStr_DADA(header, "FILE_NAME", &(hdr->file_name[0]));
+	returnVal += getInt_DADA(header, "FILE_NUMBER", &(hdr->file_number));
 
-	returnVal += wrap_ascii_header_get_char(header, "SOURCE", &(hdr->source[0]));
-	returnVal += wrap_ascii_header_get_char(header, "RA", &(hdr->ra[0]));
-	returnVal += wrap_ascii_header_get_char(header, "DEC", &(hdr->dec[0]));
-	returnVal += wrap_ascii_header_get_char(header, "OBS_ID", &(hdr->obs_id[0]));
-	returnVal += wrap_ascii_header_get_char(header, "UTC_START", &(hdr->utc_start[0]));
-	returnVal += wrap_ascii_header_get_double(header, "MJD_START", &(hdr->mjd_start));
-	returnVal += wrap_ascii_header_get_long(header, "OBS_OFFSET", &(hdr->obs_offset));
-	returnVal += wrap_ascii_header_get_long(header, "OBS_OVERLAP", &(hdr->obs_overlap));
-	returnVal += wrap_ascii_header_get_char(header, "BASIS", &(hdr->basis[0]));
-	returnVal += wrap_ascii_header_get_char(header, "MODE", &(hdr->mode[0]));
+	returnVal += getStr_DADA(header, "SOURCE", &(hdr->source[0]));
+	returnVal += getStr_DADA(header, "RA", &(hdr->ra[0]));
+	returnVal += getStr_DADA(header, "DEC", &(hdr->dec[0]));
+	returnVal += getStr_DADA(header, "OBS_ID", &(hdr->obs_id[0]));
+	returnVal += getStr_DADA(header, "UTC_START", &(hdr->utc_start[0]));
+	returnVal += getDouble_DADA(header, "MJD_START", &(hdr->obs_mjd_start));
+	returnVal += getLong_DADA(header, "OBS_OFFSET", &(hdr->obs_offset));
+	returnVal += getLong_DADA(header, "OBS_OVERLAP", &(hdr->obs_overlap));
+	returnVal += getStr_DADA(header, "BASIS", &(hdr->basis[0]));
+	returnVal += getStr_DADA(header, "MODE", &(hdr->mode[0]));
 
-	returnVal += wrap_ascii_header_get_double(header, "FREQ", &(hdr->freq));
-	returnVal += wrap_ascii_header_get_double(header, "BW", &(hdr->bw));
-	returnVal += wrap_ascii_header_get_int(header, "NCHAN", &(hdr->nchan));
-	returnVal += wrap_ascii_header_get_int(header, "NPOL", &(hdr->npol));
-	returnVal += wrap_ascii_header_get_int(header, "NBIT", &(hdr->nbit));
-	returnVal += wrap_ascii_header_get_int(header, "RESOLUTION", &(hdr->resolution));
-	returnVal += wrap_ascii_header_get_int(header, "NDIM", &(hdr->ndim));
-	returnVal += wrap_ascii_header_get_double(header, "TSAMP", &(hdr->tsamp));
-	returnVal += wrap_ascii_header_get_char(header, "STATE", &(hdr->state[0]));
+	returnVal += getDouble_DADA(header, "FREQ", &(hdr->freq));
+	returnVal += getDouble_DADA(header, "BW", &(hdr->bw));
+	returnVal += getInt_DADA(header, "NCHAN", &(hdr->nchan));
+	returnVal += getInt_DADA(header, "NPOL", &(hdr->npol));
+	returnVal += getInt_DADA(header, "NBIT", &(hdr->nbit));
+	returnVal += getInt_DADA(header, "RESOLUTION", &(hdr->resolution));
+	returnVal += getInt_DADA(header, "NDIM", &(hdr->ndim));
+	returnVal += getDouble_DADA(header, "TSAMP", &(hdr->tsamp));
+	returnVal += getStr_DADA(header, "STATE", &(hdr->state[0]));
 
-	returnVal += wrap_ascii_header_get_char(header, "UPM_VERSION", &(hdr->upm_version[0]));
-	returnVal += wrap_ascii_header_get_char(header, "REC_VERSION", &(hdr->rec_version[0]));
-	returnVal += wrap_ascii_header_get_char(header, "UPM_PROC", &(hdr->upm_proc[0]));
-	returnVal += wrap_ascii_header_get_int(header, "UPM_READER", &(hdr->upm_reader));
-	returnVal += wrap_ascii_header_get_int(header, "UPM_MODE", &(hdr->upm_mode));
-	returnVal += wrap_ascii_header_get_int(header, "UPM_REPLAY", &(hdr->upm_replay));
-	returnVal += wrap_ascii_header_get_int(header, "UPM_CALIBRATED", &(hdr->upm_calibrated));
-	returnVal += wrap_ascii_header_get_int(header, "UPM_BITMODE", &(hdr->upm_bitmode));
-	returnVal += wrap_ascii_header_get_int(header, "UPM_RAWBEAMLETS", &(hdr->upm_rawbeamlets));
-	returnVal += wrap_ascii_header_get_int(header, "UPM_UPPERBEAMLET", &(hdr->upm_upperbeam));
-	returnVal += wrap_ascii_header_get_int(header, "UPM_LOWERBEAMLET", &(hdr->upm_lowerbeam));
+	returnVal += getStr_DADA(header, "UPM_VERSION", &(hdr->upm_version[0]));
+	returnVal += getStr_DADA(header, "REC_VERSION", &(hdr->rec_version[0]));
+	returnVal += getStr_DADA(header, "UPM_PROC", &(hdr->upm_proc[0]));
+	returnVal += getInt_DADA(header, "UPM_READER", &(hdr->upm_reader));
+	returnVal += getInt_DADA(header, "UPM_MODE", &(hdr->upm_mode));
+	returnVal += getInt_DADA(header, "UPM_REPLAY", &(hdr->upm_replay));
+	returnVal += getInt_DADA(header, "UPM_CALIBRATED", &(hdr->upm_calibrated));
+	returnVal += getInt_DADA(header, "UPM_BITMODE", &(hdr->upm_bitmode));
+	returnVal += getInt_DADA(header, "UPM_RAWBEAMLETS", &(hdr->upm_rawbeamlets));
+	returnVal += getInt_DADA(header, "UPM_UPPERBEAMLET", &(hdr->upm_upperbeam));
+	returnVal += getInt_DADA(header, "UPM_LOWERBEAMLET", &(hdr->upm_lowerbeam));
 
 	return returnVal;
 }
@@ -261,7 +278,6 @@ int longNotSet(long input) {
 	return input == -1;
 }
 
-
 int doubleNotSet(double input) {
 	return input == -1.0;
 }
@@ -275,7 +291,7 @@ int doubleNotSet(double input) {
 //
 // @return     { description_of_the_return_value }
 //
-int wrap_ascii_header_set_char(char header[], const char key[], const char value[]) {
+int writeStr_DADA(char *header, const char *key, const char *value) {
 	if (!isEmpty(value)) {
 		return (ascii_header_set(header, key, "%s", value) > -1) ? 0 : -1;
 	}
@@ -291,7 +307,7 @@ int wrap_ascii_header_set_char(char header[], const char key[], const char value
  *
  * @return     { description_of_the_return_value }
  */
-int wrap_ascii_header_set_int(char *header, const char *key, const int value) {
+int writeInt_DADA(char *header, const char *key, const int value) {
 	if (!intNotSet(value)) {
 		return (ascii_header_set(header, key, "%d", value) > -1) ? 0 : -1;
 	}
@@ -307,7 +323,7 @@ int wrap_ascii_header_set_int(char *header, const char *key, const int value) {
  *
  * @return     { description_of_the_return_value }
  */
-int wrap_ascii_header_set_long(char header[], const char key[], const long value) {
+int writeLong_DADA(char *header, const char *key, const long value) {
 	if (!longNotSet(value)) {
 		return (ascii_header_set(header, key, "%ld", value) > -1) ? 0 : -1;
 	}
@@ -323,7 +339,7 @@ int wrap_ascii_header_set_long(char header[], const char key[], const long value
  *
  * @return     { description_of_the_return_value }
  */
-int wrap_ascii_header_set_double(char header[], const char key[], const double value) {
+int writeDouble_DADA(char *header, const char *key, const double value) {
 	if (!doubleNotSet(value)) {
 		return ascii_header_set(header, key, "%lf", value) > -1 ? 0 : -1;
 	}
@@ -339,7 +355,7 @@ int wrap_ascii_header_set_double(char header[], const char key[], const double v
  *
  * @return     { description_of_the_return_value }
  */
-int wrap_ascii_header_get_char(char header[], const char key[], const char *value) {
+int getStr_DADA(char *header, const char *key, const char *value) {
 	return ascii_header_get(header, key, "%s", value) > -1 ? 0 : -1;
 }
 
@@ -352,7 +368,7 @@ int wrap_ascii_header_get_char(char header[], const char key[], const char *valu
  *
  * @return     { description_of_the_return_value }
  */
-int wrap_ascii_header_get_int(char header[], const char key[], const int *value) {
+int getInt_DADA(char *header, const char *key, const int *value) {
 	return (ascii_header_get(header, key, "%d", value) > -1) ? 0 : -1;
 }
 
@@ -365,7 +381,7 @@ int wrap_ascii_header_get_int(char header[], const char key[], const int *value)
  *
  * @return     { description_of_the_return_value }
  */
-int wrap_ascii_header_get_long(char header[], const char key[], const long *value) {
+int getLong_DADA(char *header, const char *key, const long *value) {
 	return (ascii_header_get(header, key, "%ld", value) > -1) ? 0 : -1;
 }
 
@@ -378,6 +394,6 @@ int wrap_ascii_header_get_long(char header[], const char key[], const long *valu
  *
  * @return     { description_of_the_return_value }
  */
-int wrap_ascii_header_get_double(char header[], const char key[], const double *value) {
+int getDouble_DADA(char *header, const char *key, const double *value) {
 	return ascii_header_get(header, key, "%lf", value) > -1 ? 0 : -1;
 }

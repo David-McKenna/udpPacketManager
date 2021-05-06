@@ -1016,7 +1016,12 @@ lofar_udp_reader *lofar_udp_reader_setup(lofar_udp_config *config) {
 	reader->ompThreads = config->ompThreads;
 	omp_set_num_threads(reader->ompThreads);
 
-	for (int port = 0; port < meta->numPorts; port++) {
+	if ((meta->numPorts + config->offsetPort) > 4) {
+		fprintf(stderr, "ERROR: Requested data beyond the 4th port. Either your offset (%d) or number of ports requested (%d) was too high, exiting.\n", config->offsetPort, meta->numPorts);
+		lofar_udp_reader_cleanup(reader);
+		return NULL;
+	}
+	for (int port = 0; port < (meta->numPorts); port++) {
 
 		// Check for errors, cleanup and return if needed
 		if (lofar_udp_io_read_setup_helper(input, config, meta, port) < 0) {

@@ -1,5 +1,4 @@
 #include "lofar_cli_meta.h"
-#include "../lib/metadata/ascii_hdr_manager.h"
 
 
 // Unique prototype to this CLI
@@ -96,11 +95,6 @@ int main(int argc, char *argv[]) {
 		switch (inputOpt) {
 
 			case 'i':
-				if (lofar_udp_io_read_parse_optarg(config, optarg) < 0) {
-					helpMessages();
-					CLICleanup(eventCount, dateStr, config, outConfig, reader);
-					return 1;
-				}
 				strcpy(inputFormat, optarg);
 				inputProvided = 1;
 				break;
@@ -208,6 +202,12 @@ int main(int argc, char *argv[]) {
 
 	if (!inputProvided) {
 		fprintf(stderr, "ERROR: An input was not provided, exiting.\n");
+		helpMessages();
+		CLICleanup(eventCount, dateStr, config, outConfig, reader);
+		return 1;
+	}
+
+	if (lofar_udp_io_read_parse_optarg(config, inputFormat) < 0) {
 		helpMessages();
 		CLICleanup(eventCount, dateStr, config, outConfig, reader);
 		return 1;
@@ -324,11 +324,11 @@ int main(int argc, char *argv[]) {
 
 	// Initialise the ASCII header struct if a metadata file was provided
 	if (strcmp(hdrFile, "") != 0) {
-		if (parseHdrFile(hdrFile, &header) > 0) {
-			fprintf(stderr, "ERROR: Error initialising ASCII header struct, exiting.");
-			CLICleanup(eventCount, dateStr, config, outConfig, reader);
-			return 1;
-		}
+//		if (parseHdrFile(hdrFile, &header) > 0) {
+//			fprintf(stderr, "ERROR: Error initialising ASCII header struct, exiting.");
+//			CLICleanup(eventCount, dateStr, config, outConfig, reader);
+//			return 1;
+//		}
 	}
 
 	// Pull the reader parameters into the ASCII header
@@ -411,11 +411,12 @@ int main(int argc, char *argv[]) {
 			packetsToWrite = reader->packetsPerIteration;
 
 			// Get the number of dropped packets for the ASCII header
-			for (int port = 0; port < reader->meta->numPorts; port++)
+			for (int port = 0; port < reader->meta->numPorts; port++) {
 				if (reader->meta->portLastDroppedPackets[port] != 0) {
 					blockDropped += reader->meta->portLastDroppedPackets[port];
 					totalDropped += blockDropped;
 				}
+			}
 
 			CLICK(tick0);
 
@@ -435,7 +436,7 @@ int main(int argc, char *argv[]) {
 				}
 
 				// Write out the new version of the buffer
-				lofar_udp_metadata_write_GUPPI(headerBuffer, sizeof headerBuffer, &header);
+				//lofar_udp_metadata_write_GUPPI(headerBuffer, sizeof headerBuffer, &header);
 				if (lofar_udp_io_write(outConfig, 0, headerBuffer, strlen(headerBuffer)) != (long) strlen(headerBuffer)) {
 					endCondition = 1;
 					break;
@@ -547,21 +548,3 @@ int main(int argc, char *argv[]) {
 	return 0;
 }
 
-
-/**
- * @brief      Emulate the DAQ time string from the current data timestamp
- *
- * @param      reader      The lofar_udp_reader
- * @param      stringBuff  The output time string buffer
- */
-void getStartTimeStringDAQ(lofar_udp_reader *reader, char stringBuff[24]) {
-	double startTime;
-	time_t startTimeUnix;
-	struct tm *startTimeStruct;
-
-	startTime = lofar_get_packet_time(reader->meta->inputData[0]);
-	startTimeUnix = (unsigned int) startTime;
-	startTimeStruct = gmtime(&startTimeUnix);
-
-	strftime(stringBuff, 24, "%a %b %e %H:%M:%S %Y", startTimeStruct);
-}

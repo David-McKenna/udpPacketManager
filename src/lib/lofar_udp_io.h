@@ -10,6 +10,11 @@
 #include <sys/mman.h>
 #include <sys/stat.h>
 
+
+// Allow C++ imports too
+#ifdef __cplusplus
+extern "C" {
+#endif
 // Setup wrapper functions
 int lofar_udp_io_read_setup(lofar_udp_io_read_config *input, int port);
 int lofar_udp_io_write_setup(lofar_udp_io_write_config *config, int iter);
@@ -33,7 +38,6 @@ int lofar_udp_io_write_parse_optarg(lofar_udp_io_write_config *config, const cha
 
 
 
-
 // Internal wrapped functions
 // Setup functions
 int lofar_udp_io_read_setup_FILE(lofar_udp_io_read_config *input, const char *inputLocation, int port);
@@ -54,7 +58,7 @@ long lofar_udp_io_read_DADA(lofar_udp_io_read_config *input, int port, char *tar
 
 long lofar_udp_io_write_FILE(lofar_udp_io_write_config *config, int outp, const char *src, const long nchars);
 long lofar_udp_io_write_ZSTD(lofar_udp_io_write_config *config, int outp, const char *src, const long nchars);
-long lofar_udp_io_write_DADA(lofar_udp_io_write_config *config, ipcio_t *ringbuffer, int outp, char *src, const long nchars);
+long lofar_udp_io_write_DADA(ipcio_t *ringbuffer, int outp, char *src, const long nchars);
 
 int lofar_udp_io_read_temp_FILE(void *outbuf, size_t size, int num, const char inputFile[], int resetSeek);
 int lofar_udp_io_read_temp_ZSTD(void *outbuf, size_t size, int num, const char inputFile[], int resetSeek);
@@ -74,5 +78,11 @@ int lofar_udp_io_write_cleanup_DADA(lofar_udp_io_write_config *config, int outp,
 void swapCharPtr(char **a, char **b);
 long FILE_file_size(FILE *fileptr);
 long fd_file_size(int fd);
+
+// Allow C++ imports too
+#ifdef __cplusplus
+}
+#endif
+
 
 #endif
