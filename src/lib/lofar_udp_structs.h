@@ -5,7 +5,7 @@
 
 // Input includes
 // Unlock advanced ZSTD features
-#define ZSTD_STATIC_LINKING_ONLY
+#define ZSTD_STATIC_LINKING_ONLY 1
 
 #include <zstd.h>
 #include <stdio.h>
@@ -27,12 +27,12 @@ typedef struct lofar_udp_calibration {
 	int calibrationStepsGenerated;
 
 	// Location to generate the FIFO pipe to communicate with dreamBeam
-	char calibrationFifo[DEF_STR_LEN];
+	char calibrationFifo[DEF_STR_LEN + 1];
 
 	// Calibration strategy to use with dreamBeam (see documentation)
 	// Maximum length: both antenna set (2x 5), all 3-digit subbands (4 ea), in 4-bit mode (976 subbands)
 	// ~= 10 + 3904 = 3914
-	char calibrationSubbands[2 * DEF_STR_LEN];
+	char calibrationSubbands[2 * DEF_STR_LEN + 1];
 
 	// Estimated duration of observation (used to determine number of steps to calibrate)
 	float calibrationDuration;
@@ -51,12 +51,12 @@ typedef struct lofar_udp_io_read_config {
 	int portPacketLength[MAX_NUM_PORTS];
 	int numInputs;
 
-	// Inputs pre- and post-formatting
-	char inputFormat[DEF_STR_LEN];
-	char inputLocations[MAX_NUM_PORTS][DEF_STR_LEN];
+	// Inputs post-formatting
+	char inputLocations[MAX_NUM_PORTS][DEF_STR_LEN + 1];
 	int dadaKeys[MAX_NUM_PORTS];
-	int baseVal;
-	int offsetVal;
+	int basePort;
+	int offsetPortCount;
+	int stepSizePort;
 
 	// Main reading objects
 	FILE *fileRef[MAX_NUM_PORTS];
@@ -138,16 +138,19 @@ typedef struct lofar_udp_meta {
 	int VERBOSE;
 #endif
 
-} lofar_udp_meta;
-extern const lofar_udp_meta lofar_udp_meta_default;
+} lofar_udp_input_meta;
+extern const lofar_udp_input_meta lofar_udp_input_meta_default;
 
 // File data + decompression struct
 typedef struct lofar_udp_reader {
 	// Data sources struct
 	lofar_udp_io_read_config *input;
 
-	// Metadata / input data array struct
-	lofar_udp_meta *meta;
+	// Input data metadata
+	lofar_udp_input_meta *meta;
+
+	// Observation metadata
+	lofar_udp_metadata *metadata;
 
 	// Calibration configuration struct
 	lofar_udp_calibration *calibration;
@@ -163,51 +166,71 @@ extern const lofar_udp_reader lofar_udp_reader_default;
 
 // Configuration struct
 typedef struct lofar_udp_config {
-	// Points to input files, compressed or uncompressed
-	char inputLocations[MAX_NUM_PORTS][DEF_STR_LEN];
 
-	// Number of valid ports of raw data being provided in inputFiles
-	// Base port and offsetPort can be set by using the io_parse_read function
+	// Define the input type (see reader_t enums)
+	reader_t readerType;
+
+	// Points to input files, compressed or uncompressed
+	char inputLocations[MAX_NUM_PORTS][DEF_STR_LEN + 1];
+
+	// Input PSRDADA ringbuffer keys
+	int dadaKeys[MAX_NUM_PORTS];
+
+	// Define the output metadata type (see metadata_t enums)
+	metadata_t metadataType;
+	// Points to a file containing metadata that we can parse
+	char metadataLocation[DEF_STR_LEN + 1];
+
+	// Number of valid ports of raw data being provided in inputLocations / dadaKeys
+	//
+	// basePort - the base port number, i.e. 0 or 16130
+	// offsetPortCount - the number of ports away from the base number, [0-3]
+	// stepSizePort - the number to add to basePort for each port (any non-zero number)
+	// numPorts - the number of ports to process, [1, 4 - offsetPortCount]
+	// basePort must ALWAYS be the absolute base value if you want to parse metadata, i.e.
+	//  if you want to parse ust ports 2 and 3, set the baseVal to 0, offsetPortCount to 2
+	//  and numPorts to 2. Otherwise we can't parse the beamctl command correctly.
+	//
+	// These can all be set by using the io_read_parse_optarg function
 	int basePort;
-	int offsetPort;
+	int offsetPortCount;
+	int stepSizePort;
 	int numPorts;
+
+	// Processing mode, see the documentation
+	int processingMode;
+
+	// Number of packets to process per iteration
+	long packetsPerIteration;
+
+	// Packet number of the starting packet
+	long startingPacket;
+
+	// Packet number / offset from base of the last packet to process
+	long packetsReadMax;
 
 	// Configure whether to path with 0's (0) or replay last packet (1) when we
 	// encounter a dropped/missed packet
 	int replayDroppedPackets;
 
-	// Processing mode, see documentation
-	int processingMode;
-
-	// Enable verbose mode when compile with -DALLOW_VERBOSE
-	int verbose;
-
-	// Number of packets to process per iteration
-	long packetsPerIteration;
-
-	// Index of the starting packet
-	long startingPacket;
-
-	// Index of the last packet to process
-	long packetsReadMax;
-
-	// Define the input type (see reader_t enums)
-	int readerType;
-
-	// Lower / Upper limits of beamlets to process
+	// Lower / Upper limits of beamlets to process [0, numPorts * (beamlets per bitmode) + 1]
+	// This input is exclusive on the upper limit, not inclusive like LOFAR inputs
+	// E.g., to access beamlets 3 - 9, specify { 3, 10 }
 	int beamletLimits[2];
 
 	// Enable / disable dreamBeam polarmetric corrections
 	int calibrateData;
 
 	// Configure calibration parameters
+	// May be overwritten if metadata is provided.
 	lofar_udp_calibration *calibrationConfiguration;
 
-	// Number of OMP threads to use while processing
+	// Number of OpenMP threads to use while processing data
+	// Minimum advised is 2 times the number of ports being processed, so typically 8.
 	int ompThreads;
 
-	// Input PSRDADA ringbuffer keys
-	int dadaKeys[MAX_NUM_PORTS];
+	// Enable verbose mode when the library is compiled with -DALLOW_VERBOSE
+	int verbose;
 
 } lofar_udp_config;
 extern const lofar_udp_config lofar_udp_config_default;
@@ -222,8 +245,8 @@ typedef struct lofar_udp_io_write_config {
 	int numOutputs;
 
 	// Outputs pre- and post-formatting
-	char outputFormat[DEF_STR_LEN];
-	char outputLocations[MAX_OUTPUT_DIMS][DEF_STR_LEN];
+	char outputFormat[DEF_STR_LEN + 1];
+	char outputLocations[MAX_OUTPUT_DIMS][DEF_STR_LEN + 1];
 	int outputDadaKeys[MAX_OUTPUT_DIMS];
 	int baseVal;
 	int stepSize;

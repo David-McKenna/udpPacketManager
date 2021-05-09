@@ -1,28 +1,58 @@
 #include "lofar_udp_metadata.h"
 
-int lofar_udp_setup_metadata(lofar_udp_metadata *metadata, metadata_t meta, lofar_udp_reader *reader, const char *inputFile) {
+// Internal function prototypes
+int isEmpty(const char *string);
+int intNotSet(int input);
+int longNotSet(long input);
+int doubleNotSet(double input, int exception);
 
-	if (meta == NO_META) {
-		fprintf(stderr, "ERROR: No metadata type specified, exiting.\n");
+
+int lofar_udp_metadata_setup(lofar_udp_metadata *metadata, lofar_udp_reader *reader, const char *inputFile) {
+
+	// Sanity check the metadata struct
+	if (metadata == NULL) {
+		fprintf(stderr, "ERROR %s: Metadata pointer is null, exiting.\n", __func__);
 		return -1;
 	}
 
-	metadata->type = meta;
+	// Ensure we are meant to generate metadata
+	if (metadata->type == NO_META) {
+		fprintf(stderr, "ERROR %s: No metadata type specified, exiting.\n", __func__);
+		return -1;
+	}
 
+	// Setup defaults
+	if (lofar_udp_metdata_set_default(metadata) < 0) {
+		fprintf(stderr, "ERROR %s: Failed to set default on metadata struct, exiting.\n", __func__);
+		return -1;
+	}
+
+	// Parse the input metadata file with beamctl and other information
 	if (inputFile != NULL) {
 		if (lofar_udp_metadata_parse_input_file(metadata, inputFile) < 0) {
 			return -1;
 		}
+	} else {
+		fprintf(stderr, "WARNING %s: Insufficient information provided to determine input pointing and frequency information.\n", __func__);
 	}
 
+	// Parse the input reader to refine the information related to the processing strategy
 	if (reader != NULL) {
-		/*if (lofar_udp_metadata_parse_reader(metadata, reader) < 0) {
+		if (lofar_udp_metadata_parse_reader(metadata, reader) < 0) {
 			return -1;
-		}*/
+		}
+	} else {
+		fprintf(stderr, "WARNING %s: Insufficient information provided to determine output properties.\n", __func__);
 	}
 
+	// If the output format isn't PSRDADA, setup the target struct
+	const int guppiMode = 30;
+	const int stokesMin = 100;
 	switch(metadata->type) {
 		case GUPPI:
+			if (metadata->upm_procmode != guppiMode) {
+				fprintf(stderr, "WARNING %s: GUPPI Raw Headers are intended to be attached to mode %d data (currently in mode %d).\n", __func__, guppiMode, metadata->upm_procmode);
+			}
 			return lofar_udp_metadata_setup_GUPPI(metadata);
 
 		// The DADA header is formed from the reference metadata struct
@@ -30,59 +60,214 @@ int lofar_udp_setup_metadata(lofar_udp_metadata *metadata, metadata_t meta, lofa
 			return 0;
 
 		case SIGPROC:
+			if (metadata->upm_procmode < stokesMin) {
+				fprintf(stderr, "WARNING %s: Sigproc headers are intended to be attached to Stokes data (mode > %d, currently in %d).\n", __func__, stokesMin, metadata->upm_procmode);
+			}
 			return lofar_udp_metadata_setup_SIGPROC(metadata);
 
 		default:
-			fprintf(stderr, "ERROR: Unknown metadata type %d, exiting.\n", meta);
+			fprintf(stderr, "ERROR %s: Unknown metadata type %d, exiting.\n", __func__, metadata->type);
 			return -1;
 	}
 }
 
-int lofar_udp_metadata_parse_input_file(lofar_udp_metadata *metadata, const char inputFile[]) {
-	char *inputLine = NULL, *strPtr = NULL;
-	FILE *input = fopen(inputFile, "r");
-	
-	int lineLength;
-	size_t buffLen = 0;
+int lofar_udp_metadata_update(const lofar_udp_reader *reader, lofar_udp_metadata *metadata, int newObs) {
+	if (newObs) {
+		metadata->output_file_number += 1;
+	}
 
-	if (input == NULL) {
-		fprintf(stderr, "ERROR: Failed to open file at '%s'm exiting.\n", inputFile);
+	if (lofar_udp_metadata_update_DADA(reader, metadata, newObs) < 0) {
 		return -1;
 	}
 
-	int beamctlData[] = { -1, INT_MAX, 0, -1, INT_MAX, 0, -1 };
+	switch(metadata->type) {
+		case GUPPI:
+			if (lofar_udp_metadata_update_GUPPI(metadata, newObs) < 0) {
+				return -1;
+			}
+			return 0;
+
+		// DADA is the base case, just return
+		case DADA:
+			return 0;
+
+		case SIGPROC:
+			if (lofar_udp_metadata_update_SIGPROC(metadata, newObs) < 0) {
+				return -1;
+			}
+			return 0;
+
+		default:
+			fprintf(stderr, "ERROR %s: Unknown metadata type %d, exiting.\n", __func__, metadata->type);
+			return -1;
+	}
+
+
+}
+
+int lofar_udp_metadata_write(const lofar_udp_reader *reader, lofar_udp_metadata *metadata, char *headerBuffer, size_t headerBufferSize, int newObs) {
+	return lofar_udp_metadata_write_force(reader, metadata, headerBuffer, headerBufferSize, newObs, 0);
+}
+
+int lofar_udp_metadata_write_force(const lofar_udp_reader *reader, lofar_udp_metadata *metadata, char *headerBuffer, size_t headerBufferSize, int newObs, int force) {
+	if (lofar_udp_metadata_update(reader, metadata, newObs || force)) {
+		return -1;
+	}
+
+	switch(metadata->type) {
+		// GUPPI header should be written for every block
+		case GUPPI:
+			return lofar_udp_metadata_write_GUPPI(metadata->output.guppi, headerBuffer, headerBufferSize);
+
+		// DADA and sigproc headers are only written at the start of a file
+		case DADA:
+			if (newObs || force) {
+				return lofar_udp_metadata_write_DADA(metadata, headerBuffer, headerBufferSize);
+			}
+			return 0;
+
+		case SIGPROC:
+			if (newObs || force) {
+				return lofar_udp_metadata_write_SIGPROC(metadata->output.sigproc, headerBuffer, headerBufferSize);
+			}
+			return 0;
+
+		default:
+			fprintf(stderr, "ERROR %s: Unknown metadata type %d, exiting.\n", __func__, metadata->type);
+			return -1;
+	}
+}
+
+
+int lofar_udp_metdata_set_default(lofar_udp_metadata *metadata) {
+	// Minimum samples that can be parsed by DSPSR per operation
+	// Not 100% sure what this is controlling, may need to vary based on processing mode
+	metadata->resolution = 1;
+
+	// LOFAR antenna are linear, not circular
+	if (strncpy(metadata->basis, "LINEAR", META_STR_LEN) != metadata->basis) {
+		fprintf(stderr, "ERROR: Failed to set antenna basis in the metadata struct, exiting.\n");
+		return -1;
+	}
+
+	if (gethostname(metadata->hostname, META_STR_LEN)) {
+		fprintf(stderr, "ERROR: Failed to get system hostname (errno %d: %s), exiting.\n", errno, strerror(errno));
+		return -1;
+	}
+
+	if (strncpy(metadata->receiver, "LOFAR-RSP", META_STR_LEN) != metadata->receiver) {
+		fprintf(stderr, "ERROR: Failed to copy receiver to metadata struct, exiting.\n");
+		return -1;
+	}
+
+	// First file will reset value to 0
+	metadata->output_file_number = -1;
+
+	// Initialise all the packet trackers to 0
+	metadata->upm_processed_packets = 0;
+	metadata->upm_dropped_packets = 0;
+	metadata->upm_last_dropped_packets = 0;
+
+	return 0;
+}
+
+int lofar_udp_metadata_parse_input_file(lofar_udp_metadata *metadata, const char *inputFile) {
+	char *inputLine = NULL, *strPtr = NULL;
+
+	if (inputFile == NULL) {
+		fprintf(stderr, "ERROR %s: Input file pointer is null, exiting.\n", __func__);
+		return -1;
+	}
+
+	// Sanity check the input file
+	FILE *input = fopen(inputFile, "r");
+	if (input == NULL) {
+		fprintf(stderr, "ERROR %s: Failed to open metadata file at '%s' exiting.\n", __func__, inputFile);
+		return -1;
+	}
+
+
+	size_t buffLen = 0;
+	ssize_t lineLength;
+	int beamctlData[] = { -1, INT_MAX, 0, -1, 0, INT_MAX, 0, -1, 0 };
+
+	// For each line in the file
 	while ((lineLength = getline(&inputLine, &buffLen, input)) != -1) {
+
+		VERBOSE(printf("Parsing line: %s\n", inputLine));
 		if ((strPtr = strstr(inputLine, "beamctl")) != NULL) {
+
+			VERBOSE(printf("Beamctl detected, passing on.\n"));
 			if (lofar_udp_metadata_parse_beamctl(metadata, strPtr, beamctlData) < 0) {
 				return -1;
 			}
 
-			strncat(metadata->upm_beamctl, inputLine, 4 * DEF_STR_LEN - 1 - strlen(metadata->upm_beamctl));
+			// Append the line to the metadata struct
+			strncat(metadata->upm_beamctl, inputLine, 2 * DEF_STR_LEN - 1 - strlen(metadata->upm_beamctl));
 
-		} else if ((strPtr = strstr(inputLine, "TARGET")) != NULL) {
-			if (lofar_udp_metadata_get_tsv(strPtr, "TARGET", metadata->source) < 0) {
+
+		} else if ((strPtr = strstr(inputLine, "SOURCE")) != NULL) {
+
+			VERBOSE(printf("Source detected, passing on.\n"));
+			if (lofar_udp_metadata_get_tsv(strPtr, "SOURCE", metadata->source) < 0) {
 				return -1;
 			}
-		}
-		/* else if ((strPtr = strstr()) != NULL) {
 
-		}
-		*/
+			// Don't set mode for the time being
+			/* if ((strPtr = strstr(metadata->source, "PSR") != NULL || ) {
+			 *  if (strncpy(metadata->mode, META_STR_LEN, "PSR") != metadata->mode) {
+			 *      fprintf(stderr, "ERROR: Failed to set metadata mode, exiting.\n");
+			 *      return -1;
+			 *  }
+			 * } */
+		} else if ((strPtr = strstr(inputLine, "INSTRUMENT")) != NULL) {
+
+			VERBOSE(printf("Instrument detected, passing on.\n"));
+			if (lofar_udp_metadata_get_tsv(strPtr, "INSTRUMENT", metadata->instrument) < 0) {
+				return -1;
+			}
+		} else if ((strPtr = strstr(inputLine, "OBS-ID")) != NULL) {
+
+			VERBOSE(printf("Observation ID detected, passing on.\n"));
+			if (lofar_udp_metadata_get_tsv(strPtr, "OBS-ID", metadata->obs_id) < 0) {
+				return -1;
+			}
+		} else if ((strPtr = strstr(inputLine, "OBSERVER")) != NULL) {
+
+			VERBOSE(printf("Observer detected, passing on.\n"));
+			if (lofar_udp_metadata_get_tsv(strPtr, "OBSERVER", metadata->observer) < 0) {
+				return -1;
+			}
+		} /*
+		else if ((strPtr = strstr()) != NULL) {
+
+		} */
+
+
+		VERBOSE(printf("Beamctl data state: %d, %d, %d, %d, %d, %d\n", beamctlData[0], beamctlData[1], beamctlData[2], beamctlData[3], beamctlData[4], beamctlData[5]);
+		printf("Getting next line.\n"));
+
  	}
 
-	if (beamctlData[0] == -1) {
-		fprintf(stderr, "ERROR: Beamctl parsing did not detect the RCU mode, exiting.\n");
+	// Close the metadata file now that we have parsed it
+	fclose(input);
+
+	// Ensure we parsed either an --rcumode=<x> or --band=<x>_<y> parameter
+	if (beamctlData[0] < 1) {
+		fprintf(stderr, "ERROR: Beamctl parsing did not detect the RCU mode (%d), exiting.\n", beamctlData[0]);
 		return -1;
 	}
 
-	if (beamctlData[3] != beamctlData[5]) {
-		fprintf(stderr, "ERROR: Number of subbands does not match number of beamlets, exiting.\n");
+	// Ensure the total number of beamlets and subband match (otherwise the input line(s) were invalid)
+	if (beamctlData[4] != beamctlData[8]) {
+		fprintf(stderr, "ERROR: Number of subbands does not match number of beamlets (%d vs %d), exiting.\n", beamctlData[4], beamctlData[8]);
 		return -1;
 	}
 
-	metadata->nchan = beamctlData[3];
-	metadata->upm_lowerbeam = beamctlData[4];
-	metadata->upm_upperbeam = beamctlData[6];
+	// Update the metadata struct to describe the input commands
+	metadata->upm_lowerbeam = beamctlData[5];
+	metadata->nchan = beamctlData[6];
+	metadata->upm_upperbeam = beamctlData[7];
 	metadata->upm_rcuclock = lofar_udp_metadata_get_clockmode(beamctlData[0]);
 
 	// Remaining few bits
@@ -91,46 +276,145 @@ int lofar_udp_metadata_parse_input_file(lofar_udp_metadata *metadata, const char
 		return -1;
 	}
 
-	metadata->upm_rawbeamlets = beamctlData[5];
+	// Store the total number of beamlets in the observation separately
+	metadata->upm_rawbeamlets = beamctlData[6];
+
+	if (lofar_udp_metadata_update_frequencies(metadata, &(beamctlData[1])) < 0) {
+		return -1;
+	}
 
 	return 0;
 }
 
-__attribute_deprecated__ int lofar_udp_metadata_parse_reader(lofar_udp_metadata *metadata, lofar_udp_reader *reader, const int *beamctlData) {
+int lofar_udp_metadata_parse_reader(lofar_udp_metadata *metadata, const lofar_udp_reader *reader) {
+	// Sanity check the inputs
+	if (metadata == NULL || reader == NULL) {
+		fprintf(stderr, "ERROR: Input metadata/reader struct was null, exiting.\n");
+		return -1;
+	}
 
-	int baseBeamlet = reader->input->offsetVal;
-	// Parse the combined beamctl data to determine the frequency information
-	double channelBw = ((double) metadata->upm_rcuclock) / 1024;
-	int minSubband = beamctlData[1];
-	double meanSubband = (double) beamctlData[2] / (double) metadata->nchan;
-	int maxSubband = beamctlData[3];
+	// Check the meatdata state -- we need it to have been populated with beamctl data before we can do anything useful
+	if (metadata->upm_upperbeam == -1 || metadata->upm_lowerbeam == -1) {
+		fprintf(stderr, "WARNING: Unable to update frequency information from reader.\n"
+				  "Either the rcuclock (%d),  lower (%d) or upper (%d) beam was undefined.\n",
+				  metadata->upm_rcuclock, metadata->upm_lowerbeam, metadata->upm_upperbeam);
+		return -1;
+	}
 
-	// Offset frequency by half a subband to get central frequencies rather than base frequencies
-	metadata->fbottom = channelBw * (0.5 + minSubband);
-	metadata->freq = channelBw * (0.5 + meanSubband);
-	metadata->ftop = channelBw * (0.5 + maxSubband);
-	metadata->bw += metadata->nchan * channelBw;
+	int beamletsPerPort;
+	int clockAlias = reader->meta->clockBit ? 200 : 160; // 1 -> 200Mhz, 0 -> 160MHz, verify, sample data doesn't change the bit...
+	if (clockAlias != metadata->upm_rcuclock) {
+		fprintf(stderr, "WARNING: Clock bit mismatch (metadata suggests the %d clock, raw data suggests the %d clock\n", metadata->upm_rcuclock, reader->meta->clockBit);
+	}
+
+	if ((beamletsPerPort = lofar_udp_metadata_get_beamlets(reader->meta->inputBitMode)) < 0) {
+		return -1;
+	}
+
+	int lowerBeamlet = (reader->input->offsetPortCount * beamletsPerPort) + reader->meta->baseBeamlets[0];
+	// Upper beamlet is exclusive in UPM, not inclusive like LOFAR inputs
+	int upperBeamlet = ((reader->input->offsetPortCount + reader->input->numInputs) * beamletsPerPort) + reader->meta->upperBeamlets[reader->meta->numPorts];
+
+
+	// Sanity check the beamlet limits
+	if ((upperBeamlet - lowerBeamlet) != reader->meta->totalProcBeamlets) {
+		fprintf(stderr, "WARNING: Mismatch between beamlets limits (lower/upper %d-%d vs totalProcBeamlets %d), something hs gone very wrong.\n",
+	   lowerBeamlet, upperBeamlet, reader->meta->totalProcBeamlets);
+	}
+
+	int subbandData[3] = { INT_MAX, 0, -1 };
+	// Parse the new sub-set of beamlets
+	for (int beamlet = lowerBeamlet; beamlet < upperBeamlet; beamlet++) {
+		// Edge case: undefined subband is used as a beamlet
+		if (metadata->subbands[beamlet] != -1) {
+			if (metadata->subbands[beamlet] > subbandData[2]) {
+				subbandData[2] = metadata->subbands[beamlet];
+			}
+
+			if (metadata->subbands[beamlet] < subbandData[0]) {
+				subbandData[0] = metadata->subbands[beamlet];
+			}
+
+			subbandData[1] += metadata->subbands[beamlet];
+		}
+	}
+
+	// Update number of beamlets
+	metadata->nchan = reader->meta->totalProcBeamlets;
+	if (lofar_udp_metadata_update_frequencies(metadata, subbandData) < 0) {
+		return -1;
+	}
+
+	metadata->telescope_rsp_id = reader->meta->stationID;
+	if (lofar_udp_metadata_get_station_name(metadata->telescope_rsp_id, metadata->telescope) < 0) {
+		return -1;
+	}
+
+	metadata->baseport = reader->input->basePort;
+	metadata->upm_reader = reader->input->readerType;
+	metadata->upm_replay = reader->meta->replayDroppedPackets;
+	metadata->upm_pack_per_iter = reader->packetsPerIteration;
+	metadata->upm_blocksize = metadata->upm_pack_per_iter * reader->meta->packetOutputLength[0];
+
+
+	// These are needed for the next function
+	metadata->upm_procmode = reader->meta->processingMode;
+	metadata->upm_input_bitmode = reader->meta->inputBitMode;
+	metadata->upm_calibrated = reader->meta->calibrateData;
+	if (lofar_udp_metadata_processing_mode_metadata(metadata) < 0) {
+		return -1;
+	}
+
+	metadata->upm_num_inputs = reader->input->numInputs;
+	metadata->upm_num_outputs = reader->meta->numOutputs;
+
+
+	lofar_udp_time_get_current_isot(reader, metadata->utc_start);
+	metadata->obs_mjd_start = lofar_udp_time_get_packet_time_mjd(reader->meta->inputData[0]);
+	lofar_udp_time_get_daq(reader, metadata->upm_daq);
+
+	for (int port = 0; port < metadata->upm_num_inputs; port++) {
+		if (strncpy(metadata->rawfile[port], reader->input->inputLocations[port], META_STR_LEN)) {
+			fprintf(stderr, "ERROR: Failed to copy raw filename %d to metadata struct, exiting.\n", port);
+			return -1;
+		}
+	}
 
 	return 0;
 }
 
 int lofar_udp_metadata_parse_beamctl(lofar_udp_metadata *metadata, const char *inputLine, int *beamctlData) {
-	char *workingPtr = (char*) inputLine;
-
-
-	char *inputPtr = strtok(workingPtr, " ");
-	if (inputPtr == NULL) {
-		fprintf(stderr, "ERROR: Failed to find space in beamctl command, exiting.\n");
+	char *strCopy = calloc(strlen(inputLine) + 1, sizeof(char));
+	if (strCopy == NULL) {
+		fprintf(stderr, "ERROR: Failed to allocate buffer for intermediate string copy, exiting.\n");
+		return -1;
+	}
+	if (memcpy(strCopy, inputLine, strlen(inputLine)) != strCopy) {
+		fprintf(stderr, "ERROR: Failed to copy line to intermediate buffer, exiting.\n");
+		free(strCopy);
 		return -1;
 	}
 
+	char *workingPtr;
+
+	char *tokenPtr;
+	char token[2] = " ";
+	char *inputPtr = strtok_r(strCopy, token, &tokenPtr);
+	if (inputPtr == NULL) {
+		fprintf(stderr, "ERROR: Failed to find space in beamctl command, exiting.\n");
+		free(strCopy);
+		return -1;
+	}
 
 	do {
+		VERBOSE(printf("Starting beamctl lMETA_STR_LENoop for token %s\n", inputPtr));
 		// Number of RCUs
 		if ((workingPtr = strstr(inputPtr, "--rcus=")) != NULL) {
 			metadata->nrcu = lofar_udp_metadata_count_csv(workingPtr + strlen("--rcus="));
 
+			VERBOSE(printf("Nrcu: %d\n", metadata->nrcu));
 			if (metadata->nrcu == -1) {
+				free(strCopy);
 				return -1;
 			}
 
@@ -138,39 +422,66 @@ int lofar_udp_metadata_parse_beamctl(lofar_udp_metadata *metadata, const char *i
 		// RCU configuration
 		} else if ((workingPtr = strstr(inputPtr, "--band=")) != NULL) {
 			if (lofar_udp_metadata_parse_rcumode(metadata, workingPtr, beamctlData) < 0) {
+				free(strCopy);
 				return -1;
 			}
+			VERBOSE(printf("Band: %d\n", beamctlData[0]));
 
 		} else if ((workingPtr = strstr(inputPtr, "--rcumode="))) {
 			if (lofar_udp_metadata_parse_rcumode(metadata, workingPtr, beamctlData) < 0) {
+				free(strCopy);
 				return -1;
 			}
+			VERBOSE(printf("Rcumode: %d\n", beamctlData[0]));
 
 
 		// Pointing information
-		} else if ((workingPtr = strstr(inputPtr, "--digidir=")) != NULL) {
+		} else if ((workingPtr = strstr(inputPtr, "--digdir=")) != NULL) {
 			if (lofar_udp_metadata_parse_pointing(metadata, workingPtr, 1) < 0) {
+				free(strCopy);
 				return -1;
 			}
+			VERBOSE(printf("Digdir: %s, %s, %s\n", metadata->ra, metadata->dec, metadata->coord_basis));
+
 		} else if ((workingPtr = strstr(inputPtr, "--anadir=")) != NULL) {
 			if (lofar_udp_metadata_parse_pointing(metadata, workingPtr, 0) < 0) {
+				free(strCopy);
 				return -1;
 			}
+			VERBOSE(printf("Anadir: %s, %s, %s\n", metadata->ra_analog, metadata->dec_analog, metadata->coord_basis));
+
 		}
 
+		VERBOSE(printf("End beamctl loop for token %s\n", inputPtr));
+	} while ((inputPtr = strtok_r(NULL, token, &tokenPtr)) != NULL);
+	VERBOSE(printf("End strok beamctl loop\n"));
 
-	} while ((inputPtr = strtok(NULL, " ")) != NULL);
-
-
-	workingPtr = (char*) inputLine;
+	if (memcpy(strCopy, inputLine, strlen(inputLine)) != strCopy) {
+		fprintf(stderr, "ERROR: Failed to copy line to intermediate buffer, exiting.\n");
+		free(strCopy);
+		return -1;
+	}
+	workingPtr = strCopy;
+	VERBOSE(printf("Sanity check states: \n%s\n%s\n\n", workingPtr, inputLine));
 	if (lofar_udp_metadata_parse_subbands(metadata, workingPtr, beamctlData) < 0) {
+		free(strCopy);
+		return -1;
+	}
+
+	free(strCopy);
+
+	// Parse the combined beamctl data to determine the frequency information
+	if (metadata->channel_bw != -1.0) {
+		metadata->channel_bw = ((double) metadata->upm_rcuclock) / 1024;
+	} else if (metadata->channel_bw != ((double) metadata->upm_rcuclock) / 1024) {
+		fprintf(stderr, "ERROR: Channel bandwidth mismatch (was %lf, now %lf), exiting.\n", metadata->channel_bw, ((double) metadata->upm_rcuclock) / 1024);
 		return -1;
 	}
 
 	return 0;
 }
 
-int lofar_udp_metadata_parse_rcumode(lofar_udp_metadata *metadata, char *inputStr, int *beamctlData) {
+int lofar_udp_metadata_parse_rcumode(lofar_udp_metadata *metadata, const char *inputStr, int *beamctlData) {
 	int workingInt = -1;
 	if (sscanf(inputStr, "%*[^=]=%d", &(workingInt)) < 0) {
 		return -1;
@@ -180,7 +491,7 @@ int lofar_udp_metadata_parse_rcumode(lofar_udp_metadata *metadata, char *inputSt
 	metadata->upm_rcuclock = lofar_udp_metadata_get_clockmode(workingInt);
 	beamctlData[0] = lofar_udp_metadata_get_rcumode(workingInt);
 
-	if (lastClock != -1 && lastClock != metadata->upm_rcuclock) {
+	if (lastClock > 100 && lastClock != metadata->upm_rcuclock) {
 		fprintf(stderr, "ERROR: 160/200MHz clock mixing detected, this is not currently supported. Exiting.\n");
 		return -1;
 	}
@@ -203,7 +514,7 @@ int lofar_udp_metadata_parse_pointing(lofar_udp_metadata *metadata, const char i
 	// 2pi / 360deg -> 0.01745329251 rad/deg
 	const double rad2Deg = 0.01745329251;
 
-	if (sscanf(inputStr, "%*[^=]=%lf,%lf,%[^ ]", &lon, &lat, basis) < 2) {
+	if (sscanf(inputStr, "%*[^0-9]%lf,%lf,%[a-Z0-9]", &lon, &lat, basis) < 2) {
 		fprintf(stderr, "ERROR: Failed to parse pointing string %s, exiting.\n", inputStr);
 		return -1;
 	}
@@ -243,6 +554,18 @@ int lofar_udp_metadata_parse_pointing(lofar_udp_metadata *metadata, const char i
 		return -1;
 	}
 
+	if (strlen(metadata->coord_basis) > 0) {
+		if (strcmp(basis, metadata->coord_basis) != 0) {
+			fprintf(stderr, "ERROR: Coordinate basis mismatch while parsing directions (digdir=%d), parsed %s vs struct %s, exiting.\n", digi, basis, metadata->coord_basis);
+			return -1;
+		}
+	} else {
+		if (strncpy(metadata->coord_basis, basis, META_STR_LEN) != metadata->coord_basis) {
+			fprintf(stderr, "ERROR: Failed to copy coordinate basis to metadata struct, exiting.\n");
+			return -1;
+		}
+	}
+
 	if (digi) {
 		metadata->ra_rad = lon;
 		metadata->dec_rad = lat;
@@ -264,8 +587,10 @@ int lofar_udp_metadata_parse_subbands(lofar_udp_metadata *metadata, const char *
 	int subbands[MAX_NUM_PORTS * UDPMAXBEAM] = { 0 };
 	int beamlets[MAX_NUM_PORTS * UDPMAXBEAM] = { 0 };
 
-	char *workingPtr = (char*) inputLine;
-	char *inputPtr = strtok(workingPtr, " ");
+	char *workingPtr = (char*) inputLine, *tokenPtr;
+	char token[2] = " ";
+	VERBOSE(printf("Parsing input line %s for subbands and beamlets\n", workingPtr));
+	char *inputPtr = strtok_r(workingPtr, token, &tokenPtr);
 	if (inputPtr == NULL) {
 		fprintf(stderr, "ERROR: Failed to find space in beamctl command, exiting.\n");
 		return -1;
@@ -273,18 +598,23 @@ int lofar_udp_metadata_parse_subbands(lofar_udp_metadata *metadata, const char *
 
 	int parsed = 0;
 	do {
+		VERBOSE(printf("Entering subband/beamlet parse loop for token %s\n", inputPtr));
 		if ((workingPtr = strstr(inputPtr, "--subbands=")) != NULL) {
+			VERBOSE(printf("Subbands detected\n"));
 			if ((lofar_udp_metadata_parse_csv(workingPtr + strlen("--subbands="), subbands, &(results[1]))) < 0) {
 				return -1;
 			}
 			parsed |= 1;
 		} else if ((workingPtr = strstr(inputPtr, "--beamlets=")) != NULL) {
-			if ((lofar_udp_metadata_parse_csv(workingPtr + strlen("--beamlets="), beamlets, &(results[4]))) < 0) {
+			VERBOSE(printf("Beamlets detected\n"));
+			if ((lofar_udp_metadata_parse_csv(workingPtr + strlen("--beamlets="), beamlets, &(results[5]))) < 0) {
 				return -1;
 			}
 			parsed |= 2;
 		}
-	} while ((inputPtr = strtok(NULL, " ")) != NULL);
+
+	} while ((inputPtr = strtok_r(NULL, token, &tokenPtr)) != NULL);
+	VERBOSE(printf("End subband/beamlet search loop\n"));
 
 	if (parsed != 3) {
 		fprintf(stderr, "ERROR: Failed to parse both subbands and beamlets (%d), exiting.\n", parsed);
@@ -309,13 +639,18 @@ int lofar_udp_metadata_parse_subbands(lofar_udp_metadata *metadata, const char *
 }
 
 int lofar_udp_metadata_get_tsv(const char *inputStr, const char *keyword, char *result) {
-	char format[64];
-	sprintf(format, "%s\t%%s", keyword);
-
-	if (sscanf(inputStr, format, result) < 0) {
-		fprintf(stderr, "ERROR: Failed to get value for input '%s' keyword, exiting.\n", keyword);
+	char key[65];
+	if (sscanf(inputStr, "%64[^\t]%s", key, result) != 2) {
+		fprintf(stderr, "ERROR: Failed to get value for input '%s' keyword (parsed key/val of %s / %s), exiting.\n", keyword, key, result);
 		return -1;
 	}
+
+	if (strcmp(key, keyword) != 0) {
+		fprintf(stderr, "ERROR: Keyword %s does not match parsed key %s, exiting.\n", keyword, key);
+		return -1;
+	}
+
+	VERBOSE(printf("Parsed for %s: %s / %s\n", keyword, key, result));
 
 	return 0;
 }
@@ -324,29 +659,54 @@ int lofar_udp_metadata_count_csv(const char *inputStr) {
 	return lofar_udp_metadata_parse_csv(inputStr, NULL, NULL);
 }
 
-int lofar_udp_metadata_parse_csv(const char *inputStr, int *values, int *limits) {
-	char *workingPtr = (char*) inputStr;
+int lofar_udp_metadata_parse_csv(const char *inputStr, int *values, int *data) {
+	size_t bufferLen = strlen(inputStr) + 1;
+	char *strCpy = calloc(bufferLen, sizeof(char));
+	if (strCpy == NULL) {
+		fprintf(stderr, "ERROR: Failed to allocate %ld bytes for input string %s, exiting.\n", bufferLen, inputStr);
+	}
+	if (memcpy(strCpy, inputStr, bufferLen - 1) != strCpy) {
+		fprintf(stderr, "ERROR: Failed to make a copy of the csv string %s, exiting.\n", inputStr);
+		return -1;
+	}
 
+	VERBOSE(printf("Parse: %s\n", inputStr));
 
 	int counter = 0, lower = -1, upper = -1;
 	int minimum = INT_MAX, maximum = -1, sum = 0;
 
-	workingPtr = strtok(workingPtr, ",");
+	char *tokenPtr;
+	char token[2] = ",";
+	char *workingPtr = strtok_r(strCpy, token, &tokenPtr);
 
 	// If the input isn't a list, just point to the start of the list and parse the 1 element.
 	if (workingPtr == NULL) {
+		fprintf(stderr, "WARNING: Commas not detected, attempting to parse first entry from the pointer header...\n");
 		workingPtr = (char*) &(inputStr[0]);
 	}
 
-	do { //  while ((workingPtr = strtok(NULL, ",")) != NULL);
+	char *fixPtr;
+	do { //  while ((workingPtr = strtok_r(NULL, token, &tokenPtr)) != NULL);
+		VERBOSE(printf("Parse entry %s\n", workingPtr));
+
+		// Remove quotes
+		while((fixPtr = strstr(workingPtr, "\'"))) {
+			*(fixPtr) = ' ';
+		}
+
+		while((fixPtr = strstr(workingPtr, "\""))) {
+			*(fixPtr) = ' ';
+		}
 
 		if (strstr(workingPtr, ":") != NULL) {
+			VERBOSE(printf(": detected\n"));
 			if (sscanf(workingPtr, "%d:%d", &lower, &upper) < 0) {
 				fprintf(stderr, "Thing went wrong\n");
+				free(strCpy);
 				return -1;
 			}
 
-			printf("Parse %d / %d\n", upper, lower);
+			VERBOSE(printf("Parse %s -> %d / %d\n", workingPtr, upper, lower));
 
 			// Sum of a series
 			sum += ((upper * (upper + 1) / 2) - ((lower - 1) * (lower) / 2));
@@ -363,10 +723,11 @@ int lofar_udp_metadata_parse_csv(const char *inputStr, int *values, int *limits)
 
 			if (lower == -1) {
 				fprintf(stderr, "ERROR: Failed to parse csv list (input: %s), exiting.\n", inputStr);
+				free(strCpy);
 				return -1;
 			}
 
-			printf("Parsed %d\n", lower);
+			VERBOSE(printf("Parsed %d\n", lower));
 			upper = lower;
 			sum += lower;
 
@@ -385,14 +746,16 @@ int lofar_udp_metadata_parse_csv(const char *inputStr, int *values, int *limits)
 			maximum = upper;
 		}
 
-	} while ((workingPtr = strtok(NULL, ",")) != NULL);
+	} while ((workingPtr = strtok_r(NULL, token, &tokenPtr)) != NULL);
 
-	if (limits != NULL) {
-		limits[0] = (minimum < limits[0]) ? minimum : limits[0];
-		limits[1] += sum;
-		limits[2] = (maximum > limits[0]) ? maximum : limits[0];
+	if (data != NULL) {
+		data[0] = (minimum < data[0]) ? minimum : data[0];
+		data[1] += sum;
+		data[2] = (maximum > data[0]) ? maximum : data[0];
+		data[3] = counter;
 	}
 
+	free(strCpy);
 	return counter;
 }
 
@@ -467,7 +830,7 @@ metadata_t lofar_udp_metadata_string_to_meta(const char input[]) {
 	}
 }
 
-int lofar_udp_metadata_bitmode_to_beamlets(int bitmode) {
+int lofar_udp_metadata_get_beamlets(int bitmode) {
 	switch(bitmode) {
 		case 4:
 			return 244;
@@ -484,6 +847,516 @@ int lofar_udp_metadata_bitmode_to_beamlets(int bitmode) {
 	}
 }
 
+
+int lofar_udp_metadata_update_frequencies(lofar_udp_metadata *metadata, int *subbandData) {
+	// Update the metadata frequency / channel parameters
+
+	if (metadata == NULL || subbandData == NULL) {
+		fprintf(stderr, "ERROR %s: Passed null metadata struct (%p) / subband data (%p), exiting.\n", __func__, metadata, subbandData);
+		return -1;
+	}
+
+	if (metadata->nchan < 1) {
+		fprintf(stderr, "ERROR %s: passed invalid number of channels (%d), exiting.\n", __func__, metadata->nchan);
+		return -1;
+	}
+
+	double meanSubband = (double) subbandData[1] / metadata->nchan;
+
+	// Offset frequency by half a subband to get central frequencies rather than base frequencies
+	metadata->fbottom = metadata->channel_bw * (0.5 + subbandData[0]);
+	metadata->freq = metadata->channel_bw * (0.5 + meanSubband);
+	metadata->ftop = metadata->channel_bw * (0.5 + subbandData[2]);
+	// Define the observation bandwidth as the bandwidth between the centre of the top and bottom channels,
+	//  plus a subband to account for the expanded bandwidth from the centre to the edges of the band
+	metadata->bw = metadata->ftop - metadata->fbottom;
+
+	if (metadata->bw > 0) {
+		metadata->bw += metadata->channel_bw;
+	} else {
+		metadata->bw -= metadata->channel_bw;
+	}
+
+	return 0;
+}
+
+
+int lofar_udp_metadata_processing_mode_metadata(lofar_udp_metadata *metadata) {
+
+	switch (metadata->upm_procmode) {
+		// Frequency order same as beamlet order
+		case 0 ... 2:
+		case 10 ... 11:
+		case 30 ... 32:
+		case 35:
+		case 200 ... 204:
+		case 210 ... 214:
+		case 220 ... 224:
+		case 230 ... 234:
+		case 250 ... 254:
+		case 260 ... 264:
+			metadata->upm_bandflip = 0;
+			break;
+
+			// Frequency order flipped
+		case 20 ... 21:
+		case 100 ... 104:
+		case 110 ... 114:
+		case 120 ... 124:
+		case 130 ... 134:
+		case 150 ... 154:
+		case 160 ... 164:
+			metadata->upm_bandflip = 1;
+			break;
+
+		default:
+			fprintf(stderr,"ERROR %s: Unknown processing mode %d, exiting.\n", __func__, metadata->upm_procmode);
+			return -1;
+	}
+
+	if (metadata->upm_bandflip) {
+		double tmp = metadata->ftop;
+		metadata->ftop = metadata->fbottom;
+		metadata->fbottom = tmp;
+		metadata->channel_bw *= -1;
+		metadata->bw *= -1;
+	}
+
+	double samplingTime = metadata->upm_rcuclock == 200 ? clock200MHzSampleTime : clock160MHzSampleTime;
+
+	if (metadata->upm_procmode > 99) {
+		samplingTime *= (double) (1 << (metadata->upm_procmode % 10));
+	}
+
+	metadata->tsamp = samplingTime;
+
+
+	for (int i = 0; i < MAX_OUTPUT_DIMS; i++) {
+		if (strncpy(metadata->upm_outputfmt[i], "", META_STR_LEN) != metadata->upm_outputfmt[i]) {
+			fprintf(stderr, "ERROR: Failed to reset upm_outputfmt_comment field %d, exiting.\n", i);
+			return -1;
+		}
+	}
+
+	// Find a way to do concatenations in future?
+	switch (metadata->upm_procmode) {
+		// Frequency order same as beamlet order
+		case 0:
+			strncpy(metadata->upm_outputfmt[0], "PKT-HDR-XrXiYrYi", META_STR_LEN);
+			strncpy(metadata->upm_outputfmt_comment, "Full Packet Copy", META_STR_LEN);
+			break;
+		case 1:
+			strncpy(metadata->upm_outputfmt[0], "PKT-XrXiYrYi", META_STR_LEN);
+			strncpy(metadata->upm_outputfmt_comment, "Headerless Packet Copy", META_STR_LEN);
+			break;
+		case 2:
+			strncpy(metadata->upm_outputfmt[0], "PKT-Xr", META_STR_LEN);
+			strncpy(metadata->upm_outputfmt[1], "PKT-Xi", META_STR_LEN);
+			strncpy(metadata->upm_outputfmt[2], "PKT-Yr", META_STR_LEN);
+			strncpy(metadata->upm_outputfmt[3], "PKT-Yi", META_STR_LEN);
+			strncpy(metadata->upm_outputfmt_comment, "Headerless Packet, Split by Polarisation", META_STR_LEN);
+			break;
+
+		case 10:
+			strncpy(metadata->upm_outputfmt[0], "FREQ-POS-XrXiYrYi", META_STR_LEN);
+			strncpy(metadata->upm_outputfmt_comment, "Beamlet Major", META_STR_LEN);
+			break;
+		case 11:
+			strncpy(metadata->upm_outputfmt[0], "FREQ-POS-Xr", META_STR_LEN);
+			strncpy(metadata->upm_outputfmt[1], "FREQ-POS-Xi", META_STR_LEN);
+			strncpy(metadata->upm_outputfmt[2], "FREQ-POS-Yr", META_STR_LEN);
+			strncpy(metadata->upm_outputfmt[3], "FREQ-POS-Yi", META_STR_LEN);
+			strncpy(metadata->upm_outputfmt_comment, "Beamlet Major, Split by Polarisation", META_STR_LEN);
+			break;
+		case 20:
+			strncpy(metadata->upm_outputfmt[0], "FREQ-NEG-XrXiYrYi", META_STR_LEN);
+			strncpy(metadata->upm_outputfmt_comment, "Reversed Beamlet Major", META_STR_LEN);
+			break;
+		case 21:
+			strncpy(metadata->upm_outputfmt[0], "FREQ-NEG-Xr", META_STR_LEN);
+			strncpy(metadata->upm_outputfmt[1], "FREQ-NEG-Xi", META_STR_LEN);
+			strncpy(metadata->upm_outputfmt[2], "FREQ-NEG-Yr", META_STR_LEN);
+			strncpy(metadata->upm_outputfmt[3], "FREQ-NEG-Yi", META_STR_LEN);
+			strncpy(metadata->upm_outputfmt_comment, "Reversed Beamlet Major, Split by Polarisation", META_STR_LEN);
+			break;
+
+		case 30:
+			strncpy(metadata->upm_outputfmt[0], "TIME-XrXiYrYi", META_STR_LEN);
+			strncpy(metadata->upm_outputfmt_comment, "Chunked Time Major", META_STR_LEN);
+			break;
+		case 31:
+			strncpy(metadata->upm_outputfmt[0], "TIME-Xr", META_STR_LEN);
+			strncpy(metadata->upm_outputfmt[1], "TIME-Xi", META_STR_LEN);
+			strncpy(metadata->upm_outputfmt[2], "TIME-Yr", META_STR_LEN);
+			strncpy(metadata->upm_outputfmt[3], "TIME-Yi", META_STR_LEN);
+			strncpy(metadata->upm_outputfmt_comment, "Chunked Time Major, Split by Polarisation", META_STR_LEN);
+			break;
+		case 32:
+			strncpy(metadata->upm_outputfmt[0], "TIME-XrXi", META_STR_LEN);
+			strncpy(metadata->upm_outputfmt[1], "TIME-YrYi", META_STR_LEN);
+			strncpy(metadata->upm_outputfmt_comment, "Chunked Time Major, Split by Antenna", META_STR_LEN);
+			break;
+		case 35:
+			strncpy(metadata->upm_outputfmt[0], "TIME-XrXi", META_STR_LEN);
+			strncpy(metadata->upm_outputfmt[1], "TIME-YrYi", META_STR_LEN);
+			strncpy(metadata->upm_outputfmt_comment, "Chunked Time Major, Split by Antenna, Forced Float Output", META_STR_LEN);
+			break;
+
+
+		case 100 ... 104:
+			snprintf(metadata->upm_outputfmt[0], META_STR_LEN, "S0-NEG-%dx", 1 << metadata->upm_procmode % 10);
+			snprintf(metadata->upm_outputfmt_comment, META_STR_LEN, "Stokes I, with reversed frequencies and %dx downsampling", 1 << (metadata->upm_procmode % 10));
+			break;
+		case 110 ... 114:
+			snprintf(metadata->upm_outputfmt[0], META_STR_LEN, "S1-NEG-%dx", 1 << metadata->upm_procmode % 10);
+			snprintf(metadata->upm_outputfmt_comment, META_STR_LEN, "Stokes Q, with reversed frequencies and %dx downsampling", 1 << (metadata->upm_procmode % 10));
+			break;
+		case 120 ... 124:
+			snprintf(metadata->upm_outputfmt[0], META_STR_LEN, "S2-NEG-%dx", 1 << metadata->upm_procmode % 10);
+			snprintf(metadata->upm_outputfmt_comment, META_STR_LEN, "Stokes U, with reversed frequencies and %dx downsampling", 1 << (metadata->upm_procmode % 10));
+			break;
+		case 130 ... 134:
+			snprintf(metadata->upm_outputfmt[0], META_STR_LEN, "S3-NEG-%dx", 1 << metadata->upm_procmode % 10);
+			snprintf(metadata->upm_outputfmt_comment, META_STR_LEN, "Stokes V, with reversed frequencies and %dx downsampling", 1 << (metadata->upm_procmode % 10));
+			break;
+		case 150 ... 154:
+			snprintf(metadata->upm_outputfmt[0], META_STR_LEN, "S0-NEG-%dx", 1 << metadata->upm_procmode % 10);
+			snprintf(metadata->upm_outputfmt[1], META_STR_LEN, "S1-NEG-%dx", 1 << metadata->upm_procmode % 10);
+			snprintf(metadata->upm_outputfmt[2], META_STR_LEN, "S2-NEG-%dx", 1 << metadata->upm_procmode % 10);
+			snprintf(metadata->upm_outputfmt[3], META_STR_LEN, "S3-NEG-%dx", 1 << metadata->upm_procmode % 10);
+			snprintf(metadata->upm_outputfmt_comment, META_STR_LEN, "Stokes IQUV, with reversed frequencies and %dx downsampling", 1 << (metadata->upm_procmode % 10));
+			break;
+		case 160 ... 164:
+			snprintf(metadata->upm_outputfmt[0], META_STR_LEN, "S0-NEG-%dx", 1 << metadata->upm_procmode % 10);
+			snprintf(metadata->upm_outputfmt[1], META_STR_LEN, "S3-NEG-%dx", 1 << metadata->upm_procmode % 10);
+			snprintf(metadata->upm_outputfmt_comment, META_STR_LEN, "Stokes IV, with reversed frequencies and %dx downsampling", 1 << (metadata->upm_procmode % 10));
+			break;
+
+
+		case 200 ... 204:
+			snprintf(metadata->upm_outputfmt[0], META_STR_LEN, "S0-POS-%dx", 1 << metadata->upm_procmode % 10);
+			snprintf(metadata->upm_outputfmt_comment, META_STR_LEN, "Stokes I, with %dx downsampling", 1 << (metadata->upm_procmode % 10));
+			break;
+		case 210 ... 214:
+			snprintf(metadata->upm_outputfmt[0], META_STR_LEN, "S1-POS-%dx", 1 << metadata->upm_procmode % 10);
+			snprintf(metadata->upm_outputfmt_comment, META_STR_LEN, "Stokes Q, with %dx downsampling", 1 << (metadata->upm_procmode % 10));
+			break;
+		case 220 ... 224:
+			snprintf(metadata->upm_outputfmt[0], META_STR_LEN, "S2-POS-%dx", 1 << metadata->upm_procmode % 10);
+			snprintf(metadata->upm_outputfmt_comment, META_STR_LEN, "Stokes U, with %dx downsampling", 1 << (metadata->upm_procmode % 10));
+			break;
+		case 230 ... 234:
+			snprintf(metadata->upm_outputfmt[0], META_STR_LEN, "S3-POS-%dx", 1 << metadata->upm_procmode % 10);
+			snprintf(metadata->upm_outputfmt_comment, META_STR_LEN, "Stokes V, with %dx downsampling", 1 << (metadata->upm_procmode % 10));
+			break;
+		case 250 ... 254:
+			snprintf(metadata->upm_outputfmt[0], META_STR_LEN, "S0-POS-%dx", 1 << metadata->upm_procmode % 10);
+			snprintf(metadata->upm_outputfmt[1], META_STR_LEN, "S1-POS-%dx", 1 << metadata->upm_procmode % 10);
+			snprintf(metadata->upm_outputfmt[2], META_STR_LEN, "S2-POS-%dx", 1 << metadata->upm_procmode % 10);
+			snprintf(metadata->upm_outputfmt[3], META_STR_LEN, "S3-POS-%dx", 1 << metadata->upm_procmode % 10);
+			snprintf(metadata->upm_outputfmt_comment, META_STR_LEN, "Stokes IQUV, with %dx downsampling", 1 << (metadata->upm_procmode % 10));
+			break;
+		case 260 ... 264:
+			snprintf(metadata->upm_outputfmt[0], META_STR_LEN, "S0-POS-%dx", 1 << metadata->upm_procmode % 10);
+			snprintf(metadata->upm_outputfmt[1], META_STR_LEN, "S3-POS-%dx", 1 << metadata->upm_procmode % 10);
+			snprintf(metadata->upm_outputfmt_comment, META_STR_LEN, "Stokes IV, with %dx downsampling", 1 << (metadata->upm_procmode % 10));
+			break;
+
+		default:
+			fprintf(stderr, "ERROR %s: Unknown processing mode %d, exiting.\n", __func__, metadata->upm_procmode);
+			return -1;
+	}
+
+	// Nyquist or analytic?
+	switch (metadata->upm_procmode) {
+		// Packet copies, no change
+		case 0:
+		case 1:
+			// Data reordered, single output, no change
+		case 10:
+		case 20:
+		case 30:
+			metadata->ndim = 2;
+			metadata->npol = 2;
+			if (strncpy(metadata->state, "NYQUIST", META_STR_LEN) != metadata->state) {
+				fprintf(stderr, "ERROR: Failed to set metadata state, exiting.\n");
+				return -1;
+			}
+			break;
+
+			// Polarisations/real/complex values split into their own files
+		case 2:
+		case 11:
+		case 21:
+		case 31:
+			metadata->ndim = 1;
+			metadata->npol = 1;
+			if (strncpy(metadata->state, "NYQUIST", META_STR_LEN) != metadata->state) {
+				fprintf(stderr, "ERROR: Failed to set metadata state, exiting.\n");
+				return -1;
+			}
+			break;
+
+			// Split by antenna polarisation, but not real/complex
+		case 32:
+		case 35:
+			// Polarisation split, but complex valued
+			metadata->ndim = 2;
+			metadata->npol = 1;
+			if (strncpy(metadata->state, "NYQUIST", META_STR_LEN) != metadata->state) {
+				fprintf(stderr, "ERROR: Failed to set metadata state, exiting.\n");
+				return -1;
+			}
+			break;
+
+
+			// Stokes outputs
+			// May need to double check, should npol be 1 here?
+		case 100 ... 104:
+		case 110 ... 114:
+		case 120 ... 124:
+		case 130 ... 134:
+		case 150 ... 154:
+		case 160 ... 164:
+		case 200 ... 204:
+		case 210 ... 214:
+		case 220 ... 224:
+		case 230 ... 234:
+		case 250 ... 254:
+		case 260 ... 264:
+			metadata->ndim = 1;
+			metadata->npol = 2;
+			if (strncpy(metadata->state, "INTENSITY", META_STR_LEN) != metadata->state) {
+				fprintf(stderr, "ERROR: Failed to set metadata state, exiting.\n");
+				return -1;
+			}
+			break;
+
+		default:
+			fprintf(stderr, "ERROR %s: Unknown processing mode %d, exiting.\n", __func__, metadata->upm_procmode);
+			return -1;
+	}
+
+	// Output bit mode
+	switch (metadata->upm_procmode) {
+		case 0:
+		case 1:
+		case 2:
+		case 10:
+		case 11:
+		case 20:
+		case 21:
+		case 30:
+		case 31:
+		case 32:
+			// Calibrated samples are always floats
+			if (metadata->upm_calibrated) {
+				metadata->nbit = -32;
+			} else {
+				metadata->nbit = metadata->upm_input_bitmode == 4 ? 8 : metadata->upm_input_bitmode;
+			}
+			break;
+
+		// Mode 35 is the same as 32, but forced to be floats
+		case 35:
+			metadata->nbit = -32;
+			break;
+
+
+			// Stokes outputs
+			// May need to double check, should npol be 1 here?
+		case 100 ... 104:
+		case 110 ... 114:
+		case 120 ... 124:
+		case 130 ... 134:
+		case 150 ... 154:
+		case 160 ... 164:
+		case 200 ... 204:
+		case 210 ... 214:
+		case 220 ... 224:
+		case 230 ... 234:
+		case 250 ... 254:
+		case 260 ... 264:
+			// Floats are defined as -32 since ints are also 32 bits wide
+			// Sigproc will require the absolute value here
+			metadata->nbit = -32;
+			break;
+
+		default:
+			fprintf(stderr, "ERROR %s: Unknown processing mode %d, exiting.\n", __func__, metadata->upm_procmode);
+			return -1;
+	}
+
+	return 0;
+}
+
+
+
+/**
+ * @brief      Convert the station ID to the station code
+ * 				RSP station ID != intl station ID. See
+ * 				https://git.astron.nl/ro/lofar/-/raw/master/MAC/Deployment/data/StaticMetaData/StationInfo.dat
+ * 				RSP hdr byte 4 reports 32 * ID code in result above. Divide by 32 on any port to round down to target code.
+ *
+ * @param[in]  stationID    The station id
+ * @param      stationCode  The output station code (min size: 5 bytes)
+ *
+ * @return     0: Success, 1: Failure
+ */
+int lofar_udp_metadata_get_station_name(int stationID, char *stationCode) {
+
+	switch (stationID) {
+		// Core Stations
+		case 1 ... 7:
+		case 11:
+		case 13:
+		case 17:
+		case 21:
+		case 24:
+		case 26:
+		case 28:
+		case 30:
+		case 31:
+		case 32:
+		case 101:
+		case 103:
+			sprintf(stationCode, "CS%03d", stationID);
+			break;
+
+		case 121:
+			sprintf(stationCode, "CS201");
+			break;
+
+		case 141 ... 142:
+			sprintf(stationCode, "CS%03d", 301 + (stationID % 141));
+			break;
+
+		case 161:
+			sprintf(stationCode, "CS401");
+			break;
+
+		case 181:
+			sprintf(stationCode, "CS501");
+			break;
+
+
+			// Remote Stations
+		case 106:
+			sprintf(stationCode, "RS%03d", stationID);
+			break;
+
+		case 125:
+		case 128:
+		case 130:
+			sprintf(stationCode, "RS%03d", 205 + (stationID % 125));
+			break;
+
+		case 145 ... 147:
+		case 150:
+			sprintf(stationCode, "RS%03d", 305 + (stationID % 145));
+			break;
+
+		case 166 ... 167:
+		case 169:
+			sprintf(stationCode, "RS%03d", 406 + (stationID % 166));
+			break;
+
+		case 183:
+		case 188 ... 189:
+			sprintf(stationCode, "RS%03d", 503 + (stationID % 183));
+			break;
+
+
+			// Intl Stations
+			// DE
+		case 201 ... 205:
+			sprintf(stationCode, "DE%03d", 601 + (stationID % 201));
+			break;
+
+		case 210:
+			sprintf(stationCode, "DE609");
+			break;
+
+
+			// FR
+		case 206:
+			sprintf(stationCode, "FR606");
+			break;
+
+			// SE
+		case 207:
+			sprintf(stationCode, "SE207");
+			break;
+
+			// UK
+		case 208:
+			sprintf(stationCode, "UK208");
+			break;
+
+			// PL
+		case 211 ... 213:
+			sprintf(stationCode, "PL%03d", 610 + (stationID % 211));
+			break;
+
+			// IE
+		case 214:
+			sprintf(stationCode, "IE613");
+			break;
+
+			// LV
+		case 215:
+			sprintf(stationCode, "LV614");
+			break;
+
+			// KAIRA
+		case 901:
+			sprintf(stationCode, "FI901");
+			break;
+
+			// LOFAR4SW test station
+		case 902:
+			sprintf(stationCode, "UK902");
+			break;
+
+		default:
+			fprintf(stderr, "Unknown telescope ID %d. Was a new station added to the array? Update lofar_udp_misc.c::%s\n",
+			        stationID, __func__);
+			return 1;
+	}
+
+	return 0;
+}
+
+
+int isEmpty(const char *string) {
+	return string[0] == '\0';
+}
+
+int intNotSet(int input) {
+	return input == -1;
+}
+
+int longNotSet(long input) {
+	return input == -1;
+}
+
+int floatNotSet(double input, int exception) {
+	// Exception: it might be sane for some values to be -1.0f, so add a non-zero check instead
+	if (exception) {
+		return input == 0.0f;
+	}
+
+	return input == -1.0f;
+}
+
+int doubleNotSet(double input, int exception) {
+	// Exception: it might be sane for some values to be -1.0, so add a non-zero check instead
+	if (exception) {
+		return input == 0.0;
+	}
+
+	return input == -1.0;
+}
 
 #include "./metadata/lofar_udp_metadata_GUPPI.c"
 #include "./metadata/lofar_udp_metadata_DADA.c"

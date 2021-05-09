@@ -122,11 +122,15 @@ int main(int argc, char *argv[]) {
 
 			case 'M':
 				metadata = 1;
-				strcpy(metadataFile, optarg);
+				config->metadataType = lofar_udp_metadata_string_to_meta(optarg);
 				break;
 
 			case 'I':
-				
+				if (strncpy(config->metadataLocation, optarg, DEF_STR_LEN) != config->metadataLocation) {
+					fprintf(stderr, "ERROR: Failed to copy metadata file location to config, exiting.\n");
+					CLICleanup(eventCount, dateStr, startingPackets, multiMaxPackets, eventSeconds, config, outConfig);
+					return 1;
+				}
 				break;
 
 			case 'u':
@@ -315,7 +319,7 @@ int main(int argc, char *argv[]) {
 			return 1;
 		}
 
-		sampleTime = clock160MHzSample * (1 - clock200MHz) + clock200MHzSample * clock200MHz;
+		sampleTime = clock160MHzSampleRate * (1 - clock200MHz) + clock200MHzSampleRate * clock200MHz;
 		if (config->processingMode > 100) {
 			sampleTime *= 1 << ((config->processingMode % 10));
 		}
@@ -381,7 +385,7 @@ int main(int argc, char *argv[]) {
 			}
 
 			// Determine the packet corresponding to the initial time and the amount of packets needed to observe for  the length of the event
-			startingPackets[idx] = getStartingPacket(stringBuff, clock200MHz);
+			startingPackets[idx] = lofar_udp_time_get_packet_from_isot(stringBuff, clock200MHz);
 			if (startingPackets[idx] == 1) {
 				fprintf(stderr, "ERROR: Failed to get starting packet for event %d, exiting.\n", idx);
 				helpMessages();
@@ -390,7 +394,7 @@ int main(int argc, char *argv[]) {
 			}
 
 			eventSeconds[idx] = seconds;
-			multiMaxPackets[idx] = getSecondsToPacket(seconds, clock200MHz);
+			multiMaxPackets[idx] = lofar_udp_time_get_packets_from_seconds(seconds, clock200MHz);
 			// If packetsPerIteration is too high, we can reduce it later by tracking the largest requested input size
 			if (multiMaxPackets[idx] > maxPackets) { maxPackets = multiMaxPackets[idx]; }
 
@@ -429,7 +433,7 @@ int main(int argc, char *argv[]) {
 		dateStr = calloc(1, sizeof(char *));
 		dateStr[0] = calloc(1, sizeof("2020-20-20T-20:20:20"));
 		if (strcmp(inputTime, "") != 0) {
-			startingPacket = getStartingPacket(inputTime, clock200MHz);
+			startingPacket = lofar_udp_time_get_packet_from_isot(inputTime, clock200MHz);
 			if (startingPacket == 1) {
 				helpMessages();
 				CLICleanup(eventCount, dateStr, startingPackets, NULL, NULL, config, outConfig);
@@ -442,7 +446,7 @@ int main(int argc, char *argv[]) {
 		eventSeconds = calloc(1, sizeof(float));
 		eventSeconds[0] = seconds;
 		multiMaxPackets = calloc(1, sizeof(long));
-		if (seconds != 0.0) { multiMaxPackets[0] = getSecondsToPacket(seconds, clock200MHz); }
+		if (seconds != 0.0) { multiMaxPackets[0] = lofar_udp_time_get_packets_from_seconds(seconds, clock200MHz); }
 		else { multiMaxPackets[0] = LONG_MAX; }
 
 		maxPackets = multiMaxPackets[0];
@@ -493,12 +497,12 @@ int main(int argc, char *argv[]) {
 
 
 	if (silent == 0) {
-		getStartTimeString(reader, stringBuff);
+		lofar_udp_time_get_current_isot(reader, stringBuff);
 		printf("\n\n=========== Reader  Information ===========\n");
 		printf("Total Beamlets:\t%d/%d\t\t\t\t\tFirst Packet:\t%ld\n", reader->meta->totalProcBeamlets,
 			   reader->meta->totalRawBeamlets, reader->meta->lastPacket);
 		printf("Start time:\t%s\t\tMJD Time:\t%lf\n", stringBuff,
-			   lofar_get_packet_time_mjd(reader->meta->inputData[0]));
+			   lofar_udp_time_get_packet_time_mjd(reader->meta->inputData[0]));
 		for (int port = 0; port < reader->meta->numPorts; port++) {
 			printf("------------------ Port %d -----------------\n", port);
 			printf("Port Beamlets:\t%d/%d\t\tPort Bitmode:\t%d\t\tInput Pkt Len:\t%d\n",
@@ -541,14 +545,14 @@ int main(int argc, char *argv[]) {
 				}
 				printf("Beginning work on event %d at %s: packets %ld to %ld...\n", eventLoop, dateStr[eventLoop],
 					   startingPackets[eventLoop], startingPackets[eventLoop] + multiMaxPackets[eventLoop]);
-				getStartTimeString(reader, stringBuff);
+				lofar_udp_time_get_current_isot(reader, stringBuff);
 				printf("============ Event %d Information ===========\n", eventLoop);
 				printf("Target Time:\t%s\t\tActual Time:\t%s\n", dateStr[eventLoop], stringBuff);
 				printf("Target Packet:\t%ld\tActual Packet:\t%ld\n", startingPackets[eventLoop],
 					   reader->meta->lastPacket + 1);
 				printf("Event Length:\t%fs\t\tPacket Count:\t%ld\n", eventSeconds[eventLoop],
 					   multiMaxPackets[eventLoop]);
-				printf("MJD Time:\t%lf\n", lofar_get_packet_time_mjd(reader->meta->inputData[0]));
+				printf("MJD Time:\t%lf\n", lofar_udp_time_get_packet_time_mjd(reader->meta->inputData[0]));
 				printf("============= End Information ==============\n");
 			}
 		}

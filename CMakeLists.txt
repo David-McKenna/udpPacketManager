@@ -101,12 +101,11 @@ configure_file(	"${PROJECT_SOURCE_DIR}/src/CLI/lofar_cli_meta.h.in"
 # Setup the base library object
 add_library(lofudpman STATIC
             src/lib/lofar_udp_backends.cpp
-            src/lib/lofar_udp_misc.c
             src/lib/lofar_udp_io.c
             src/lib/lofar_udp_reader.c
             src/lib/lofar_udp_structs.c
             src/CLI/lofar_cli_meta.c
-            src/lib/lofar_udp_metadata.c)
+            src/lib/lofar_udp_metadata.c src/lib/lofar_udp_time.c)
 
 add_dependencies(lofudpman libzstd_static psrdada)
 # Include all of our headers

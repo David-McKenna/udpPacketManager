@@ -4,11 +4,11 @@
 /**
  * @brief      A bridge between the C++ and C components of the codebase
  *
- * @param      meta  The lofar_udp_meta struct
+ * @param      meta  The lofar_udp_input_meta struct
  *
  * @return     0 (Success) / -1 (Packet loss occurred) / 1 (ERROR: Unknown target or illegal configuration)
  */
-int lofar_udp_cpp_loop_interface(lofar_udp_meta *meta) {
+int lofar_udp_cpp_loop_interface(lofar_udp_input_meta *meta) {
 	VERBOSE(if (meta->VERBOSE) {
 		printf("Entered C++ call for %d (%d, %d)\n", meta->processingMode, meta->calibrateData,
 			   meta->inputBitMode);

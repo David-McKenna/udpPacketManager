@@ -379,6 +379,8 @@ lofar_udp_io_write_DADA(ipcio_t *ringbuffer, int outp, char *src, const long nch
 	return writtenChars;
 	*/
 
+	UNUSED(outp);
+
 	long writtenBytes = ipcio_write(ringbuffer, src, nchars);
 	if (writtenBytes < 0) {
 		return -1;

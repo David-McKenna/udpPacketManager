@@ -2,7 +2,7 @@
 
 
 // Unique prototype to this CLI
-void getStartTimeStringDAQ(lofar_udp_reader *reader, char stringBuff[]);
+void lofar_udp_time_get_daq(const lofar_udp_reader *reader, char *stringBuff);
 
 void helpMessages() {
 	printf("LOFAR UDP Data extractor (GUPPI CLI v%s, lib v%s)\n\n", UPM_CLI_VERSION, UPM_VERSION);
@@ -65,7 +65,7 @@ int main(int argc, char *argv[]) {
 	lofar_udp_config *config = calloc(1, sizeof(lofar_udp_config));
 	(*config) = lofar_udp_config_default;
 	config->processingMode = 30;
-	ascii_hdr header = ascii_hdr_default;
+	guppi_hdr header = guppi_hdr_default;
 
 	lofar_udp_reader *reader = NULL;
 
@@ -246,7 +246,7 @@ int main(int argc, char *argv[]) {
 
 
 	// Determine the clock time
-	sampleTime = clock160MHzSample * (1 - clock200MHz) + clock200MHzSample * clock200MHz;
+	sampleTime = clock160MHzSampleRate * (1 - clock200MHz) + clock200MHzSampleRate * clock200MHz;
 
 
 	if (silent == 0) {
@@ -267,7 +267,7 @@ int main(int argc, char *argv[]) {
 	dateStr = calloc(1, sizeof(char *));
 	dateStr[0] = calloc(1, sizeof("2020-20-20T-20:20:20"));
 	if (strcmp(inputTime, "") != 0) {
-		config->startingPacket = getStartingPacket(inputTime, clock200MHz);
+		config->startingPacket = lofar_udp_time_get_packet_from_isot(inputTime, clock200MHz);
 		if (config->startingPacket == 1) {
 			helpMessages();
 			CLICleanup(eventCount, dateStr, config, outConfig, reader);
@@ -277,7 +277,7 @@ int main(int argc, char *argv[]) {
 
 	strcpy(dateStr[0], inputTime);
 
-	if (seconds != 0.0) { config->packetsReadMax = getSecondsToPacket(seconds, clock200MHz); }
+	if (seconds != 0.0) { config->packetsReadMax = lofar_udp_time_get_packets_from_seconds(seconds, clock200MHz); }
 	else { config->packetsReadMax = LONG_MAX; }
 
 	if (silent == 0) { printf("Start Time:\t%s\t200MHz Clock:\t%d\n", inputTime, clock200MHz); }
@@ -324,7 +324,7 @@ int main(int argc, char *argv[]) {
 
 	// Initialise the ASCII header struct if a metadata file was provided
 	if (strcmp(hdrFile, "") != 0) {
-//		if (parseHdrFile(hdrFile, &header) > 0) {
+//		if (lofar_udp_metdata_GUPPI_configure_from_file(hdrFile, &header) > 0) {
 //			fprintf(stderr, "ERROR: Error initialising ASCII header struct, exiting.");
 //			CLICleanup(eventCount, dateStr, config, outConfig, reader);
 //			return 1;
@@ -345,7 +345,7 @@ int main(int argc, char *argv[]) {
 	header.pktsize = reader->meta->packetOutputLength[0];
 
 	// Timing info
-	double mjdTime = lofar_get_packet_time_mjd(reader->meta->inputData[0]);
+	double mjdTime = lofar_udp_time_get_packet_time_mjd(reader->meta->inputData[0]);
 	header.stt_imjd = (int) mjdTime;
 	header.stt_smjd = (int) ((mjdTime - (int) mjdTime) * 86400);
 	header.stt_offs = ((mjdTime - (int) mjdTime) * 86400) - header.stt_smjd;
@@ -353,12 +353,12 @@ int main(int argc, char *argv[]) {
 
 
 	if (silent == 0) {
-		getStartTimeString(reader, stringBuff);
+		lofar_udp_time_get_current_isot(reader, stringBuff);
 		printf("\n\n=========== Reader  Information ===========\n");
 		printf("Total Beamlets:\t%d/%d\t\t\t\t\tFirst Packet:\t%ld\n", reader->meta->totalProcBeamlets,
 			   reader->meta->totalRawBeamlets, reader->meta->lastPacket);
 		printf("Start time:\t%s\t\tMJD Time:\t%lf\n", stringBuff,
-			   lofar_get_packet_time_mjd(reader->meta->inputData[0]));
+			   lofar_udp_time_get_packet_time_mjd(reader->meta->inputData[0]));
 		for (int port = 0; port < reader->meta->numPorts; port++) {
 			printf("------------------ Port %d -----------------\n", port);
 			printf("Port Beamlets:\t%d/%d\t\tPort Bitmode:\t%d\t\tInput Pkt Len:\t%d\n",
@@ -382,7 +382,7 @@ int main(int argc, char *argv[]) {
 		localLoops = 0;
 
 		// Output information about the current/last event if we're performing more than one event
-		getStartTimeString(reader, timeStr);
+		lofar_udp_time_get_current_isot(reader, timeStr);
 
 		// Open the output files for this event
 		if (lofar_udp_io_write_setup_helper(outConfig, reader->meta, loops / itersPerFile) < 0) {
@@ -425,7 +425,7 @@ int main(int argc, char *argv[]) {
 				header.blocsize = packetsToWrite * reader->meta->packetOutputLength[out];
 
 				// Should this be processing time, rather than the recording time?
-				getStartTimeStringDAQ(reader, timeStr);
+				lofar_udp_time_get_daq(reader, timeStr);
 				strcpy(header.daqpulse, timeStr);
 
 				header.dropblk = blockDropped / packetsToWrite;

@@ -1,6 +1,5 @@
 #include "lofar_udp_structs.h"
 
-
 // Merge in the metadata structs
 #include "lofar_udp_structs_metadata.c"
 
@@ -12,11 +11,11 @@ const lofar_udp_io_read_config lofar_udp_io_read_config_default = {
 	.numInputs = 0,
 
 	// Inputs pre- and post-formatting
-	.inputFormat = "",
 	.inputLocations = { "" },
 	.dadaKeys = { -1 },
-	.baseVal = 0,
-	.offsetVal = 1,
+	.basePort = 0,
+	.offsetPortCount = 1,
+	.stepSizePort = 1,
 
 	// Main reading objects
 	.fileRef = { NULL },
@@ -88,6 +87,7 @@ const lofar_udp_calibration lofar_udp_calibration_default = {
 // Configuration default
 const lofar_udp_config lofar_udp_config_default = {
 	.inputLocations = { "" },
+	.metadataLocation = "",
 	.numPorts = 4,
 	.replayDroppedPackets = 0,
 	.processingMode = 0,
@@ -112,7 +112,7 @@ const lofar_udp_reader lofar_udp_reader_default = {
 
 
 // meta with NULL-initialised values to help the cleanup function
-const lofar_udp_meta lofar_udp_meta_default = {
+const lofar_udp_input_meta lofar_udp_input_meta_default = {
 	.inputData = { NULL },
 	.outputData = { NULL },
 	.packetsRead = 0,

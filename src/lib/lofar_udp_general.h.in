@@ -124,6 +124,12 @@ typedef struct __attribute__((__packed__)) lofar_source_bytes {
 
 #include <stddef.h>
 #include <stdlib.h>
+
+// Free if non-null macro
 #define FREE_NOT_NULL(x) if (x != NULL) { free(x); x = NULL; }
+
+// Silence warnings about parameters not used in certain constexpr paths
+// https://stackoverflow.com/a/1486931
+#define UNUSED(expr) do { (void)(expr); } while (0);
 
 #endif // End of LOFAR_UDP_GENERAL_H

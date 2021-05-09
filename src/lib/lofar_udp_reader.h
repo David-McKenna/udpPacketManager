@@ -2,8 +2,9 @@
 #define LOFAR_UDP_READER_H
 
 #include "lofar_udp_io.h"
-#include "lofar_udp_misc.h"
+#include "lofar_udp_time.h"
 #include "lofar_udp_backends.hpp"
+#include "lofar_udp_metadata.h"
 
 // Extra required includes
 #include <omp.h>
@@ -35,8 +36,8 @@ lofar_udp_reader *lofar_udp_reader_setup(lofar_udp_config *config);
 int lofar_udp_file_reader_reuse(lofar_udp_reader *reader, long startingPacket, long packetsReadMax);
 
 // Initialisation helpers
-int lofar_udp_parse_headers(lofar_udp_meta *meta, char header[MAX_NUM_PORTS][UDPHDRLEN], const int beamletLimits[2]);
-int lofar_udp_setup_processing(lofar_udp_meta *meta);
+int lofar_udp_parse_headers(lofar_udp_input_meta *meta, char header[MAX_NUM_PORTS][UDPHDRLEN], const int beamletLimits[2]);
+int lofar_udp_setup_processing(lofar_udp_input_meta *meta);
 int lofar_udp_get_first_packet_alignment(lofar_udp_reader *reader);
 
 // Raw input data handlers

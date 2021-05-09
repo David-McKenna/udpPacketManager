@@ -16,14 +16,17 @@ int lofar_udp_io_read_setup(lofar_udp_io_read_config *input, int port) {
 		// Normal files and FIFOs use the same read interface
 		case NORMAL:
 		case FIFO:
+			input->numInputs++;
 			return lofar_udp_io_read_setup_FILE(input, input->inputLocations[port], port);
 
 
 		case ZSTDCOMPRESSED:
+			input->numInputs++;
 			return lofar_udp_io_read_setup_ZSTD(input, input->inputLocations[port], port);
 
 
 		case DADA_ACTIVE:
+			input->numInputs++;
 			return lofar_udp_io_read_setup_DADA(input, input->dadaKeys[port], port);
 
 
@@ -73,35 +76,53 @@ int lofar_udp_io_write_setup(lofar_udp_io_write_config *config, int iter) {
 }
 
 
-int lofar_udp_io_read_setup_helper(lofar_udp_io_read_config *input, const lofar_udp_config *config, const lofar_udp_meta *meta,
+int lofar_udp_io_read_setup_helper(lofar_udp_io_read_config *input, const lofar_udp_config *config, const lofar_udp_input_meta *meta,
                                    int port) {
+
+	// If this is the first initialisation call, copy over the specified reader type
 	if (input->readerType == NO_INPUT) {
+		if (config->readerType == NO_INPUT) {
+			fprintf(stderr, "ERROR: Input reader configuration does not specify a reader type, exiting.\n");
+			return -1;
+		}
 		input->readerType = config->readerType;
 	}
 
+	// Check the readerType matches the expected value between calls
 	if (input->readerType != config->readerType) {
 		fprintf(stderr, "ERROR: Mismatch between reader types on port %d (%d vs %d), exiting.\n", port, input->readerType, config->readerType);
 		return -1;
 	}
 
+	// PSRDADA needs port packet length to do corrections if we reconnect to a partially processed ringbuffer
 	input->portPacketLength[port] = meta->portPacketLength[port];
+	// Set the maximum length read buffer
 	input->readBufSize[port] = meta->packetsPerIteration * meta->portPacketLength[port];
 
+	// Copy over the port parameters
+	input->basePort = config->basePort;
+	input->stepSizePort = config->stepSizePort;
+	input->offsetPortCount = config->offsetPortCount;
+
+	// ZSTD needs to write directly to a given output buffer
 	if (input->readerType == ZSTDCOMPRESSED) {
 		input->decompressionTracker[port].dst = meta->inputData[port];
+	// Copy over the PSRDADA keys since they aren't parsed as strings
 	} else if (input->readerType == DADA_ACTIVE) {
 		input->dadaKeys[port] = config->dadaKeys[port];
 	}
 
+	// Copy over the raw input locations
 	if (strcpy(input->inputLocations[port], config->inputLocations[port]) != input->inputLocations[port]) {
 		fprintf(stderr, "ERROR: Failed to copy input location to reader on port %d, exiting.\n", port);
 		return -1;
 	}
 
+	// Call the main setup function
 	return lofar_udp_io_read_setup(input, port);
 }
 
-int lofar_udp_io_write_setup_helper(lofar_udp_io_write_config *config, const lofar_udp_meta *meta, int iter) {
+int lofar_udp_io_write_setup_helper(lofar_udp_io_write_config *config, const lofar_udp_input_meta *meta, int iter) {
 	config->numOutputs = meta->numOutputs;
 	for (int outp = 0; outp < config->numOutputs; outp++) {
 		config->writeBufSize[outp] = meta->packetsPerIteration * meta->packetOutputLength[outp];
@@ -321,8 +342,7 @@ int lofar_udp_io_read_parse_optarg(lofar_udp_config *config, const char optargc[
 	}
 
 	char fileFormat[DEF_STR_LEN];
-	int stepSize = 1;
-	config->readerType = lofar_udp_io_parse_type_optarg(optargc, fileFormat, &(config->basePort), &stepSize, &(config->offsetPort));
+	config->readerType = lofar_udp_io_parse_type_optarg(optargc, fileFormat, &(config->basePort), &(config->stepSizePort), &(config->offsetPortCount));
 
 
 	if (config->readerType == -1) {
@@ -335,14 +355,14 @@ int lofar_udp_io_read_parse_optarg(lofar_udp_config *config, const char optargc[
 		case NORMAL:
 		case FIFO:
 		case ZSTDCOMPRESSED:
-			for (int i = 0; i < (MAX_NUM_PORTS - config->offsetPort); i++) {
-				lofar_udp_io_parse_format(config->inputLocations[i], fileFormat, (config->basePort + config->offsetPort * stepSize) + i * stepSize, -1, i, -1);
+			for (int i = 0; i < (MAX_NUM_PORTS - config->offsetPortCount); i++) {
+				lofar_udp_io_parse_format(config->inputLocations[i], fileFormat, (config->basePort + config->offsetPortCount * config->stepSizePort) + i * config->stepSizePort, -1, i, -1);
 			}
 			break;
 
 		case DADA_ACTIVE:
 			// Swap values, default value is in the fileFormat for ringbuffers
-			stepSize = config->basePort;
+			config->stepSizePort = config->basePort;
 
 			// Parse the base value from the input
 			config->basePort = atoi(fileFormat);
@@ -353,16 +373,16 @@ int lofar_udp_io_read_parse_optarg(lofar_udp_config *config, const char optargc[
 			}
 
 			// Minimum offset between ringbuffers of 2 to account for header ringbuffers.
-			if (stepSize < 2 && stepSize > -2) {
-				if (stepSize == 0) stepSize = 1;
-				stepSize *= 2;
+			if (config->stepSizePort < 2 && config->stepSizePort > -2) {
+				if (config->stepSizePort == 0) config->stepSizePort = 1;
+				config->stepSizePort *= 2;
 				fprintf(stderr, "WARNING: Doubling ringbuffer offset to %d prevent overlaps with headers.\n",
-						stepSize);
+						config->stepSizePort);
 			}
 
 			// Populate the dada keys
 			for (int i = 0; i < MAX_NUM_PORTS; i++) {
-				config->dadaKeys[i] = (config->basePort + config->offsetPort * stepSize) + i * stepSize;
+				config->dadaKeys[i] = (config->basePort + config->offsetPortCount * config->stepSizePort) + i * config->stepSizePort;
 			}
 			break;
 

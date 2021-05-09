@@ -2,7 +2,7 @@ Adding New Processing Modes
 ---------
 
 1. Create the CPP/C bridge `if--else` statements in `lofar_udp_backends.cpp`, the main function is
-   called `int lofar_udp_cpp_loop_interface(lofar_udp_meta *meta)`. You will need to pick both a processing mode int
+   called `int lofar_udp_cpp_loop_interface(lofar_udp_input_meta *meta)`. You will need to pick both a processing mode int
    enum (any value greater than 0 and not in use by other modes) and an output data format. -- You will need to add the
    statement 6 times in total: with / without calibration (of disable calibration as an option) and for the 3 input bit
    modes, 4, 8 and 16. -- Calibration takes a 1 when enabled, 0 when disabled. -- Input type is always signed char for
@@ -16,7 +16,7 @@ Adding New Processing Modes
 Here's an example of what mode 30 looks like in the function.
 
 ```
-int lofar_udp_cpp_loop_interface(lofar_udp_meta *meta) {
+int lofar_udp_cpp_loop_interface(lofar_udp_input_meta *meta) {
 	if (calibrateData == 1) {
 		// Bitmode dependant inputs
 		if (inputBitMode == 4) {
@@ -190,7 +190,7 @@ void inline udp_myNewKernel(params) {
 }
 ```
 
-4. Include the kernel in the switch statement of `int lofar_udp_raw_loop(lofar_udp_meta *meta)`
+4. Include the kernel in the switch statement of `int lofar_udp_raw_loop(lofar_udp_input_meta *meta)`
 
 ```
 else if (trueState == KERNEL_ENUM_VAL) {
@@ -200,7 +200,7 @@ else if (trueState == KERNEL_ENUM_VAL) {
 
 ```
 
-5. Go to `lofar_udp_reader.c` and find the `int lofar_udp_setup_processing(lofar_udp_meta *meta)` function. You will
+5. Go to `lofar_udp_reader.c` and find the `int lofar_udp_setup_processing(lofar_udp_input_meta *meta)` function. You will
    need to add your mode to two switch statements here. One is a simple fall-through to check that the mode is defned.
    For the second, you'll need to determine the input / output data sizes and add your processing mode to the second
    switch statement. If adding a completely new calculation, be sure to add a `break;` statement afterwards, as the

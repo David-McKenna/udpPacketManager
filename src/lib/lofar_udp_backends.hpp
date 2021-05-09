@@ -1,10 +1,6 @@
 #ifndef LOFAR_UDP_BACKENDS_H
 #define LOFAR_UDP_BACKENDS_H
 
-// Silence warnings about parameters not used in certain constexpr paths
-// https://stackoverflow.com/a/1486931
-#define UNUSED(expr) do { (void)(expr); } while (0)
-
 // Jones matrix size for calibration
 #define JONESMATSIZE 8
 
@@ -20,11 +16,11 @@ extern "C" {
 
 // Include the C library headers
 #include "lofar_udp_structs.h"
-#include "lofar_udp_misc.h"
+#include "lofar_udp_time.h"
 
 
 // Define the C-access interfaces
-int lofar_udp_cpp_loop_interface(lofar_udp_meta *meta);
+int lofar_udp_cpp_loop_interface(lofar_udp_input_meta *meta);
 
 // Declare the Stokes Vector Functions
 typedef float(StokesFuncType)(float, float, float, float);
@@ -1057,7 +1053,7 @@ void inline udp_usefulStokesDecimation(long iLoop, char *inputPortData, O **outp
 
 // Define the main processing loop
 template<typename I, typename O, const int state, const int calibrateData>
-int lofar_udp_raw_loop(lofar_udp_meta *meta) {
+int lofar_udp_raw_loop(lofar_udp_input_meta *meta) {
 	// Setup return variable
 	int packetLoss = 0;
 
@@ -1182,7 +1178,7 @@ int lofar_udp_raw_loop(lofar_udp_meta *meta) {
 		//
 		// Reset iWork, inputPacketOffset, read in the first packet's number.
 		iWork = 0, inputPacketOffset = 0;
-		currentPortPacket = lofar_get_packet_number(&(inputPortData[inputPacketOffset]));
+		currentPortPacket = lofar_udp_time_get_packet_number(&(inputPortData[inputPacketOffset]));
 
 		VERBOSE(if (verbose) {
 			printf("Port %d: Packet %ld, iters %ld, base %d, upper %d, cumulative %d, total %d, outputLength %d, timeStep %d, decimation %d, trueState %d\n", \
@@ -1225,7 +1221,7 @@ int lofar_udp_raw_loop(lofar_udp_meta *meta) {
 					*/
 					if (iWork != packetsPerIteration) {
 						inputPacketOffset = iWork * portPacketLength;
-						currentPortPacket = lofar_get_packet_number(&(inputPortData[inputPacketOffset]));
+						currentPortPacket = lofar_udp_time_get_packet_number(&(inputPortData[inputPacketOffset]));
 					}
 					continue;
 
@@ -1253,7 +1249,7 @@ int lofar_udp_raw_loop(lofar_udp_meta *meta) {
 
 				if constexpr (state == 0) {
 					// Increment the 'sequence' component of the header so that the packet number appears right in future packet reads
-					nextSequence = (int) lofar_get_next_packet_sequence(&(inputPortData[lastInputPacketOffset]));
+					nextSequence = (int) lofar_udp_time_get_next_packet_sequence(&(inputPortData[lastInputPacketOffset]));
 					memcpy(&(inputPortData[inputPacketOffset + 12]), &nextSequence, 4);
 					// The last bit of the 'source' short isn't used; leave a signature that this packet was modified
 					inputPortData[inputPacketOffset + CEP_HDR_SRC_OFFSET + 1] += 1;
@@ -1291,7 +1287,7 @@ int lofar_udp_raw_loop(lofar_udp_meta *meta) {
 						(*((unsigned int *) &(inputPortData[lastInputPacketOffset - 4]))) + 16) {
 						currentPortPacket += 1;
 					} else {
-						currentPortPacket = lofar_get_packet_number(&(inputPortData[inputPacketOffset]));
+						currentPortPacket = lofar_udp_time_get_packet_number(&(inputPortData[inputPacketOffset]));
 					}
 				}
 

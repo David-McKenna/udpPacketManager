@@ -108,7 +108,7 @@ int lofar_udp_io_read_cleanup_ZSTD(lofar_udp_io_read_config *input, const int po
  */
 int lofar_udp_io_read_temp_ZSTD(void *outbuf, const size_t size, const int num, const char inputFile[],
 								 const int resetSeek) {
-	printf("%s, %ld\n", inputFile, strlen(inputFile));
+	VERBOSE(printf("%s: %s, %ld\n", __func__, inputFile, strlen(inputFile)));
 	FILE *inputFilePtr = fopen(inputFile, "rb");
 	if (inputFilePtr == NULL) {
 		fprintf(stderr, "ERROR: Unable to open normal file at %s, exiting.\n", inputFile);

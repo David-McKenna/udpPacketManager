@@ -1,4 +1,5 @@
 #include "lofar_udp_reader.h"
+#include "lofar_udp_time.h"
 
 
 
@@ -6,13 +7,13 @@
  * @brief      Parse LOFAR UDP headers to determine some metadata about the
  *             ports
  *
- * @param      meta           The lofar_udp_meta to initialise
+ * @param      meta           The lofar_udp_input_meta to initialise
  * @param[in]  header         The header data to process
  * @param[in]  beamletLimits  The upper/lower beamlets limits
  *
  * @return     0: Success, -1: Fatal error
  */
-int lofar_udp_parse_headers(lofar_udp_meta *meta, char header[MAX_NUM_PORTS][UDPHDRLEN], const int beamletLimits[2]) {
+int lofar_udp_parse_headers(lofar_udp_input_meta *meta, char header[MAX_NUM_PORTS][UDPHDRLEN], const int beamletLimits[2]) {
 
 	lofar_source_bytes *source;
 
@@ -75,6 +76,16 @@ int lofar_udp_parse_headers(lofar_udp_meta *meta, char header[MAX_NUM_PORTS][UDP
 					"Input header on port %d appears malformed (our replay packet warning bit is set), continuing with caution...\n",
 					port);
 		}
+
+
+
+		VERBOSE(printf("Port %d\n", port);
+		printf("RSP: %d\n", source->rsp);
+		printf("Padding0: %d\n", source->padding0);
+		printf("ERRORBIT: %d\n", source->errorBit);
+		printf("CLOCK: %d\n", source->clockBit);
+		printf("bitMode: %d\n", source->bitMode);
+		printf("padding1: %d\n\n", source->padding1));
 
 		if (port != 0 && (unsigned int) meta->clockBit != source->clockBit) {
 			fprintf(stderr,
@@ -200,7 +211,7 @@ int lofar_udp_skip_to_packet(lofar_udp_reader *reader) {
 
 	// Find the first packet number on each port as a reference
 	for (int port = 0; port < reader->meta->numPorts; port++) {
-		currentPacket = lofar_get_packet_number(&(reader->meta->inputData[port][0]));
+		currentPacket = lofar_udp_time_get_packet_number(&(reader->meta->inputData[port][0]));
 		guessPacket = (guessPacket < currentPacket) ? guessPacket : currentPacket;
 
 		// Check if we are beyond the target start time
@@ -215,12 +226,12 @@ int lofar_udp_skip_to_packet(lofar_udp_reader *reader) {
 	// Determine the offset between the first packet on each port and the minimum packet
 	for (int port = 0; port < reader->meta->numPorts; port++) {
 		lastPacketOffset = (reader->meta->packetsPerIteration - 1) * reader->meta->portPacketLength[port];
-		currentPacket = lofar_get_packet_number(&(reader->meta->inputData[port][0]));
-		if (lofar_get_packet_number(&(reader->meta->inputData[port][lastPacketOffset])) >= reader->meta->lastPacket) {
+		currentPacket = lofar_udp_time_get_packet_number(&(reader->meta->inputData[port][0]));
+		if (lofar_udp_time_get_packet_number(&(reader->meta->inputData[port][lastPacketOffset])) >= reader->meta->lastPacket) {
 			reader->meta->portLastDroppedPackets[port] = reader->meta->packetsPerIteration;
 		} else {
 			reader->meta->portLastDroppedPackets[port] =
-				lofar_get_packet_number(&(reader->meta->inputData[port][lastPacketOffset])) -
+				lofar_udp_time_get_packet_number(&(reader->meta->inputData[port][lastPacketOffset])) -
 				(currentPacket + reader->meta->packetsPerIteration);
 		}
 
@@ -235,10 +246,10 @@ int lofar_udp_skip_to_packet(lofar_udp_reader *reader) {
 		lastPacketOffset = (reader->meta->packetsPerIteration - 1) * reader->meta->portPacketLength[port];
 
 		VERBOSE(printf("lofar_udp_skip_to_packet: first packet %ld...\n",
-					   lofar_get_packet_number(&(reader->meta->inputData[port][0]))););
+		               lofar_udp_time_get_packet_number(&(reader->meta->inputData[port][0]))););
 
 		// Find the packet number of the last packet in the inputData array
-		currentPacket = lofar_get_packet_number(&(reader->meta->inputData[port][lastPacketOffset]));
+		currentPacket = lofar_udp_time_get_packet_number(&(reader->meta->inputData[port][lastPacketOffset]));
 
 		VERBOSE(printf("lofar_udp_skip_to_packet: last packet %ld, delta %ld...\n", currentPacket,
 					   reader->meta->lastPacket - currentPacket););
@@ -262,18 +273,18 @@ int lofar_udp_skip_to_packet(lofar_udp_reader *reader) {
 			returnVal = lofar_udp_reader_read_step(reader);
 			if (returnVal < 0) { return returnVal; }
 
-			currentPacket = lofar_get_packet_number(&(reader->meta->inputData[port][lastPacketOffset]));
+			currentPacket = lofar_udp_time_get_packet_number(&(reader->meta->inputData[port][lastPacketOffset]));
 
 			// Account for packet de-sync between ports
 			for (int portInner = 0; portInner < reader->meta->numPorts; portInner++) {
-				if (lofar_get_packet_number(&(reader->meta->inputData[portInner][lastPacketOffset])) >=
-					reader->meta->lastPacket) {
+				if (lofar_udp_time_get_packet_number(&(reader->meta->inputData[portInner][lastPacketOffset])) >=
+				    reader->meta->lastPacket) {
 					// Skip a read for this port
 					reader->meta->portLastDroppedPackets[portInner] = reader->meta->packetsPerIteration;
 				} else {
 					// Read at least a fraction of the data on this port
 					reader->meta->portLastDroppedPackets[portInner] =
-						lofar_get_packet_number(&(reader->meta->inputData[portInner][lastPacketOffset])) -
+						lofar_udp_time_get_packet_number(&(reader->meta->inputData[portInner][lastPacketOffset])) -
 						(currentPacket + reader->meta->packetsPerIteration);
 				}
 				VERBOSE(if (reader->meta->portLastDroppedPackets[portInner]) {
@@ -301,9 +312,9 @@ int lofar_udp_skip_to_packet(lofar_udp_reader *reader) {
 			fflush(stdout);
 		}
 
-		if (lofar_get_packet_number(&(reader->meta->inputData[port][0])) > reader->meta->lastPacket) {
+		if (lofar_udp_time_get_packet_number(&(reader->meta->inputData[port][0])) > reader->meta->lastPacket) {
 			fprintf(stderr, "Port %d has scanned beyond target packet %ld (to start at %ld), exiting.\n", port,
-					reader->meta->lastPacket, lofar_get_packet_number(&(reader->meta->inputData[port][0])));
+			        reader->meta->lastPacket, lofar_udp_time_get_packet_number(&(reader->meta->inputData[port][0])));
 			return -1;
 		}
 
@@ -318,7 +329,7 @@ int lofar_udp_skip_to_packet(lofar_udp_reader *reader) {
 		for (int portS = 0; portS < reader->meta->numPorts; portS++) packetShift[portS] = 0;
 
 		// Get the current packet, and guess the target packet by assuming no packet loss
-		currentPacket = lofar_get_packet_number(&(reader->meta->inputData[port][0]));
+		currentPacket = lofar_udp_time_get_packet_number(&(reader->meta->inputData[port][0]));
 
 		if ((reader->meta->lastPacket - currentPacket) > reader->meta->packetsPerIteration ||
 			(reader->meta->lastPacket - currentPacket) < 0) {
@@ -327,9 +338,9 @@ int lofar_udp_skip_to_packet(lofar_udp_reader *reader) {
 					reader->meta->lastPacket, currentPacket, reader->packetsPerIteration / 2);
 			currentPacket = reader->packetsPerIteration / 2;
 		}
-		guessPacket = lofar_get_packet_number(
+		guessPacket = lofar_udp_time_get_packet_number(
 			&(reader->meta->inputData[port][(reader->meta->lastPacket - currentPacket) *
-											reader->meta->portPacketLength[port]]));
+			                                reader->meta->portPacketLength[port]]));
 
 		VERBOSE(printf("lofar_udp_skip_to_packet: searching within current array starting index %ld (max %ld)...\n",
 					   (reader->meta->lastPacket - currentPacket) * reader->meta->portPacketLength[port],
@@ -358,7 +369,7 @@ int lofar_udp_skip_to_packet(lofar_udp_reader *reader) {
 			packetShift[port] = nextOff = startOff;
 
 			// Make a new guess at our starting offset
-			guessPacket = lofar_get_packet_number(
+			guessPacket = lofar_udp_time_get_packet_number(
 				&(reader->meta->inputData[port][packetShift[port] * reader->meta->portPacketLength[port]]));
 
 			// Iterate until we reach a target packet
@@ -391,7 +402,7 @@ int lofar_udp_skip_to_packet(lofar_udp_reader *reader) {
 				}
 
 				// Find the packet number of the next guess
-				guessPacket = lofar_get_packet_number(
+				guessPacket = lofar_udp_time_get_packet_number(
 					&(reader->meta->inputData[port][nextOff * reader->meta->portPacketLength[port]]));
 
 				// Binary search updates
@@ -513,11 +524,11 @@ int lofar_udp_file_reader_reuse(lofar_udp_reader *reader, const long startingPac
  * @brief      Set the processing function. output length per packet based on
  *             the processing mode given by the metadata,
  *
- * @param      meta  The lofar_udp_meta to read from and update
+ * @param      meta  The lofar_udp_input_meta to read from and update
  *
  * @return     0: Success, -1: Unknown processing mode supplied
  */
-int lofar_udp_setup_processing(lofar_udp_meta *meta) {
+int lofar_udp_setup_processing(lofar_udp_input_meta *meta) {
 	int hdrOffset = -1 * UDPHDRLEN; // Default: no header, offset by -16
 	int equalIO = 0; // If packet length in + out should match
 	float mulFactor = 1.0f; // Scale packet length linearly
@@ -528,7 +539,7 @@ int lofar_udp_setup_processing(lofar_udp_meta *meta) {
 	switch (meta->processingMode) {
 		case 0 ... 1:
 			if (meta->calibrateData) {
-				fprintf(stderr, "WARNING: Modes 0 and 1 cannot be calibrated, disabling calibration and continuing.\n");
+				fprintf(stderr, "WARNING: Modes 0 and 1 cannot be calibrated as they are copying full packets, disabling calibration and continuing.\n");
 				meta->calibrateData = 0;
 			}
 		case 2:
@@ -730,22 +741,22 @@ int lofar_udp_reader_config_check(lofar_udp_config *config) {
 		return -1;
 	}
 
-	if (config->calibrateData != 0 && config->calibrationConfiguration == NULL) {
+	if (config->calibrateData == 1 && config->calibrationConfiguration == NULL) {
 		fprintf(stderr,
 				"ERROR: Calibration was enabled, but the config->calibrationConfiguration struct was not initialised, exiting.\n");
 		return -1;
-	}
-	/*
-	if (config->calibrationConfiguration == 0 && config->calibrationConfiguration != NULL)  {
-		fprintf(stderr, "WARNING: Calibration was disabled, but you allocated a calibration configuration.\n");
-	}
-	*/
-	if (config->calibrationConfiguration != 0 && config->calibrationConfiguration != NULL) {
+	} else if (config->calibrateData == 1 && config->calibrationConfiguration != NULL) {
 		if (strcmp(config->calibrationConfiguration->calibrationFifo, "") == 0) {
 			fprintf(stderr, "ERROR: Failed to provide valid path to calibration FIFO, exiting.\n");
 			return -1;
 		}
 	}
+
+	/*
+	if (config->calibrationConfiguration == 0 && config->calibrationConfiguration != NULL)  {
+		fprintf(stderr, "WARNING: Calibration was disabled, but you allocated a calibration configuration.\n");
+	}
+	*/
 
 	if (config->processingMode < 0) {
 		fprintf(stderr, "ERROR: Invalid processing mode %d, exiting.\n", config->processingMode);
@@ -782,7 +793,7 @@ int lofar_udp_reader_config_check(lofar_udp_config *config) {
 }
 
 /**
- * @brief      Set up a lofar_udp_reader and associated lofar_udp_meta using a
+ * @brief      Set up a lofar_udp_reader and associated lofar_udp_input_meta using a
  *             set of input files and pre-set control/metadata parameters
  *
  * @param      config  The configuration struct, detailed options above
@@ -797,8 +808,8 @@ lofar_udp_reader *lofar_udp_reader_setup(lofar_udp_config *config) {
 	}
 
 	// Setup the metadata struct and a few variables we'll need
-	lofar_udp_meta *meta = calloc(1, sizeof(lofar_udp_meta));
-	(*meta) = lofar_udp_meta_default;
+	lofar_udp_input_meta *meta = calloc(1, sizeof(lofar_udp_input_meta));
+	(*meta) = lofar_udp_input_meta_default;
 
 	// Reset the maximum packets to LONG_MAX if set to an unreasonable value
 	long localMaxPackets = config->packetsReadMax;
@@ -1006,23 +1017,25 @@ lofar_udp_reader *lofar_udp_reader_setup(lofar_udp_config *config) {
 	reader->packetsPerIteration = meta->packetsPerIteration;
 	reader->meta = meta;
 
-	reader->calibration = calloc(1, sizeof(lofar_udp_calibration));
-	if (memcpy(reader->calibration, config->calibrationConfiguration, sizeof(lofar_udp_calibration)) != reader->calibration) {
-		fprintf(stderr, "ERROR: Failed to copy calibration to reader struct, exiting.\n");
-		lofar_udp_reader_cleanup(reader);
-		return NULL;
+	if (config->calibrateData == 1) {
+		reader->calibration = calloc(1, sizeof(lofar_udp_calibration));
+		if (memcpy(reader->calibration, config->calibrationConfiguration, sizeof(lofar_udp_calibration)) != reader->calibration) {
+			fprintf(stderr, "ERROR: Failed to copy calibration to reader struct, exiting.\n");
+			lofar_udp_reader_cleanup(reader);
+			return NULL;
+		}
 	}
 
 	reader->ompThreads = config->ompThreads;
 	omp_set_num_threads(reader->ompThreads);
 
-	if ((meta->numPorts + config->offsetPort) > 4) {
-		fprintf(stderr, "ERROR: Requested data beyond the 4th port. Either your offset (%d) or number of ports requested (%d) was too high, exiting.\n", config->offsetPort, meta->numPorts);
+	if ((meta->numPorts + config->offsetPortCount) > 4) {
+		fprintf(stderr, "ERROR: Requested data beyond the 4th port. Either your offset (%d) or number of ports requested (%d) was too high, exiting.\n", config->offsetPortCount, meta->numPorts);
 		lofar_udp_reader_cleanup(reader);
 		return NULL;
 	}
-	for (int port = 0; port < (meta->numPorts); port++) {
 
+	for (int port = 0; port < (meta->numPorts); port++) {
 		// Check for errors, cleanup and return if needed
 		if (lofar_udp_io_read_setup_helper(input, config, meta, port) < 0) {
 			lofar_udp_reader_cleanup(reader);
@@ -1038,21 +1051,27 @@ lofar_udp_reader *lofar_udp_reader_setup(lofar_udp_config *config) {
 	}
 	reader->meta->inputDataReady = 0;
 
-
-			for (int port = 0; port < meta->numPorts; port++) {
-				printf("Packs: %ld, %ld, %ld\n", lofar_get_packet_number(meta->inputData[port]), lofar_get_packet_number(&(meta->inputData[port][(meta->packetsPerIteration - 1) * meta->portPacketLength[port]])),lofar_get_packet_number(meta->inputData[port]) -  lofar_get_packet_number(&(meta->inputData[port][(meta->packetsPerIteration - 1) * meta->portPacketLength[port]])));
-			}
-	VERBOSE(if (meta->VERBOSE) { printf("reader_setup: First packet %ld\n", meta->lastPacket); });
+	VERBOSE(
+	for (int port = 0; port < meta->numPorts; port++) {
+		printf("Packs: %ld, %ld, %ld\n", lofar_udp_time_get_packet_number(meta->inputData[port]),
+		       lofar_udp_time_get_packet_number(&(meta->inputData[port][(meta->packetsPerIteration - 1) * meta->portPacketLength[port]])),
+		       lofar_udp_time_get_packet_number(meta->inputData[port]) -
+		                                                                                                                                                                                                    lofar_udp_time_get_packet_number(&(meta->inputData[port][(meta->packetsPerIteration - 1) * meta->portPacketLength[port]])));
+	}
+	if (meta->VERBOSE) { printf("reader_setup: First packet %ld\n", meta->lastPacket); });
 
 	// If we have been given a starting packet, search for it and align the data to it
 	if (reader->meta->lastPacket > LFREPOCH) {
 		if (lofar_udp_skip_to_packet(reader) < 0) {
 			for (int port = 0; port < meta->numPorts; port++) {
-				if (lofar_get_packet_number(meta->inputData[port]) > meta->lastPacket) {
-					meta->lastPacket = lofar_get_packet_number(meta->inputData[port]);
+				if (lofar_udp_time_get_packet_number(meta->inputData[port]) > meta->lastPacket) {
+					meta->lastPacket = lofar_udp_time_get_packet_number(meta->inputData[port]);
 				}
 
-				printf("Packs: %ld, %ld, %ld\n", lofar_get_packet_number(meta->inputData[port]), lofar_get_packet_number(&(meta->inputData[port][(meta->packetsPerIteration - 1) * meta->portPacketLength[port]])),lofar_get_packet_number(meta->inputData[port]) -  lofar_get_packet_number(&(meta->inputData[port][(meta->packetsPerIteration - 1) * meta->portPacketLength[port]])));
+				printf("Packs: %ld, %ld, %ld\n", lofar_udp_time_get_packet_number(meta->inputData[port]),
+				       lofar_udp_time_get_packet_number(&(meta->inputData[port][(meta->packetsPerIteration - 1) * meta->portPacketLength[port]])),
+				       lofar_udp_time_get_packet_number(meta->inputData[port]) -
+				                                                                                                                                                                                                    lofar_udp_time_get_packet_number(&(meta->inputData[port][(meta->packetsPerIteration - 1) * meta->portPacketLength[port]])));
 			}
 
 			fprintf(stderr, "WARNING: Falling back to first packet, %ld.\n", meta->lastPacket);
@@ -1070,6 +1089,16 @@ lofar_udp_reader *lofar_udp_reader_setup(lofar_udp_config *config) {
 	if (lofar_udp_get_first_packet_alignment(reader) < 0) {
 		lofar_udp_reader_cleanup(reader);
 		return NULL;
+	}
+
+	if (config->metadataType != NO_META) {
+		reader->metadata = calloc(1, sizeof(lofar_udp_metadata));
+		*(reader->metadata) = lofar_udp_metadata_default;
+		reader->metadata->type = config->metadataType;
+		if (lofar_udp_metadata_setup(reader->metadata, reader, config->metadataLocation)) {
+			lofar_udp_reader_cleanup(reader);
+			return NULL;
+		}
 	}
 
 	reader->meta->inputDataReady = 1;
@@ -1180,12 +1209,12 @@ int lofar_udp_reader_calibration(lofar_udp_reader *reader) {
 	char stationID[16] = "", mjdTime[32] = "", duration[32] = "", integration[32] = "", pointing[512] = "";
 
 
-	lofar_get_station_name(reader->meta->stationID, &(stationID[0]));
-	sprintf(mjdTime, "%lf", lofar_get_packet_time_mjd(reader->meta->inputData[0]));
+	lofar_udp_metadata_get_station_name(reader->meta->stationID, &(stationID[0]));
+	sprintf(mjdTime, "%lf", lofar_udp_time_get_packet_time_mjd(reader->meta->inputData[0]));
 	sprintf(duration, "%31.10f", reader->calibration->calibrationDuration);
 	sprintf(integration, "%15.10f", (float) (reader->packetsPerIteration * UDPNTIMESLICE) *
-									(float) (clock200MHzSample * reader->meta->clockBit +
-											 clock160MHzSample * (1 - reader->meta->clockBit)));
+									(float) (clock200MHzSampleRate * reader->meta->clockBit +
+									         clock160MHzSampleRate * (1 - reader->meta->clockBit)));
 	sprintf(pointing, "%f,%f,%s", reader->calibration->calibrationPointing[0],
 			reader->calibration->calibrationPointing[1], reader->calibration->calibrationPointingBasis);
 
@@ -1527,7 +1556,7 @@ int lofar_udp_get_first_packet_alignment(lofar_udp_reader *reader) {
 		// Initialise/Reset the dropped packet counters
 		reader->meta->portLastDroppedPackets[port] = 0;
 		reader->meta->portTotalDroppedPackets[port] = 0;
-		currentPacket = lofar_get_packet_number(reader->meta->inputData[port]);
+		currentPacket = lofar_udp_time_get_packet_number(reader->meta->inputData[port]);
 
 		// Check if the highest packet number needs to be updated
 		if (currentPacket > reader->meta->lastPacket) {
@@ -1554,7 +1583,7 @@ int lofar_udp_get_first_packet_alignment(lofar_udp_reader *reader) {
  *                            from the tail of each port by
  * @param[in]  handlePadding  Allow the function to handle copying the last
  *                            packet to the padding offset
- * @param      meta  The input lofar_udp_meta struct to process
+ * @param      meta  The input lofar_udp_input_meta struct to process
  *
  * @return     int: 0: Success, -1: Negative shift requested, out of order data
  *             on last gulp,
@@ -1711,7 +1740,7 @@ int lofar_udp_realign_data(lofar_udp_reader *reader) {
 						offset = 0;
 					} else continue;
 				} else {
-					workingPkt = lofar_get_packet_number(&(reader->meta->inputData[port][idx]));
+					workingPkt = lofar_udp_time_get_packet_number(&(reader->meta->inputData[port][idx]));
 					printf("Scanning: %ld, %ld\n", workingPkt, referencePacket);
 					// If the packet difference is significant, assume we matched on noise, start search again.
 					if (workingPkt > referencePacket + 200 * reader->meta->packetsPerIteration) {

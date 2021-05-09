@@ -2,21 +2,20 @@
 
 // Default for global metadata struct
 const lofar_udp_metadata lofar_udp_metadata_default = {
+
 	.type = NO_META,
-	.setup = -1,
 
 	.hdr_version = 1.0,
 
 	.instrument = "",
 	.telescope = "ILT",
-	.telescope_id = -1,
-	.reciever = "LOFAR-RSP",
-	.machine = "",
+	.telescope_rsp_id = -1,
+	.receiver = "LOFAR-RSP",
 	.observer = "",
 	.hostname = "",
 	.baseport = -1,
-	.file_name = "",
-	.file_number = -1,
+	.rawfile = { "" },
+	.output_file_number = -1,
 
 
 	.source = "",
@@ -24,10 +23,14 @@ const lofar_udp_metadata lofar_udp_metadata_default = {
 	.dec = "",
 	.ra_rad = -1.0,
 	.dec_rad = -1.0,
+	.ra_analog = "",
+	.dec_analog = "",
+	.ra_rad_analog = -1.0,
+	.dec_rad_analog = -1.0,
+	.coord_basis = "",
 	.obs_id = "",
 	.utc_start = "",
 	.obs_mjd_start = -1.0,
-	.block_mjd_start = -1.0,
 	.obs_offset = -1,
 	.obs_overlap = -1,
 	.basis = "LINEAR",
@@ -35,8 +38,13 @@ const lofar_udp_metadata lofar_udp_metadata_default = {
 
 
 	.freq = -1.0,
-	.bw = -1.0,
+	.bw = -0.0,
+	.channel_bw = -0.0,
+	.ftop = -1.0,
+	.fbottom = -1.0,
+	.subbands = { -1 },
 	.nchan = -1,
+	.nrcu = -1,
 	.npol = -1,
 	.nbit = -1,
 	.resolution = -1,
@@ -47,27 +55,34 @@ const lofar_udp_metadata lofar_udp_metadata_default = {
 	// UPM Extra values
 	.upm_version = UPM_VERSION,
 	.rec_version = "",
-	.upm_proc = "",
+	.upm_daq = "",
+	.upm_beamctl = "",
+	.upm_outputfmt = { "" },
+	.upm_outputfmt_comment = "",
+	.upm_num_inputs = -1,
+	.upm_num_outputs = -1,
 	.upm_reader = -1,
-	.upm_mode = -1,
+	.upm_procmode = -1,
+	.upm_bandflip = -1,
 	.upm_replay = -1,
 	.upm_calibrated = -1,
+	.upm_blocksize = -1,
+	.upm_pack_per_iter = -1,
 	.upm_processed_packets = -1,
 	.upm_dropped_packets = -1,
 	.upm_last_dropped_packets = -1,
 
-	.upm_bitmode = -1,
+	.upm_input_bitmode = -1,
 	.upm_rcuclock = -1,
 	.upm_rawbeamlets = -1,
 	.upm_upperbeam = -1,
 	.upm_lowerbeam = -1,
 
-	.outputSize = -1,
 	.output = { NULL }
 };
 
 // Default values for the ASCII header
-const ascii_hdr ascii_hdr_default = {
+const guppi_hdr guppi_hdr_default = {
 	.src_name = "J0000+0000",
 	.ra_str = "00:00:00.0000",
 	.dec_str = "+00:00:00.0000",

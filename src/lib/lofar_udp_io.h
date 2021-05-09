@@ -18,9 +18,9 @@ extern "C" {
 // Setup wrapper functions
 int lofar_udp_io_read_setup(lofar_udp_io_read_config *input, int port);
 int lofar_udp_io_write_setup(lofar_udp_io_write_config *config, int iter);
-int lofar_udp_io_read_setup_helper(lofar_udp_io_read_config *input, const lofar_udp_config *config, const lofar_udp_meta *meta,
+int lofar_udp_io_read_setup_helper(lofar_udp_io_read_config *input, const lofar_udp_config *config, const lofar_udp_input_meta *meta,
                                    int port);
-int lofar_udp_io_write_setup_helper(lofar_udp_io_write_config *config, const lofar_udp_meta *meta, int iter);
+int lofar_udp_io_write_setup_helper(lofar_udp_io_write_config *config, const lofar_udp_input_meta *meta, int iter);
 
 // Operate wrapper functions
 long lofar_udp_io_read(lofar_udp_io_read_config *input, int port, char *targetArray, long nchars);
