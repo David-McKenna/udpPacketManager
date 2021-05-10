@@ -5,7 +5,7 @@
 
 // Reader struct default
 const lofar_udp_io_read_config lofar_udp_io_read_config_default = {
-	.readerType = NO_INPUT,
+	.readerType = NO_ACTION,
 	.readBufSize = { -1 },
 	.portPacketLength = { -1 },
 	.numInputs = 0,
@@ -32,7 +32,7 @@ const lofar_udp_io_read_config lofar_udp_io_read_config_default = {
 // Writer struct default
 const lofar_udp_io_write_config lofar_udp_io_write_config_default = {
 	// Control options
-	.readerType = NO_INPUT,
+	.readerType = NO_ACTION,
 	.metadata = NULL,
 	.writeBufSize = { -1 },
 	.appendExisting = 0,

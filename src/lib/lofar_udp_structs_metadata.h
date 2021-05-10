@@ -86,7 +86,7 @@ typedef struct sigproc_hdr {
 	double tsamp;
 
 	int nbits;
-	int nsamples;
+	//int nsamples;
 
 	double fch1;
 	double foff;
@@ -151,7 +151,7 @@ typedef struct lofar_udp_metadata {
 	double channel_bw; // beamctl
 	double ftop; // beamctl
 	double fbottom; // beamctl
-	double subbands[MAX_NUM_PORTS * UDPMAXBEAM];
+	int subbands[MAX_NUM_PORTS * UDPMAXBEAM];
 	int nchan; // beamctl / Library?
 	int nrcu; // beamctl
 	int npol; // Standard

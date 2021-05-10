@@ -1148,6 +1148,10 @@ void lofar_udp_reader_cleanup(lofar_udp_reader *reader) {
 		FREE_NOT_NULL(reader->meta->jonesMatrices);
 	}
 
+	if (reader->metadata != NULL) {
+		lofar_udp_metadata_cleanup(reader->metadata);
+	}
+
 	// Free the reader
 	FREE_NOT_NULL(reader->meta);
 	FREE_NOT_NULL(reader->input);
@@ -1213,8 +1217,8 @@ int lofar_udp_reader_calibration(lofar_udp_reader *reader) {
 	sprintf(mjdTime, "%lf", lofar_udp_time_get_packet_time_mjd(reader->meta->inputData[0]));
 	sprintf(duration, "%31.10f", reader->calibration->calibrationDuration);
 	sprintf(integration, "%15.10f", (float) (reader->packetsPerIteration * UDPNTIMESLICE) *
-									(float) (clock200MHzSampleRate * reader->meta->clockBit +
-									         clock160MHzSampleRate * (1 - reader->meta->clockBit)));
+									(float) (clock200MHzSampleTime * reader->meta->clockBit +
+									         clock160MHzSampleTime * (1 - reader->meta->clockBit)));
 	sprintf(pointing, "%f,%f,%s", reader->calibration->calibrationPointing[0],
 			reader->calibration->calibrationPointing[1], reader->calibration->calibrationPointingBasis);
 

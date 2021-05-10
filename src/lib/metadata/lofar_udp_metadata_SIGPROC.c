@@ -44,6 +44,9 @@ int lofar_udp_metadata_setup_SIGPROC(lofar_udp_metadata *metadata) {
 	metadata->output.sigproc->foff = metadata->channel_bw;
 	metadata->output.sigproc->nchans = metadata->nchan;
 
+	// Sigproc accepts positive int 32 as a float, unlike other specifications
+	metadata->output.sigproc->nbits = metadata->nbit > 0 ? metadata->nbit : -1 * metadata->nbit;
+
 	// Constants for what we produce
 	metadata->output.sigproc->nifs = 1;
 	metadata->output.sigproc->data_type = 1;
@@ -99,7 +102,7 @@ int lofar_udp_metadata_write_SIGPROC(const sigproc_hdr *hdr, char *headerBuffer,
 	workingPtr = writeDouble_SIGPROC(workingPtr, "tstart", hdr->tstart, 0);
 	workingPtr = writeDouble_SIGPROC(workingPtr, "tsamp", hdr->tsamp, 0);
 	workingPtr = writeInt_SIGPROC(workingPtr, "nbits", hdr->nbits);
-	workingPtr = writeInt_SIGPROC(workingPtr, "nsamples", hdr->nsamples);
+	//workingPtr = writeInt_SIGPROC(workingPtr, "nsamples", hdr->nsamples);
 	workingPtr = writeDouble_SIGPROC(workingPtr, "fch1", hdr->fch1, 0);
 	workingPtr = writeDouble_SIGPROC(workingPtr, "foff", hdr->foff, 1);
 	workingPtr = writeInt_SIGPROC(workingPtr, "nchans", hdr->nchans);
@@ -117,7 +120,7 @@ int lofar_udp_metadata_write_SIGPROC(const sigproc_hdr *hdr, char *headerBuffer,
 		return -1;
 	}
 
-	return 0;
+	return workingPtr - headerBuffer;
 
 }
 
@@ -168,7 +171,8 @@ char* writeKey_SIGPROC(char *buffer, const char *name) {
 	}
 
 	size_t bufLen = sizeof(int);
-	if (memcpy(buffer, &strlen, bufLen) != buffer) {
+	VERBOSE(printf("strlen %s: %d\n", name, len));
+	if (memcpy(buffer, &len, bufLen) != buffer) {
 		fprintf(stderr, "ERROR: Failed to write string length for string %s, exiting.\n", name);
 		return NULL;
 	}

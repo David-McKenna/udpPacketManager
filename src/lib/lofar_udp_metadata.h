@@ -32,6 +32,7 @@ int lofar_udp_metadata_setup(lofar_udp_metadata *metadata, lofar_udp_reader *rea
 int lofar_udp_metadata_update(const lofar_udp_reader *reader, lofar_udp_metadata *metadata, int newObs);
 int lofar_udp_metadata_write(const lofar_udp_reader *reader, lofar_udp_metadata *metadata, char *headerBuffer, size_t headerBufferSize, int newObs);
 int lofar_udp_metadata_write_force(const lofar_udp_reader *reader, lofar_udp_metadata *metadata, char *headerBuffer, size_t headerBufferSize, int newObs, int force);
+int lofar_udp_metadata_cleanup(lofar_udp_metadata *metadata);
 
 // Internal representations
 //int lofar_udp_metadata_setup_DADA(lofar_udp_metadata *metadata); // Main setup call populates the DADA struct

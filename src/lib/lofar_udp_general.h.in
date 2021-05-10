@@ -10,7 +10,7 @@
 
 // Reader / writer enums
 typedef enum {
-	NO_INPUT = -1,
+	NO_ACTION = -1,
 	NORMAL = 1,
 	FIFO = 2,
 	ZSTDCOMPRESSED = 4,

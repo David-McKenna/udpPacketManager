@@ -36,7 +36,7 @@ void helpMessages() {
 }
 
 void CLICleanup(int eventCount, char **dateStr, long *startingPackets, long *multiMaxPackets, float *eventSeconds,
-				lofar_udp_config *config, lofar_udp_io_write_config *outConfig) {
+				lofar_udp_config *config, lofar_udp_io_write_config *outConfig, char *headerBuffer) {
 
 	FREE_NOT_NULL(startingPackets);
 	FREE_NOT_NULL(multiMaxPackets);
@@ -55,6 +55,8 @@ void CLICleanup(int eventCount, char **dateStr, long *startingPackets, long *mul
 		FREE_NOT_NULL(config->calibrationConfiguration);
 		FREE_NOT_NULL(config);
 	}
+
+	FREE_NOT_NULL(headerBuffer);
 }
 
 
@@ -79,6 +81,8 @@ int main(int argc, char *argv[]) {
 	lofar_udp_io_write_config *outConfig = calloc(1, sizeof(lofar_udp_io_write_config));
 	(*outConfig) = lofar_udp_io_write_config_default;
 
+	char *headerBuffer = NULL;
+
 	if (config == NULL || outConfig == NULL || cal == NULL) {
 		fprintf(stderr, "ERROR: Failed to allocate memory for configuration structs (something has gone very wrong...), exiting.\n");
 		FREE_NOT_NULL(config); FREE_NOT_NULL(outConfig); FREE_NOT_NULL(cal);
@@ -88,8 +92,8 @@ int main(int argc, char *argv[]) {
 	// Set up reader loop variables
 	int loops = 0, localLoops = 0, returnVal;
 	long packetsProcessed = 0, packetsWritten = 0, eventPacketsLost[MAX_NUM_PORTS], packetsToWrite;
-	double timing[2] = { 0., 0. }, totalReadTime = 0, totalOpsTime = 0, totalWriteTime = 0;
-	struct timespec tick, tick0, tock, tock0;
+	double timing[3] = { 0. }, totalReadTime = 0, totalOpsTime = 0, totalWriteTime = 0;
+	struct timespec tick, tick0, tick1, tock, tock0, tock1;
 
 	// Malloc'd variables: need to be free'd later.
 	long *startingPackets = NULL, *multiMaxPackets = NULL;
@@ -110,7 +114,7 @@ int main(int argc, char *argv[]) {
 			case 'o':
 				if (lofar_udp_io_write_parse_optarg(outConfig, optarg) < 0) {
 					helpMessages();
-					CLICleanup(eventCount, dateStr, startingPackets, multiMaxPackets, eventSeconds, config, outConfig);
+					CLICleanup(eventCount, dateStr, startingPackets, multiMaxPackets, eventSeconds, config, outConfig, headerBuffer);
 					return 1;
 				}
 				outputProvided = 1;
@@ -128,7 +132,7 @@ int main(int argc, char *argv[]) {
 			case 'I':
 				if (strncpy(config->metadataLocation, optarg, DEF_STR_LEN) != config->metadataLocation) {
 					fprintf(stderr, "ERROR: Failed to copy metadata file location to config, exiting.\n");
-					CLICleanup(eventCount, dateStr, startingPackets, multiMaxPackets, eventSeconds, config, outConfig);
+					CLICleanup(eventCount, dateStr, startingPackets, multiMaxPackets, eventSeconds, config, outConfig, headerBuffer);
 					return 1;
 				}
 				break;
@@ -225,7 +229,7 @@ int main(int argc, char *argv[]) {
 #pragma GCC diagnostic pop
 
 				helpMessages();
-				CLICleanup(eventCount, dateStr, startingPackets, multiMaxPackets, eventSeconds, config, outConfig);
+				CLICleanup(eventCount, dateStr, startingPackets, multiMaxPackets, eventSeconds, config, outConfig, headerBuffer);
 				return 1;
 
 		}
@@ -234,39 +238,39 @@ int main(int argc, char *argv[]) {
 	if (!input) {
 		fprintf(stderr, "ERROR: No inputs provided, exiting.\n");
 		helpMessages();
-		CLICleanup(eventCount, dateStr, startingPackets, multiMaxPackets, eventSeconds, config, outConfig);
+		CLICleanup(eventCount, dateStr, startingPackets, multiMaxPackets, eventSeconds, config, outConfig, headerBuffer);
 		return 1;
 	}
 
 	if (!inputProvided) {
 		fprintf(stderr, "ERROR: An input was not provided, exiting.\n");
 		helpMessages();
-		CLICleanup(eventCount, dateStr, startingPackets, multiMaxPackets, eventSeconds, config, outConfig);
+		CLICleanup(eventCount, dateStr, startingPackets, multiMaxPackets, eventSeconds, config, outConfig, headerBuffer);
 		return 1;
 	}
 
 	if (lofar_udp_io_read_parse_optarg(config, inputFormat) < 0) {
 		helpMessages();
-		CLICleanup(eventCount, dateStr, startingPackets, multiMaxPackets, eventSeconds, config, outConfig);
+		CLICleanup(eventCount, dateStr, startingPackets, multiMaxPackets, eventSeconds, config, outConfig, headerBuffer);
 		return 1;
 	}
 
 	// DADA outputs should not be fragments, or require writing to disk (mockHeader deleted files and rewrites...)
 	if (config->readerType == DADA_ACTIVE && strcmp(eventsFile, "") != 0) {
 		fprintf(stderr, "ERROR: DADA output does not support events parsing, exiting.\n");
-		CLICleanup(eventCount, dateStr, startingPackets, multiMaxPackets, eventSeconds, config, outConfig);
+		CLICleanup(eventCount, dateStr, startingPackets, multiMaxPackets, eventSeconds, config, outConfig, headerBuffer);
 		return 1;
 	}
 	if (outConfig->readerType == DADA_ACTIVE && callMockHdr) {
 		fprintf(stderr, "ERROR: DADA output does not support attaching a sigproc header, exiting.\n");
-		CLICleanup(eventCount, dateStr, startingPackets, multiMaxPackets, eventSeconds, config, outConfig);
+		CLICleanup(eventCount, dateStr, startingPackets, multiMaxPackets, eventSeconds, config, outConfig, headerBuffer);
 		return 1;
 	}
 
 	if (!outputProvided) {
 		fprintf(stderr, "ERROR: An output was not provided, exiting.\n");
 		helpMessages();
-		CLICleanup(eventCount, dateStr, startingPackets, multiMaxPackets, eventSeconds, config, outConfig);
+		CLICleanup(eventCount, dateStr, startingPackets, multiMaxPackets, eventSeconds, config, outConfig, headerBuffer);
 		return 1;
 	}
 
@@ -281,7 +285,7 @@ int main(int argc, char *argv[]) {
 				fprintf(stderr, "strategy. ");
 			}
 			fprintf(stderr, "Exiting.\n");
-			CLICleanup(eventCount, dateStr, startingPackets, multiMaxPackets, eventSeconds, config, outConfig);
+			CLICleanup(eventCount, dateStr, startingPackets, multiMaxPackets, eventSeconds, config, outConfig, headerBuffer);
 			return 1;
 		}
 	}
@@ -298,7 +302,7 @@ int main(int argc, char *argv[]) {
 
 		fprintf(stderr, "One or more inputs invalid or not fully initialised, exiting.\n");
 		helpMessages();
-		CLICleanup(eventCount, dateStr, startingPackets, multiMaxPackets, eventSeconds, config, outConfig);
+		CLICleanup(eventCount, dateStr, startingPackets, multiMaxPackets, eventSeconds, config, outConfig, headerBuffer);
 		return 1;
 	}
 
@@ -315,11 +319,11 @@ int main(int argc, char *argv[]) {
 		callMockHdr += system("which mockHeader > /tmp/udp_reader_mockheader.log 2>&1"); 
 		if (callMockHdr != 1) {
 			fprintf(stderr, "Error occurred while attempting to find mockHeader, exiting.\n");
-			CLICleanup(eventCount, dateStr, startingPackets, multiMaxPackets, eventSeconds, config, outConfig);
+			CLICleanup(eventCount, dateStr, startingPackets, multiMaxPackets, eventSeconds, config, outConfig, headerBuffer);
 			return 1;
 		}
 
-		sampleTime = clock160MHzSampleRate * (1 - clock200MHz) + clock200MHzSampleRate * clock200MHz;
+		sampleTime = clock160MHzSampleTime * (1 - clock200MHz) + clock200MHzSampleTime * clock200MHz;
 		if (config->processingMode > 100) {
 			sampleTime *= 1 << ((config->processingMode % 10));
 		}
@@ -338,6 +342,7 @@ int main(int argc, char *argv[]) {
 		printf("Beamlet limits:\t%d, %d\n\n", config->beamletLimits[0], config->beamletLimits[1]);
 	}
 
+	headerBuffer = calloc(4096 * 8, sizeof(char));
 
 
 	// If given an events file,
@@ -347,7 +352,7 @@ int main(int argc, char *argv[]) {
 		eventsFilePtr = fopen(eventsFile, "r");
 		if (eventsFilePtr == NULL) {
 			fprintf(stderr, "Unable to open events file at %s, exiting.\n", eventsFile);
-			CLICleanup(eventCount, dateStr, startingPackets, multiMaxPackets, eventSeconds, config, outConfig);
+			CLICleanup(eventCount, dateStr, startingPackets, multiMaxPackets, eventSeconds, config, outConfig, headerBuffer);
 			return 1;
 		}
 
@@ -355,7 +360,7 @@ int main(int argc, char *argv[]) {
 		returnCounter = fscanf(eventsFilePtr, "%d", &eventCount);
 		if (returnCounter != 1 || eventCount < 1) {
 			fprintf(stderr, "Unable to parse events file (got %d as number of events), exiting.\n", eventCount);
-			CLICleanup(eventCount, dateStr, startingPackets, multiMaxPackets, eventSeconds, config, outConfig);
+			CLICleanup(eventCount, dateStr, startingPackets, multiMaxPackets, eventSeconds, config, outConfig, headerBuffer);
 			return 1;
 		}
 
@@ -380,7 +385,7 @@ int main(int argc, char *argv[]) {
 			if (returnCounter != 2) {
 				fprintf(stderr, "Unable to parse line %d of events file, exiting ('%s', %lf).\n", idx + 1, stringBuff,
 						seconds);
-				CLICleanup(eventCount, dateStr, startingPackets, multiMaxPackets, eventSeconds, config, outConfig);
+				CLICleanup(eventCount, dateStr, startingPackets, multiMaxPackets, eventSeconds, config, outConfig, headerBuffer);
 				return 1;
 			}
 
@@ -389,7 +394,7 @@ int main(int argc, char *argv[]) {
 			if (startingPackets[idx] == 1) {
 				fprintf(stderr, "ERROR: Failed to get starting packet for event %d, exiting.\n", idx);
 				helpMessages();
-				CLICleanup(eventCount, dateStr, startingPackets, multiMaxPackets, eventSeconds, config, outConfig);
+				CLICleanup(eventCount, dateStr, startingPackets, multiMaxPackets, eventSeconds, config, outConfig, headerBuffer);
 				return 1;
 			}
 
@@ -410,7 +415,7 @@ int main(int argc, char *argv[]) {
 					fprintf(stderr,
 							"Events %d and %d are out of order, please only use increasing event times, exiting.\n",
 							idx, idx - 1);
-					CLICleanup(eventCount, dateStr, startingPackets, multiMaxPackets, eventSeconds, config, outConfig);
+					CLICleanup(eventCount, dateStr, startingPackets, multiMaxPackets, eventSeconds, config, outConfig, headerBuffer);
 					return 1;
 				}
 
@@ -418,7 +423,7 @@ int main(int argc, char *argv[]) {
 					fprintf(stderr,
 							"Events %d and %d overlap, please combine them or ensure there is some buffer time between them, exiting.",
 							idx, idx - 1);
-					CLICleanup(eventCount, dateStr, startingPackets, multiMaxPackets, eventSeconds, config, outConfig);
+					CLICleanup(eventCount, dateStr, startingPackets, multiMaxPackets, eventSeconds, config, outConfig, headerBuffer);
 					return 1;
 				}
 			}
@@ -436,7 +441,7 @@ int main(int argc, char *argv[]) {
 			startingPacket = lofar_udp_time_get_packet_from_isot(inputTime, clock200MHz);
 			if (startingPacket == 1) {
 				helpMessages();
-				CLICleanup(eventCount, dateStr, startingPackets, NULL, NULL, config, outConfig);
+				CLICleanup(eventCount, dateStr, startingPackets, multiMaxPackets, eventSeconds, config, outConfig, headerBuffer);
 				return 1;
 			}
 		}
@@ -483,7 +488,7 @@ int main(int argc, char *argv[]) {
 	// Returns null on error, check
 	if (reader == NULL) {
 		fprintf(stderr, "Failed to generate reader. Exiting.\n");
-		CLICleanup(eventCount, dateStr, startingPackets, multiMaxPackets, eventSeconds, config, outConfig);
+		CLICleanup(eventCount, dateStr, startingPackets, multiMaxPackets, eventSeconds, config, outConfig, headerBuffer);
 		return 1;
 	}
 
@@ -491,7 +496,7 @@ int main(int argc, char *argv[]) {
 	if (((lofar_source_bytes *) &(reader->meta->inputData[0][1]))->clockBit != (unsigned int) clock200MHz) {
 		fprintf(stderr,
 				"ERROR: The clock bit of the first packet does not match the clock state given when starting the CLI. Add or remove -c from your command. Exiting.\n");
-		CLICleanup(eventCount, dateStr, startingPackets, multiMaxPackets, eventSeconds, config, outConfig);
+		CLICleanup(eventCount, dateStr, startingPackets, multiMaxPackets, eventSeconds, config, outConfig, headerBuffer);
 		return 1;
 	}
 
@@ -529,7 +534,7 @@ int main(int argc, char *argv[]) {
 														 multiMaxPackets[eventLoop])) > 0) {
 				fprintf(stderr, "Error re-initialising reader for event %d (error %d), exiting.\n", eventLoop,
 						returnVal);
-				CLICleanup(eventCount, dateStr, startingPackets, multiMaxPackets, eventSeconds, config, outConfig);
+				CLICleanup(eventCount, dateStr, startingPackets, multiMaxPackets, eventSeconds, config, outConfig, headerBuffer);
 				return 1;
 			}
 		}
@@ -562,7 +567,7 @@ int main(int argc, char *argv[]) {
 		startingPacket = reader->meta->leadingPacket;
 
 		if (lofar_udp_io_write_setup_helper(outConfig, reader->meta, eventLoop) < 0) {
-			CLICleanup(eventCount, dateStr, startingPackets, multiMaxPackets, eventSeconds, config, outConfig);
+			CLICleanup(eventCount, dateStr, startingPackets, multiMaxPackets, eventSeconds, config, outConfig, headerBuffer);
 			return 1;
 		}
 
@@ -588,11 +593,28 @@ int main(int argc, char *argv[]) {
 			packetsToWrite = reader->meta->packetsPerIteration;
 			if (multiMaxPackets[eventLoop] < packetsToWrite) { packetsToWrite = multiMaxPackets[eventLoop]; }
 
+			CLICK(tick1);
+			long hdrLen;
+			if ((hdrLen = lofar_udp_metadata_write(reader, reader->metadata, headerBuffer, 4096 * 8, localLoops == 0)) < 0) {
+				break;
+			}
+			CLICK(tock1);
+			timing[2] += TICKTOCK(tick1, tock1);
+			printf("Metadata took %lf (%lf) seconds to parse.\n", timing[2] - TICKTOCK(tick1, tock1), timing[2]);
+
 			CLICK(tick0);
+
+
 
 			for (int out = 0; out < reader->meta->numOutputs; out++) {
 				VERBOSE(printf("Writing %ld bytes (%ld packets) to disk for output %d...\n",
 							   packetsToWrite * reader->meta->packetOutputLength[out], packetsToWrite, out));
+				printf("Write Header\n");
+				if (lofar_udp_io_write(outConfig, out, headerBuffer,
+				                       hdrLen) < 0) {
+					break;
+				}
+				printf("Write Data\n");
 				if (lofar_udp_io_write(outConfig, out, reader->meta->outputData[out],
 									   packetsToWrite * reader->meta->packetOutputLength[out]) < 0) {
 					break;
@@ -605,7 +627,7 @@ int main(int argc, char *argv[]) {
 			CLICK(tock0);
 			totalWriteTime += TICKTOCK(tick0, tock0);
 			if (silent == 0) {
-				timing[0] = 9.;
+				timing[0] = 0.;
 				timing[1] = 0.;
 				printf("Disk writes completed for operation %d after %f seconds.\n", loops, TICKTOCK(tick0, tock0));
 				if (returnVal < 0) {
@@ -676,7 +698,7 @@ int main(int argc, char *argv[]) {
 	if (silent == 0) { printf("Reader cleanup performed successfully.\n"); }
 
 	// Free our malloc'd objects
-	CLICleanup(eventCount, dateStr, startingPackets, multiMaxPackets, eventSeconds, config, outConfig);
+	CLICleanup(eventCount, dateStr, startingPackets, multiMaxPackets, eventSeconds, config, outConfig, headerBuffer);
 
 	if (silent == 0) { printf("CLI memory cleaned up successfully. Exiting.\n"); }
 	return 0;

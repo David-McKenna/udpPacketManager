@@ -6,6 +6,9 @@ int writeInt_DADA(char *header, const char *key, int value);
 int writeLong_DADA(char *header, const char *key, long value);
 int writeDouble_DADA(char *header, const char *key, double value, int exception);
 
+// Define a float even if it isn't used
+__attribute__((unused)) int writeFloat_DADA(char *header, const char *key, float value, int exception);
+
 
 
 int lofar_udp_metadata_update_DADA(const lofar_udp_reader *reader, lofar_udp_metadata *metadata, int newObs) {
@@ -64,7 +67,7 @@ int lofar_udp_metadata_write_DADA(const lofar_udp_metadata *hdr, char *headerBuf
 
 
 	returnVal += writeDouble_DADA(headerBuffer, "HDR_VERSION", hdr->hdr_version, 0);
-	returnVal += writeStr_DADA(headerBuffer, "INSTRUMENT", hdr->instrument);
+	returnVal += writeStr_DADA(headerBuffer, "INSTRUMENT", "CASPSR");// TODO: ANYTHING ELSE, psrchive exits early if the machine isn't recognised.
 	returnVal += writeStr_DADA(headerBuffer, "TELESCOPE", hdr->telescope);
 	returnVal += writeInt_DADA(headerBuffer, "TELESCOPE_RSP", hdr->telescope_rsp_id);
 	returnVal += writeStr_DADA(headerBuffer, "RECEIVER", hdr->receiver);
@@ -93,7 +96,19 @@ int lofar_udp_metadata_write_DADA(const lofar_udp_metadata *hdr, char *headerBuf
 	returnVal += writeDouble_DADA(headerBuffer, "RA_RAD_ANALOG", hdr->ra_rad_analog, 0);
 	returnVal += writeDouble_DADA(headerBuffer, "DEC_RAD_ANALOG", hdr->dec_rad_analog, 0);
 	returnVal += writeStr_DADA(headerBuffer, "OBS_ID", hdr->obs_id);
-	returnVal += writeStr_DADA(headerBuffer, "UTC_START", hdr->utc_start);
+
+	// DSPSR requires strptime-parsable input %Y-%m-%D-%H:%M:%S, so it doesn't accept UTC_START with isot format / fractional seconds.
+	char tmpUtc[META_STR_LEN + 1] = "";
+	if (sscanf(hdr->utc_start, "%[^.]s%*s", tmpUtc) < 0) {
+		fprintf(stderr, "ERROR %s: Failed to modify UTC_START for DADA header, exiting.\n", __func__);
+		return -1;
+	}
+	char *workingPtr;
+	while((workingPtr = strstr(tmpUtc, "T")) != NULL) {
+		*(workingPtr) = '-';
+	}
+	returnVal += writeStr_DADA(headerBuffer, "UTC_START", tmpUtc);
+
 	returnVal += writeDouble_DADA(headerBuffer, "MJD_START", hdr->obs_mjd_start, 0);
 	returnVal += writeLong_DADA(headerBuffer, "OBS_OFFSET", hdr->obs_offset);
 	returnVal += writeLong_DADA(headerBuffer, "OBS_OVERLAP", hdr->obs_overlap);
@@ -109,7 +124,9 @@ int lofar_udp_metadata_write_DADA(const lofar_udp_metadata *hdr, char *headerBuf
 	returnVal += writeInt_DADA(headerBuffer, "NCHAN", hdr->nchan);
 	returnVal += writeInt_DADA(headerBuffer, "NRCU", hdr->nrcu);
 	returnVal += writeInt_DADA(headerBuffer, "NPOL", hdr->npol);
-	returnVal += writeInt_DADA(headerBuffer, "NBIT", hdr->nbit);
+	// DSPSR front end: -32 is a float, dspsr backend: -32 is a very large number because this is stored in an unsigned integer.
+	// Why?
+	returnVal += writeInt_DADA(headerBuffer, "NBIT", hdr->nbit > 0 ? hdr->nbit : -1 * hdr->nbit);
 	returnVal += writeInt_DADA(headerBuffer, "RESOLUTION", hdr->resolution);
 	returnVal += writeInt_DADA(headerBuffer, "NDIM", hdr->ndim);
 	returnVal += writeDouble_DADA(headerBuffer, "TSAMP", hdr->tsamp, 0);
@@ -147,8 +164,16 @@ int lofar_udp_metadata_write_DADA(const lofar_udp_metadata *hdr, char *headerBuf
 	returnVal += writeInt_DADA(headerBuffer, "UPM_UPPERBEAMLET", hdr->upm_upperbeam);
 	returnVal += writeInt_DADA(headerBuffer, "UPM_LOWERBEAMLET", hdr->upm_lowerbeam);
 
+	// Lovely chicken and the egg problem...
+	returnVal += writeLong_DADA(headerBuffer, "HDR_SIZE", (long) strnlen(headerBuffer, headerLength));
+	// ascii_header_set should overwrite values if they already exist, and the length -shouldn't- change between iterations given that the value is padded
+	returnVal += writeLong_DADA(headerBuffer, "HDR_SIZE", (long) strnlen(headerBuffer, headerLength));
 
-	return returnVal;
+	if (returnVal < 0) {
+		fprintf(stderr, "ERROR: %d errors occurred while preparing the header, exiting.\n", -1 * returnVal);
+		return -1;
+	}
+	return strnlen(headerBuffer, headerLength);
 }
 
 // Only set/get values that have been modified ascii_header_* can return 0 or 1
@@ -161,8 +186,12 @@ int lofar_udp_metadata_write_DADA(const lofar_udp_metadata *hdr, char *headerBuf
 // @return     { description_of_the_return_value }
 //
 int writeStr_DADA(char *header, const char *key, const char *value) {
+	VERBOSE(printf("DADA HEADER %s: %s, %s\n", __func__, key, value));
+
 	if (!isEmpty(value)) {
 		return (ascii_header_set(header, key, "%s", value) > -1) ? 0 : -1;
+	} else {
+		VERBOSE(fprintf(stderr, "ERROR %s: %s UNSET\n", __func__, key));
 	}
 	return 0;
 }
@@ -177,8 +206,12 @@ int writeStr_DADA(char *header, const char *key, const char *value) {
  * @return     { description_of_the_return_value }
  */
 int writeInt_DADA(char *header, const char *key, int value) {
+	VERBOSE(printf("DADA HEADER %s: %s, %d\n", __func__, key, value));
+
 	if (!intNotSet(value)) {
 		return (ascii_header_set(header, key, "%d", value) > -1) ? 0 : -1;
+	} else {
+		VERBOSE(fprintf(stderr, "ERROR %s: %s UNSET\n", __func__, key));
 	}
 	return 0;
 }
@@ -193,8 +226,32 @@ int writeInt_DADA(char *header, const char *key, int value) {
  * @return     { description_of_the_return_value }
  */
 int writeLong_DADA(char *header, const char *key, long value) {
+	VERBOSE(printf("DADA HEADER %s: %s, %ld\n", __func__, key, value));
+
 	if (!longNotSet(value)) {
 		return (ascii_header_set(header, key, "%ld", value) > -1) ? 0 : -1;
+	} else {
+		VERBOSE(fprintf(stderr, "ERROR %s: %s UNSET\n", __func__, key));
+	}
+	return 0;
+}
+
+/**
+ * @brief      { function_description }
+ *
+ * @param      header  The header
+ * @param[in]  key     The key
+ * @param[in]  value   The value
+ *
+ * @return     { description_of_the_return_value }
+ */
+__attribute__((unused)) int writeFloat_DADA(char *header, const char *key, float value, int exception)  {
+	VERBOSE(printf("DADA HEADER %s: %s, %f\n", __func__, key, value));
+
+	if (!doubleNotSet(value, exception)) {
+		return ascii_header_set(header, key, "%.12f", value) > -1 ? 0 : -1;
+	} else {
+		VERBOSE(fprintf(stderr, "ERROR %s: %s UNSET\n", __func__, key));
 	}
 	return 0;
 }
@@ -209,8 +266,12 @@ int writeLong_DADA(char *header, const char *key, long value) {
  * @return     { description_of_the_return_value }
  */
 int writeDouble_DADA(char *header, const char *key, double value, int exception) {
+	VERBOSE(printf("DADA HEADER %s: %s, %lf\n", __func__, key, value));
+
 	if (!doubleNotSet(value, exception)) {
-		return ascii_header_set(header, key, "%lf", value) > -1 ? 0 : -1;
+		return ascii_header_set(header, key, "%.17lf", value) > -1 ? 0 : -1;
+	} else {
+		VERBOSE(fprintf(stderr, "ERROR %s: %s UNSET\n", __func__, key));
 	}
 	return 0;
 }

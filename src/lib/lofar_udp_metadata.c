@@ -138,6 +138,18 @@ int lofar_udp_metadata_write_force(const lofar_udp_reader *reader, lofar_udp_met
 	}
 }
 
+int lofar_udp_metadata_cleanup(lofar_udp_metadata *metadata) {
+	if (metadata == NULL) {
+		return 0;
+	}
+
+	FREE_NOT_NULL(metadata->output.guppi);
+	FREE_NOT_NULL(metadata->output.sigproc);
+	FREE_NOT_NULL(metadata);
+
+	return 0;
+}
+
 
 int lofar_udp_metdata_set_default(lofar_udp_metadata *metadata) {
 	// Minimum samples that can be parsed by DSPSR per operation
@@ -145,7 +157,7 @@ int lofar_udp_metdata_set_default(lofar_udp_metadata *metadata) {
 	metadata->resolution = 1;
 
 	// LOFAR antenna are linear, not circular
-	if (strncpy(metadata->basis, "LINEAR", META_STR_LEN) != metadata->basis) {
+	if (strncpy(metadata->basis, "Linear", META_STR_LEN) != metadata->basis) {
 		fprintf(stderr, "ERROR: Failed to set antenna basis in the metadata struct, exiting.\n");
 		return -1;
 	}
@@ -163,10 +175,19 @@ int lofar_udp_metdata_set_default(lofar_udp_metadata *metadata) {
 	// First file will reset value to 0
 	metadata->output_file_number = -1;
 
+	// Few other variables should never change
+	metadata->obs_offset = 0;
+	metadata->obs_overlap = 0;
+	if (strncpy(metadata->mode, "Unknown", META_STR_LEN) != metadata->mode) {
+		fprintf(stderr, "ERROR %s: Failed to copy mode to metadata struct, exiting.\n", __func__);
+		return -1;
+	}
+
 	// Initialise all the packet trackers to 0
 	metadata->upm_processed_packets = 0;
 	metadata->upm_dropped_packets = 0;
 	metadata->upm_last_dropped_packets = 0;
+
 
 	return 0;
 }
@@ -191,6 +212,9 @@ int lofar_udp_metadata_parse_input_file(lofar_udp_metadata *metadata, const char
 	ssize_t lineLength;
 	int beamctlData[] = { -1, INT_MAX, 0, -1, 0, INT_MAX, 0, -1, 0 };
 
+	// Reset the number of parsed beamlets
+	metadata->upm_rawbeamlets = 0;
+
 	// For each line in the file
 	while ((lineLength = getline(&inputLine, &buffLen, input)) != -1) {
 
@@ -199,10 +223,15 @@ int lofar_udp_metadata_parse_input_file(lofar_udp_metadata *metadata, const char
 
 			VERBOSE(printf("Beamctl detected, passing on.\n"));
 			if (lofar_udp_metadata_parse_beamctl(metadata, strPtr, beamctlData) < 0) {
+				fclose(input); FREE_NOT_NULL(inputLine);
 				return -1;
 			}
 
 			// Append the line to the metadata struct
+			char *fixPtr;
+			while((fixPtr = strstr(inputLine, "\n"))) {
+				*(fixPtr) = '\t';
+			}
 			strncat(metadata->upm_beamctl, inputLine, 2 * DEF_STR_LEN - 1 - strlen(metadata->upm_beamctl));
 
 
@@ -210,6 +239,7 @@ int lofar_udp_metadata_parse_input_file(lofar_udp_metadata *metadata, const char
 
 			VERBOSE(printf("Source detected, passing on.\n"));
 			if (lofar_udp_metadata_get_tsv(strPtr, "SOURCE", metadata->source) < 0) {
+				fclose(input); FREE_NOT_NULL(inputLine);
 				return -1;
 			}
 
@@ -220,22 +250,18 @@ int lofar_udp_metadata_parse_input_file(lofar_udp_metadata *metadata, const char
 			 *      return -1;
 			 *  }
 			 * } */
-		} else if ((strPtr = strstr(inputLine, "INSTRUMENT")) != NULL) {
-
-			VERBOSE(printf("Instrument detected, passing on.\n"));
-			if (lofar_udp_metadata_get_tsv(strPtr, "INSTRUMENT", metadata->instrument) < 0) {
-				return -1;
-			}
 		} else if ((strPtr = strstr(inputLine, "OBS-ID")) != NULL) {
 
 			VERBOSE(printf("Observation ID detected, passing on.\n"));
 			if (lofar_udp_metadata_get_tsv(strPtr, "OBS-ID", metadata->obs_id) < 0) {
+				fclose(input); FREE_NOT_NULL(inputLine);
 				return -1;
 			}
 		} else if ((strPtr = strstr(inputLine, "OBSERVER")) != NULL) {
 
 			VERBOSE(printf("Observer detected, passing on.\n"));
 			if (lofar_udp_metadata_get_tsv(strPtr, "OBSERVER", metadata->observer) < 0) {
+				fclose(input); FREE_NOT_NULL(inputLine);
 				return -1;
 			}
 		} /*
@@ -245,9 +271,11 @@ int lofar_udp_metadata_parse_input_file(lofar_udp_metadata *metadata, const char
 
 
 		VERBOSE(printf("Beamctl data state: %d, %d, %d, %d, %d, %d\n", beamctlData[0], beamctlData[1], beamctlData[2], beamctlData[3], beamctlData[4], beamctlData[5]);
-		printf("Getting next line.\n"));
+		VERBOSE(printf("Getting next line.\n")));
 
  	}
+	// Free the getline buffer if it still exists (during testing this was raised as a non-free'd pointer)
+	FREE_NOT_NULL(inputLine);
 
 	// Close the metadata file now that we have parsed it
 	fclose(input);
@@ -275,9 +303,6 @@ int lofar_udp_metadata_parse_input_file(lofar_udp_metadata *metadata, const char
 		fprintf(stderr, "ERROR: Failed to copy UPM version into metadata struct, exiting.\n");
 		return -1;
 	}
-
-	// Store the total number of beamlets in the observation separately
-	metadata->upm_rawbeamlets = beamctlData[6];
 
 	if (lofar_udp_metadata_update_frequencies(metadata, &(beamctlData[1])) < 0) {
 		return -1;
@@ -326,6 +351,7 @@ int lofar_udp_metadata_parse_reader(lofar_udp_metadata *metadata, const lofar_ud
 	// Parse the new sub-set of beamlets
 	for (int beamlet = lowerBeamlet; beamlet < upperBeamlet; beamlet++) {
 		// Edge case: undefined subband is used as a beamlet
+		printf("Beamlet %d: Subband %d\n", beamlet, metadata->subbands[beamlet]);
 		if (metadata->subbands[beamlet] != -1) {
 			if (metadata->subbands[beamlet] > subbandData[2]) {
 				subbandData[2] = metadata->subbands[beamlet];
@@ -341,6 +367,7 @@ int lofar_udp_metadata_parse_reader(lofar_udp_metadata *metadata, const lofar_ud
 
 	// Update number of beamlets
 	metadata->nchan = reader->meta->totalProcBeamlets;
+	printf("Reader call\n");
 	if (lofar_udp_metadata_update_frequencies(metadata, subbandData) < 0) {
 		return -1;
 	}
@@ -374,7 +401,7 @@ int lofar_udp_metadata_parse_reader(lofar_udp_metadata *metadata, const lofar_ud
 	lofar_udp_time_get_daq(reader, metadata->upm_daq);
 
 	for (int port = 0; port < metadata->upm_num_inputs; port++) {
-		if (strncpy(metadata->rawfile[port], reader->input->inputLocations[port], META_STR_LEN)) {
+		if (strncpy(metadata->rawfile[port], reader->input->inputLocations[port], META_STR_LEN) != metadata->rawfile[port]) {
 			fprintf(stderr, "ERROR: Failed to copy raw filename %d to metadata struct, exiting.\n", port);
 			return -1;
 		}
@@ -407,7 +434,7 @@ int lofar_udp_metadata_parse_beamctl(lofar_udp_metadata *metadata, const char *i
 	}
 
 	do {
-		VERBOSE(printf("Starting beamctl lMETA_STR_LENoop for token %s\n", inputPtr));
+		VERBOSE(printf("Starting beamctl loop for token %s\n", inputPtr));
 		// Number of RCUs
 		if ((workingPtr = strstr(inputPtr, "--rcus=")) != NULL) {
 			metadata->nrcu = lofar_udp_metadata_count_csv(workingPtr + strlen("--rcus="));
@@ -514,7 +541,8 @@ int lofar_udp_metadata_parse_pointing(lofar_udp_metadata *metadata, const char i
 	// 2pi / 360deg -> 0.01745329251 rad/deg
 	const double rad2Deg = 0.01745329251;
 
-	if (sscanf(inputStr, "%*[^0-9]%lf,%lf,%[a-Z0-9]", &lon, &lat, basis) < 2) {
+	if (sscanf(inputStr, "%*[^0-9]%lf,%lf,%[a-zA-Z0-9]s", &lon, &lat, basis) < 2) {
+//	if (sscanf(inputStr, "%*[^0-9]%lf,%lf,%s%*[^\'\"\\]", &lon, &lat, basis) < 2) {
 		fprintf(stderr, "ERROR: Failed to parse pointing string %s, exiting.\n", inputStr);
 		return -1;
 	}
@@ -544,22 +572,24 @@ int lofar_udp_metadata_parse_pointing(lofar_udp_metadata *metadata, const char i
 		dest[1] = metadata->dec_analog;
 	}
 
-	if (sprintf(dest[0], "%02d:%02d:%06.3lf", ra[0], ra[1], ra_s) < 0) {
+	if (sprintf(dest[0], "%02d:%02d:%012.9lf", ra[0], ra[1], ra_s) < 0) {
 		fprintf(stderr, "ERROR: Failed to print RA/Lon to metadata, exiting.\n");
 		return -1;
 	}
 
-	if (sprintf(dest[1], "%02d:%02d:%06.3lf", dec[0], dec[1], dec_s) < 0) {
+	if (sprintf(dest[1], "%02d:%02d:%012.9lf", dec[0], dec[1], dec_s) < 0) {
 		fprintf(stderr, "ERROR: Failed to print Dec/Lat to metadata, exiting.\n");
 		return -1;
 	}
 
 	if (strlen(metadata->coord_basis) > 0) {
+		VERBOSE(printf("Basis already set, comparing...\n"));
 		if (strcmp(basis, metadata->coord_basis) != 0) {
 			fprintf(stderr, "ERROR: Coordinate basis mismatch while parsing directions (digdir=%d), parsed %s vs struct %s, exiting.\n", digi, basis, metadata->coord_basis);
 			return -1;
 		}
 	} else {
+		VERBOSE(printf("Basis not set, copying...\n"));
 		if (strncpy(metadata->coord_basis, basis, META_STR_LEN) != metadata->coord_basis) {
 			fprintf(stderr, "ERROR: Failed to copy coordinate basis to metadata struct, exiting.\n");
 			return -1;
@@ -584,8 +614,8 @@ int lofar_udp_metadata_parse_subbands(lofar_udp_metadata *metadata, const char *
 		return -1;
 	}
 
-	int subbands[MAX_NUM_PORTS * UDPMAXBEAM] = { 0 };
-	int beamlets[MAX_NUM_PORTS * UDPMAXBEAM] = { 0 };
+	int subbands[MAX_NUM_PORTS * UDPMAXBEAM] = { -1 };
+	int beamlets[MAX_NUM_PORTS * UDPMAXBEAM] = { -1 };
 
 	char *workingPtr = (char*) inputLine, *tokenPtr;
 	char token[2] = " ";
@@ -596,30 +626,32 @@ int lofar_udp_metadata_parse_subbands(lofar_udp_metadata *metadata, const char *
 		return -1;
 	}
 
-	int parsed = 0;
+	int subbandCount = 0, beamletCount = 0;
 	do {
 		VERBOSE(printf("Entering subband/beamlet parse loop for token %s\n", inputPtr));
 		if ((workingPtr = strstr(inputPtr, "--subbands=")) != NULL) {
 			VERBOSE(printf("Subbands detected\n"));
-			if ((lofar_udp_metadata_parse_csv(workingPtr + strlen("--subbands="), subbands, &(results[1]))) < 0) {
+			if ((subbandCount = lofar_udp_metadata_parse_csv(workingPtr + strlen("--subbands="), subbands, &(results[1]))) < 0) {
 				return -1;
 			}
-			parsed |= 1;
+
 		} else if ((workingPtr = strstr(inputPtr, "--beamlets=")) != NULL) {
 			VERBOSE(printf("Beamlets detected\n"));
-			if ((lofar_udp_metadata_parse_csv(workingPtr + strlen("--beamlets="), beamlets, &(results[5]))) < 0) {
+			if ((beamletCount = lofar_udp_metadata_parse_csv(workingPtr + strlen("--beamlets="), beamlets, &(results[5]))) < 0) {
 				return -1;
 			}
-			parsed |= 2;
+
 		}
 
 	} while ((inputPtr = strtok_r(NULL, token, &tokenPtr)) != NULL);
 	VERBOSE(printf("End subband/beamlet search loop\n"));
 
-	if (parsed != 3) {
-		fprintf(stderr, "ERROR: Failed to parse both subbands and beamlets (%d), exiting.\n", parsed);
+	if (subbandCount != beamletCount || subbandCount == 0) {
+		fprintf(stderr, "ERROR: Failed to parse matching numbers of both subbands and beamlets (%d/%d), exiting.\n", subbandCount, beamletCount);
 		return -1;
 	}
+
+	metadata->upm_rawbeamlets += beamletCount;
 
 	// Subband offset
 	// Simpler way of calculating the frequencies -- use an offset to emulate the true frequency across several RCU modes
@@ -631,7 +663,7 @@ int lofar_udp_metadata_parse_subbands(lofar_udp_metadata *metadata, const char *
 	// As a result, for mode 5, subbands 512 - 1023, we have (512 - 1023) * (0.19) = 100 - 200MHz
 	// Similarly no offset for mode 3, double the offset for mode 7, etc.
 	// This is why I raise an error when mixing mode 6 (160MHz clock) and anything else (all on the 200MHz clock)
-	for (int i = 0; i < metadata->nchan; i++) {
+	for (int i = 0; i < metadata->upm_rawbeamlets; i++) {
 		metadata->subbands[beamlets[i]] = subbandOffset + subbands[i];
 	}
 
@@ -640,7 +672,7 @@ int lofar_udp_metadata_parse_subbands(lofar_udp_metadata *metadata, const char *
 
 int lofar_udp_metadata_get_tsv(const char *inputStr, const char *keyword, char *result) {
 	char key[65];
-	if (sscanf(inputStr, "%64[^\t]%s", key, result) != 2) {
+	if (sscanf(inputStr, "%64s\t%s", key, result) != 2) {
 		fprintf(stderr, "ERROR: Failed to get value for input '%s' keyword (parsed key/val of %s / %s), exiting.\n", keyword, key, result);
 		return -1;
 	}
@@ -863,10 +895,12 @@ int lofar_udp_metadata_update_frequencies(lofar_udp_metadata *metadata, int *sub
 
 	double meanSubband = (double) subbandData[1] / metadata->nchan;
 
+	VERBOSE(printf("SubbandData: %d, %d, %d\n", subbandData[0], subbandData[1], subbandData[2]));
+
 	// Offset frequency by half a subband to get central frequencies rather than base frequencies
-	metadata->fbottom = metadata->channel_bw * (0.5 + subbandData[0]);
+	metadata->ftop = metadata->channel_bw * (0.5 + subbandData[0]);
 	metadata->freq = metadata->channel_bw * (0.5 + meanSubband);
-	metadata->ftop = metadata->channel_bw * (0.5 + subbandData[2]);
+	metadata->fbottom = metadata->channel_bw * (0.5 + subbandData[2]);
 	// Define the observation bandwidth as the bandwidth between the centre of the top and bottom channels,
 	//  plus a subband to account for the expanded bandwidth from the centre to the edges of the band
 	metadata->bw = metadata->ftop - metadata->fbottom;
@@ -923,11 +957,9 @@ int lofar_udp_metadata_processing_mode_metadata(lofar_udp_metadata *metadata) {
 	}
 
 	double samplingTime = metadata->upm_rcuclock == 200 ? clock200MHzSampleTime : clock160MHzSampleTime;
-
 	if (metadata->upm_procmode > 99) {
 		samplingTime *= (double) (1 << (metadata->upm_procmode % 10));
 	}
-
 	metadata->tsamp = samplingTime;
 
 
@@ -1067,51 +1099,42 @@ int lofar_udp_metadata_processing_mode_metadata(lofar_udp_metadata *metadata) {
 			return -1;
 	}
 
-	// Nyquist or analytic?
+	// Data states / polarisations, psrchive -> Util/genutil/Types.C
+	/*
+	 * Nyquist, Analytic, Intensity, NthPower, PPQQ, Coherence, Stokes, PseudoStokes, PP, QQ
+	 * http://psrchive.sourceforge.net/classes/Util/namespaceSignal.shtml
+	 */
 	switch (metadata->upm_procmode) {
 		// Packet copies, no change
 		case 0:
 		case 1:
-			// Data reordered, single output, no change
+		// Data reordered, single output, no change
 		case 10:
 		case 20:
 		case 30:
 			metadata->ndim = 2;
 			metadata->npol = 2;
-			if (strncpy(metadata->state, "NYQUIST", META_STR_LEN) != metadata->state) {
-				fprintf(stderr, "ERROR: Failed to set metadata state, exiting.\n");
-				return -1;
-			}
 			break;
 
-			// Polarisations/real/complex values split into their own files
+		// Polarisations/real/complex values split into their own files
 		case 2:
 		case 11:
 		case 21:
 		case 31:
 			metadata->ndim = 1;
 			metadata->npol = 1;
-			if (strncpy(metadata->state, "NYQUIST", META_STR_LEN) != metadata->state) {
-				fprintf(stderr, "ERROR: Failed to set metadata state, exiting.\n");
-				return -1;
-			}
 			break;
 
-			// Split by antenna polarisation, but not real/complex
+		// Split by antenna polarisation, but not real/complex
 		case 32:
 		case 35:
-			// Polarisation split, but complex valued
 			metadata->ndim = 2;
 			metadata->npol = 1;
-			if (strncpy(metadata->state, "NYQUIST", META_STR_LEN) != metadata->state) {
-				fprintf(stderr, "ERROR: Failed to set metadata state, exiting.\n");
-				return -1;
-			}
 			break;
 
 
-			// Stokes outputs
-			// May need to double check, should npol be 1 here?
+		// Stokes outputs
+		// May need to double check, should npol be 1 here?
 		case 100 ... 104:
 		case 110 ... 114:
 		case 120 ... 124:
@@ -1126,10 +1149,6 @@ int lofar_udp_metadata_processing_mode_metadata(lofar_udp_metadata *metadata) {
 		case 260 ... 264:
 			metadata->ndim = 1;
 			metadata->npol = 2;
-			if (strncpy(metadata->state, "INTENSITY", META_STR_LEN) != metadata->state) {
-				fprintf(stderr, "ERROR: Failed to set metadata state, exiting.\n");
-				return -1;
-			}
 			break;
 
 		default:
@@ -1137,18 +1156,58 @@ int lofar_udp_metadata_processing_mode_metadata(lofar_udp_metadata *metadata) {
 			return -1;
 	}
 
+	switch (metadata->upm_procmode) {
+		case 0 ... 2:
+		case 10 ... 11:
+		case 20 ... 21:
+		case 30 ... 32:
+		case 35:
+			// Analytic: In-phase and Quadrature sampled voltages (complex)
+			if (strncpy(metadata->state, "Analytic", META_STR_LEN) != metadata->state) {
+				fprintf(stderr, "ERROR: Failed to set metadata state, exiting.\n");
+				return -1;
+			}
+			break;
+
+
+			// Stokes outputs
+			// May need to double check, should npol be 1 here?
+		case 100 ... 104:
+		case 110 ... 114:
+		case 120 ... 124:
+		case 130 ... 134:
+		case 200 ... 204:
+		case 210 ... 214:
+		case 220 ... 224:
+		case 230 ... 234:
+		case 160 ... 164:
+		case 260 ... 264:
+			// Intensity: Square-law detected total power.
+			if (strncpy(metadata->state, "Intensity", META_STR_LEN) != metadata->state) {
+				fprintf(stderr, "ERROR: Failed to set metadata state, exiting.\n");
+				return -1;
+			}
+			break;
+
+		// I don't think our split order is compatible here, but worth a shot...
+		case 150 ... 154:
+		case 250 ... 254:
+			// Stokes:  Stokes I,Q,U,V.
+			if (strncpy(metadata->state, "Stokes", META_STR_LEN) != metadata->state) {
+				fprintf(stderr, "ERROR: Failed to set metadata state, exiting.\n");
+				return -1;
+			}
+			break;
+
+
+	}
+
 	// Output bit mode
 	switch (metadata->upm_procmode) {
-		case 0:
-		case 1:
-		case 2:
-		case 10:
-		case 11:
-		case 20:
-		case 21:
-		case 30:
-		case 31:
-		case 32:
+		case 0 ... 2:
+		case 10 ... 11:
+		case 20 ... 21:
+		case 30 ... 32:
 			// Calibrated samples are always floats
 			if (metadata->upm_calibrated) {
 				metadata->nbit = -32;

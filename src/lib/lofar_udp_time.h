@@ -5,8 +5,8 @@ extern const double clock160MHzSteps;
 extern const double clockStepsDelta;
 
 // Time steps per second in each clock mode
-extern const double clock200MHzSampleRate;
-extern const double clock160MHzSampleRate;
+extern const double clock200MHzSampleTime;
+extern const double clock160MHzSampleTime;
 
 // Beam samples per second in each clock mode
 extern const double clock200MHzSampleTime;

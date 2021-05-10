@@ -105,7 +105,8 @@ add_library(lofudpman STATIC
             src/lib/lofar_udp_reader.c
             src/lib/lofar_udp_structs.c
             src/CLI/lofar_cli_meta.c
-            src/lib/lofar_udp_metadata.c src/lib/lofar_udp_time.c)
+            src/lib/lofar_udp_metadata.c
+            src/lib/lofar_udp_time.c)
 
 add_dependencies(lofudpman libzstd_static psrdada)
 # Include all of our headers

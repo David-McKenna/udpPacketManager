@@ -4,12 +4,8 @@ const double clock200MHzSteps = CLOCK200MHZ;
 const double clock160MHzSteps = CLOCK160MHZ;
 const double clockStepsDelta = CLOCK200MHZ - CLOCK160MHZ;
 
-const double clock200MHzSampleRate = 1.0 / CLOCK200MHZ;
-const double clock160MHzSampleRate = 1.0 / CLOCK160MHZ;
-
-// 1024 voltage samples per beam sample
-const double clock200MHzSampleTime = 1024.0 / CLOCK200MHZ;
-const double clock160MHzSampleTime = 1024.0 / CLOCK160MHZ;
+const double clock200MHzSampleTime = 1.0 / CLOCK200MHZ;
+const double clock160MHzSampleTime = 1.0 / CLOCK160MHZ;
 
 
 const double clock200MHzPacketRate = CLOCK200MHZ / 16;
@@ -81,7 +77,7 @@ void lofar_udp_time_get_current_isot_offset(const lofar_udp_reader *reader, char
 
 	char localBuff[32];
 	strftime(localBuff, sizeof(localBuff), "%Y-%m-%dT%H:%M:%S", startTimeStruct);
-	sprintf(stringBuff, "%s.%06d", localBuff, (int) ((startTime - startTimeUnix) * 1e6));
+	sprintf(stringBuff, "%s.%09d", localBuff, (int) ((startTime - startTimeUnix) * 1e9));
 }
 
 /**

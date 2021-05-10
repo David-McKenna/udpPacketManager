@@ -141,7 +141,7 @@ const sigproc_hdr sigproc_hdr_default = {
 	.tsamp = -1.0,
 
 	.nbits = -1,
-	.nsamples = -1,
+	//.nsamples = -1,
 
 	.fch1 = -1.0,
 	.foff = 0.0,

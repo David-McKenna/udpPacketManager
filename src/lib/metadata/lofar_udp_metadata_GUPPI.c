@@ -10,6 +10,7 @@ int writeStr_GUPPI(char *headerBuffer, const char *key, const char *val) {
 	char tmpStr[81];
 	// 80 base length - 10 for key / separator - 2 for wrapping ' - length of string
 	int parseChars = sprintf(tmpStr, "%-8s= '%s'%-*.s", key, val, 80 - 10 - 2 - (int) strlen(val), " ");
+	VERBOSE(printf("GUPPI %s: %s\t %s\n", key, val, tmpStr));
 	return (strcat(headerBuffer, tmpStr) != headerBuffer) + (parseChars != 80);
 }
 
@@ -24,7 +25,8 @@ int writeInt_GUPPI(char *headerBuffer, char *key, int val) {
 	char tmpStr[81];
 	char intStr[META_STR_LEN + 2];
 	sprintf(intStr, "%d", val);
-	int parseChars = sprintf(tmpStr, "%-8s= %-70.s", key, intStr);
+	int parseChars = sprintf(tmpStr, "%-8s= %-70s", key, intStr);
+	VERBOSE(printf("GUPPI %s: %d, %s\t%s\n", key, val, intStr, tmpStr));
 	return (strcat(headerBuffer, tmpStr) != headerBuffer) + (parseChars != 80);
 }
 
@@ -37,9 +39,26 @@ int writeInt_GUPPI(char *headerBuffer, char *key, int val) {
  */
 int writeLong_GUPPI(char *headerBuffer, char *key, long val) {
 	char tmpStr[81];
-	char intStr[META_STR_LEN + 2];
-	sprintf(intStr, "%ld", val);
-	int parseChars = sprintf(tmpStr, "%-8s= %-70.s", key, intStr);
+	char longStr[META_STR_LEN + 2];
+	sprintf(longStr, "%ld", val);
+	int parseChars = sprintf(tmpStr, "%-8s= %-70s", key, longStr);
+	VERBOSE(printf("GUPPI %s: %ld, %s\t%s\n", key, val, longStr, tmpStr));
+	return (strcat(headerBuffer, tmpStr) != headerBuffer) + (parseChars != 80);
+}
+
+/**
+ * @brief      Writes a float value to the buffer, padded to 80 chars long
+ *
+ * @param      fileRef  The file reference
+ * @param      key      The key
+ * @param[in]  val      The value
+ */
+__attribute__((unused)) int writeFloat_GUPPI(char *headerBuffer, char *key, float val) {
+	char tmpStr[81];
+	char floatStr[META_STR_LEN + 2];
+	sprintf(floatStr, "%.12f", val);
+	int parseChars = sprintf(tmpStr, "%-8s= %-70s", key, floatStr);
+	VERBOSE(printf("GUPPI %s: %f, %s\t%s\n", key, val, floatStr, tmpStr));
 	return (strcat(headerBuffer, tmpStr) != headerBuffer) + (parseChars != 80);
 }
 
@@ -52,9 +71,10 @@ int writeLong_GUPPI(char *headerBuffer, char *key, long val) {
  */
 int writeDouble_GUPPI(char *headerBuffer, char *key, double val) {
 	char tmpStr[81];
-	char intStr[META_STR_LEN + 2];
-	sprintf(intStr, "%lf", val);
-	int parseChars = sprintf(tmpStr, "%-8s= %-70.s", key, intStr);
+	char doubleStr[META_STR_LEN + 2];
+	sprintf(doubleStr, "%.17f", val);
+	int parseChars = sprintf(tmpStr, "%-8s= %-70s", key, doubleStr);
+	VERBOSE(printf("GUPPI %s: %lf, %s\t%s\n", key, val, doubleStr, tmpStr));
 	return (strcat(headerBuffer, tmpStr) != headerBuffer) + (parseChars != 80);
 }
 
@@ -101,7 +121,7 @@ int lofar_udp_metadata_setup_GUPPI(lofar_udp_metadata *metadata) {
 	metadata->output.guppi->chan_bw = metadata->channel_bw;
 	metadata->output.guppi->obsnchan = metadata->nchan;
 	metadata->output.guppi->npol = metadata->npol;
-	metadata->output.guppi->nbits = metadata->nbit;
+	metadata->output.guppi->nbits = metadata->nbit > 0 ? metadata->nbit : -1 * metadata->nbit;
 	metadata->output.guppi->tbin = metadata->tsamp;
 	metadata->output.guppi->dataport = metadata->baseport;
 	metadata->output.guppi->stt_imjd = (int) metadata->obs_mjd_start;
@@ -217,7 +237,7 @@ int lofar_udp_metadata_write_GUPPI(const guppi_hdr *hdr, char *headerBuffer, siz
 		return -1;
 	}
 
-	return 0;
+	return strnlen(headerBuffer, headerLength);
 }
 
 

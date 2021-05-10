@@ -246,7 +246,7 @@ int main(int argc, char *argv[]) {
 
 
 	// Determine the clock time
-	sampleTime = clock160MHzSampleRate * (1 - clock200MHz) + clock200MHzSampleRate * clock200MHz;
+	sampleTime = clock160MHzSampleTime * (1 - clock200MHz) + clock200MHzSampleTime * clock200MHz;
 
 
 	if (silent == 0) {

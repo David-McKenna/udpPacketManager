@@ -80,8 +80,8 @@ int lofar_udp_io_read_setup_helper(lofar_udp_io_read_config *input, const lofar_
                                    int port) {
 
 	// If this is the first initialisation call, copy over the specified reader type
-	if (input->readerType == NO_INPUT) {
-		if (config->readerType == NO_INPUT) {
+	if (input->readerType == NO_ACTION) {
+		if (config->readerType == NO_ACTION) {
 			fprintf(stderr, "ERROR: Input reader configuration does not specify a reader type, exiting.\n");
 			return -1;
 		}
@@ -228,7 +228,7 @@ reader_t lofar_udp_io_parse_type_optarg(const char optargc[], char *fileFormat, 
 			reader = DADA_ACTIVE;
 		} else {
 			// Unknown prefix
-			reader = NO_INPUT;
+			reader = NO_ACTION;
 		}
 	} else {
 		reader = NORMAL;
