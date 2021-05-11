@@ -72,6 +72,10 @@ int lofar_udp_metadata_setup(lofar_udp_metadata *metadata, lofar_udp_reader *rea
 }
 
 int lofar_udp_metadata_update(const lofar_udp_reader *reader, lofar_udp_metadata *metadata, int newObs) {
+	if (metadata == NULL || metadata->type == NO_META) {
+		return 0;
+	}
+
 	if (newObs) {
 		metadata->output_file_number += 1;
 	}
@@ -110,6 +114,10 @@ int lofar_udp_metadata_write(const lofar_udp_reader *reader, lofar_udp_metadata 
 }
 
 int lofar_udp_metadata_write_force(const lofar_udp_reader *reader, lofar_udp_metadata *metadata, char *headerBuffer, size_t headerBufferSize, int newObs, int force) {
+	if (metadata == NULL || metadata->type == NO_META) {
+		return 0;
+	}
+
 	if (lofar_udp_metadata_update(reader, metadata, newObs || force)) {
 		return -1;
 	}

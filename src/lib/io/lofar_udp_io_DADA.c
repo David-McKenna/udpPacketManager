@@ -460,6 +460,7 @@ void lofar_udp_io_cleanup_DADA_loop(ipcbuf_t *buff, float timeout) {
 
 		// If the reader is stuck on the last block, just exit early.
 		if (previousBuffer == (long) ipcbuf_get_read_count(buff) && (ipcbuf_get_write_count(buff) - previousBuffer) < 2) {
+			printf("DADA reader(s) appears to have stalled at the end of the observation, cleaning up early.\n");
 			break;
 		}
 	}
