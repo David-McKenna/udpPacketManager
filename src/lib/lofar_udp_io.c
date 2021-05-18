@@ -29,6 +29,9 @@ int lofar_udp_io_read_setup(lofar_udp_io_read_config *input, int port) {
 			input->numInputs++;
 			return lofar_udp_io_read_setup_DADA(input, input->dadaKeys[port], port);
 
+		case HDF5:
+			fprintf(stderr, "ERROR: Reading from HDF5 files is currently not supported, exiting.\n");
+			break;
 
 		default:
 			fprintf(stderr, "ERROR: Unknown reader (%d) provided, exiting.\n", input->readerType);
@@ -63,6 +66,10 @@ int lofar_udp_io_write_setup(lofar_udp_io_write_config *config, int iter) {
 
 			case DADA_ACTIVE:
 				returnVal = (returnVal == -1) ? returnVal : lofar_udp_io_write_setup_DADA(config, outp);
+				break;
+
+			case HDF5:
+				returnVal = (returnVal == -1) ? returnVal : lofar_udp_io_write_setup_HDF5(config, outp, iter);
 				break;
 
 
@@ -128,6 +135,8 @@ int lofar_udp_io_write_setup_helper(lofar_udp_io_write_config *config, const lof
 		config->writeBufSize[outp] = meta->packetsPerIteration * meta->packetOutputLength[outp];
 	}
 
+	config->firstPacket = meta->lastPacket;
+
 	return lofar_udp_io_write_setup(config, iter);
 }
 
@@ -158,6 +167,8 @@ int lofar_udp_io_read_cleanup(lofar_udp_io_read_config *input, const int port) {
 		case DADA_ACTIVE:
 			return lofar_udp_io_read_cleanup_DADA(input, port);
 
+		case HDF5:
+			return lofar_udp_io_read_cleanup_HDF5(input, port);
 
 		default:
 			fprintf(stderr, "ERROR: Unknown reader (%d) provided, exiting.\n", input->readerType);
@@ -189,6 +200,9 @@ int lofar_udp_io_write_cleanup(lofar_udp_io_write_config *config, const int outp
 
 		case DADA_ACTIVE:
 			return lofar_udp_io_write_cleanup_DADA(config, outp, fullClean);
+
+		case HDF5:
+			return lofar_udp_io_write_cleanup_HDF5(config, outp, fullClean);
 
 
 		default:
@@ -226,20 +240,29 @@ reader_t lofar_udp_io_parse_type_optarg(const char optargc[], char *fileFormat, 
 			reader = FIFO;
 		} else if (strstr(optargc, "DADA:") != NULL) {
 			reader = DADA_ACTIVE;
+		} else if (strstr(optargc, "HDF5:") != NULL) {
+			reader = HDF5;
 		} else {
 			// Unknown prefix
 			reader = NO_ACTION;
 		}
 	} else {
-		reader = NORMAL;
-		sscanf(optargc, "%[^,],%d,%d", fileFormat, baseVal, offsetVal);
+		if (strstr(fileFormat, ".zst") != NULL) {
+			VERBOSE(printf("%s, COMPRESSED\n", fileFormat));
+			reader = ZSTDCOMPRESSED;
+		} else {
+			reader = NORMAL;
+			sscanf(optargc, "%[^,],%d,%d", fileFormat, baseVal, offsetVal);
+		}
+	}
+
+	if (reader == NO_ACTION) {
+		fprintf(stderr, "ERROR: Failed to determine reader type for int '%s', exiting.\n", optargc);
+		return -1;
 	}
 
 
-	if (strstr(fileFormat, ".zst") != NULL) {
-		VERBOSE(printf("%s, COMPRESSED\n", fileFormat));
-		reader = ZSTDCOMPRESSED;
-	}
+
 
 	return reader;
 }
@@ -355,6 +378,7 @@ int lofar_udp_io_read_parse_optarg(lofar_udp_config *config, const char optargc[
 		case NORMAL:
 		case FIFO:
 		case ZSTDCOMPRESSED:
+		case HDF5:
 			for (int i = 0; i < (MAX_NUM_PORTS - config->offsetPortCount); i++) {
 				lofar_udp_io_parse_format(config->inputLocations[i], fileFormat, (config->basePort + config->offsetPortCount * config->stepSizePort) + i * config->stepSizePort, -1, i, -1);
 			}
@@ -423,6 +447,7 @@ int lofar_udp_io_write_parse_optarg(lofar_udp_io_write_config *config, const cha
 		case NORMAL:
 		case FIFO:
 		case ZSTDCOMPRESSED:
+		case HDF5:
 			// Nothing needs to be done for normal files here
 			break;
 
@@ -496,7 +521,7 @@ long lofar_udp_io_read(lofar_udp_io_read_config *input, int port, char *targetAr
 		case DADA_ACTIVE:
 			return lofar_udp_io_read_DADA(input, port, targetArray, nchars);
 
-
+		case HDF5:
 		default:
 			fprintf(stderr, "ERROR: Unknown reader %d, exiting.\n", input->readerType);
 			return -1;
@@ -542,6 +567,8 @@ long lofar_udp_io_write(lofar_udp_io_write_config *config, int outp, char *src, 
 		case DADA_ACTIVE:
 			return lofar_udp_io_write_DADA(config->dadaWriter[outp].ringbuffer, outp, src, nchars);
 
+		case HDF5:
+			return lofar_udp_io_write_HDF5(config, outp, src, nchars);
 
 		default:
 			fprintf(stderr, "ERROR: Unknown reader %d, exiting.\n", config->readerType);
@@ -587,6 +614,9 @@ lofar_udp_io_read_temp(const lofar_udp_config *config, const int port, void *out
 		case DADA_ACTIVE:
 			return lofar_udp_io_read_temp_DADA(outbuf, size, num, config->dadaKeys[port], resetSeek);
 
+		case HDF5:
+			fprintf(stderr, "ERROR: Reading from HDF5 files is not currently supported, exiting.\n");
+			return -1;
 
 		default:
 			fprintf(stderr, "ERROR: Unknown reader type (%d), exiting.\n", config->readerType);
@@ -598,6 +628,7 @@ lofar_udp_io_read_temp(const lofar_udp_config *config, const int port, void *out
 #include "./io/lofar_udp_io_FILE.c"
 #include "./io/lofar_udp_io_ZSTD.c"
 #include "./io/lofar_udp_io_DADA.c"
+#include "./io/lofar_udp_io_HDF5.c"
 
 
 

@@ -109,11 +109,11 @@ int lofar_udp_metadata_update(const lofar_udp_reader *reader, lofar_udp_metadata
 
 }
 
-int lofar_udp_metadata_write(const lofar_udp_reader *reader, lofar_udp_metadata *metadata, char *headerBuffer, size_t headerBufferSize, int newObs) {
-	return lofar_udp_metadata_write_force(reader, metadata, headerBuffer, headerBufferSize, newObs, 0);
+int lofar_udp_metadata_write_buffer(const lofar_udp_reader *reader, lofar_udp_metadata *metadata, char *headerBuffer, size_t headerBufferSize, int newObs) {
+	return lofar_udp_metadata_write_buffer_force(reader, metadata, headerBuffer, headerBufferSize, newObs, 0);
 }
 
-int lofar_udp_metadata_write_force(const lofar_udp_reader *reader, lofar_udp_metadata *metadata, char *headerBuffer, size_t headerBufferSize, int newObs, int force) {
+int lofar_udp_metadata_write_buffer_force(const lofar_udp_reader *reader, lofar_udp_metadata *metadata, char *headerBuffer, size_t headerBufferSize, int newObs, int force) {
 	if (metadata == NULL || metadata->type == NO_META) {
 		return 0;
 	}
@@ -140,10 +140,22 @@ int lofar_udp_metadata_write_force(const lofar_udp_reader *reader, lofar_udp_met
 			}
 			return 0;
 
+		// HDF5 files take the DADA header into the PROCESS_HISTORY groups
+		case HDF5:
+			return lofar_udp_metadata_write_GUPPI(metadata->output.guppi, headerBuffer, headerBufferSize);
+
 		default:
 			fprintf(stderr, "ERROR %s: Unknown metadata type %d, exiting.\n", __func__, metadata->type);
 			return -1;
 	}
+}
+
+int lofar_udp_metadata_write_file(const lofar_udp_reader *reader, lofar_udp_metadata *metadata, char *headerBuffer, size_t headerBufferSize, int newObs) {
+
+}
+
+int lofar_udp_metadata_write_file_force(const lofar_udp_reader *reader, lofar_udp_metadata *metadata, char *headerBuffer, size_t headerBufferSize, int newObs, int force) {
+
 }
 
 int lofar_udp_metadata_cleanup(lofar_udp_metadata *metadata) {
@@ -404,7 +416,7 @@ int lofar_udp_metadata_parse_reader(lofar_udp_metadata *metadata, const lofar_ud
 	metadata->upm_num_outputs = reader->meta->numOutputs;
 
 
-	lofar_udp_time_get_current_isot(reader, metadata->utc_start);
+	lofar_udp_time_get_current_isot(reader, metadata->obs_utc_start);
 	metadata->obs_mjd_start = lofar_udp_time_get_packet_time_mjd(reader->meta->inputData[0]);
 	lofar_udp_time_get_daq(reader, metadata->upm_daq);
 

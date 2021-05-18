@@ -30,6 +30,11 @@ set(CMAKE_LINKER_FLAGS_DEBUG "${CMAKE_LINKER_FLAGS_DEBUG} -fno-omit-frame-pointe
 
 # Find the OpenMP package on the system
 
+message("Attempting to detect HDF5 libraries")
+find_package(HDF5 REQUIRED COMPONENTS C CXX)
+include_directories(${HDF5_INCLUDE_DIRS})
+message("")
+
 message("Configuring OpenMP...")
 find_package(OpenMP REQUIRED)
 find_library(IOMP_LIB iomp5 HINTS /opt/intel/oneapi/compiler/latest/linux/compiler/lib/)
@@ -117,6 +122,7 @@ target_include_directories(lofudpman PUBLIC
 )
 file(GLOB_RECURSE UDP_INCLUDE_FILES "${PROJECT_SOURCE_DIR}/src/*/*.h" "${PROJECT_SOURCE_DIR}/src/*/*.hpp")
 
+target_link_libraries(lofudpman INTERFACE ${HDF5_CXX_LIBRARIES} ${HDF5_C_LIBRARIES})
 target_link_libraries(lofudpman INTERFACE psrdada)
 target_link_libraries(lofudpman INTERFACE libzstd_static)
 

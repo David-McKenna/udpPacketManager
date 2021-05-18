@@ -138,7 +138,7 @@ typedef struct lofar_udp_metadata {
 	double dec_rad_analog; // beamctl -- HBA
 	char coord_basis[META_STR_LEN + 1]; // beamctl
 	char obs_id[META_STR_LEN + 1]; // External
-	char utc_start[META_STR_LEN + 1]; // Lib
+	char obs_utc_start[META_STR_LEN + 1]; // Lib
 	double obs_mjd_start; // Lib
 	long obs_offset; // Lib, always 0? "offset of the first sample in bytes recorded after UTC_START"
 	long obs_overlap; // Lib, always 0? We never overlap

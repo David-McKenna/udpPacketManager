@@ -30,8 +30,10 @@ int lofar_udp_metadata_get_station_name(int stationID, char *stationCode);
 // Main public functions
 int lofar_udp_metadata_setup(lofar_udp_metadata *metadata, lofar_udp_reader *reader, const char *inputFile);
 int lofar_udp_metadata_update(const lofar_udp_reader *reader, lofar_udp_metadata *metadata, int newObs);
-int lofar_udp_metadata_write(const lofar_udp_reader *reader, lofar_udp_metadata *metadata, char *headerBuffer, size_t headerBufferSize, int newObs);
-int lofar_udp_metadata_write_force(const lofar_udp_reader *reader, lofar_udp_metadata *metadata, char *headerBuffer, size_t headerBufferSize, int newObs, int force);
+int lofar_udp_metadata_write_buffer(const lofar_udp_reader *reader, lofar_udp_metadata *metadata, char *headerBuffer, size_t headerBufferSize, int newObs);
+int lofar_udp_metadata_write_buffer_force(const lofar_udp_reader *reader, lofar_udp_metadata *metadata, char *headerBuffer, size_t headerBufferSize, int newObs, int force);
+int lofar_udp_metadata_write_file(const lofar_udp_reader *reader, lofar_udp_metadata *metadata, char *headerBuffer, size_t headerBufferSize, int newObs);
+int lofar_udp_metadata_write_file_force(const lofar_udp_reader *reader, lofar_udp_metadata *metadata, char *headerBuffer, size_t headerBufferSize, int newObs, int force);
 int lofar_udp_metadata_cleanup(lofar_udp_metadata *metadata);
 
 // Internal representations
@@ -42,10 +44,12 @@ int lofar_udp_metadata_setup_SIGPROC(lofar_udp_metadata *metadata);
 int lofar_udp_metadata_update_DADA(const lofar_udp_reader *reader, lofar_udp_metadata *metadata, int newObs);
 int lofar_udp_metadata_update_GUPPI(lofar_udp_metadata *metadata, int newObs);
 int lofar_udp_metadata_update_SIGPROC(lofar_udp_metadata *metadata, int newObs);
+int lofar_udp_metadata_update_HDF5(lofar_udp_metadata *metadata, int newObs);
 
 int lofar_udp_metadata_write_DADA(const lofar_udp_metadata *hdr, char *headerBuffer, size_t headerLength);
 int lofar_udp_metadata_write_GUPPI(const guppi_hdr *hdr, char *headerBuffer, size_t headerLength);
 int lofar_udp_metadata_write_SIGPROC(const sigproc_hdr *hdr, char *headerBuffer, size_t headerLength);
+int lofar_udp_metadata_write_HDF5(const sigproc_hdr *hdr, char *headerBuffer, size_t headerLength);
 
 
 // Internal functions
@@ -67,7 +71,7 @@ int lofar_udp_metadata_update_frequencies(lofar_udp_metadata *metadata, int *sub
 int lofar_udp_metdata_set_default(lofar_udp_metadata *metadata);
 
 
-// Old GUPPI confguration interface
+// Old GUPPI configuration interface
 __attribute__((unused)) int lofar_udp_metdata_GUPPI_configure_from_file(const char *inputFile, guppi_hdr *header);
 
 #ifdef __cplusplus

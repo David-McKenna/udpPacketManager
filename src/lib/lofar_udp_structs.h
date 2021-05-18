@@ -8,7 +8,7 @@
 #define ZSTD_STATIC_LINKING_ONLY 1
 
 #include <zstd.h>
-#include <stdio.h>
+#include <hdf5.h>
 
 // PSRDADA include may not be available
 #ifndef DADA_INCLUDES
@@ -21,6 +21,11 @@
 #define DADA_DEFAULT_HEADER_SIZE 16384
 
 #endif // End of DADA_INCLUDES
+
+
+#include <stdio.h>
+
+
 
 typedef struct lofar_udp_calibration {
 	// The current calibration step we are on and the amount that have been generated
@@ -141,7 +146,7 @@ typedef struct lofar_udp_meta {
 } lofar_udp_input_meta;
 extern const lofar_udp_input_meta lofar_udp_input_meta_default;
 
-// File data + decompression struct
+// Main operations struct
 typedef struct lofar_udp_reader {
 	// Data sources struct
 	lofar_udp_io_read_config *input;
@@ -263,6 +268,16 @@ typedef struct lofar_udp_io_write_config {
 		ipcio_t *header;
 		multilog_t *multilog;
 	} dadaWriter[MAX_OUTPUT_DIMS];
+	
+	struct {
+		int initialised;
+		int metadataInitialised;
+		hid_t file;
+	} hdf5Writer;
+	struct {
+		hid_t dcpl;
+		hid_t dset;
+	} hdf5DSetWriter[MAX_OUTPUT_DIMS];
 
 
 	struct {

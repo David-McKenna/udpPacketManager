@@ -595,7 +595,7 @@ int main(int argc, char *argv[]) {
 
 			CLICK(tick1);
 			long hdrLen;
-			if ((hdrLen = lofar_udp_metadata_write(reader, reader->metadata, headerBuffer, 4096 * 8, localLoops == 0)) < 0) {
+			if ((hdrLen = lofar_udp_metadata_write_buffer(reader, reader->metadata, headerBuffer, 4096 * 8, localLoops == 0)) < 0) {
 				break;
 			}
 			CLICK(tock1);

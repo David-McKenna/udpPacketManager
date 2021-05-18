@@ -22,7 +22,7 @@ int lofar_udp_metadata_update_DADA(const lofar_udp_reader *reader, lofar_udp_met
 	// But since we use this struct as the base, we'll need to update the bulk of the contents on every iteration.
 
 	if (newObs) {
-		lofar_udp_time_get_current_isot(reader, metadata->utc_start);
+		lofar_udp_time_get_current_isot(reader, metadata->obs_utc_start);
 		metadata->obs_mjd_start = lofar_udp_time_get_packet_time_mjd(reader->meta->inputData[0]);
 		metadata->upm_processed_packets = 0;
 		metadata->upm_dropped_packets = 0;
@@ -99,7 +99,7 @@ int lofar_udp_metadata_write_DADA(const lofar_udp_metadata *hdr, char *headerBuf
 
 	// DSPSR requires strptime-parsable input %Y-%m-%D-%H:%M:%S, so it doesn't accept UTC_START with isot format / fractional seconds.
 	char tmpUtc[META_STR_LEN + 1] = "";
-	if (sscanf(hdr->utc_start, "%[^.]s%*s", tmpUtc) < 0) {
+	if (sscanf(hdr->obs_utc_start, "%[^.]s%*s", tmpUtc) < 0) {
 		fprintf(stderr, "ERROR %s: Failed to modify UTC_START for DADA header, exiting.\n", __func__);
 		return -1;
 	}
@@ -297,7 +297,7 @@ int lofar_udp_dada_parse_header(lofar_udp_metadata *hdr, char *header);
 	returnVal += getStr_DADA(header, "RA", &(hdr->ra[0]));
 	returnVal += getStr_DADA(header, "DEC", &(hdr->dec[0]));
 	returnVal += getStr_DADA(header, "OBS_ID", &(hdr->obs_id[0]));
-	returnVal += getStr_DADA(header, "UTC_START", &(hdr->utc_start[0]));
+	returnVal += getStr_DADA(header, "UTC_START", &(hdr->obs_utc_start[0]));
 	returnVal += getDouble_DADA(header, "MJD_START", &(hdr->obs_mjd_start));
 	returnVal += getLong_DADA(header, "OBS_OFFSET", &(hdr->obs_offset));
 	returnVal += getLong_DADA(header, "OBS_OVERLAP", &(hdr->obs_overlap));

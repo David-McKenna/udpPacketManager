@@ -14,8 +14,8 @@ typedef enum {
 	NORMAL = 1,
 	FIFO = 2,
 	ZSTDCOMPRESSED = 4,
-	BITSHFLCOMPRESSED = 8,
-	DADA_ACTIVE = 16
+	HDF5 = 8,
+	DADA_ACTIVE = 16,
 } reader_t;
 
 // Output metadata formats
@@ -23,7 +23,9 @@ typedef enum metadata_t {
 	NO_META = -1,
 	GUPPI = 1,
 	DADA = 2,
-	SIGPROC = 4
+	SIGPROC = 4,
+//	HDF5 = 8, // Shared with reader_t enum
+
 } metadata_t;
 
 // I/O array sizes
