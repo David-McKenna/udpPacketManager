@@ -45,7 +45,7 @@ The library will build fixed version of [Zstandard](https://github.com/facebook/
 
 To automatically install the dependencies on Debian-based systems, the following commands should suffice.
 ```shell
-apt-get install git autoconf csh libhdf5 libhdf5-dev libtool wget
+apt-get install git autoconf csh libhdf5-dev libtool wget
 pip install cmake
 ```
 
