@@ -39,12 +39,13 @@ Requirements
   in production)
 - A modern CMake version (>3.14, can be installed with pip)
 - CSH, autoconf, libtool for PSRDADA compile
+- HDF5 user library and development headers
 
 The library will build fixed version of [Zstandard](https://github.com/facebook/zstd) and [PSRDADA](http://psrdada.sourceforge.net/) which have been tested and found to work. Furuther/past versions can be forced by modifying the [**CMakeLists.txt**](./CMakeLists.txt) file.
 
 To automatically install the dependencies on Debian-based systems, the following commands should suffice.
 ```shell
-apt-get install git autoconf csh libtool wget
+apt-get install git autoconf csh libhdf5 libhdf5-dev libtool wget
 pip install cmake
 ```
 

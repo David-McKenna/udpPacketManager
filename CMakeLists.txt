@@ -30,21 +30,19 @@ set(CMAKE_LINKER_FLAGS_DEBUG "${CMAKE_LINKER_FLAGS_DEBUG} -fno-omit-frame-pointe
 
 message("Attempting to detect HDF5 libraries")
 find_package(HDF5 REQUIRED COMPONENTS C CXX)
-include_directories(${HDF5_INCLUDE_DIRS})
 message("")
 
 # Find the OpenMP package on the system
 
 message("Configuring OpenMP...")
 find_package(OpenMP REQUIRED)
-find_library(IOMP_LIB iomp5 HINTS /opt/intel/oneapi/compiler/latest/linux/compiler/lib/)
 
-if(OpenMP_C_LIB_NAMES MATCHES ".*(iomp).*" OR IOMP_LIB)
-	message ("Intel OpenMP Detected.")
+execute_process(COMMAND bash -c "cat /proc/cpuinfo | uniq | grep -m 2 \"siblings\" | cut -d \":\" -f 2 | sort --numeric --unique | xargs echo"
+                OUTPUT_VARIABLE OMP_THREADS
+                )
+if(OpenMP_C_LIB_NAMES MATCHES ".*(iomp).*" OR CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+	message ("Intel-like OpenMP Detected.")
 	# Determine the optimal number of threads for this machine (when using Intel OpenMP Libraries)
-	execute_process(COMMAND bash -c "cat /proc/cpuinfo | uniq | grep -m 2 \"siblings\" | cut -d \":\" -f 2 | sort --numeric --unique | xargs echo"
-			OUTPUT_VARIABLE OMP_THREADS
-	)
 
 else()
 	message(WARNING "Other OpenMP implementation Detected (performance may be degraded, we highly recommend using the Intel OpenMP libraries)")
@@ -66,7 +64,6 @@ FetchContent_MakeAvailable(zstd)
 # MakeAvailable doesn't allow for libzstd_static to be used as a target
 # Related? https://github.com/facebook/zstd/issues/2377
 add_subdirectory(${zstd_SOURCE_DIR}/build/cmake/ ${zstd_BINARY_DIR} EXCLUDE_FROM_ALL)
-include_directories(${zstd_SOURCE_DIR}/lib/)
 
 message("")
 
@@ -87,7 +84,6 @@ ExternalProject_Get_Property(internal_PSRDADA install_dir)
 add_library(psrdada STATIC IMPORTED)
 set_property(TARGET psrdada PROPERTY IMPORTED_LOCATION ${install_dir}/src/internal_PSRDADA/src/.libs/libpsrdada.a)
 add_dependencies(psrdada internal_PSRDADA)
-include_directories(${install_dir}/src/internal_PSRDADA/src/)
 message("")
 
 
@@ -114,17 +110,22 @@ add_library(lofudpman STATIC
             src/lib/lofar_udp_time.c)
 
 add_dependencies(lofudpman libzstd_static psrdada)
-# Include all of our headers
+# Include all of our library headers
 target_include_directories(lofudpman PUBLIC
 		${PROJECT_SOURCE_DIR}/src/lib
 		${PROJECT_SOURCE_DIR}/src/CLI
 		${PROJECT_SOURCE_DIR}/src/metadata
 )
+# Include all of our dependency headers
+target_include_directories(lofudpman PUBLIC ${HDF5_INCLUDE_DIRS})
+target_include_directories(lofudpman PUBLIC ${install_dir}/src/internal_PSRDADA/src/)
+target_include_directories(lofudpman PUBLIC ${zstd_SOURCE_DIR}/lib/)
+
 file(GLOB_RECURSE UDP_INCLUDE_FILES "${PROJECT_SOURCE_DIR}/src/*/*.h" "${PROJECT_SOURCE_DIR}/src/*/*.hpp")
 
-target_link_libraries(lofudpman INTERFACE ${HDF5_CXX_LIBRARIES} ${HDF5_C_LIBRARIES})
-target_link_libraries(lofudpman INTERFACE psrdada)
-target_link_libraries(lofudpman INTERFACE libzstd_static)
+target_link_libraries(lofudpman PUBLIC ${HDF5_CXX_LIBRARIES} ${HDF5_C_LIBRARIES})
+target_link_libraries(lofudpman PUBLIC psrdada)
+target_link_libraries(lofudpman PUBLIC libzstd_static)
 
 # Set a few extra compiler options
 set(CMAKE_CXX_IMPLICIT_LINK_LIBRARIES "")
@@ -134,14 +135,7 @@ set_property(TARGET lofudpman PROPERTY LINK_WHAT_YOU_USE ON)
 #set_property(TARGET lofudpman PROPERTY INTERPROCEDURAL_OPTIMIZATION ON) # Static + IPO -> build failures?
 
 # Link OpenMP
-if(IOMP_LIB)
-	target_link_libraries(lofudpman PUBLIC ${IOMP_LIB})
-endif()
-if(OpenMP_C_FOUND)
-	target_link_libraries(lofudpman PUBLIC OpenMP::OpenMP_CXX OpenMP::OpenMP_C)
-else()
-	message(FATAL_ERROR "ERROR: OpenMP Not found.")
-endif()
+target_link_libraries(lofudpman PUBLIC OpenMP::OpenMP_CXX OpenMP::OpenMP_C)
 
 
 #get_target_property(OLD_SUFFIX lofudpman SUFFIX)
