@@ -2,7 +2,7 @@
 
 // Internal functions
 void lofar_udp_io_cleanup_DADA_loop(ipcbuf_t *buff, float timeout);
-int lofar_udp_io_write_setup_DADA_ringbuffer(ipcio_t **ringbuffer, int dadaKey, uint64_t nbufs, long bufSize, unsigned int numReaders, int appendExisting);
+int lofar_udp_io_write_setup_DADA_ringbuffer(ipcio_t **ringbuffer, int dadaKey, uint64_t nbufs, long bufSize, unsigned int numReaders, int reallocateExisting);
 
 // Read Interface
 
@@ -274,7 +274,7 @@ int lofar_udp_io_write_setup_DADA(lofar_udp_io_write_config *config, int outp) {
 	if (config->dadaWriter[outp].ringbuffer == NULL) {
 		if (lofar_udp_io_write_setup_DADA_ringbuffer(&(config->dadaWriter[outp].ringbuffer), config->outputDadaKeys[outp],
 											   config->dadaConfig.nbufs, config->writeBufSize[outp], config->dadaConfig.num_readers,
-											   config->appendExisting) < 0) {
+											   config->progressWithExisting) < 0) {
 			return -1;
 		}
 
@@ -289,7 +289,7 @@ int lofar_udp_io_write_setup_DADA(lofar_udp_io_write_config *config, int outp) {
 	if (config->dadaWriter[outp].header == NULL) {
 		if (lofar_udp_io_write_setup_DADA_ringbuffer(&(config->dadaWriter[outp].header), config->outputDadaKeys[outp] + 1,
 		                                             1, config->dadaConfig.header_size, config->dadaConfig.num_readers,
-		                                             config->appendExisting) < 0) {
+		                                             config->progressWithExisting) < 0) {
 			return -1;
 		}
 	}
@@ -300,17 +300,31 @@ int lofar_udp_io_write_setup_DADA(lofar_udp_io_write_config *config, int outp) {
 	return -1;
 }
 
-int lofar_udp_io_write_setup_DADA_ringbuffer(ipcio_t **ringbuffer, int dadaKey, uint64_t nbufs, long bufSize, unsigned int numReaders, int appendExisting) {
+int lofar_udp_io_write_setup_DADA_ringbuffer(ipcio_t **ringbuffer, int dadaKey, uint64_t nbufs, long bufSize, unsigned int numReaders, int reallocateExisting) {
 	(*ringbuffer) = calloc(1, sizeof(ipcio_t));
 	**(ringbuffer) = IPCIO_INIT;
 
 	if (ipcio_create(*ringbuffer, dadaKey, nbufs, bufSize, numReaders) < 0) {
-		// ipcio_create(...) prints error to stderr, so we just need to exit.
-		if (appendExisting) {
-			fprintf(stderr, "WARNING: Failed to create ringbuffer, but appendExisting int is set, attempting to connect to given ringbuffer %d...\n", dadaKey);
+		// ipcio_create(...) prints error to stderr, so we just need to exit, or do something else.
+		if (reallocateExisting) {
+			fprintf(stderr, "WARNING: Failed to create ringbuffer, but progressWithExisting int is set, attempting to destroy and re-create to given ringbuffer %d (%p)...\n", dadaKey, dadaKey);
+
 			if (ipcio_connect(*ringbuffer, dadaKey) < 0) {
+				fprintf(stderr, "ERROR: Failed to connect to existing ringbuffer %d (%p), exiting.", dadaKey, dadaKey);
 				return -1;
 			}
+			fprintf(stderr, "WARNING: Ringbuffer %d (%p) reader state is %d (0 == reader connected).\n", ipcbuf_get_reader_conn(*ringbuffer));
+			if (ipcio_destroy(*ringbuffer) < 0) {
+				fprintf(stderr, "ERROR: Failed to destroy existing ringbuffer %d (%p), exiting.\n", dadaKey, dadaKey);
+				return -1;
+			}
+
+			**(ringbuffer) = IPCIO_INIT;
+			if (ipcio_create(*ringbuffer, dadaKey, nbufs, bufSize, numReaders) < 0) {
+				fprintf(stderr, "ERROR: Failed to re-allocate ringbuffer %d (%p), exiting.\n", dadaKey, dadaKey);
+				return -1;
+			}
+
 		} else {
 			return -1;
 		}

@@ -191,7 +191,7 @@ int main(int argc, char *argv[]) {
 				break;
 
 			case 'f':
-				outConfig->appendExisting = 1;
+				outConfig->progressWithExisting = 1;
 				break;
 
 			case 'v':

@@ -118,8 +118,29 @@ int lofar_udp_metadata_write_buffer_force(const lofar_udp_reader *reader, lofar_
 		return 0;
 	}
 
-	if (lofar_udp_metadata_update(reader, metadata, newObs || force)) {
-		return -1;
+	switch(metadata->type) {
+		// GUPPI header should be written for every block
+		case GUPPI:
+			if (lofar_udp_metadata_update(reader, metadata, newObs || force)) {
+				return -1;
+			}
+			break;
+
+		// Other headers do not need to be updated after every iteration
+		case HDF5:
+		case DADA:
+		case SIGPROC:
+			if (newObs || force) {
+				if (lofar_udp_metadata_update(reader, metadata, newObs || force)) {
+					return -1;
+				}
+			} else {
+				return 0;
+			}
+
+		default:
+			fprintf(stderr, "ERROR %s: Unknown metadata type %d, exiting.\n", __func__, metadata->type);
+			return -1;
 	}
 
 	switch(metadata->type) {
@@ -129,16 +150,12 @@ int lofar_udp_metadata_write_buffer_force(const lofar_udp_reader *reader, lofar_
 
 		// DADA and sigproc headers are only written at the start of a file
 		case DADA:
-			if (newObs || force) {
-				return lofar_udp_metadata_write_DADA(metadata, headerBuffer, headerBufferSize);
-			}
-			return 0;
+			return lofar_udp_metadata_write_DADA(metadata, headerBuffer, headerBufferSize);
 
+		// Sigproc headers should only be written at the start of a file
 		case SIGPROC:
-			if (newObs || force) {
-				return lofar_udp_metadata_write_SIGPROC(metadata->output.sigproc, headerBuffer, headerBufferSize);
-			}
-			return 0;
+			return lofar_udp_metadata_write_SIGPROC(metadata->output.sigproc, headerBuffer, headerBufferSize);
+
 
 		// HDF5 files take the DADA header into the PROCESS_HISTORY groups
 		case HDF5:

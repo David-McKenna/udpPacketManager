@@ -246,7 +246,7 @@ typedef struct lofar_udp_io_write_config {
 	reader_t readerType;
 	lofar_udp_metadata *metadata;
 	long writeBufSize[MAX_OUTPUT_DIMS];
-	int appendExisting;
+	int progressWithExisting;
 	int numOutputs;
 
 	// Outputs pre- and post-formatting

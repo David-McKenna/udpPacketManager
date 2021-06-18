@@ -129,7 +129,7 @@ int lofar_udp_io_write_setup_FILE(lofar_udp_io_write_config *config, int outp, i
 		return -1;
 	}
 
-	if (lofar_udp_io_write_setup_check_exists(outputLocation, config->appendExisting)) {
+	if (lofar_udp_io_write_setup_check_exists(outputLocation, config->progressWithExisting)) {
 		return -1;
 	}
 
