@@ -593,39 +593,37 @@ int main(int argc, char *argv[]) {
 			packetsToWrite = reader->meta->packetsPerIteration;
 			if (multiMaxPackets[eventLoop] < packetsToWrite) { packetsToWrite = multiMaxPackets[eventLoop]; }
 
-			CLICK(tick1);
-			long hdrLen;
-			if ((hdrLen = lofar_udp_metadata_write_buffer(reader, reader->metadata, headerBuffer, 4096 * 8, localLoops == 0)) < 0) {
-				break;
-			}
-			CLICK(tock1);
-			timing[2] += TICKTOCK(tick1, tock1);
-			printf("Metadata took %lf (%lf) seconds to parse.\n", timing[2] - TICKTOCK(tick1, tock1), timing[2]);
 
-			CLICK(tick0);
 
 
 
 			for (int out = 0; out < reader->meta->numOutputs; out++) {
-				VERBOSE(printf("Writing %ld bytes (%ld packets) to disk for output %d...\n",
-							   packetsToWrite * reader->meta->packetOutputLength[out], packetsToWrite, out));
-				printf("Write Header\n");
-				if (lofar_udp_io_write(outConfig, out, headerBuffer,
-				                       hdrLen) < 0) {
+				CLICK(tick1);
+				long hdrLen;
+				if (lofar_udp_metadata_write_file(reader, outConfig, out, reader->metadata, headerBuffer, 4096 * 8, localLoops == 0) < 0) {
+					returnVal = -4;
 					break;
 				}
-				printf("Write Data\n");
+				CLICK(tock1);
+				timing[2] += TICKTOCK(tick1, tock1);
+				printf("Metadata for output %d took %lf (%lf) seconds to parse.\n", timing[2] - TICKTOCK(tick1, tock1), timing[2]);
+
+				CLICK(tick0);
+				VERBOSE(printf("Writing %ld bytes (%ld packets) to disk for output %d...\n",
+				               packetsToWrite * reader->meta->packetOutputLength[out], packetsToWrite, out));
 				if (lofar_udp_io_write(outConfig, out, reader->meta->outputData[out],
 									   packetsToWrite * reader->meta->packetOutputLength[out]) < 0) {
+					returnVal = -5;
 					break;
 				}
+				CLICK(tock1);
+				totalWriteTime += TICKTOCK(tick0, tock0);
+
 			}
 
 			packetsWritten += packetsToWrite;
 			packetsProcessed += reader->meta->packetsPerIteration;
 
-			CLICK(tock0);
-			totalWriteTime += TICKTOCK(tick0, tock0);
 			if (silent == 0) {
 				timing[0] = 0.;
 				timing[1] = 0.;

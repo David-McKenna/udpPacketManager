@@ -55,8 +55,9 @@ int lofar_udp_metadata_setup(lofar_udp_metadata *metadata, lofar_udp_reader *rea
 			}
 			return lofar_udp_metadata_setup_GUPPI(metadata);
 
-		// The DADA header is formed from the reference metadata struct
+		// The DADA header/HDF% metadata are formed from the reference metadata struct
 		case DADA:
+		case HDF5_META:
 			return 0;
 
 		case SIGPROC:
@@ -64,6 +65,7 @@ int lofar_udp_metadata_setup(lofar_udp_metadata *metadata, lofar_udp_reader *rea
 				fprintf(stderr, "WARNING %s: Sigproc headers are intended to be attached to Stokes data (mode > %d, currently in %d).\n", __func__, stokesMin, metadata->upm_procmode);
 			}
 			return lofar_udp_metadata_setup_SIGPROC(metadata);
+
 
 		default:
 			fprintf(stderr, "ERROR %s: Unknown metadata type %d, exiting.\n", __func__, metadata->type);
@@ -91,8 +93,9 @@ int lofar_udp_metadata_update(const lofar_udp_reader *reader, lofar_udp_metadata
 			}
 			return 0;
 
-		// DADA is the base case, just return
+		// DADA/HDF5 is the base case, just return
 		case DADA:
+		case HDF5_META:
 			return 0;
 
 		case SIGPROC:
@@ -100,6 +103,7 @@ int lofar_udp_metadata_update(const lofar_udp_reader *reader, lofar_udp_metadata
 				return -1;
 			}
 			return 0;
+
 
 		default:
 			fprintf(stderr, "ERROR %s: Unknown metadata type %d, exiting.\n", __func__, metadata->type);
@@ -113,6 +117,7 @@ int lofar_udp_metadata_write_buffer(const lofar_udp_reader *reader, lofar_udp_me
 	return lofar_udp_metadata_write_buffer_force(reader, metadata, headerBuffer, headerBufferSize, newObs, 0);
 }
 
+// 0: no work performed, >1: success + length, -1: failure
 int lofar_udp_metadata_write_buffer_force(const lofar_udp_reader *reader, lofar_udp_metadata *metadata, char *headerBuffer, size_t headerBufferSize, int newObs, int force) {
 	if (metadata == NULL || metadata->type == NO_META) {
 		return 0;
@@ -127,7 +132,7 @@ int lofar_udp_metadata_write_buffer_force(const lofar_udp_reader *reader, lofar_
 			break;
 
 		// Other headers do not need to be updated after every iteration
-		case HDF5:
+		case HDF5_META:
 		case DADA:
 		case SIGPROC:
 			if (newObs || force) {
@@ -137,9 +142,10 @@ int lofar_udp_metadata_write_buffer_force(const lofar_udp_reader *reader, lofar_
 			} else {
 				return 0;
 			}
+			break;
 
 		default:
-			fprintf(stderr, "ERROR %s: Unknown metadata type %d, exiting.\n", __func__, metadata->type);
+			fprintf(stderr, "ERROR %s_prep: Unknown metadata type %d, exiting.\n", __func__, metadata->type);
 			return -1;
 	}
 
@@ -149,30 +155,37 @@ int lofar_udp_metadata_write_buffer_force(const lofar_udp_reader *reader, lofar_
 			return lofar_udp_metadata_write_GUPPI(metadata->output.guppi, headerBuffer, headerBufferSize);
 
 		// DADA and sigproc headers are only written at the start of a file
+		// HDF5 files take the DADA header into the PROCESS_HISTORY groups
 		case DADA:
+		case HDF5_META:
 			return lofar_udp_metadata_write_DADA(metadata, headerBuffer, headerBufferSize);
 
 		// Sigproc headers should only be written at the start of a file
 		case SIGPROC:
 			return lofar_udp_metadata_write_SIGPROC(metadata->output.sigproc, headerBuffer, headerBufferSize);
 
-
-		// HDF5 files take the DADA header into the PROCESS_HISTORY groups
-		case HDF5:
-			return lofar_udp_metadata_write_GUPPI(metadata->output.guppi, headerBuffer, headerBufferSize);
-
 		default:
-			fprintf(stderr, "ERROR %s: Unknown metadata type %d, exiting.\n", __func__, metadata->type);
+			fprintf(stderr, "ERROR %s_post: Unknown metadata type %d, exiting.\n", __func__, metadata->type);
 			return -1;
 	}
-}
-
-int lofar_udp_metadata_write_file(const lofar_udp_reader *reader, lofar_udp_metadata *metadata, char *headerBuffer, size_t headerBufferSize, int newObs) {
 
 }
 
-int lofar_udp_metadata_write_file_force(const lofar_udp_reader *reader, lofar_udp_metadata *metadata, char *headerBuffer, size_t headerBufferSize, int newObs, int force) {
+int
+lofar_udp_metadata_write_file(const lofar_udp_reader *reader, lofar_udp_io_write_config *outConfig, int outp, lofar_udp_metadata *metadata, char *headerBuffer,
+                              size_t headerBufferSize, int newObs) {
+	return lofar_udp_metadata_write_file_force(reader, outConfig, outp, metadata, headerBuffer, headerBufferSize, newObs, 0);
+}
 
+int lofar_udp_metadata_write_file_force(const lofar_udp_reader *reader, lofar_udp_io_write_config *outConfig, int outp, lofar_udp_metadata *metadata,
+                                        char *headerBuffer, size_t headerBufferSize, int newObs, int force) {
+	int returnVal = lofar_udp_metadata_write_buffer_force(reader, metadata, headerBuffer, headerBufferSize, newObs, force);
+
+	if (returnVal > 0) {
+		return lofar_udp_io_write_metadata(outConfig, outp, metadata, headerBuffer, headerBufferSize);
+	}
+
+	return returnVal;
 }
 
 int lofar_udp_metadata_cleanup(lofar_udp_metadata *metadata) {
@@ -243,6 +256,11 @@ int lofar_udp_metadata_parse_input_file(lofar_udp_metadata *metadata, const char
 		fprintf(stderr, "ERROR %s: Failed to open metadata file at '%s' exiting.\n", __func__, inputFile);
 		return -1;
 	}
+
+	// Defaults
+	strncpy(metadata->obs_id, "UNKNOWN", META_STR_LEN);
+	strncpy(metadata->observer, "UNKNOWN", META_STR_LEN);
+	strncpy(metadata->source, "UNKNOWN", META_STR_LEN);
 
 
 	size_t buffLen = 0;
@@ -891,10 +909,12 @@ metadata_t lofar_udp_metadata_string_to_meta(const char input[]) {
 		return GUPPI;
 	} else if (strcasecmp(input, "DADA") == 0) {
 		return DADA;
-	} else if (strcasecmp(input, "SIGPROC") == 0)  {
+	} else if (strcasecmp(input, "SIGPROC") == 0) {
 		return SIGPROC;
+	} else if (strcasecmp(input, "HDF5") == 0) {
+		return HDF5_META;
 	} else {
-		fprintf(stderr, "ERROR: Unknown metadata format '%s', exiting.\n", input);
+		fprintf(stderr, "ERROR: Unknown metadata format '%s', returning NO_META.\n", input);
 		return NO_META;
 	}
 }

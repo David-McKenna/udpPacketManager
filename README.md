@@ -11,9 +11,9 @@ This library allows for the entire or partial extraction and processing of LOFAR
 account for packet loss or misalignment on the first packet, to produce one of several data products, ranging from raw
 voltages (reordered or not) to a full Stokes vector output.
 
-A guide on how to integrate the software in your project is provided in the [**
-README_INTEGRATION.md**](docs/README_INTEGRATION.md) file, and example implementations can be found in the provided [**
-lofar_cli_extractor.c**](src/CLI/lofar_cli_extractor.c) and my fork of Cees Bassa's coherent dedispersion GPU
+A guide on how to integrate the software in your project is provided in the **[
+README_INTEGRATION.md](docs/README_INTEGRATION.md)** file, and example implementations can be found in the provided **[
+lofar_cli_extractor.c](src/CLI/lofar_cli_extractor.c)** and my fork of Cees Bassa's coherent dedispersion GPU
 software [CDMT](https://github.com/David-McKenna/cdmt).
 
 Caveats & TODOs

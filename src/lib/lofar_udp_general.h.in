@@ -24,7 +24,7 @@ typedef enum metadata_t {
 	GUPPI = 1,
 	DADA = 2,
 	SIGPROC = 4,
-//	HDF5 = 8, // Shared with reader_t enum
+	HDF5_META = 8, // Shared with reader_t enum
 
 } metadata_t;
 

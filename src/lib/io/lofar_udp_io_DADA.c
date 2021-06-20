@@ -307,21 +307,21 @@ int lofar_udp_io_write_setup_DADA_ringbuffer(ipcio_t **ringbuffer, int dadaKey, 
 	if (ipcio_create(*ringbuffer, dadaKey, nbufs, bufSize, numReaders) < 0) {
 		// ipcio_create(...) prints error to stderr, so we just need to exit, or do something else.
 		if (reallocateExisting) {
-			fprintf(stderr, "WARNING: Failed to create ringbuffer, but progressWithExisting int is set, attempting to destroy and re-create to given ringbuffer %d (%p)...\n", dadaKey, dadaKey);
+			fprintf(stderr, "WARNING: Failed to create ringbuffer, but progressWithExisting int is set, attempting to destroy and re-create to given ringbuffer %d (%x)...\n", dadaKey, dadaKey);
 
 			if (ipcio_connect(*ringbuffer, dadaKey) < 0) {
-				fprintf(stderr, "ERROR: Failed to connect to existing ringbuffer %d (%p), exiting.", dadaKey, dadaKey);
+				fprintf(stderr, "ERROR: Failed to connect to existing ringbuffer %d (%x), exiting.", dadaKey, dadaKey);
 				return -1;
 			}
-			fprintf(stderr, "WARNING: Ringbuffer %d (%p) reader state is %d (0 == reader connected).\n", ipcbuf_get_reader_conn(*ringbuffer));
+			fprintf(stderr, "WARNING: Ringbuffer %d (%x) reader state is %d (0 == reader connected).\n", dadaKey, dadaKey, ipcbuf_get_reader_conn((ipcbuf_t*) *ringbuffer));
 			if (ipcio_destroy(*ringbuffer) < 0) {
-				fprintf(stderr, "ERROR: Failed to destroy existing ringbuffer %d (%p), exiting.\n", dadaKey, dadaKey);
+				fprintf(stderr, "ERROR: Failed to destroy existing ringbuffer %d (%x), exiting.\n", dadaKey, dadaKey);
 				return -1;
 			}
 
 			**(ringbuffer) = IPCIO_INIT;
 			if (ipcio_create(*ringbuffer, dadaKey, nbufs, bufSize, numReaders) < 0) {
-				fprintf(stderr, "ERROR: Failed to re-allocate ringbuffer %d (%p), exiting.\n", dadaKey, dadaKey);
+				fprintf(stderr, "ERROR: Failed to re-allocate ringbuffer %d (%x), exiting.\n", dadaKey, dadaKey);
 				return -1;
 			}
 

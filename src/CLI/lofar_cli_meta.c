@@ -1,9 +1,11 @@
 #include "lofar_cli_meta.h"
 
 
-const char exitReasons[4][1024] = { "", "",
+const char exitReasons[6][1024] = { "", "",
 									"Reached the packet limit set at start-up",
-									"Read less data than requested from file (near EOF or disk error)" };
+									"Read less data than requested from file (near EOF or disk error)",
+									"Metadata failed to write",
+									"Output data failed to write"};
 
 void processingModes(void) {
 	printf("\n\nProcessing modes:\n");
@@ -37,4 +39,11 @@ void processingModes(void) {
 		"the frequency order will be changed to be increasing (positive frequency offset, matching the telescope configuration).\n");
 }
 
+int checkOpt(char opt, char* inp, char* endPtr) {
+	if (inp != endPtr && *(endPtr) == '\0') {
+		return 0;
+	}
 
+	fprintf(stderr, "ERROR: Failed to parse flag %c with value %s, exiting.\n", opt, inp);
+	return 1;
+}

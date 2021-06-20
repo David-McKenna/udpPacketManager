@@ -1095,7 +1095,7 @@ lofar_udp_reader *lofar_udp_reader_setup(lofar_udp_config *config) {
 		reader->metadata = calloc(1, sizeof(lofar_udp_metadata));
 		*(reader->metadata) = lofar_udp_metadata_default;
 		reader->metadata->type = config->metadataType;
-		if (lofar_udp_metadata_setup(reader->metadata, reader, config->metadataLocation)) {
+		if (lofar_udp_metadata_setup(reader->metadata, reader, config->metadataLocation) < 0) {
 			lofar_udp_reader_cleanup(reader);
 			return NULL;
 		}

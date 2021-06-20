@@ -11,10 +11,21 @@
 
 #define UPM_CLI_VERSION "@UPM_CLI_VERSION@"
 
+// Allow C++ imports too
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 // Define prototypes
 void helpMessages(void);
 void processingModes(void);
+int checkOpt(char opt, char *inp, char *endPtr);
 
 // Exit reasons, 0, 1 aren't handled, only defined up to 3
-extern const char exitReasons[4][1024];
+extern const char exitReasons[6][1024];
+
+
+#ifdef __cplusplus // End extern C
+}
+#endif
 #endif

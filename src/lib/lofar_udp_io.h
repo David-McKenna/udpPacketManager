@@ -25,6 +25,7 @@ int lofar_udp_io_write_setup_helper(lofar_udp_io_write_config *config, const lof
 // Operate wrapper functions
 long lofar_udp_io_read(lofar_udp_io_read_config *input, int port, char *targetArray, long nchars);
 long lofar_udp_io_write(lofar_udp_io_write_config *config, int outp, char *src, const long nchars);
+long lofar_udp_io_write_metadata(lofar_udp_io_write_config *outConfig, int outp, lofar_udp_metadata *metadata, char *headerBuffer, size_t headerLength);
 int
 lofar_udp_io_read_temp(const lofar_udp_config *config, int port, void *outbuf, size_t size, int num, int resetSeek);
 
@@ -64,6 +65,7 @@ long lofar_udp_io_write_FILE(lofar_udp_io_write_config *config, int outp, const 
 long lofar_udp_io_write_ZSTD(lofar_udp_io_write_config *config, int outp, const char *src, const long nchars);
 long lofar_udp_io_write_DADA(ipcio_t *ringbuffer, int outp, char *src, const long nchars);
 long lofar_udp_io_write_HDF5(lofar_udp_io_write_config *config, int outp, const char *src, const long nchars);
+long lofar_udp_io_write_metadata_HDF5(lofar_udp_io_write_config *config, lofar_udp_metadata *metadata, char *headerBuffer, size_t headerLength);
 
 int lofar_udp_io_read_temp_FILE(void *outbuf, size_t size, int num, const char inputFile[], int resetSeek);
 int lofar_udp_io_read_temp_ZSTD(void *outbuf, size_t size, int num, const char inputFile[], int resetSeek);

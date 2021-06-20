@@ -31,7 +31,7 @@ int lofar_udp_io_read_setup(lofar_udp_io_read_config *input, int port) {
 
 		case HDF5:
 			fprintf(stderr, "ERROR: Reading from HDF5 files is currently not supported, exiting.\n");
-			break;
+			return -1;
 
 		default:
 			fprintf(stderr, "ERROR: Unknown reader (%d) provided, exiting.\n", input->readerType);
@@ -577,6 +577,31 @@ long lofar_udp_io_write(lofar_udp_io_write_config *config, int outp, char *src, 
 	}
 }
 
+
+long lofar_udp_io_write_metadata(lofar_udp_io_write_config *outConfig, int outp, lofar_udp_metadata *metadata, char *headerBuffer, size_t headerLength) {
+	if ((outConfig->readerType == HDF5 && metadata->type != HDF5_META)
+		|| (outConfig->readerType != HDF5 && metadata->type == HDF5)) {
+		fprintf(stderr, "ERROR: Only HDF5 metadata can only be written to a HDF5 output (outp: %d, meta: %d), exiting.\n", outConfig->readerType, metadata->type);
+		return -1;
+	}
+
+	switch (outConfig->readerType) {
+		// Normal file writes
+		case NORMAL:
+		case FIFO:
+		case ZSTDCOMPRESSED:
+		case DADA_ACTIVE:
+			return lofar_udp_io_write_FILE(outConfig, outp, headerBuffer, headerLength);
+
+
+		case HDF5:
+			return lofar_udp_io_write_metadata_HDF5(outConfig, metadata, headerBuffer, headerLength);
+
+		default:
+			fprintf(stderr, "ERROR: Unknown reader %d, exiting.\n", outConfig->readerType);
+			return -1;
+	}
+}
 
 
 
