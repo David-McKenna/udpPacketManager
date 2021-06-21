@@ -46,8 +46,7 @@ int
 lofar_udp_io_read_setup_ZSTD(lofar_udp_io_read_config *input, const char *inputLocation, const int port);
 int
 lofar_udp_io_read_setup_DADA(lofar_udp_io_read_config *input, const int dadaKey, const int port);
-int
-lofar_udp_io_read_setup_HDF5(lofar_udp_io_read_config *input, const char *inputLocation, const int port);
+// int lofar_udp_io_read_setup_HDF5(lofar_udp_io_read_config *input, const char *inputLocation, const int port);
 
 int lofar_udp_io_write_setup_FILE(lofar_udp_io_write_config *config, int outp, int iter);
 int lofar_udp_io_write_setup_ZSTD(lofar_udp_io_write_config *config, int outp, int iter);
@@ -59,7 +58,7 @@ int lofar_udp_io_write_setup_HDF5(lofar_udp_io_write_config *config, int outp, i
 long lofar_udp_io_read_FILE(lofar_udp_io_read_config *input, int port, char *targetArray, long nchars);
 long lofar_udp_io_read_ZSTD(lofar_udp_io_read_config *input, int port, char *targetArray, long nchars);
 long lofar_udp_io_read_DADA(lofar_udp_io_read_config *input, int port, char *targetArray, long nchars);
-long lofar_udp_io_read_HDF5(lofar_udp_io_read_config *input, int port, char *targetArray, long nchars);
+// long lofar_udp_io_read_HDF5(lofar_udp_io_read_config *input, int port, char *targetArray, long nchars);
 
 long lofar_udp_io_write_FILE(lofar_udp_io_write_config *config, int outp, const char *src, const long nchars);
 long lofar_udp_io_write_ZSTD(lofar_udp_io_write_config *config, int outp, const char *src, const long nchars);
@@ -70,7 +69,7 @@ long lofar_udp_io_write_metadata_HDF5(lofar_udp_io_write_config *config, lofar_u
 int lofar_udp_io_read_temp_FILE(void *outbuf, size_t size, int num, const char inputFile[], int resetSeek);
 int lofar_udp_io_read_temp_ZSTD(void *outbuf, size_t size, int num, const char inputFile[], int resetSeek);
 int lofar_udp_io_read_temp_DADA(void *outbuf, size_t size, int num, int dadaKey, int resetSeek);
-int lofar_udp_io_read_temp_HDF5(void *outbuf, size_t size, int num, const char inputFile[], int resetSeek);
+// int lofar_udp_io_read_temp_HDF5(void *outbuf, size_t size, int num, const char inputFile[], int resetSeek);
 
 // Cleanup functions
 int lofar_udp_io_read_cleanup_FILE(lofar_udp_io_read_config *input, int port);

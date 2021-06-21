@@ -65,9 +65,8 @@ int main(int argc, char *argv[]) {
 	// Set up input local variables
 	int inputOpt, input = 0;
 	float seconds = 0.0f;
-	double sampleTime = 0.0;
-	char inputTime[256] = "", eventsFile[DEF_STR_LEN] = "", stringBuff[128], mockHdrArg[2048] = "", mockHdrCmd[8192] = "", inputFormat[DEF_STR_LEN] = "", metadataFile[DEF_STR_LEN] = "";
-	int silent = 0, returnCounter = 0, eventCount = 0, callMockHdr = 0, calPoint = 0, calStrat = 0, inputProvided = 0, outputProvided = 0, metadata = 0;
+	char inputTime[256] = "", eventsFile[DEF_STR_LEN] = "", stringBuff[128] = "", inputFormat[DEF_STR_LEN] = "";
+	int silent = 0, returnCounter = 0, eventCount = 0, callMockHdr = 0, inputProvided = 0, outputProvided = 0;
 	long maxPackets = -1, startingPacket = -1;
 	int clock200MHz = 1;
 	FILE *eventsFilePtr;
@@ -100,8 +99,10 @@ int main(int argc, char *argv[]) {
 	float *eventSeconds = NULL;
 	char **dateStr = NULL; // Sub elements need to be free'd too.
 
+	char *endPtr, flagged = 0;
+
 	// Standard ugly input flags parser
-	while ((inputOpt = getopt(argc, argv, "zrqfvVi:o:m:M:I:u:t:s:e:p:a:n:b:c:d:k:T:")) != -1) {
+	while ((inputOpt = getopt(argc, argv, "zrqfvVi:o:m:M:I:u:t:s:e:p:a:n:b:ck:T:")) != -1) {
 		input = 1;
 		switch (inputOpt) {
 
@@ -121,11 +122,11 @@ int main(int argc, char *argv[]) {
 				break;
 
 			case 'm':
-				config->packetsPerIteration = atol(optarg);
+				config->packetsPerIteration = strtol(optarg, &endPtr, 10);
+				if (checkOpt(inputOpt, optarg, endPtr)) { flagged = 1; }
 				break;
 
 			case 'M':
-				metadata = 1;
 				config->metadataType = lofar_udp_metadata_string_to_meta(optarg);
 				break;
 
@@ -138,7 +139,9 @@ int main(int argc, char *argv[]) {
 				break;
 
 			case 'u':
-				config->numPorts = atoi(optarg);
+				config->numPorts = strtoi(optarg, &endPtr);
+				printf("%d\n", config->numPorts);
+				if (checkOpt(inputOpt, optarg, endPtr)) { flagged = 1; }
 				break;
 
 			case 't':
@@ -146,7 +149,8 @@ int main(int argc, char *argv[]) {
 				break;
 
 			case 's':
-				seconds = (float) atof(optarg);
+				seconds = strtof(optarg, &endPtr);
+				if (checkOpt(inputOpt, optarg, endPtr)) { flagged = 1; }
 				break;
 
 			case 'e':
@@ -154,12 +158,8 @@ int main(int argc, char *argv[]) {
 				break;
 
 			case 'p':
-				config->processingMode = atoi(optarg);
-				break;
-
-			case 'a':
-				strcpy(mockHdrArg, optarg);
-				callMockHdr = 1;
+				config->processingMode = strtoi(optarg, &endPtr);
+				if (checkOpt(inputOpt, optarg, endPtr)) { flagged = 1; }
 				break;
 
 			case 'b':
@@ -171,15 +171,7 @@ int main(int argc, char *argv[]) {
 				break;
 
 			case 'c':
-				calPoint = 1;
-				strcpy(&(config->calibrationConfiguration->calibrationSubbands[0]), optarg);
-				break;
-
-			case 'd':
-				calStrat = 1;
-				sscanf(optarg, "%f,%f,%128s", &(config->calibrationConfiguration->calibrationPointing[0]),
-					   &(config->calibrationConfiguration->calibrationPointing[1]),
-					   &(config->calibrationConfiguration->calibrationPointingBasis[0]));
+				config->calibrateData = 1;
 				break;
 
 			case 'z':
@@ -203,7 +195,8 @@ int main(int argc, char *argv[]) {
 				break;
 
 			case 'T':
-				config->ompThreads = atoi(optarg);
+				config->ompThreads = strtoi(optarg, &endPtr);
+				if (checkOpt(inputOpt, optarg, endPtr)) { flagged = 1; }
 				break;
 
 
@@ -233,6 +226,11 @@ int main(int argc, char *argv[]) {
 				return 1;
 
 		}
+	}
+
+	if (flagged) {
+		CLICleanup(eventCount, dateStr, startingPackets, multiMaxPackets, eventSeconds, config, outConfig, headerBuffer);
+		return 1;
 	}
 
 	if (!input) {
@@ -269,25 +267,14 @@ int main(int argc, char *argv[]) {
 
 	if (!outputProvided) {
 		fprintf(stderr, "ERROR: An output was not provided, exiting.\n");
-		helpMessages();
 		CLICleanup(eventCount, dateStr, startingPackets, multiMaxPackets, eventSeconds, config, outConfig, headerBuffer);
 		return 1;
 	}
 
-	if (calPoint || calStrat) {
-		if (calPoint && calStrat) {
-			config->calibrateData = 1;
-		} else {
-			fprintf(stderr, "ERROR: Calibration not fully initialised. You only provided the ");
-			if (calPoint) {
-				fprintf(stderr, "pointing. ");
-			} else {
-				fprintf(stderr, "strategy. ");
-			}
-			fprintf(stderr, "Exiting.\n");
-			CLICleanup(eventCount, dateStr, startingPackets, multiMaxPackets, eventSeconds, config, outConfig, headerBuffer);
-			return 1;
-		}
+	if (config->calibrateData && strcmp(config->metadataLocation, "") == 0) {
+		fprintf(stderr, "ERROR: Data calibration was enabled, but metadata was not provided. Exiting.\n");
+		CLICleanup(eventCount, dateStr, startingPackets, multiMaxPackets, eventSeconds, config, outConfig, headerBuffer);
+		return 1;
 	}
 
 	// Sanity check a few inputs
@@ -306,28 +293,6 @@ int main(int argc, char *argv[]) {
 		return 1;
 	}
 
-	// Make sure mockHeader is on the path if we want to use it.
-	if (callMockHdr) {
-		if (config->processingMode < 99 || config->processingMode > 199) {
-			fprintf(stderr,
-					"WARNING: Processing mode %d may not confirm to the Sigproc spec, but you requested a header. Continuing with caution...\n",
-					config->processingMode);
-		}
-
-		printf("Checking for mockHeader on system path... ");
-		// Add the return code (multiplied by 256 from bash return) to the execution variable, ensure it doesn't change
-		callMockHdr += system("which mockHeader > /tmp/udp_reader_mockheader.log 2>&1"); 
-		if (callMockHdr != 1) {
-			fprintf(stderr, "Error occurred while attempting to find mockHeader, exiting.\n");
-			CLICleanup(eventCount, dateStr, startingPackets, multiMaxPackets, eventSeconds, config, outConfig, headerBuffer);
-			return 1;
-		}
-
-		sampleTime = clock160MHzSampleTime * (1 - clock200MHz) + clock200MHzSampleTime * clock200MHz;
-		if (config->processingMode > 100) {
-			sampleTime *= 1 << ((config->processingMode % 10));
-		}
-	}
 
 	if (silent == 0) {
 		printf("LOFAR UDP Data extractor (v%s, lib v%s)\n\n", UPM_CLI_VERSION, UPM_VERSION);
@@ -501,6 +466,7 @@ int main(int argc, char *argv[]) {
 	}
 
 
+
 	if (silent == 0) {
 		lofar_udp_time_get_current_isot(reader, stringBuff);
 		printf("\n\n=========== Reader  Information ===========\n");
@@ -599,14 +565,13 @@ int main(int argc, char *argv[]) {
 
 			for (int out = 0; out < reader->meta->numOutputs; out++) {
 				CLICK(tick1);
-				long hdrLen;
 				if (lofar_udp_metadata_write_file(reader, outConfig, out, reader->metadata, headerBuffer, 4096 * 8, localLoops == 0) < 0) {
 					returnVal = -4;
 					break;
 				}
 				CLICK(tock1);
 				timing[2] += TICKTOCK(tick1, tock1);
-				printf("Metadata for output %d took %lf (%lf) seconds to parse.\n", timing[2] - TICKTOCK(tick1, tock1), timing[2]);
+				printf("Metadata for output %d took %lf (%lf) seconds to parse.\n", out, timing[2] - TICKTOCK(tick1, tock1), timing[2]);
 
 				CLICK(tick0);
 				VERBOSE(printf("Writing %ld bytes (%ld packets) to disk for output %d...\n",

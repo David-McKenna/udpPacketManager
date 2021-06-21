@@ -168,11 +168,11 @@ typedef struct lofar_udp_metadata {
 	char upm_beamctl[2 * DEF_STR_LEN + 1]; // beamctl command(s) can be long, DADA headers are capped at 4096 per entry including the key
 	char upm_outputfmt[MAX_OUTPUT_DIMS][META_STR_LEN + 1];
 	char upm_outputfmt_comment[DEF_STR_LEN + 1];
+
 	int upm_num_inputs;
 	int upm_num_outputs;
 	int upm_reader;
 	int upm_procmode;
-	int upm_bandflip;
 	int upm_replay;
 	int upm_calibrated;
 	long upm_blocksize;
@@ -181,8 +181,13 @@ typedef struct lofar_udp_metadata {
 	long upm_dropped_packets;
 	long upm_last_dropped_packets;
 
+	char upm_rel_outputs[MAX_OUTPUT_DIMS];
+	int upm_bandflip;
+	int upm_output_voltages;
+
 	int upm_input_bitmode;
 	int upm_rcuclock;
+	int upm_rcumode;
 	int upm_rawbeamlets;
 	int upm_upperbeam;
 	int upm_lowerbeam;

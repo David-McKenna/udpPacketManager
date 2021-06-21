@@ -14,7 +14,7 @@ const lofar_udp_io_read_config lofar_udp_io_read_config_default = {
 	.inputLocations = { "" },
 	.dadaKeys = { -1 },
 	.basePort = 0,
-	.offsetPortCount = 1,
+	.offsetPortCount = 0,
 	.stepSizePort = 1,
 
 	// Main reading objects

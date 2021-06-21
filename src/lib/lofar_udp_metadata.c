@@ -391,9 +391,10 @@ int lofar_udp_metadata_parse_reader(lofar_udp_metadata *metadata, const lofar_ud
 		return -1;
 	}
 
+	printf("%d, %d, %d, %d, %d\n", reader->input->numInputs, (reader->input->offsetPortCount), (beamletsPerPort), reader->meta->baseBeamlets[0], reader->meta->upperBeamlets[reader->meta->numPorts - 1]);
 	int lowerBeamlet = (reader->input->offsetPortCount * beamletsPerPort) + reader->meta->baseBeamlets[0];
 	// Upper beamlet is exclusive in UPM, not inclusive like LOFAR inputs
-	int upperBeamlet = ((reader->input->offsetPortCount + reader->input->numInputs) * beamletsPerPort) + reader->meta->upperBeamlets[reader->meta->numPorts];
+	int upperBeamlet = ((reader->input->offsetPortCount + (reader->input->numInputs - 1)) * beamletsPerPort) + reader->meta->upperBeamlets[reader->meta->numPorts - 1];
 
 
 	// Sanity check the beamlet limits
@@ -571,7 +572,8 @@ int lofar_udp_metadata_parse_rcumode(lofar_udp_metadata *metadata, const char *i
 
 	int lastClock = metadata->upm_rcuclock;
 	metadata->upm_rcuclock = lofar_udp_metadata_get_clockmode(workingInt);
-	beamctlData[0] = lofar_udp_metadata_get_rcumode(workingInt);
+	metadata->upm_rcumode = lofar_udp_metadata_get_rcumode(workingInt);
+	beamctlData[0] = metadata->upm_rcumode;
 
 	if (lastClock > 100 && lastClock != metadata->upm_rcuclock) {
 		fprintf(stderr, "ERROR: 160/200MHz clock mixing detected, this is not currently supported. Exiting.\n");
@@ -1039,10 +1041,10 @@ int lofar_udp_metadata_processing_mode_metadata(lofar_udp_metadata *metadata) {
 			strncpy(metadata->upm_outputfmt_comment, "Headerless Packet Copy", META_STR_LEN);
 			break;
 		case 2:
-			strncpy(metadata->upm_outputfmt[0], "PKT-Xr", META_STR_LEN);
-			strncpy(metadata->upm_outputfmt[1], "PKT-Xi", META_STR_LEN);
-			strncpy(metadata->upm_outputfmt[2], "PKT-Yr", META_STR_LEN);
-			strncpy(metadata->upm_outputfmt[3], "PKT-Yi", META_STR_LEN);
+			strncpy(metadata->upm_outputfmt[0], "Xr-PKT", META_STR_LEN);
+			strncpy(metadata->upm_outputfmt[1], "Xi-PKT", META_STR_LEN);
+			strncpy(metadata->upm_outputfmt[2], "Yr-PKT", META_STR_LEN);
+			strncpy(metadata->upm_outputfmt[3], "Yi-PKT", META_STR_LEN);
 			strncpy(metadata->upm_outputfmt_comment, "Headerless Packet, Split by Polarisation", META_STR_LEN);
 			break;
 
@@ -1051,10 +1053,10 @@ int lofar_udp_metadata_processing_mode_metadata(lofar_udp_metadata *metadata) {
 			strncpy(metadata->upm_outputfmt_comment, "Beamlet Major", META_STR_LEN);
 			break;
 		case 11:
-			strncpy(metadata->upm_outputfmt[0], "FREQ-POS-Xr", META_STR_LEN);
-			strncpy(metadata->upm_outputfmt[1], "FREQ-POS-Xi", META_STR_LEN);
-			strncpy(metadata->upm_outputfmt[2], "FREQ-POS-Yr", META_STR_LEN);
-			strncpy(metadata->upm_outputfmt[3], "FREQ-POS-Yi", META_STR_LEN);
+			strncpy(metadata->upm_outputfmt[0], "Xr-FREQ-POS", META_STR_LEN);
+			strncpy(metadata->upm_outputfmt[1], "Xi-FREQ-POS", META_STR_LEN);
+			strncpy(metadata->upm_outputfmt[2], "Yr-FREQ-POS", META_STR_LEN);
+			strncpy(metadata->upm_outputfmt[3], "Yi-FREQ-POS", META_STR_LEN);
 			strncpy(metadata->upm_outputfmt_comment, "Beamlet Major, Split by Polarisation", META_STR_LEN);
 			break;
 		case 20:
@@ -1062,10 +1064,10 @@ int lofar_udp_metadata_processing_mode_metadata(lofar_udp_metadata *metadata) {
 			strncpy(metadata->upm_outputfmt_comment, "Reversed Beamlet Major", META_STR_LEN);
 			break;
 		case 21:
-			strncpy(metadata->upm_outputfmt[0], "FREQ-NEG-Xr", META_STR_LEN);
-			strncpy(metadata->upm_outputfmt[1], "FREQ-NEG-Xi", META_STR_LEN);
-			strncpy(metadata->upm_outputfmt[2], "FREQ-NEG-Yr", META_STR_LEN);
-			strncpy(metadata->upm_outputfmt[3], "FREQ-NEG-Yi", META_STR_LEN);
+			strncpy(metadata->upm_outputfmt[0], "Xr-FREQ-NEG", META_STR_LEN);
+			strncpy(metadata->upm_outputfmt[1], "Xi-FREQ-NEG", META_STR_LEN);
+			strncpy(metadata->upm_outputfmt[2], "Yr-FREQ-NEG", META_STR_LEN);
+			strncpy(metadata->upm_outputfmt[3], "Yi-FREQ-NEG", META_STR_LEN);
 			strncpy(metadata->upm_outputfmt_comment, "Reversed Beamlet Major, Split by Polarisation", META_STR_LEN);
 			break;
 
@@ -1074,10 +1076,10 @@ int lofar_udp_metadata_processing_mode_metadata(lofar_udp_metadata *metadata) {
 			strncpy(metadata->upm_outputfmt_comment, "Chunked Time Major", META_STR_LEN);
 			break;
 		case 31:
-			strncpy(metadata->upm_outputfmt[0], "TIME-Xr", META_STR_LEN);
-			strncpy(metadata->upm_outputfmt[1], "TIME-Xi", META_STR_LEN);
-			strncpy(metadata->upm_outputfmt[2], "TIME-Yr", META_STR_LEN);
-			strncpy(metadata->upm_outputfmt[3], "TIME-Yi", META_STR_LEN);
+			strncpy(metadata->upm_outputfmt[0], "Xr-TIME", META_STR_LEN);
+			strncpy(metadata->upm_outputfmt[1], "Xi-TIME", META_STR_LEN);
+			strncpy(metadata->upm_outputfmt[2], "Yr-TIME", META_STR_LEN);
+			strncpy(metadata->upm_outputfmt[3], "Yi-TIME", META_STR_LEN);
 			strncpy(metadata->upm_outputfmt_comment, "Chunked Time Major, Split by Polarisation", META_STR_LEN);
 			break;
 		case 32:
@@ -1093,61 +1095,61 @@ int lofar_udp_metadata_processing_mode_metadata(lofar_udp_metadata *metadata) {
 
 
 		case 100 ... 104:
-			snprintf(metadata->upm_outputfmt[0], META_STR_LEN, "S0-NEG-%dx", 1 << metadata->upm_procmode % 10);
+			snprintf(metadata->upm_outputfmt[0], META_STR_LEN, "I-NEG-%dx", 1 << metadata->upm_procmode % 10);
 			snprintf(metadata->upm_outputfmt_comment, META_STR_LEN, "Stokes I, with reversed frequencies and %dx downsampling", 1 << (metadata->upm_procmode % 10));
 			break;
 		case 110 ... 114:
-			snprintf(metadata->upm_outputfmt[0], META_STR_LEN, "S1-NEG-%dx", 1 << metadata->upm_procmode % 10);
+			snprintf(metadata->upm_outputfmt[0], META_STR_LEN, "Q-NEG-%dx", 1 << metadata->upm_procmode % 10);
 			snprintf(metadata->upm_outputfmt_comment, META_STR_LEN, "Stokes Q, with reversed frequencies and %dx downsampling", 1 << (metadata->upm_procmode % 10));
 			break;
 		case 120 ... 124:
-			snprintf(metadata->upm_outputfmt[0], META_STR_LEN, "S2-NEG-%dx", 1 << metadata->upm_procmode % 10);
+			snprintf(metadata->upm_outputfmt[0], META_STR_LEN, "U-NEG-%dx", 1 << metadata->upm_procmode % 10);
 			snprintf(metadata->upm_outputfmt_comment, META_STR_LEN, "Stokes U, with reversed frequencies and %dx downsampling", 1 << (metadata->upm_procmode % 10));
 			break;
 		case 130 ... 134:
-			snprintf(metadata->upm_outputfmt[0], META_STR_LEN, "S3-NEG-%dx", 1 << metadata->upm_procmode % 10);
+			snprintf(metadata->upm_outputfmt[0], META_STR_LEN, "V-NEG-%dx", 1 << metadata->upm_procmode % 10);
 			snprintf(metadata->upm_outputfmt_comment, META_STR_LEN, "Stokes V, with reversed frequencies and %dx downsampling", 1 << (metadata->upm_procmode % 10));
 			break;
 		case 150 ... 154:
-			snprintf(metadata->upm_outputfmt[0], META_STR_LEN, "S0-NEG-%dx", 1 << metadata->upm_procmode % 10);
-			snprintf(metadata->upm_outputfmt[1], META_STR_LEN, "S1-NEG-%dx", 1 << metadata->upm_procmode % 10);
-			snprintf(metadata->upm_outputfmt[2], META_STR_LEN, "S2-NEG-%dx", 1 << metadata->upm_procmode % 10);
-			snprintf(metadata->upm_outputfmt[3], META_STR_LEN, "S3-NEG-%dx", 1 << metadata->upm_procmode % 10);
+			snprintf(metadata->upm_outputfmt[0], META_STR_LEN, "I-NEG-%dx", 1 << metadata->upm_procmode % 10);
+			snprintf(metadata->upm_outputfmt[1], META_STR_LEN, "Q-NEG-%dx", 1 << metadata->upm_procmode % 10);
+			snprintf(metadata->upm_outputfmt[2], META_STR_LEN, "U-NEG-%dx", 1 << metadata->upm_procmode % 10);
+			snprintf(metadata->upm_outputfmt[3], META_STR_LEN, "V-NEG-%dx", 1 << metadata->upm_procmode % 10);
 			snprintf(metadata->upm_outputfmt_comment, META_STR_LEN, "Stokes IQUV, with reversed frequencies and %dx downsampling", 1 << (metadata->upm_procmode % 10));
 			break;
 		case 160 ... 164:
-			snprintf(metadata->upm_outputfmt[0], META_STR_LEN, "S0-NEG-%dx", 1 << metadata->upm_procmode % 10);
-			snprintf(metadata->upm_outputfmt[1], META_STR_LEN, "S3-NEG-%dx", 1 << metadata->upm_procmode % 10);
+			snprintf(metadata->upm_outputfmt[0], META_STR_LEN, "I-NEG-%dx", 1 << metadata->upm_procmode % 10);
+			snprintf(metadata->upm_outputfmt[1], META_STR_LEN, "V-NEG-%dx", 1 << metadata->upm_procmode % 10);
 			snprintf(metadata->upm_outputfmt_comment, META_STR_LEN, "Stokes IV, with reversed frequencies and %dx downsampling", 1 << (metadata->upm_procmode % 10));
 			break;
 
 
 		case 200 ... 204:
-			snprintf(metadata->upm_outputfmt[0], META_STR_LEN, "S0-POS-%dx", 1 << metadata->upm_procmode % 10);
+			snprintf(metadata->upm_outputfmt[0], META_STR_LEN, "I-POS-%dx", 1 << metadata->upm_procmode % 10);
 			snprintf(metadata->upm_outputfmt_comment, META_STR_LEN, "Stokes I, with %dx downsampling", 1 << (metadata->upm_procmode % 10));
 			break;
 		case 210 ... 214:
-			snprintf(metadata->upm_outputfmt[0], META_STR_LEN, "S1-POS-%dx", 1 << metadata->upm_procmode % 10);
+			snprintf(metadata->upm_outputfmt[0], META_STR_LEN, "Q-POS-%dx", 1 << metadata->upm_procmode % 10);
 			snprintf(metadata->upm_outputfmt_comment, META_STR_LEN, "Stokes Q, with %dx downsampling", 1 << (metadata->upm_procmode % 10));
 			break;
 		case 220 ... 224:
-			snprintf(metadata->upm_outputfmt[0], META_STR_LEN, "S2-POS-%dx", 1 << metadata->upm_procmode % 10);
+			snprintf(metadata->upm_outputfmt[0], META_STR_LEN, "U-POS-%dx", 1 << metadata->upm_procmode % 10);
 			snprintf(metadata->upm_outputfmt_comment, META_STR_LEN, "Stokes U, with %dx downsampling", 1 << (metadata->upm_procmode % 10));
 			break;
 		case 230 ... 234:
-			snprintf(metadata->upm_outputfmt[0], META_STR_LEN, "S3-POS-%dx", 1 << metadata->upm_procmode % 10);
+			snprintf(metadata->upm_outputfmt[0], META_STR_LEN, "V-POS-%dx", 1 << metadata->upm_procmode % 10);
 			snprintf(metadata->upm_outputfmt_comment, META_STR_LEN, "Stokes V, with %dx downsampling", 1 << (metadata->upm_procmode % 10));
 			break;
 		case 250 ... 254:
-			snprintf(metadata->upm_outputfmt[0], META_STR_LEN, "S0-POS-%dx", 1 << metadata->upm_procmode % 10);
-			snprintf(metadata->upm_outputfmt[1], META_STR_LEN, "S1-POS-%dx", 1 << metadata->upm_procmode % 10);
-			snprintf(metadata->upm_outputfmt[2], META_STR_LEN, "S2-POS-%dx", 1 << metadata->upm_procmode % 10);
-			snprintf(metadata->upm_outputfmt[3], META_STR_LEN, "S3-POS-%dx", 1 << metadata->upm_procmode % 10);
+			snprintf(metadata->upm_outputfmt[0], META_STR_LEN, "I-POS-%dx", 1 << metadata->upm_procmode % 10);
+			snprintf(metadata->upm_outputfmt[1], META_STR_LEN, "Q-POS-%dx", 1 << metadata->upm_procmode % 10);
+			snprintf(metadata->upm_outputfmt[2], META_STR_LEN, "U-POS-%dx", 1 << metadata->upm_procmode % 10);
+			snprintf(metadata->upm_outputfmt[3], META_STR_LEN, "V-POS-%dx", 1 << metadata->upm_procmode % 10);
 			snprintf(metadata->upm_outputfmt_comment, META_STR_LEN, "Stokes IQUV, with %dx downsampling", 1 << (metadata->upm_procmode % 10));
 			break;
 		case 260 ... 264:
-			snprintf(metadata->upm_outputfmt[0], META_STR_LEN, "S0-POS-%dx", 1 << metadata->upm_procmode % 10);
-			snprintf(metadata->upm_outputfmt[1], META_STR_LEN, "S3-POS-%dx", 1 << metadata->upm_procmode % 10);
+			snprintf(metadata->upm_outputfmt[0], META_STR_LEN, "I-POS-%dx", 1 << metadata->upm_procmode % 10);
+			snprintf(metadata->upm_outputfmt[1], META_STR_LEN, "V-POS-%dx", 1 << metadata->upm_procmode % 10);
 			snprintf(metadata->upm_outputfmt_comment, META_STR_LEN, "Stokes IV, with %dx downsampling", 1 << (metadata->upm_procmode % 10));
 			break;
 
@@ -1214,12 +1216,79 @@ int lofar_udp_metadata_processing_mode_metadata(lofar_udp_metadata *metadata) {
 	}
 
 	switch (metadata->upm_procmode) {
+		// Packet copies, no change
+		case 0:
+		case 1:
+		// Data reordered, single output, no change
+		case 10:
+		case 20:
+		case 30:
+		// Single Stokes outputs
+		case 100 ... 104:
+		case 110 ... 114:
+		case 120 ... 124:
+		case 130 ... 134:
+		case 200 ... 204:
+		case 210 ... 214:
+		case 220 ... 224:
+		case 230 ... 234:
+			metadata->upm_rel_outputs[0] = 1;
+			for (int i = 1; i < MAX_OUTPUT_DIMS; i++) {
+				metadata->upm_rel_outputs[i] = 0;
+			}
+			break;
+
+		// Polarisations/real/complex values split into their own files
+		case 2:
+		case 11:
+		case 21:
+		case 31:
+		// Stokes IQUV
+		case 150 ... 154:
+		case 250 ... 254:
+			for (int i = 0; i < MAX_OUTPUT_DIMS; i++) {
+				metadata->upm_rel_outputs[i] = 1;
+			}
+			break;
+
+		// Split by antenna polarisation, but not real/complex
+		case 32:
+		case 35:
+			for (int i = 0; i < MAX_OUTPUT_DIMS; i++) {
+				if (i < 2) {
+					metadata->upm_rel_outputs[i] = 1;
+				} else {
+					metadata->upm_rel_outputs[i] = 0;
+				}
+			}
+			break;
+
+		// Stokes IV
+		case 160 ... 164:
+		case 260 ... 264:
+			for (int i = 0; i < MAX_OUTPUT_DIMS; i++) {
+				if (i == 0 || i == 3) {
+					metadata->upm_rel_outputs[i] = 1;
+				} else {
+					metadata->upm_rel_outputs[i] = 0;
+				}
+			}
+			break;
+
+
+		default:
+			fprintf(stderr, "ERROR %s: Unknown processing mode %d, exiting.\n", __func__, metadata->upm_procmode);
+			return -1;
+	}
+
+	switch (metadata->upm_procmode) {
 		case 0 ... 2:
 		case 10 ... 11:
 		case 20 ... 21:
 		case 30 ... 32:
 		case 35:
 			// Analytic: In-phase and Quadrature sampled voltages (complex)
+			metadata->upm_output_voltages = 1;
 			if (strncpy(metadata->state, "Analytic", META_STR_LEN) != metadata->state) {
 				fprintf(stderr, "ERROR: Failed to set metadata state, exiting.\n");
 				return -1;
@@ -1240,6 +1309,7 @@ int lofar_udp_metadata_processing_mode_metadata(lofar_udp_metadata *metadata) {
 		case 160 ... 164:
 		case 260 ... 264:
 			// Intensity: Square-law detected total power.
+			metadata->upm_output_voltages = 0;
 			if (strncpy(metadata->state, "Intensity", META_STR_LEN) != metadata->state) {
 				fprintf(stderr, "ERROR: Failed to set metadata state, exiting.\n");
 				return -1;
@@ -1250,6 +1320,7 @@ int lofar_udp_metadata_processing_mode_metadata(lofar_udp_metadata *metadata) {
 		case 150 ... 154:
 		case 250 ... 254:
 			// Stokes:  Stokes I,Q,U,V.
+			metadata->upm_output_voltages = 0;
 			if (strncpy(metadata->state, "Stokes", META_STR_LEN) != metadata->state) {
 				fprintf(stderr, "ERROR: Failed to set metadata state, exiting.\n");
 				return -1;

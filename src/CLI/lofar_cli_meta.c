@@ -44,6 +44,18 @@ int checkOpt(char opt, char* inp, char* endPtr) {
 		return 0;
 	}
 
-	fprintf(stderr, "ERROR: Failed to parse flag %c with value %s, exiting.\n", opt, inp);
+	fprintf(stderr, "ERROR: Failed to parse flag %c with value %s (errno %d: %s), exiting.\n", opt, inp, errno, strerror(errno));
 	return 1;
+}
+
+int strtoi(char *str, char **endPtr) {
+	long intermediate = strtol(str, endPtr, 10);
+
+	if (intermediate < INT_MIN || intermediate > INT_MAX) {
+		*(endPtr) = str;
+		errno = EOVERFLOW;
+		return 0;
+	}
+
+	return (int) intermediate;
 }

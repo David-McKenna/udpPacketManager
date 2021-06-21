@@ -273,10 +273,12 @@ typedef struct lofar_udp_io_write_config {
 		int initialised;
 		int metadataInitialised;
 		hid_t file;
+		hid_t dtype;
+		size_t elementSize;
 	} hdf5Writer;
 	struct {
-		hid_t dcpl;
 		hid_t dset;
+		hsize_t dims[2];
 	} hdf5DSetWriter[MAX_OUTPUT_DIMS];
 
 

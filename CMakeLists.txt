@@ -12,6 +12,10 @@ if(CMAKE_BUILD_TYPE STREQUAL Debug)
 	set(CMAKE_VERBOSE_MAKEFILE ON)
 endif()
 
+if (NOT VERBOSE)
+	set(VERBOSE 0)
+endif()
+
 # Describe the project
 project(udpPacketManager 	VERSION 0.7.0
 							DESCRIPTION "C Library for handling CEP packet data from an international LOFAR station"
@@ -29,7 +33,22 @@ set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -fno-omit-frame-pointer -fsa
 set(CMAKE_LINKER_FLAGS_DEBUG "${CMAKE_LINKER_FLAGS_DEBUG} -fno-omit-frame-pointer -fsanitize=address")
 
 message("Attempting to detect HDF5 libraries")
+include(FetchContent)
+#set(HDF5_USE_STATIC_LIBRARIES ON)
+#find_package(HDF5 COMPONENTS C CXX)
 find_package(HDF5 REQUIRED COMPONENTS C CXX)
+#if (NOT 0)
+#	message("HDF5 libraries not found, prepping CMake build.")
+#	set(HDF5_EXTERNALLY_CONFIGURED 1)
+#	set(HDF5_INSTALL_NO_DEVELOPMENT 1)
+#	FetchContent_Declare(HDF5
+#                     GIT_REPOSITORY https://github.com/HDFGroup/hdf5
+#                     GIT_TAG 1.12/master
+#)
+#	FetchContent_MakeAvailable(HDF5)
+#	set(HDF5_C_LIBRARIES ${HDF5_LIB_TARGET})
+#	set(HDF5_INCLUDE_DIRS "${HDF5_SRC_DIR};${HDF5_SRC_BINARY_DIR}")
+#endif()
 message("")
 
 # Find the OpenMP package on the system
@@ -52,8 +71,6 @@ message("")
 
 # Find the zstandard libraries on the system
 message("Configuring Zstandard")
-include(FetchContent)
-
 set(ZSTD_BUILD_STATIC ON CACHE INTERNAL "")
 set(ZSTD_BUILD_SHARED OFF CACHE INTERNAL "")
 FetchContent_Declare(zstd
@@ -64,6 +81,13 @@ FetchContent_MakeAvailable(zstd)
 # MakeAvailable doesn't allow for libzstd_static to be used as a target
 # Related? https://github.com/facebook/zstd/issues/2377
 add_subdirectory(${zstd_SOURCE_DIR}/build/cmake/ ${zstd_BINARY_DIR} EXCLUDE_FROM_ALL)
+message("")
+
+#message("Configuring CSpice")
+#FetchContent_Declare(cspice
+#                     GIT_REPOSITORY https://github.com/tudat-team/cspice-cmake
+#                     )
+#FetchContent_MakeAvailable(cspice)
 
 message("")
 
@@ -109,7 +133,8 @@ add_library(lofudpman STATIC
             src/lib/lofar_udp_metadata.c
             src/lib/lofar_udp_time.c)
 
-add_dependencies(lofudpman libzstd_static psrdada)
+add_dependencies(lofudpman libzstd_static psrdada ) #CSpice::cspice)
+
 # Include all of our library headers
 target_include_directories(lofudpman PUBLIC
 		${PROJECT_SOURCE_DIR}/src/lib
@@ -123,7 +148,7 @@ target_include_directories(lofudpman PUBLIC ${zstd_SOURCE_DIR}/lib/)
 
 file(GLOB_RECURSE UDP_INCLUDE_FILES "${PROJECT_SOURCE_DIR}/src/*/*.h" "${PROJECT_SOURCE_DIR}/src/*/*.hpp")
 
-target_link_libraries(lofudpman PUBLIC ${HDF5_CXX_LIBRARIES} ${HDF5_C_LIBRARIES})
+target_link_libraries(lofudpman PUBLIC ${HDF5_C_LIBRARIES})
 target_link_libraries(lofudpman PUBLIC psrdada)
 target_link_libraries(lofudpman PUBLIC libzstd_static)
 

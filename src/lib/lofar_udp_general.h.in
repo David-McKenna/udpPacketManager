@@ -9,7 +9,7 @@
 
 
 // Reader / writer enums
-typedef enum {
+typedef enum reader_t {
 	NO_ACTION = -1,
 	NORMAL = 1,
 	FIFO = 2,
@@ -27,6 +27,12 @@ typedef enum metadata_t {
 	HDF5_META = 8, // Shared with reader_t enum
 
 } metadata_t;
+
+typedef enum calibrate_t {
+	NO_CALIBRATION = -1,
+	GENERATE_JONES = 1,
+	APPLY_CALIBRATION = 2
+} calibrate_t;
 
 // I/O array sizes
 #define MAX_NUM_PORTS 4

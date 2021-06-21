@@ -231,8 +231,11 @@ reader_t lofar_udp_io_parse_type_optarg(const char optargc[], char *fileFormat, 
 		fprintf(stderr, "WARNING: Use [[port]], [[outp]], [[pack]] and [[iter]] instead, check the docs for more details.\n\n");
 	}
 
+	printf("a: %s: %d, %d, %d\n", __func__, *baseVal, *stepSize, *offsetVal);
 	if (optargc[4] == ':') {
 		sscanf(optargc, "%*[^:]:%[^,],%d,%d,%d", fileFormat, baseVal, stepSize, offsetVal);
+		printf("b: %s: %d, %d, %d\n", __func__, *baseVal, *stepSize, *offsetVal);
+
 
 		if (strstr(optargc, "FILE:") != NULL) {
 			reader = NORMAL;
@@ -252,8 +255,10 @@ reader_t lofar_udp_io_parse_type_optarg(const char optargc[], char *fileFormat, 
 			reader = ZSTDCOMPRESSED;
 		} else {
 			reader = NORMAL;
-			sscanf(optargc, "%[^,],%d,%d", fileFormat, baseVal, offsetVal);
 		}
+		sscanf(optargc, "%[^,],%d,%d", fileFormat, baseVal, offsetVal);
+		printf("c: %s: %d, %d, %d\n", __func__, *baseVal, *stepSize, *offsetVal);
+
 	}
 
 	if (reader == NO_ACTION) {
@@ -373,7 +378,7 @@ int lofar_udp_io_read_parse_optarg(lofar_udp_config *config, const char optargc[
 		return -1;
 	}
 
-
+	char *endPtr;
 	switch (config->readerType) {
 		case NORMAL:
 		case FIFO:
@@ -389,7 +394,12 @@ int lofar_udp_io_read_parse_optarg(lofar_udp_config *config, const char optargc[
 			config->stepSizePort = config->basePort;
 
 			// Parse the base value from the input
-			config->basePort = atoi(fileFormat);
+			config->basePort = strtod(fileFormat, &endPtr);
+			if (fileFormat != endPtr && *(endPtr) == '\0') {
+				fprintf(stderr,"ERROR: Failed to parse base port number (%s), exiting.\n", fileFormat);
+				return -1;
+			}
+
 			if (config->basePort < 1) {
 				fprintf(stderr,
 						"ERROR: Failed to parse PSRDADA default value (given %s, parsed %d, must be > 0), exiting.\n",
@@ -443,6 +453,7 @@ int lofar_udp_io_write_parse_optarg(lofar_udp_io_write_config *config, const cha
 		return -1;
 	}
 
+	char *endPtr;
 	switch (config->readerType) {
 		case NORMAL:
 		case FIFO:
@@ -454,7 +465,12 @@ int lofar_udp_io_write_parse_optarg(lofar_udp_io_write_config *config, const cha
 		case DADA_ACTIVE:
 			// Swap values, default value is in the output format for ringbuffers
 			config->stepSize = config->baseVal;
-			config->baseVal = atoi(config->outputFormat);
+			config->baseVal = strtod(config->outputFormat, &endPtr);
+			if (config->outputFormat != endPtr && *(endPtr) == '\0') {
+				fprintf(stderr, "ERROR: Failed to parse base ringbuffer number (%s), exiting.\n", config->outputFormat);
+				return -1;
+			}
+
 			if (config->baseVal < 1) {
 				fprintf(stderr,
 						"ERROR: Failed to parse PSRDADA default value (given %s, parsed %d, must be > 0), exiting.\n",
@@ -580,7 +596,7 @@ long lofar_udp_io_write(lofar_udp_io_write_config *config, int outp, char *src, 
 
 long lofar_udp_io_write_metadata(lofar_udp_io_write_config *outConfig, int outp, lofar_udp_metadata *metadata, char *headerBuffer, size_t headerLength) {
 	if ((outConfig->readerType == HDF5 && metadata->type != HDF5_META)
-		|| (outConfig->readerType != HDF5 && metadata->type == HDF5)) {
+		|| (outConfig->readerType != HDF5 && metadata->type == HDF5_META)) {
 		fprintf(stderr, "ERROR: Only HDF5 metadata can only be written to a HDF5 output (outp: %d, meta: %d), exiting.\n", outConfig->readerType, metadata->type);
 		return -1;
 	}

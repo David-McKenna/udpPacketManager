@@ -20,6 +20,7 @@ extern "C" {
 void helpMessages(void);
 void processingModes(void);
 int checkOpt(char opt, char *inp, char *endPtr);
+int strtoi(char *str, char **endPtr);
 
 // Exit reasons, 0, 1 aren't handled, only defined up to 3
 extern const char exitReasons[6][1024];

@@ -1017,15 +1017,6 @@ lofar_udp_reader *lofar_udp_reader_setup(lofar_udp_config *config) {
 	reader->packetsPerIteration = meta->packetsPerIteration;
 	reader->meta = meta;
 
-	if (config->calibrateData == 1) {
-		reader->calibration = calloc(1, sizeof(lofar_udp_calibration));
-		if (memcpy(reader->calibration, config->calibrationConfiguration, sizeof(lofar_udp_calibration)) != reader->calibration) {
-			fprintf(stderr, "ERROR: Failed to copy calibration to reader struct, exiting.\n");
-			lofar_udp_reader_cleanup(reader);
-			return NULL;
-		}
-	}
-
 	reader->ompThreads = config->ompThreads;
 	omp_set_num_threads(reader->ompThreads);
 
@@ -1042,6 +1033,26 @@ lofar_udp_reader *lofar_udp_reader_setup(lofar_udp_config *config) {
 			return NULL;
 		}
 
+	}
+
+	// TODO: Copy values to calibration struct as needed.
+	if (config->metadataType != NO_META) {
+		reader->metadata = calloc(1, sizeof(lofar_udp_metadata));
+		*(reader->metadata) = lofar_udp_metadata_default;
+		reader->metadata->type = config->metadataType;
+		if (lofar_udp_metadata_setup(reader->metadata, reader, config->metadataLocation) < 0) {
+			lofar_udp_reader_cleanup(reader);
+			return NULL;
+		}
+	}
+
+	if (config->calibrateData == 1) {
+		reader->calibration = calloc(1, sizeof(lofar_udp_calibration));
+		if (memcpy(reader->calibration, config->calibrationConfiguration, sizeof(lofar_udp_calibration)) != reader->calibration) {
+			fprintf(stderr, "ERROR: Failed to copy calibration to reader struct, exiting.\n");
+			lofar_udp_reader_cleanup(reader);
+			return NULL;
+		}
 	}
 
 	// Gulp the first set of raw data
@@ -1089,16 +1100,6 @@ lofar_udp_reader *lofar_udp_reader_setup(lofar_udp_config *config) {
 	if (lofar_udp_get_first_packet_alignment(reader) < 0) {
 		lofar_udp_reader_cleanup(reader);
 		return NULL;
-	}
-
-	if (config->metadataType != NO_META) {
-		reader->metadata = calloc(1, sizeof(lofar_udp_metadata));
-		*(reader->metadata) = lofar_udp_metadata_default;
-		reader->metadata->type = config->metadataType;
-		if (lofar_udp_metadata_setup(reader->metadata, reader, config->metadataLocation) < 0) {
-			lofar_udp_reader_cleanup(reader);
-			return NULL;
-		}
 	}
 
 	reader->meta->inputDataReady = 1;
