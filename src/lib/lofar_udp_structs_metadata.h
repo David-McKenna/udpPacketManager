@@ -3,6 +3,13 @@
 
 #include "lofar_udp_general.h"
 
+typedef enum dataOrder {
+	UNKNOWN = 0,
+	TIME_MAJOR = 1,
+	FREQUENCY_MAJOR = 2,
+	PACKET_MAJOR = 4
+} dataOrder;
+
 // Define a struct of variables for an ASCII header
 //
 // We likely don't need half as many keys as provided here, see
@@ -160,6 +167,7 @@ typedef struct lofar_udp_metadata {
 	int ndim; // Lib
 	double tsamp; // Lib
 	char state[META_STR_LEN + 1]; // Lib
+	int order; // Lib
 
 	// UPM Extra values
 	char upm_version[META_STR_LEN + 1];
