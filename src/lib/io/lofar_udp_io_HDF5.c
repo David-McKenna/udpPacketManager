@@ -271,13 +271,14 @@ int hdf5SetupDoubleAttrs(hid_t group, char *stringEntries[], double doubleValues
 	return 0;
 }
 
-// F#!* everything about this. This is the only way I've found to write a value that h5py reads as a bool.
-typedef enum bootl_t {
-	FALSE = 0,
-	TRUE = 1
-} bool_t;
-
 int hdf5SetupBoolAttrs(hid_t group, char *stringEntries[], bool_t boolValues[], size_t numEntries) {
+
+	// F#!* everything about this. This is the only way I've found to write a value that h5py reads as a bool.
+	typedef enum bootl_t {
+		FALSE = 0,
+		TRUE = 1
+	} bool_t;
+	
 	VERBOSE(printf("Bool attrs\n"));
 	hid_t attr;
 	herr_t status;
