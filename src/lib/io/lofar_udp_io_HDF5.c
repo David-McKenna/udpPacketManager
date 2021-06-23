@@ -42,9 +42,9 @@ __attribute__((unused)) long lofar_udp_io_read_HDF5(lofar_udp_io_read_config *in
  *
  * @return     { description_of_the_return_value }
  */
-int lofar_udp_io_read_cleanup_HDF5(lofar_udp_io_read_config *input, const int port) {
+__attribute__((unused)) int lofar_udp_io_read_cleanup_HDF5(lofar_udp_io_read_config *input, const int port) {
 
-	return -1;
+	return 0;
 }
 
 
@@ -161,9 +161,9 @@ int hdf5SetupStrAttrs(hid_t group, char *stringEntries[], size_t numEntries) {
 	hid_t attr;
 
 	for (size_t atIdx = 0; atIdx < numEntries; atIdx++) {
-		printf("%s: %s\n", stringEntries[atIdx * 2], stringEntries[atIdx * 2 + 1]);
+		VERBOSE(printf("%s: %s\n", stringEntries[atIdx * 2], stringEntries[atIdx * 2 + 1]));
 		int strlenv = strlen(stringEntries[atIdx * 2 + 1]) + 1;
-		printf("%d\n", strlenv);
+		VERBOSE(printf("%d\n", strlenv));
 		filetype = H5Tcopy (H5T_FORTRAN_S1);
 		status = H5Tset_size(filetype, strlenv - 1);
 		memtype = H5Tcopy (H5T_C_S1);
@@ -182,13 +182,13 @@ int hdf5SetupStrAttrs(hid_t group, char *stringEntries[], size_t numEntries) {
 			return -1;
 		}
 
-		printf("Write\n");
+		VERBOSE(printf("Write\n"));
 		if ((status = H5Awrite(attr, memtype, stringEntries[atIdx * 2 + 1])) < 0) {
 			H5Eprint(status, stderr);
 			fprintf(stderr, "ERROR %s: Failed to set str attr %s: %s in root group, exiting.\n", __func__, stringEntries[atIdx * 2], stringEntries[atIdx * 2 + 1]);
 			return -1;
 		}
-		printf("Close\n");
+		VERBOSE(printf("Close\n"));
 		H5Aclose(attr);
 
 		H5Tclose(filetype);
@@ -210,7 +210,7 @@ int hdf5SetupLongAttrs(hid_t group, char **stringEntries, long *longValues, size
 	hid_t space = H5Screate_simple(0, dims, NULL);
 
 	for (size_t atIdx = 0; atIdx < numEntries; atIdx++) {
-		printf("%s: %ld\n", stringEntries[atIdx], longValues[atIdx]);
+		VERBOSE(printf("%s: %ld\n", stringEntries[atIdx], longValues[atIdx]));
 		if (H5Aexists(group, stringEntries[atIdx]) == 0) {
 			attr = H5Acreate(group, stringEntries[atIdx], H5T_NATIVE_LONG, space, H5P_DEFAULT, H5P_DEFAULT);
 		} else {
@@ -245,7 +245,7 @@ int hdf5SetupDoubleAttrs(hid_t group, char *stringEntries[], double doubleValues
 	hid_t space = H5Screate_simple(0, dims, NULL);
 
 	for (size_t atIdx = 0; atIdx < numEntries; atIdx++) {
-		printf("%s: %lf\n", stringEntries[atIdx], doubleValues[atIdx]);
+		VERBOSE(printf("%s: %lf\n", stringEntries[atIdx], doubleValues[atIdx]));
 		if (H5Aexists(group, stringEntries[atIdx]) == 0) {
 			attr = H5Acreate(group, stringEntries[atIdx], H5T_NATIVE_DOUBLE, space, H5P_DEFAULT, H5P_DEFAULT);
 		} else {
@@ -291,7 +291,7 @@ int hdf5SetupBoolAttrs(hid_t group, char *stringEntries[], bool_t boolValues[], 
 	status = H5Tenum_insert(boolenum, "TRUE", ((tmpVal)=(TRUE),&(tmpVal)));
 
 	for (size_t atIdx = 0; atIdx < numEntries; atIdx++) {
-		printf("%s: %c\n", stringEntries[atIdx], boolValues[atIdx]);
+		VERBOSE(printf("%s: %c\n", stringEntries[atIdx], boolValues[atIdx]));
 
 		if (H5Aexists(group, stringEntries[atIdx]) == 0) {
 			attr = H5Acreate(group, stringEntries[atIdx], boolenum, space, H5P_DEFAULT, H5P_DEFAULT);
@@ -339,7 +339,7 @@ long lofar_udp_io_write_metadata_HDF5(lofar_udp_io_write_config *config, lofar_u
 		    SYSTEM_TEMPERATURE = { dbl };
 		*/
 		{
-			printf("/\n");
+			VERBOSE(printf("/\n"));
 			if ((group = H5Gopen(config->hdf5Writer.file, "/", 0)) < 0) {
 				H5Eprint(group, stderr);
 				fprintf(stderr, "ERROR %s: Failed to open h5 root group, exiting.\n", __func__);
@@ -510,7 +510,7 @@ long lofar_udp_io_write_metadata_HDF5(lofar_udp_io_write_config *config, lofar_u
 		// POINT_AZIMUTH = { dbl }; // Deg
 
 		{
-			printf("/SUB_ARRAY_POINTING_000\n");
+			VERBOSE(printf("/SUB_ARRAY_POINTING_000\n"));
 			if ((group = H5Gopen(config->hdf5Writer.file, "/SUB_ARRAY_POINTING_000", 0)) < 0) {
 				H5Eprint(group, stderr);
 				fprintf(stderr, "ERROR %s: Failed to open h5 /SUB_ARRAY_POINTING_000 group, exiting.\n", __func__);
@@ -622,7 +622,7 @@ long lofar_udp_io_write_metadata_HDF5(lofar_udp_io_write_config *config, lofar_u
 			numAttrs = sizeof(stringEntries) / sizeof(stringEntries[0]);
 
 			// With key/val in the same array it should always be a multiple of 2 long
-			if (numAttrs % 2) {
+			if ((numAttrs % 2) == 1) {
 				fprintf(stderr, "ERROR: Odd number of values provided to stringEntries for the SUB_ARRAY_POINTING_000/BEAM_000 group, exiting.\n");
 				H5Gclose(group);
 				return -1;
@@ -650,7 +650,7 @@ long lofar_udp_io_write_metadata_HDF5(lofar_udp_io_write_config *config, lofar_u
 
 
 			for (int groupIdx = 0; groupIdx < numGroups; groupIdx++) {
-				printf("%s\n", groups[groupIdx]);
+				VERBOSE(printf("%s\n", groups[groupIdx]));
 				if ((group = H5Gopen(config->hdf5Writer.file, groups[groupIdx], 0)) < 0) {
 					H5Eprint(group, stderr);
 					fprintf(stderr, "ERROR %s: Failed to open h5 %s group, exiting.\n", __func__, groups[groupIdx]);
@@ -677,7 +677,7 @@ long lofar_udp_io_write_metadata_HDF5(lofar_udp_io_write_config *config, lofar_u
 		//	STATIONS_LIST = { "" };
 		//	STOKES_COMPONENTS { "" };
 		{
-			printf("\"/SUB_ARRAY_POINTING_000/BEAM_000\"\n");
+			VERBOSE(printf("\"/SUB_ARRAY_POINTING_000/BEAM_000\"\n"));
 			if ((group = H5Gopen(config->hdf5Writer.file, "/SUB_ARRAY_POINTING_000/BEAM_000", 0)) < 0) {
 				H5Eprint(group, stderr);
 				fprintf(stderr, "ERROR %s: Failed to open h5 /SUB_ARRAY_POINTING_000/BEAM_000 group, exiting.\n", __func__);
@@ -1070,18 +1070,17 @@ long lofar_udp_io_write_metadata_HDF5(lofar_udp_io_write_config *config, lofar_u
 			*/
 		}
 
-		printf("Prop\n");
+		VERBOSE(printf("Prop\n"));
 		hid_t prop = H5Pcreate(H5P_DATASET_CREATE);
-		printf("create_simple\n");
 		hid_t dataspace;
-		printf("chunk\n");
+		VERBOSE(printf("chunk\n"));
 		status = H5Pset_chunk(prop, rank, chunk_dims);
 		char dsetName[DEF_STR_LEN], componentStr[16] = "";
 		const char delim = '-';
 		char *component = NULL;
 
 		int outputs = 0;
-		printf("Loop\n");
+		VERBOSE(printf("Loop\n"));
 		for (int i = 0; i < MAX_OUTPUT_DIMS; i++) {
 			if (metadata->upm_rel_outputs[i]) {
 				config->hdf5DSetWriter[outputs].dims[0] = 0;
@@ -1152,11 +1151,10 @@ long lofar_udp_io_write_metadata_HDF5(lofar_udp_io_write_config *config, lofar_u
 			}
 		}
 		config->hdf5Writer.metadataInitialised = 1;
-		printf("Complete.\n");
-	}
-
-	// Update final timestamps
-	{
+		VERBOSE(printf("Complete.\n"));
+	} else {
+		// Variables that be updated on every tick
+		// Maybe make this a configurable option? e.g., only update every N writes?
 		// Root group /
 
 		// TOTAL_INTEGRATION_TIME dbl
@@ -1208,7 +1206,6 @@ long lofar_udp_io_write_metadata_HDF5(lofar_udp_io_write_config *config, lofar_u
 			"NOF_SAMPLES",
 		};
 
-		printf("%lld, %lld\n", config->hdf5DSetWriter[0].dims[0], config->hdf5DSetWriter[0].dims[1]);
 		long longEntriesValues[] = {
 			config->hdf5DSetWriter[0].dims[1],
 		};
@@ -1246,24 +1243,24 @@ long lofar_udp_io_write_HDF5(lofar_udp_io_write_config *config, int outp, const 
 	offsets[0] = config->hdf5DSetWriter[outp].dims[0];
 	offsets[1] = 0;
 
-	printf("%ld, %lld, %ld\n", nchars, config->hdf5DSetWriter[outp].dims[1], config->hdf5Writer.elementSize);
+	VERBOSE(printf("%ld, %lld, %ld\n", nchars, config->hdf5DSetWriter[outp].dims[1], config->hdf5Writer.elementSize));
 	hsize_t extension[2] = { nchars / config->hdf5DSetWriter[outp].dims[1] / config->hdf5Writer.elementSize,
 						        config->hdf5DSetWriter[outp].dims[1] };
-	printf("Preparing to extend HDF5 dataset %d by %lld samples (%ld bytes / %lld chans).\n", outp, extension[0], nchars, config->hdf5DSetWriter[outp].dims[1]);
+	VERBOSE(printf("Preparing to extend HDF5 dataset %d by %lld samples (%ld bytes / %lld chans).\n", outp, extension[0], nchars, config->hdf5DSetWriter[outp].dims[1]));
 	config->hdf5DSetWriter[outp].dims[0] += extension[0];
 
-	printf("Getting extension for (%lld, %lld)\n", config->hdf5DSetWriter[outp].dims[0], config->hdf5DSetWriter[outp].dims[1]);
+	VERBOSE(printf("Getting extension for (%lld, %lld)\n", config->hdf5DSetWriter[outp].dims[0], config->hdf5DSetWriter[outp].dims[1]));
 	hid_t status = H5Dset_extent(config->hdf5DSetWriter[outp].dset, config->hdf5DSetWriter[outp].dims);
 
 
-	printf("Getting space\n");
+	VERBOSE(printf("Getting space\n"));
 	hid_t filespace = H5Dget_space(config->hdf5DSetWriter[outp].dset);
-	printf("Getting hyperslab\n");
+	VERBOSE(printf("Getting hyperslab\n"));
 	status = H5Sselect_hyperslab(filespace, H5S_SELECT_SET, offsets, NULL, extension, NULL);
-	printf("Getting memspace\n");
+	VERBOSE(printf("Getting memspace\n"));
 	hid_t memspace = H5Screate_simple(2, extension, NULL);
 
-	printf("Writing..\n");
+	VERBOSE(printf("Writing..\n"));
 	status = H5Dwrite(config->hdf5DSetWriter[outp].dset, config->hdf5Writer.dtype, memspace, filespace, H5P_DEFAULT, src);
 	if (status < 0) {
 		fprintf(stderr, "ERROR: Failed to write %ld chars to HDF5 dataset %d, exiting.\n", nchars, outp);
@@ -1287,6 +1284,8 @@ long lofar_udp_io_write_HDF5(lofar_udp_io_write_config *config, int outp, const 
  */
 int lofar_udp_io_write_cleanup_HDF5(lofar_udp_io_write_config *config, int outp, int fullClean) {
 	if (config->hdf5Writer.file != -1) {
+
+
 		for (int out = 0; out < config->numOutputs; out++) {
 			H5Dclose(config->hdf5DSetWriter[out].dset);
 		}

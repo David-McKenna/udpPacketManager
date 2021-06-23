@@ -231,14 +231,16 @@ reader_t lofar_udp_io_parse_type_optarg(const char optargc[], char *fileFormat, 
 		fprintf(stderr, "WARNING: Use [[port]], [[outp]], [[pack]] and [[iter]] instead, check the docs for more details.\n\n");
 	}
 
-	printf("a: %s: %d, %d, %d\n", __func__, *baseVal, *stepSize, *offsetVal);
+	VERBOSE(printf("a: %s: %d, %d, %d\n", __func__, *baseVal, *stepSize, *offsetVal));
 	if (optargc[4] == ':') {
 		sscanf(optargc, "%*[^:]:%[^,],%d,%d,%d", fileFormat, baseVal, stepSize, offsetVal);
-		printf("b: %s: %d, %d, %d\n", __func__, *baseVal, *stepSize, *offsetVal);
+		VERBOSE(printf("b: %s: %d, %d, %d\n", __func__, *baseVal, *stepSize, *offsetVal));
 
 
 		if (strstr(optargc, "FILE:") != NULL) {
 			reader = NORMAL;
+		} else if (strstr(optargc, "ZSTD:") != NULL) {
+			reader = ZSTDCOMPRESSED;
 		} else if (strstr(optargc, "FIFO:") != NULL) {
 			reader = FIFO;
 		} else if (strstr(optargc, "DADA:") != NULL) {
@@ -250,14 +252,14 @@ reader_t lofar_udp_io_parse_type_optarg(const char optargc[], char *fileFormat, 
 			reader = NO_ACTION;
 		}
 	} else {
-		if (strstr(fileFormat, ".zst") != NULL) {
-			VERBOSE(printf("%s, COMPRESSED\n", fileFormat));
+		if (strstr(optargc, ".zst") != NULL) {
+			VERBOSE(printf("%s, COMPRESSED\n", optargc));
 			reader = ZSTDCOMPRESSED;
 		} else {
 			reader = NORMAL;
 		}
 		sscanf(optargc, "%[^,],%d,%d", fileFormat, baseVal, offsetVal);
-		printf("c: %s: %d, %d, %d\n", __func__, *baseVal, *stepSize, *offsetVal);
+		VERBOSE(printf("c: %s: %d, %d, %d\n", __func__, *baseVal, *stepSize, *offsetVal));
 
 	}
 

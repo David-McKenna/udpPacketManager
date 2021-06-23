@@ -976,7 +976,7 @@ lofar_udp_reader *lofar_udp_reader_setup(lofar_udp_config *config) {
 	}
 
 	for (int out = 0; out < meta->numOutputs; out++) {
-		printf("%d, %ld\n", meta->packetOutputLength[out], meta->packetsPerIteration);
+		VERBOSE(printf("%d, %ld\n", meta->packetOutputLength[out], meta->packetsPerIteration));
 		meta->outputData[out] = calloc((long) meta->packetOutputLength[out] * meta->packetsPerIteration, sizeof(char));
 		VERBOSE(if (meta->VERBOSE) {
 			printf("calloc at %p for %ld bytes\n", meta->outputData[out],

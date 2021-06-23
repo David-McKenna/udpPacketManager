@@ -1,5 +1,7 @@
 #include "lofar_cli_meta.h"
 
+// Constant to define the length of the timing variable array
+#define TIMEARRLEN 4
 
 void helpMessages() {
 	printf("LOFAR UDP Data extractor (CLI v%s, lib v%s)\n\n", UPM_CLI_VERSION, UPM_VERSION);
@@ -91,7 +93,9 @@ int main(int argc, char *argv[]) {
 	// Set up reader loop variables
 	int loops = 0, localLoops = 0, returnVal;
 	long packetsProcessed = 0, packetsWritten = 0, eventPacketsLost[MAX_NUM_PORTS], packetsToWrite;
-	double timing[3] = { 0. }, totalReadTime = 0, totalOpsTime = 0, totalWriteTime = 0;
+
+	// Timing variables
+	double timing[TIMEARRLEN] = { 0. }, totalReadTime = 0., totalOpsTime = 0., totalWriteTime = 0., totalMetadataTime = 0.;
 	struct timespec tick, tick0, tick1, tock, tock0, tock1;
 
 	// Malloc'd variables: need to be free'd later.
@@ -107,7 +111,7 @@ int main(int argc, char *argv[]) {
 		switch (inputOpt) {
 
 			case 'i':
-				strcpy(inputFormat, optarg);
+				strncpy(inputFormat, optarg, DEF_STR_LEN - 1);
 				inputProvided = 1;
 				break;
 
@@ -140,12 +144,11 @@ int main(int argc, char *argv[]) {
 
 			case 'u':
 				config->numPorts = strtoi(optarg, &endPtr);
-				printf("%d\n", config->numPorts);
 				if (checkOpt(inputOpt, optarg, endPtr)) { flagged = 1; }
 				break;
 
 			case 't':
-				strcpy(inputTime, optarg);
+				strncpy(inputTime, optarg, 255);
 				break;
 
 			case 's':
@@ -154,7 +157,7 @@ int main(int argc, char *argv[]) {
 				break;
 
 			case 'e':
-				strcpy(eventsFile, optarg);
+				strncpy(eventsFile, optarg, DEF_STR_LEN);
 				break;
 
 			case 'p':
@@ -538,7 +541,7 @@ int main(int argc, char *argv[]) {
 		}
 
 
-		VERBOSE(if (config->verbose) { printf("Begining data extraction loop for event %d\n", eventLoop); });
+		VERBOSE(if (config->verbose) { printf("Beginning data extraction loop for event %d\n", eventLoop); });
 		// While we receive new data for the current event,
 		while ((returnVal = lofar_udp_reader_step_timed(reader, timing)) < 1) {
 
@@ -571,7 +574,6 @@ int main(int argc, char *argv[]) {
 				}
 				CLICK(tock1);
 				timing[2] += TICKTOCK(tick1, tock1);
-				printf("Metadata for output %d took %lf (%lf) seconds to parse.\n", out, timing[2] - TICKTOCK(tick1, tock1), timing[2]);
 
 				CLICK(tick0);
 				VERBOSE(printf("Writing %ld bytes (%ld packets) to disk for output %d...\n",
@@ -581,18 +583,25 @@ int main(int argc, char *argv[]) {
 					returnVal = -5;
 					break;
 				}
-				CLICK(tock1);
-				totalWriteTime += TICKTOCK(tick0, tock0);
+				CLICK(tock0);
+				timing[3] += TICKTOCK(tick0, tock0);
 
 			}
+
+			totalMetadataTime += timing[2];
+			totalWriteTime += timing[3];
 
 			packetsWritten += packetsToWrite;
 			packetsProcessed += reader->meta->packetsPerIteration;
 
 			if (silent == 0) {
-				timing[0] = 0.;
-				timing[1] = 0.;
-				printf("Disk writes completed for operation %d after %f seconds.\n", loops, TICKTOCK(tick0, tock0));
+				printf("Metadata processing for operation %d after %f seconds.\n", loops, timing[2]);
+				printf("Disk writes completed for operation %d after %f seconds.\n", loops, timing[3]);
+
+				for (int idx = 0; idx < TIMEARRLEN; idx++) {
+					timing[idx] = 0.;
+				}
+
 				if (returnVal < 0) {
 					for (int port = 0; port < reader->meta->numPorts; port++)
 						if (reader->meta->portLastDroppedPackets[port] != 0) {
@@ -645,11 +654,14 @@ int main(int argc, char *argv[]) {
 		if (reader->meta->numPorts > 1) {
 			printf(" (%.03lf per port)\n", (float) (packetsProcessed * UDPNTIMESLICE) * 5.12e-6f);
 		} else { printf(".\n"); }
-		printf("Total Read Time:\t%3.02lf\t\tTotal CPU Ops Time:\t%3.02lf\tTotal Write Time:\t%3.02lf\n", totalReadTime,
-			   totalOpsTime, totalWriteTime);
-		printf("Total Data Read:\t%3.03lfGB\t\t\t\tTotal Data Written:\t%3.03lfGB\n",
+		printf("Total Read Time:\t%3.02lf s\t\t\tTotal CPU Ops Time:\t%3.02lf s\nTotal Write Time:\t%3.02lf s\t\t\tTotal MetaD Time:\t%3.02lf s\n", totalReadTime,
+			   totalOpsTime, totalWriteTime, totalMetadataTime);
+		printf("Total Data Read:\t%3.03lf GB\t\tTotal Data Written:\t%3.03lf GB\n",
 			   (double) (packetsProcessed * totalPacketLength) / 1e+9,
 			   (double) (packetsWritten * totalOutLength) / 1e+9);
+		printf("Effective Read Speed:\t%3.01lf MB/s\t\tEffective Write Speed:\t%3.01lf MB/s\n", (double) (packetsProcessed * totalPacketLength) / 1e+6 / totalReadTime,
+		       (double) (packetsWritten * totalOutLength) / 1e+6 / totalWriteTime);
+		printf("Approximate Throughput:\t%3.01lf GB/s\n", (double) (reader->meta->numPorts * packetsProcessed * (totalPacketLength + totalOutLength)) / 1e+9 / totalOpsTime);
 		printf("A total of %d packets were missed during the observation.\n", droppedPackets);
 		printf("\n\nData processing finished. Cleaning up file and memory objects...\n");
 	}

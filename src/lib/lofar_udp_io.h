@@ -75,7 +75,7 @@ int lofar_udp_io_read_temp_DADA(void *outbuf, size_t size, int num, int dadaKey,
 int lofar_udp_io_read_cleanup_FILE(lofar_udp_io_read_config *input, int port);
 int lofar_udp_io_read_cleanup_ZSTD(lofar_udp_io_read_config *input, int port);
 int lofar_udp_io_read_cleanup_DADA(lofar_udp_io_read_config *input, int port);
-int lofar_udp_io_read_cleanup_HDF5(lofar_udp_io_read_config *input, int port);
+__attribute__((unused)) int lofar_udp_io_read_cleanup_HDF5(lofar_udp_io_read_config *input, int port);
 
 int lofar_udp_io_write_cleanup_FILE(lofar_udp_io_write_config *config, int outp);
 int lofar_udp_io_write_cleanup_ZSTD(lofar_udp_io_write_config *config, int outp, int fullClean);

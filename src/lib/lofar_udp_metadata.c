@@ -391,7 +391,7 @@ int lofar_udp_metadata_parse_reader(lofar_udp_metadata *metadata, const lofar_ud
 		return -1;
 	}
 
-	printf("%d, %d, %d, %d, %d\n", reader->input->numInputs, (reader->input->offsetPortCount), (beamletsPerPort), reader->meta->baseBeamlets[0], reader->meta->upperBeamlets[reader->meta->numPorts - 1]);
+	VERBOSE(printf("%d, %d, %d, %d, %d\n", reader->input->numInputs, (reader->input->offsetPortCount), (beamletsPerPort), reader->meta->baseBeamlets[0], reader->meta->upperBeamlets[reader->meta->numPorts - 1]));
 	int lowerBeamlet = (reader->input->offsetPortCount * beamletsPerPort) + reader->meta->baseBeamlets[0];
 	// Upper beamlet is exclusive in UPM, not inclusive like LOFAR inputs
 	int upperBeamlet = ((reader->input->offsetPortCount + (reader->input->numInputs - 1)) * beamletsPerPort) + reader->meta->upperBeamlets[reader->meta->numPorts - 1];
@@ -407,7 +407,7 @@ int lofar_udp_metadata_parse_reader(lofar_udp_metadata *metadata, const lofar_ud
 	// Parse the new sub-set of beamlets
 	for (int beamlet = lowerBeamlet; beamlet < upperBeamlet; beamlet++) {
 		// Edge case: undefined subband is used as a beamlet
-		printf("Beamlet %d: Subband %d\n", beamlet, metadata->subbands[beamlet]);
+		VERBOSE(printf("Beamlet %d: Subband %d\n", beamlet, metadata->subbands[beamlet]));
 		if (metadata->subbands[beamlet] != -1) {
 			if (metadata->subbands[beamlet] > subbandData[2]) {
 				subbandData[2] = metadata->subbands[beamlet];
@@ -423,7 +423,7 @@ int lofar_udp_metadata_parse_reader(lofar_udp_metadata *metadata, const lofar_ud
 
 	// Update number of beamlets
 	metadata->nchan = reader->meta->totalProcBeamlets;
-	printf("Reader call\n");
+	VERBOSE(printf("Reader call\n"));
 	if (lofar_udp_metadata_update_frequencies(metadata, subbandData) < 0) {
 		return -1;
 	}
