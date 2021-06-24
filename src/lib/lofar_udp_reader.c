@@ -1039,6 +1039,11 @@ lofar_udp_reader *lofar_udp_reader_setup(lofar_udp_config *config) {
 	if (config->metadataType != NO_META) {
 		reader->metadata = calloc(1, sizeof(lofar_udp_metadata));
 		*(reader->metadata) = lofar_udp_metadata_default;
+
+		for (int i = 0; i < MAX_NUM_PORTS * UDPMAXBEAM; i++) {
+			reader->metadata->subbands[i] = -1;
+		}
+
 		reader->metadata->type = config->metadataType;
 		if (lofar_udp_metadata_setup(reader->metadata, reader, config->metadataLocation) < 0) {
 			lofar_udp_reader_cleanup(reader);
