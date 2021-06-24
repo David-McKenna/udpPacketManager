@@ -399,8 +399,8 @@ int lofar_udp_io_read_parse_optarg(lofar_udp_config *config, const char optargc[
 			config->stepSizePort = config->basePort;
 
 			// Parse the base value from the input
-			config->basePort = strtod(fileFormat, &endPtr);
-			if (fileFormat != endPtr && *(endPtr) == '\0') {
+			config->basePort = strtoimax(fileFormat, &endPtr, 10);
+			if (!(fileFormat != endPtr && *(endPtr) == '\0')) {
 				fprintf(stderr,"ERROR: Failed to parse base port number (%s), exiting.\n", fileFormat);
 				return -1;
 			}
@@ -470,8 +470,8 @@ int lofar_udp_io_write_parse_optarg(lofar_udp_io_write_config *config, const cha
 		case DADA_ACTIVE:
 			// Swap values, default value is in the output format for ringbuffers
 			config->stepSize = config->baseVal;
-			config->baseVal = strtod(config->outputFormat, &endPtr);
-			if (config->outputFormat != endPtr && *(endPtr) == '\0') {
+			config->baseVal = strtoimax(config->outputFormat, &endPtr, 10);
+			if (!(config->outputFormat != endPtr && *(endPtr) == '\0')) {
 				fprintf(stderr, "ERROR: Failed to parse base ringbuffer number (%s), exiting.\n", config->outputFormat);
 				return -1;
 			}
