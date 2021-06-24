@@ -255,7 +255,10 @@ reader_t lofar_udp_io_parse_type_optarg(const char optargc[], char *fileFormat, 
 		if (strstr(optargc, ".zst") != NULL) {
 			VERBOSE(printf("%s, COMPRESSED\n", optargc));
 			reader = ZSTDCOMPRESSED;
-		} else {
+		} else if (strstr(optargc, ".hdf5") != NULL) {
+			VERBOSE(printf("%s, HDF5\n", optargc));
+			reader = HDF5;
+		}else {
 			reader = NORMAL;
 		}
 		sscanf(optargc, "%[^,],%d,%d", fileFormat, baseVal, offsetVal);

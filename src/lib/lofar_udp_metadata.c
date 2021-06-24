@@ -274,7 +274,7 @@ int lofar_udp_metadata_parse_input_file(lofar_udp_metadata *metadata, const char
 	while ((lineLength = getline(&inputLine, &buffLen, input)) != -1) {
 
 		VERBOSE(printf("Parsing line: %s\n", inputLine));
-		if ((strPtr = strstr(inputLine, "beamctl")) != NULL) {
+		if ((strPtr = strstr(inputLine, "beamctl ")) != NULL) {
 
 			VERBOSE(printf("Beamctl detected, passing on.\n"));
 			if (lofar_udp_metadata_parse_beamctl(metadata, strPtr, beamctlData) < 0) {
