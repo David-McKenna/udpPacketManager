@@ -721,7 +721,9 @@ int lofar_udp_metadata_parse_subbands(lofar_udp_metadata *metadata, const char *
 	// Similarly no offset for mode 3, double the offset for mode 7, etc.
 	// This is why I raise an error when mixing mode 6 (160MHz clock) and anything else (all on the 200MHz clock)
 	for (int i = 0; i < metadata->upm_rawbeamlets; i++) {
-		metadata->subbands[beamlets[i]] = subbandOffset + subbands[i];
+		if (subbands[i] != -1) {
+			metadata->subbands[beamlets[i]] = subbandOffset + subbands[i];
+		}
 	}
 
 	return 0;
