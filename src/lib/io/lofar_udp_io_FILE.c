@@ -11,6 +11,7 @@
  * @return     { description_of_the_return_value }
  */
 int lofar_udp_io_read_setup_FILE(lofar_udp_io_read_config *input, const char *inputLocation, const int port) {
+	VERBOSE(printf("Opening file at %s ofr port %d\n", inputLocation, port));
 	input->fileRef[port] = fopen(inputLocation, "rb");
 	return 0;
 }

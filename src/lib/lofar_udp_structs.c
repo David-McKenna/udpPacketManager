@@ -88,6 +88,7 @@ const lofar_udp_calibration lofar_udp_calibration_default = {
 const lofar_udp_config lofar_udp_config_default = {
 	.inputLocations = {  },
 	.metadataLocation = "",
+	.metadataType = NO_META,
 	.numPorts = 4,
 	.replayDroppedPackets = 0,
 	.processingMode = 0,
@@ -100,7 +101,11 @@ const lofar_udp_config lofar_udp_config_default = {
 	.calibrateData = 0,
 	.calibrationConfiguration = NULL,
 	.ompThreads = OMP_THREADS,
-	.dadaKeys = { -1 } // NEEDS FULL RUNTIME INITIALISATION
+	.dadaKeys = { -1 }, // NEEDS FULL RUNTIME INITIALISATION
+
+	.basePort = 0,
+	.offsetPortCount = 0,
+	.stepSizePort = 1
 };
 
 // Reader / meta with NULL-initialised values to help the cleanup function

@@ -439,34 +439,34 @@ int lofar_udp_cpp_loop_interface(lofar_udp_input_meta *meta) {
 				case 16:
 					switch (processingMode) {
 						case 2:
-							return lofar_udp_raw_loop<signed char, float, 2, 1>(meta);
+							return lofar_udp_raw_loop<signed short, float, 2, 1>(meta);
 
 
 							// Beamlet-major modes
 						case 10:
-							return lofar_udp_raw_loop<signed char, float, 10, 1>(meta);
+							return lofar_udp_raw_loop<signed short, float, 10, 1>(meta);
 						case 11:
-							return lofar_udp_raw_loop<signed char, float, 11, 1>(meta);
+							return lofar_udp_raw_loop<signed short, float, 11, 1>(meta);
 
 
 
 							// Reversed Beamlet-major modes
 						case 20:
-							return lofar_udp_raw_loop<signed char, float, 20, 1>(meta);
+							return lofar_udp_raw_loop<signed short, float, 20, 1>(meta);
 						case 21:
-							return lofar_udp_raw_loop<signed char, float, 21, 1>(meta);
+							return lofar_udp_raw_loop<signed short, float, 21, 1>(meta);
 
 
 
 							// Time-major modes
 						case 30:
-							return lofar_udp_raw_loop<signed char, float, 30, 1>(meta);
+							return lofar_udp_raw_loop<signed short, float, 30, 1>(meta);
 						case 31:
-							return lofar_udp_raw_loop<signed char, float, 31, 1>(meta);
+							return lofar_udp_raw_loop<signed short, float, 31, 1>(meta);
 						case 32:
-							return lofar_udp_raw_loop<signed char, float, 32, 1>(meta);
+							return lofar_udp_raw_loop<signed short, float, 32, 1>(meta);
 						case 35:
-							return lofar_udp_raw_loop<signed char, float, 35, 1>(meta);
+							return lofar_udp_raw_loop<signed short, float, 35, 1>(meta);
 
 
 
@@ -862,7 +862,7 @@ int lofar_udp_cpp_loop_interface(lofar_udp_input_meta *meta) {
 						case 1:
 							return lofar_udp_raw_loop<signed char, signed char, 1, 0>(meta);
 						case 2:
-							return lofar_udp_raw_loop<signed char, signed char, 4002, 0>(meta);
+							return lofar_udp_raw_loop<signed char, signed char, 2, 0>(meta);
 
 							// Beamlet-major modes
 						case 10:
@@ -1064,37 +1064,37 @@ int lofar_udp_cpp_loop_interface(lofar_udp_input_meta *meta) {
 				case 16:
 					switch (processingMode) {
 						case 0:
-							return lofar_udp_raw_loop<signed char, signed short, 0, 0>(meta);
+							return lofar_udp_raw_loop<signed short, signed short, 0, 0>(meta);
 						case 1:
-							return lofar_udp_raw_loop<signed char, signed short, 1, 0>(meta);
+							return lofar_udp_raw_loop<signed short, signed short, 1, 0>(meta);
 						case 2:
-							return lofar_udp_raw_loop<signed char, signed short, 4002, 0>(meta);
+							return lofar_udp_raw_loop<signed short, signed short, 4002, 0>(meta);
 
 							// Beamlet-major modes
 						case 10:
-							return lofar_udp_raw_loop<signed char, signed short, 10, 0>(meta);
+							return lofar_udp_raw_loop<signed short, signed short, 10, 0>(meta);
 						case 11:
-							return lofar_udp_raw_loop<signed char, signed short, 11, 0>(meta);
+							return lofar_udp_raw_loop<signed short, signed short, 11, 0>(meta);
 
 
 
 							// Reversed Beamlet-major modes
 						case 20:
-							return lofar_udp_raw_loop<signed char, signed short, 20, 0>(meta);
+							return lofar_udp_raw_loop<signed short, signed short, 20, 0>(meta);
 						case 21:
-							return lofar_udp_raw_loop<signed char, signed short, 21, 0>(meta);
+							return lofar_udp_raw_loop<signed short, signed short, 21, 0>(meta);
 
 
 
 							// Time-major modes
 						case 30:
-							return lofar_udp_raw_loop<signed char, signed short, 30, 0>(meta);
+							return lofar_udp_raw_loop<signed short, signed short, 30, 0>(meta);
 						case 31:
-							return lofar_udp_raw_loop<signed char, signed short, 31, 0>(meta);
+							return lofar_udp_raw_loop<signed short, signed short, 31, 0>(meta);
 						case 32:
-							return lofar_udp_raw_loop<signed char, signed short, 32, 0>(meta);
+							return lofar_udp_raw_loop<signed short, signed short, 32, 0>(meta);
 						case 35:
-							return lofar_udp_raw_loop<signed char, float, 35, 0>(meta);
+							return lofar_udp_raw_loop<signed short, float, 35, 0>(meta);
 
 
 

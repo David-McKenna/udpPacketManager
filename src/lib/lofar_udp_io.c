@@ -413,7 +413,13 @@ int lofar_udp_io_read_parse_optarg(lofar_udp_config *config, const char optargc[
 		case ZSTDCOMPRESSED:
 		case HDF5:
 			for (int i = 0; i < (MAX_NUM_PORTS - config->offsetPortCount); i++) {
-				lofar_udp_io_parse_format(config->inputLocations[i], fileFormat, (config->basePort + config->offsetPortCount * config->stepSizePort) + i * config->stepSizePort, -1, i, -1);
+				int port = (config->basePort + config->offsetPortCount * config->stepSizePort) + i * config->stepSizePort;
+
+				if (lofar_udp_io_parse_format(config->inputLocations[i], fileFormat, port, -1, i, -1) < 0) {
+					return -1;
+				}
+
+				VERBOSE(printf("%s\n", config->inputLocations[i]));
 			}
 			break;
 
@@ -472,7 +478,7 @@ int lofar_udp_io_write_parse_optarg(lofar_udp_io_write_config *config, const cha
 		return -1;
 	}
 
-	int dummyInt;
+	int dummyInt = 0;
 	config->readerType = lofar_udp_io_parse_type_optarg(optargc, config->outputFormat, &(config->baseVal),
 	                                                    &(config->stepSize), &(dummyInt));
 

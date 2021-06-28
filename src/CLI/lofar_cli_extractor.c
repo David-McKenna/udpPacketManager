@@ -315,6 +315,7 @@ int main(int argc, char *argv[]) {
 		printf("=========== Given configuration ===========\n");
 
 		printf("Input:\t%s\n", inputFormat);
+		for (int i = 0; i < config->numPorts; i++) printf("\t\t%s\n", config->inputLocations[i]);
 		printf("Output File: %s\n\n", outConfig->outputFormat);
 
 		printf("Packets/Gulp:\t%ld\t\t\tPorts:\t%d\n\n", config->packetsPerIteration, config->numPorts);

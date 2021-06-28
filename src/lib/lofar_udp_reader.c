@@ -1042,6 +1042,7 @@ lofar_udp_reader *lofar_udp_reader_setup(lofar_udp_config *config) {
 
 	// TODO: Copy values to calibration struct as needed.
 	if (config->metadataType != NO_META) {
+		VERBOSE(printf("Priming metadata type %d from %s\n", config->metadataType, config->metadataLocation));
 		reader->metadata = calloc(1, sizeof(lofar_udp_metadata));
 		*(reader->metadata) = lofar_udp_metadata_default;
 
