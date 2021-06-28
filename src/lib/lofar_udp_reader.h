@@ -32,6 +32,7 @@ extern "C" {
 #endif
 
 // Reader/meta struct initialisation
+//lofar_udp_reader* lofar_udp_reader_alloc() // NOT A PUBLIC FUNCTION
 lofar_udp_reader *lofar_udp_reader_setup(lofar_udp_config *config);
 int lofar_udp_file_reader_reuse(lofar_udp_reader *reader, long startingPacket, long packetsReadMax);
 

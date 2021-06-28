@@ -14,7 +14,7 @@ const lofar_udp_metadata lofar_udp_metadata_default = {
 	.observer = "",
 	.hostname = "",
 	.baseport = -1,
-	.rawfile = { "" },
+	.rawfile = {  },
 	.output_file_number = -1,
 
 
@@ -42,7 +42,7 @@ const lofar_udp_metadata lofar_udp_metadata_default = {
 	.channel_bw = -0.0,
 	.ftop = -1.0,
 	.fbottom = -1.0,
-	.subbands = { -1 },
+	.subbands = { -1 }, // NEEDS FULL RUNTIME INITIALISATION
 	.nchan = -1,
 	.nrcu = -1,
 	.npol = -1,
@@ -57,7 +57,7 @@ const lofar_udp_metadata lofar_udp_metadata_default = {
 	.rec_version = "",
 	.upm_daq = "",
 	.upm_beamctl = "",
-	.upm_outputfmt = { "" },
+	.upm_outputfmt = {  },
 	.upm_outputfmt_comment = "",
 	.upm_num_inputs = -1,
 	.upm_num_outputs = -1,
@@ -78,8 +78,9 @@ const lofar_udp_metadata lofar_udp_metadata_default = {
 	.upm_upperbeam = -1,
 	.upm_lowerbeam = -1,
 
-	.output = { NULL }
+	.output = { NULL , NULL }
 };
+
 
 // Default values for the ASCII header
 const guppi_hdr guppi_hdr_default = {
@@ -125,7 +126,7 @@ const sigproc_hdr sigproc_hdr_default = {
 	.machine_id = -1,
 
 	.data_type = -1,
-	.rawdatafile = { "" },
+	.rawdatafile = {  },
 
 	// Observation parameters
 	.source_name = "",

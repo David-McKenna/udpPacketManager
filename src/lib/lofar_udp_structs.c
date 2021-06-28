@@ -6,13 +6,13 @@
 // Reader struct default
 const lofar_udp_io_read_config lofar_udp_io_read_config_default = {
 	.readerType = NO_ACTION,
-	.readBufSize = { -1 },
-	.portPacketLength = { -1 },
+	.readBufSize = { -1 }, // NEEDS FULL RUNTIME INITIALISATION
+	.portPacketLength = { -1 }, // NEEDS FULL RUNTIME INITIALISATION
 	.numInputs = 0,
 
 	// Inputs pre- and post-formatting
 	.inputLocations = { "" },
-	.dadaKeys = { -1 },
+	.dadaKeys = { -1 }, // NEEDS FULL RUNTIME INITIALISATION
 	.basePort = 0,
 	.offsetPortCount = 0,
 	.stepSizePort = 1,
@@ -26,7 +26,7 @@ const lofar_udp_io_read_config lofar_udp_io_read_config_default = {
 	.readingTracker = { { NULL } },
 	.decompressionTracker = { { NULL } },
 	.multilog = { NULL },
-	.dadaPageSize = { -1 }
+	.dadaPageSize = { -1 } // NEEDS FULL RUNTIME INITIALISATION
 };
 
 // Writer struct default
@@ -34,14 +34,14 @@ const lofar_udp_io_write_config lofar_udp_io_write_config_default = {
 	// Control options
 	.readerType = NO_ACTION,
 	.metadata = NULL,
-	.writeBufSize = { -1 },
+	.writeBufSize = { -1 }, // NEEDS FULL RUNTIME INITIALISATION
 	.progressWithExisting = 0,
 	.numOutputs = 0,
 
 	// Outputs pre- and post-formatting
 	.outputFormat = "",
 	.outputLocations = { "" },
-	.outputDadaKeys = { -1 },
+	.outputDadaKeys = { -1 }, // NEEDS FULL RUNTIME INITIALISATION
 	.baseVal = 0,
 	.stepSize = 1,
 	.firstPacket = 0,
@@ -86,7 +86,7 @@ const lofar_udp_calibration lofar_udp_calibration_default = {
 
 // Configuration default
 const lofar_udp_config lofar_udp_config_default = {
-	.inputLocations = { "" },
+	.inputLocations = {  },
 	.metadataLocation = "",
 	.numPorts = 4,
 	.replayDroppedPackets = 0,
@@ -100,7 +100,7 @@ const lofar_udp_config lofar_udp_config_default = {
 	.calibrateData = 0,
 	.calibrationConfiguration = NULL,
 	.ompThreads = OMP_THREADS,
-	.dadaKeys = { -1 }
+	.dadaKeys = { -1 } // NEEDS FULL RUNTIME INITIALISATION
 };
 
 // Reader / meta with NULL-initialised values to help the cleanup function

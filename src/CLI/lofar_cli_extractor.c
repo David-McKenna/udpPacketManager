@@ -19,6 +19,7 @@ void helpMessages() {
 	printf("-b: <lo>,<hi>	Beamlets to extract from the input dataset. Lo is inclusive, hi is exclusive ( eg. 0,300 will return 300 beamlets, 0:299). (default: 0,0 === all)\n");
 	printf("-t: <timeStr>	String of the time of the first requested packet, format YYYY-MM-DDTHH:mm:ss (default: '')\n");
 	printf("-s: <numSec>	Maximum number of seconds of raw data to extract/process (default: all)\n");
+	printf("-S: <iters>     Break into a new file every N given iterations (default: infinite, never break)\n");
 	printf("-e: <fileName>	Specify a file of events to extract; newline separated start time and durations in seconds. Events must not overlap.\n");
 	printf("-p: <mode>		Processing mode, options listed below (default: 0)\n");
 	printf("-r:		Replay the previous packet when a dropped packet is detected (default: pad with 0 values)\n");
@@ -69,7 +70,7 @@ int main(int argc, char *argv[]) {
 	float seconds = 0.0f;
 	char inputTime[256] = "", eventsFile[DEF_STR_LEN] = "", stringBuff[128] = "", inputFormat[DEF_STR_LEN] = "";
 	int silent = 0, returnCounter = 0, eventCount = 0, callMockHdr = 0, inputProvided = 0, outputProvided = 0;
-	long maxPackets = -1, startingPacket = -1;
+	long maxPackets = -1, startingPacket = -1, splitEvery = LONG_MAX;
 	int clock200MHz = 1;
 	FILE *eventsFilePtr;
 
@@ -79,7 +80,7 @@ int main(int argc, char *argv[]) {
 	(*cal) = lofar_udp_calibration_default;
 	config->calibrationConfiguration = cal;
 
-	lofar_udp_io_write_config *outConfig = calloc(1, sizeof(lofar_udp_io_write_config));
+	lofar_udp_io_write_config *outConfig = lofar_udp_io_alloc_write();
 	(*outConfig) = lofar_udp_io_write_config_default;
 
 	char *headerBuffer = NULL;
@@ -106,7 +107,7 @@ int main(int argc, char *argv[]) {
 	char *endPtr, flagged = 0;
 
 	// Standard ugly input flags parser
-	while ((inputOpt = getopt(argc, argv, "zrqfvVi:o:m:M:I:u:t:s:e:p:a:n:b:ck:T:")) != -1) {
+	while ((inputOpt = getopt(argc, argv, "zrqfvVi:o:m:M:I:u:t:s:S:e:p:a:n:b:ck:T")) != -1) {
 		input = 1;
 		switch (inputOpt) {
 
@@ -153,6 +154,11 @@ int main(int argc, char *argv[]) {
 
 			case 's':
 				seconds = strtof(optarg, &endPtr);
+				if (checkOpt(inputOpt, optarg, endPtr)) { flagged = 1; }
+				break;
+
+			case 'S':
+				splitEvery = strtoi(optarg, &endPtr);
 				if (checkOpt(inputOpt, optarg, endPtr)) { flagged = 1; }
 				break;
 
@@ -256,6 +262,13 @@ int main(int argc, char *argv[]) {
 		return 1;
 	}
 
+	// Split-every and events are considered incompatible to simplify the implementation
+	if (splitEvery != LONG_MAX && strcmp(eventsFile, "") != 0) {
+		fprintf(stderr, "ERROR: Events file and split-every functionality cannot be combined, exiting.\n");
+		CLICleanup(eventCount, dateStr, startingPackets, multiMaxPackets, eventSeconds, config, outConfig, headerBuffer);
+		return 1;
+	}
+
 	// DADA outputs should not be fragments, or require writing to disk (mockHeader deleted files and rewrites...)
 	if (config->readerType == DADA_ACTIVE && strcmp(eventsFile, "") != 0) {
 		fprintf(stderr, "ERROR: DADA output does not support events parsing, exiting.\n");
@@ -287,7 +300,7 @@ int main(int argc, char *argv[]) {
 		(config->processingMode > 1000 || config->processingMode < 0) ||
 		// Processing mode is sane (may still fail later)
 		(seconds < 0) || // Time is sane
-		(config->ompThreads < 1)) // Number of threads will allow excution to continue
+		(config->ompThreads < 1)) // Number of threads will allow execution to continue
 	{
 
 		fprintf(stderr, "One or more inputs invalid or not fully initialised, exiting.\n");
@@ -532,9 +545,9 @@ int main(int argc, char *argv[]) {
 		}
 
 
-		// Get the starting packet for output file names
+		// Get the starting packet for output file names, fix the packets per iteration if we dropped packets on the last iter
 		startingPacket = reader->meta->leadingPacket;
-
+		reader->meta->packetsPerIteration = reader->packetsPerIteration;
 		if (lofar_udp_io_write_setup_helper(outConfig, reader->meta, eventLoop) < 0) {
 			CLICleanup(eventCount, dateStr, startingPackets, multiMaxPackets, eventSeconds, config, outConfig, headerBuffer);
 			return 1;
@@ -588,6 +601,27 @@ int main(int argc, char *argv[]) {
 
 			}
 
+			if (splitEvery != LONG_MAX) {
+				localLoops += 1;
+				if (localLoops == splitEvery) {
+					eventLoop += 1;
+
+					// Close existing files
+					for (int outp = 0; outp < reader->meta->numOutputs; outp++) {
+						lofar_udp_io_write_cleanup(outConfig, outp, 1);
+					}
+
+					// Open new files
+					reader->meta->packetsPerIteration = reader->packetsPerIteration;
+					if (lofar_udp_io_write_setup_helper(outConfig, reader->meta, eventLoop) < 0) {
+						CLICleanup(eventCount, dateStr, startingPackets, multiMaxPackets, eventSeconds, config, outConfig, headerBuffer);
+						return 1;
+					}
+
+					localLoops = 0;
+				}
+			}
+
 			totalMetadataTime += timing[2];
 			totalWriteTime += timing[3];
 
@@ -628,13 +662,13 @@ int main(int argc, char *argv[]) {
 			CLICK(tick0);
 		}
 
+		for (int outp = 0; outp < reader->meta->numOutputs; outp++) {
+			lofar_udp_io_write_cleanup(outConfig, outp, 1);
+		}
+
 	}
 
 	CLICK(tock);
-
-	for (int outp = 0; outp < reader->meta->numOutputs; outp++) {
-		lofar_udp_io_write_cleanup(outConfig, outp, 1);
-	}
 
 	int droppedPackets = 0;
 	long totalPacketLength = 0, totalOutLength = 0;

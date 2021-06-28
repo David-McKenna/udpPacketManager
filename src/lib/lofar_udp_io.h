@@ -15,6 +15,10 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
+// Struct alloc functions
+lofar_udp_io_read_config* lofar_udp_io_alloc_read();
+lofar_udp_io_write_config* lofar_udp_io_alloc_write();
+
 // Setup wrapper functions
 int lofar_udp_io_read_setup(lofar_udp_io_read_config *input, int port);
 int lofar_udp_io_write_setup(lofar_udp_io_write_config *config, int iter);

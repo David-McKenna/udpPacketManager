@@ -671,8 +671,12 @@ int lofar_udp_metadata_parse_subbands(lofar_udp_metadata *metadata, const char *
 		return -1;
 	}
 
-	int subbands[MAX_NUM_PORTS * UDPMAXBEAM] = { -1 };
-	int beamlets[MAX_NUM_PORTS * UDPMAXBEAM] = { -1 };
+	int subbands[MAX_NUM_PORTS * UDPMAXBEAM] = { 0 };
+	int beamlets[MAX_NUM_PORTS * UDPMAXBEAM] = { 0 };
+
+	ARR_INIT(subbands, MAX_NUM_PORTS * UDPMAXBEAM, -1);
+	ARR_INIT(beamlets, MAX_NUM_PORTS * UDPMAXBEAM, -1);
+
 
 	for (int i = 0; i < MAX_NUM_PORTS * UDPMAXBEAM; i++) {
 		subbands[i] = -1;

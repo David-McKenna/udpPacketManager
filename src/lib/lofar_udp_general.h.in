@@ -126,6 +126,17 @@ typedef struct __attribute__((__packed__)) lofar_source_bytes {
 
 #endif // end of LOFAR_UDP_TICKTOCK_MACRO
 
+// Array initialisation macro
+#ifndef LOFAR_UDP_INIT_MACRO
+#define LOFAR_UDP_INIT_MACRO
+
+#define ARR_INIT(arr, entries, val) \
+	for (int ARRIDX = 0; ARRIDX < entries; ARRIDX++) { \
+		arr[ARRIDX] = val;\
+	}
+#endif LOFAR_UDP_INIT_MACRO
+
+
 
 #ifndef LOFAR_UDP_GENERAL_H
 #define LOFAR_UDP_GENERAL_H

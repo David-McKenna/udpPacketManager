@@ -2,7 +2,30 @@
 
 
 // Setup functions
-//
+
+
+lofar_udp_io_read_config* lofar_udp_io_alloc_read() {
+	lofar_udp_io_read_config *input = calloc(1, sizeof(lofar_udp_io_read_config));
+	(*input) = lofar_udp_io_read_config_default;
+
+	ARR_INIT(input->readBufSize, MAX_NUM_PORTS, -1);
+	ARR_INIT(input->portPacketLength, MAX_NUM_PORTS, -1);
+	ARR_INIT(input->dadaKeys, MAX_NUM_PORTS, -1);
+	ARR_INIT(input->dadaPageSize, MAX_NUM_PORTS, -1);
+
+	return input;
+}
+
+lofar_udp_io_write_config* lofar_udp_io_alloc_write() {
+	lofar_udp_io_write_config *output = calloc(1, sizeof(lofar_udp_io_write_config));
+	(*output) = lofar_udp_io_write_config_default;
+
+	ARR_INIT(output->writeBufSize, MAX_OUTPUT_DIMS, -1);
+	ARR_INIT(output->outputDadaKeys, MAX_OUTPUT_DIMS, -1);
+
+	return output;
+}
+
 // @param      input   The input
 // @param[in]  config  The configuration
 // @param[in]  meta    The meta

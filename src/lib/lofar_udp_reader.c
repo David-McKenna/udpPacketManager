@@ -3,6 +3,15 @@
 
 
 
+lofar_udp_reader* lofar_udp_reader_alloc() {
+	lofar_udp_reader *reader = calloc(1, sizeof(lofar_udp_reader));
+	(*reader) = lofar_udp_reader_default;
+	lofar_udp_io_read_config *input = lofar_udp_io_alloc_read();
+	reader->input = input;
+
+	return reader;
+}
+
 /**
  * @brief      Parse LOFAR UDP headers to determine some metadata about the
  *             ports
@@ -1006,14 +1015,10 @@ lofar_udp_reader *lofar_udp_reader_setup(lofar_udp_config *config) {
 
 
 	// Allocate the structs and initialise them
-	lofar_udp_reader *reader = calloc(1, sizeof(lofar_udp_reader));
-	lofar_udp_io_read_config *input = calloc(1, sizeof(lofar_udp_io_read_config));
-	(*reader) = lofar_udp_reader_default;
-	(*input) = lofar_udp_io_read_config_default;
-	reader->input = input;
+	lofar_udp_reader *reader = lofar_udp_reader_alloc();
 
 	// Initialise the reader struct from config
-	input->readerType = (reader_t) config->readerType;
+	reader->input->readerType = (reader_t) config->readerType;
 	reader->packetsPerIteration = meta->packetsPerIteration;
 	reader->meta = meta;
 
@@ -1028,7 +1033,7 @@ lofar_udp_reader *lofar_udp_reader_setup(lofar_udp_config *config) {
 
 	for (int port = 0; port < (meta->numPorts); port++) {
 		// Check for errors, cleanup and return if needed
-		if (lofar_udp_io_read_setup_helper(input, config, meta, port) < 0) {
+		if (lofar_udp_io_read_setup_helper(reader->input, config, meta, port) < 0) {
 			lofar_udp_reader_cleanup(reader);
 			return NULL;
 		}
