@@ -603,7 +603,7 @@ int main(int argc, char *argv[]) {
 
 			}
 
-			if (splitEvery != LONG_MAX) {
+			if (splitEvery != LONG_MAX && returnVal > -1) {
 				if ((localLoops + 1) == splitEvery) {
 					eventLoop += 1;
 
