@@ -1,4 +1,4 @@
-FROM intel/oneapi-hpckit:devel-ubuntu18.04
+FROM ubuntu:latest
 SHELL ["/bin/bash", "-l", "-c"]
 
 
