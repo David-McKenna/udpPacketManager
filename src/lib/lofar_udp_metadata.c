@@ -374,7 +374,7 @@ int lofar_udp_metadata_parse_reader(lofar_udp_metadata *metadata, const lofar_ud
 	}
 
 	// Check the meatdata state -- we need it to have been populated with beamctl data before we can do anything useful
-	if (metadata->upm_upperbeam == -1 || metadata->upm_lowerbeam == -1) {
+	if (metadata->upm_rcuclock == -1 || metadata->upm_upperbeam == -1 || metadata->upm_lowerbeam == -1) {
 		fprintf(stderr, "WARNING: Unable to update frequency information from reader.\n"
 				  "Either the rcuclock (%d),  lower (%d) or upper (%d) beam was undefined.\n",
 				  metadata->upm_rcuclock, metadata->upm_lowerbeam, metadata->upm_upperbeam);
@@ -963,7 +963,7 @@ int lofar_udp_metadata_update_frequencies(lofar_udp_metadata *metadata, int *sub
 		return -1;
 	}
 
-	double meanSubband = (double) subbandData[1] / metadata->nchan;
+	double meanSubband = (double) subbandData[1] / (double) metadata->nchan;
 
 	VERBOSE(printf("SubbandData: %d, %d, %d\n", subbandData[0], subbandData[1], subbandData[2]));
 

@@ -107,7 +107,7 @@ int main(int argc, char *argv[]) {
 	char *endPtr, flagged = 0;
 
 	// Standard ugly input flags parser
-	while ((inputOpt = getopt(argc, argv, "zrqfvVi:o:m:M:I:u:t:s:S:e:p:a:n:b:ck:T")) != -1) {
+	while ((inputOpt = getopt(argc, argv, "zrqfvVi:o:m:M:I:u:t:s:S:e:p:a:n:b:ck:T:")) != -1) {
 		input = 1;
 		switch (inputOpt) {
 
@@ -573,7 +573,9 @@ int main(int argc, char *argv[]) {
 
 			// Write out the desired amount of packets; cap if needed.
 			packetsToWrite = reader->meta->packetsPerIteration;
-			if (multiMaxPackets[eventLoop] < packetsToWrite) { packetsToWrite = multiMaxPackets[eventLoop]; }
+			if (splitEvery == LONG_MAX && multiMaxPackets[eventLoop] < packetsToWrite) {
+				packetsToWrite = multiMaxPackets[eventLoop];
+			}
 
 
 
@@ -602,13 +604,13 @@ int main(int argc, char *argv[]) {
 			}
 
 			if (splitEvery != LONG_MAX) {
-				if (localLoops == splitEvery) {
+				if ((localLoops + 1) == splitEvery) {
 					eventLoop += 1;
 
 
 					// Close existing files
 					for (int outp = 0; outp < reader->meta->numOutputs; outp++) {
-						lofar_udp_io_write_cleanup(outConfig, outp, 1);
+						lofar_udp_io_write_cleanup(outConfig, outp, 0);
 					}
 
 					// Open new files
@@ -618,7 +620,7 @@ int main(int argc, char *argv[]) {
 						return 1;
 					}
 
-					localLoops = 0;
+					localLoops = -1;
 				}
 			}
 
