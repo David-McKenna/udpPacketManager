@@ -124,7 +124,7 @@ typedef struct __attribute__((__packed__)) lofar_source_bytes {
 #define CLICK(clock) clock_gettime(CLOCK_MONOTONIC_RAW, &clock);
 #define TICKTOCK(tick, tock) ((double) (tock.tv_nsec - tick.tv_nsec) / 1000000000.0) + (tock.tv_sec - tick.tv_sec)
 
-#endif // end of LOFAR_UDP_TICKTOCK_MACRO
+#endif // End of LOFAR_UDP_TICKTOCK_MACRO
 
 // Array initialisation macro
 #ifndef LOFAR_UDP_INIT_MACRO
@@ -134,7 +134,7 @@ typedef struct __attribute__((__packed__)) lofar_source_bytes {
 	for (int ARRIDX = 0; ARRIDX < entries; ARRIDX++) { \
 		arr[ARRIDX] = val;\
 	}
-#endif LOFAR_UDP_INIT_MACRO
+#endif // End of LOFAR_UDP_INIT_MACRO
 
 
 
