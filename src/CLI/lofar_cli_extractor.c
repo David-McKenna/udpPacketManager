@@ -602,9 +602,9 @@ int main(int argc, char *argv[]) {
 			}
 
 			if (splitEvery != LONG_MAX) {
-				localLoops += 1;
 				if (localLoops == splitEvery) {
 					eventLoop += 1;
+
 
 					// Close existing files
 					for (int outp = 0; outp < reader->meta->numOutputs; outp++) {

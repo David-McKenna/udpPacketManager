@@ -629,17 +629,19 @@ long lofar_udp_io_write_metadata(lofar_udp_io_write_config *outConfig, int outp,
 		return -1;
 	}
 
+	ssize_t trueHeaderLen = strnlen(headerBuffer, headerLength);
+
 	switch (outConfig->readerType) {
 		// Normal file writes
 		case NORMAL:
 		case FIFO:
 		case ZSTDCOMPRESSED:
 		case DADA_ACTIVE:
-			return lofar_udp_io_write_FILE(outConfig, outp, headerBuffer, headerLength);
+			return lofar_udp_io_write(outConfig, outp, headerBuffer, trueHeaderLen);
 
 
 		case HDF5:
-			return lofar_udp_io_write_metadata_HDF5(outConfig, metadata, headerBuffer, headerLength);
+			return lofar_udp_io_write_metadata_HDF5(outConfig, metadata, headerBuffer, trueHeaderLen);
 
 		default:
 			fprintf(stderr, "ERROR: Unknown reader %d, exiting.\n", outConfig->readerType);
