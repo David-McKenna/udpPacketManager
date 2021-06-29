@@ -177,10 +177,6 @@ target_link_libraries(lofudpman PUBLIC OpenMP::OpenMP_CXX OpenMP::OpenMP_C)
 add_executable(lofar_udp_extractor src/CLI/lofar_cli_extractor.c)
 target_link_libraries(lofar_udp_extractor PUBLIC lofudpman)
 
-add_executable(lofar_udp_guppi_raw src/CLI/lofar_cli_guppi_raw.c)
-target_link_libraries(lofar_udp_guppi_raw PUBLIC lofudpman)
-
-
 
 include(CMakePackageConfigHelpers)
 write_basic_package_version_file(
@@ -190,7 +186,7 @@ write_basic_package_version_file(
 )
 
 # Install everything
-install(TARGETS lofudpman lofar_udp_extractor lofar_udp_guppi_raw
+install(TARGETS lofudpman lofar_udp_extractor
 		EXPORT lofudpman
 		LIBRARY DESTINATION lib
 		RUNTIME DESTINATION bin
