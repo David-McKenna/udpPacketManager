@@ -1,11 +1,13 @@
 #include "lofar_cli_meta.h"
 
 
-const char exitReasons[6][1024] = { "", "",
+const char exitReasons[8][DEF_STR_LEN] = { "", "",
 									"Reached the packet limit set at start-up",
 									"Read less data than requested from file (near EOF or disk error)",
 									"Metadata failed to write",
-									"Output data failed to write"};
+									"Output data failed to write",
+									"Failed to open new file",
+									"Failed to re-initialise reader for new event"};
 
 void processingModes(void) {
 	printf("\n\nProcessing modes:\n");

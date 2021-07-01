@@ -517,8 +517,8 @@ int main(int argc, char *argv[]) {
 														 multiMaxPackets[eventLoop])) > 0) {
 				fprintf(stderr, "Error re-initialising reader for event %d (error %d), exiting.\n", eventLoop,
 						returnVal);
-				CLICleanup(eventCount, dateStr, startingPackets, multiMaxPackets, eventSeconds, config, outConfig, headerBuffer);
-				return 1;
+				returnVal = -7;
+				break;
 			}
 		}
 
@@ -549,9 +549,10 @@ int main(int argc, char *argv[]) {
 		// Get the starting packet for output file names, fix the packets per iteration if we dropped packets on the last iter
 		startingPacket = reader->meta->leadingPacket;
 		reader->meta->packetsPerIteration = reader->packetsPerIteration;
-		if (lofar_udp_io_write_setup_helper(outConfig, reader->meta, eventLoop) < 0) {
-			CLICleanup(eventCount, dateStr, startingPackets, multiMaxPackets, eventSeconds, config, outConfig, headerBuffer);
-			return 1;
+		if ((returnVal = lofar_udp_io_write_setup_helper(outConfig, reader->meta, eventLoop)) < 0) {
+			fprintf(stderr, "ERROR: Failed to open a new output file (%d, errno %d: %s), breaking.\n", returnVal, errno, strerror(errno));
+			returnVal = -6;
+			break;
 		}
 
 
@@ -584,7 +585,8 @@ int main(int argc, char *argv[]) {
 
 			for (int out = 0; out < reader->meta->numOutputs; out++) {
 				CLICK(tick1);
-				if (lofar_udp_metadata_write_file(reader, outConfig, out, reader->metadata, headerBuffer, 4096 * 8, localLoops == 0) < 0) {
+				if ((returnVal = lofar_udp_metadata_write_file(reader, outConfig, out, reader->metadata, headerBuffer, 4096 * 8, localLoops == 0)) < 0) {
+					fprintf(stderr, "ERROR: Failed to write header to output (%d, errno %d: %s), breaking.\n", returnVal, errno, strerror(errno));
 					returnVal = -4;
 					break;
 				}
@@ -594,8 +596,9 @@ int main(int argc, char *argv[]) {
 				CLICK(tick0);
 				VERBOSE(printf("Writing %ld bytes (%ld packets) to disk for output %d...\n",
 				               packetsToWrite * reader->meta->packetOutputLength[out], packetsToWrite, out));
-				if (lofar_udp_io_write(outConfig, out, reader->meta->outputData[out],
-									   packetsToWrite * reader->meta->packetOutputLength[out]) < 0) {
+				if ((returnVal = lofar_udp_io_write(outConfig, out, reader->meta->outputData[out],
+									   packetsToWrite * reader->meta->packetOutputLength[out])) < 0) {
+					fprintf(stderr, "ERROR: Failed to write data to output (%d, errno %d: %s)), breaking.\n", returnVal, errno, strerror(errno));
 					returnVal = -5;
 					break;
 				}
@@ -616,9 +619,10 @@ int main(int argc, char *argv[]) {
 
 					// Open new files
 					reader->meta->packetsPerIteration = reader->packetsPerIteration;
-					if (lofar_udp_io_write_setup_helper(outConfig, reader->meta, eventLoop) < 0) {
-						CLICleanup(eventCount, dateStr, startingPackets, multiMaxPackets, eventSeconds, config, outConfig, headerBuffer);
-						return 1;
+					if ((returnVal = lofar_udp_io_write_setup_helper(outConfig, reader->meta, eventLoop)) < 0) {
+						fprintf(stderr, "ERROR: Failed to open new file are breakpoint reached (%d, errno %d: %s), breaking.\n", returnVal, errno, strerror(errno));
+						returnVal = -6;
+						break;
 					}
 
 					localLoops = -1;

@@ -23,7 +23,7 @@ int checkOpt(char opt, char *inp, char *endPtr);
 int strtoi(char *str, char **endPtr);
 
 // Exit reasons, 0, 1 aren't handled, only defined up to 3
-extern const char exitReasons[6][1024];
+extern const char exitReasons[8][DEF_STR_LEN];
 
 
 #ifdef __cplusplus // End extern C
