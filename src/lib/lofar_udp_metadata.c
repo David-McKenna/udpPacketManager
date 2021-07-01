@@ -973,7 +973,7 @@ int lofar_udp_metadata_update_frequencies(lofar_udp_metadata *metadata, int *sub
 	metadata->fbottom = metadata->channel_bw * (0.5 + subbandData[2]);
 	// Define the observation bandwidth as the bandwidth between the centre of the top and bottom channels,
 	//  plus a subband to account for the expanded bandwidth from the centre to the edges of the band
-	metadata->bw = metadata->ftop - metadata->fbottom;
+	metadata->bw = (metadata->fbottom - metadata->ftop);
 
 	if (metadata->bw > 0) {
 		metadata->bw += metadata->channel_bw;
