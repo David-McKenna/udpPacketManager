@@ -150,7 +150,7 @@ int lofar_udp_metadata_update_GUPPI(lofar_udp_metadata *metadata, int newObs) {
 
 	metadata->output.guppi->dropblk = metadata->upm_last_dropped_packets / metadata->upm_pack_per_iter / metadata->upm_num_inputs;
 	metadata->output.guppi->droptot = metadata->upm_dropped_packets / metadata->upm_processed_packets;
-	metadata->output.guppi->pktidx = metadata->upm_processed_packets - metadata->upm_pack_per_iter;
+	metadata->output.guppi->pktidx = (metadata->upm_processed_packets / metadata->upm_num_inputs) - metadata->upm_pack_per_iter;
 
 	if (newObs) {
 		metadata->output.guppi->stt_imjd = (int) metadata->obs_mjd_start;
