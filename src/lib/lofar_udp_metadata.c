@@ -243,8 +243,6 @@ int lofar_udp_metdata_set_default(lofar_udp_metadata *metadata) {
 }
 
 int lofar_udp_metadata_parse_input_file(lofar_udp_metadata *metadata, const char *inputFile) {
-	char *inputLine = NULL, *strPtr = NULL;
-
 	if (inputFile == NULL) {
 		fprintf(stderr, "ERROR %s: Input file pointer is null, exiting.\n", __func__);
 		return -1;
@@ -263,17 +261,65 @@ int lofar_udp_metadata_parse_input_file(lofar_udp_metadata *metadata, const char
 	strncpy(metadata->source, "UNKNOWN", META_STR_LEN);
 
 
-	size_t buffLen = 0;
-	ssize_t lineLength;
 	int beamctlData[] = { -1, INT_MAX, 0, -1, 0, INT_MAX, 0, -1, 0 };
 
 	// Reset the number of parsed beamlets
 	metadata->upm_rawbeamlets = 0;
+	const char yamlSignature[] = ".yml";
+	if (strstr(inputFile, yamlSignature) != NULL) {
+		if (lofar_udp_metadata_parse_yaml_file(metadata, input, beamctlData) < 0) {
+			fclose(input);
+			return -1;
+		}
+	} else {
+		if (lofar_udp_metadata_parse_normal_file(metadata, input, beamctlData) < 0) {
+			fclose(input);
+			return -1;
+		}
+	}
+	// Close the metadata file now that we have parsed it
+	fclose(input);
 
+	// Ensure we parsed either an --rcumode=<x> or --band=<x>_<y> parameter
+	if (beamctlData[0] < 1) {
+		fprintf(stderr, "ERROR: Beamctl parsing did not detect the RCU mode (%d), exiting.\n", beamctlData[0]);
+		return -1;
+	}
+
+	// Ensure the total number of beamlets and subband match (otherwise the input line(s) were invalid)
+	if (beamctlData[4] != beamctlData[8]) {
+		fprintf(stderr, "ERROR: Number of subbands does not match number of beamlets (%d vs %d), exiting.\n", beamctlData[4], beamctlData[8]);
+		return -1;
+	}
+
+	// Update the metadata struct to describe the input commands
+	metadata->upm_lowerbeam = beamctlData[5];
+	metadata->nchan = beamctlData[6];
+	metadata->upm_upperbeam = beamctlData[7];
+	metadata->upm_rcuclock = lofar_udp_metadata_get_clockmode(beamctlData[0]);
+
+	// Remaining few bits
+	if (strncpy(metadata->upm_version, UPM_VERSION, META_STR_LEN) != metadata->upm_version) {
+		fprintf(stderr, "ERROR: Failed to copy UPM version into metadata struct, exiting.\n");
+		return -1;
+	}
+
+	if (lofar_udp_metadata_update_frequencies(metadata, &(beamctlData[1])) < 0) {
+		return -1;
+	}
+
+	return 0;
+}
+
+int lofar_udp_metadata_parse_normal_file(lofar_udp_metadata *metadata, FILE *input, int *beamctlData) {
+
+	char *inputLine = NULL, *strPtr = NULL;
+	size_t buffLen = 0;
+	ssize_t lineLength;
 	// For each line in the file
 	while ((lineLength = getline(&inputLine, &buffLen, input)) != -1) {
 
-		VERBOSE(printf("Parsing line: %s\n", inputLine));
+		VERBOSE(printf("Parsing line (%ld): %s\n", lineLength, inputLine));
 		if ((strPtr = strstr(inputLine, "beamctl ")) != NULL) {
 
 			VERBOSE(printf("Beamctl detected, passing on.\n"));
@@ -326,44 +372,18 @@ int lofar_udp_metadata_parse_input_file(lofar_udp_metadata *metadata, const char
 
 
 		VERBOSE(printf("Beamctl data state: %d, %d, %d, %d, %d, %d\n", beamctlData[0], beamctlData[1], beamctlData[2], beamctlData[3], beamctlData[4], beamctlData[5]);
-		VERBOSE(printf("Getting next line.\n")));
+			        VERBOSE(printf("Getting next line.\n")));
 
- 	}
+	}
 	// Free the getline buffer if it still exists (during testing this was raised as a non-free'd pointer)
 	FREE_NOT_NULL(inputLine);
 
-	// Close the metadata file now that we have parsed it
-	fclose(input);
-
-	// Ensure we parsed either an --rcumode=<x> or --band=<x>_<y> parameter
-	if (beamctlData[0] < 1) {
-		fprintf(stderr, "ERROR: Beamctl parsing did not detect the RCU mode (%d), exiting.\n", beamctlData[0]);
-		return -1;
-	}
-
-	// Ensure the total number of beamlets and subband match (otherwise the input line(s) were invalid)
-	if (beamctlData[4] != beamctlData[8]) {
-		fprintf(stderr, "ERROR: Number of subbands does not match number of beamlets (%d vs %d), exiting.\n", beamctlData[4], beamctlData[8]);
-		return -1;
-	}
-
-	// Update the metadata struct to describe the input commands
-	metadata->upm_lowerbeam = beamctlData[5];
-	metadata->nchan = beamctlData[6];
-	metadata->upm_upperbeam = beamctlData[7];
-	metadata->upm_rcuclock = lofar_udp_metadata_get_clockmode(beamctlData[0]);
-
-	// Remaining few bits
-	if (strncpy(metadata->upm_version, UPM_VERSION, META_STR_LEN) != metadata->upm_version) {
-		fprintf(stderr, "ERROR: Failed to copy UPM version into metadata struct, exiting.\n");
-		return -1;
-	}
-
-	if (lofar_udp_metadata_update_frequencies(metadata, &(beamctlData[1])) < 0) {
-		return -1;
-	}
-
 	return 0;
+}
+
+int lofar_udp_metadata_parse_yaml_file(lofar_udp_metadata *metadata, FILE *input, int *beamctlData) {
+	fprintf(stderr, "YAML files not currently supported, exiting.\n");
+	return -1;
 }
 
 int lofar_udp_metadata_parse_reader(lofar_udp_metadata *metadata, const lofar_udp_reader *reader) {
@@ -373,7 +393,7 @@ int lofar_udp_metadata_parse_reader(lofar_udp_metadata *metadata, const lofar_ud
 		return -1;
 	}
 
-	// Check the meatdata state -- we need it to have been populated with beamctl data before we can do anything useful
+	// Check the metadata state -- we need it to have been populated with beamctl data before we can do anything useful
 	if (metadata->upm_rcuclock == -1 || metadata->upm_upperbeam == -1 || metadata->upm_lowerbeam == -1) {
 		fprintf(stderr, "WARNING: Unable to update frequency information from reader.\n"
 				  "Either the rcuclock (%d),  lower (%d) or upper (%d) beam was undefined.\n",
@@ -598,37 +618,47 @@ int lofar_udp_metadata_parse_pointing(lofar_udp_metadata *metadata, const char i
 	// 2pi / 360deg -> 0.01745329251 rad/deg
 	const double rad2Deg = 0.01745329251;
 
+	// Parse a comma separate long,lat,basis string
 	if (sscanf(inputStr, "%*[^0-9]%lf,%lf,%[a-zA-Z0-9]s", &lon, &lat, basis) < 2) {
-//	if (sscanf(inputStr, "%*[^0-9]%lf,%lf,%s%*[^\'\"\\]", &lon, &lat, basis) < 2) {
 		fprintf(stderr, "ERROR: Failed to parse pointing string %s, exiting.\n", inputStr);
 		return -1;
 	}
 
+	// Avoiding libmath imports, so manual modulo-s ahead.
+	// Take a copy of the values to work with
 	lon_work = lon;
 	lat_work = lat;
 
-	// Avoiding libmath imports, so manually manual modulo-s ahead.
+	// Radians -> hh:mm:ss.sss
 	ra[0] = lon_work / rad2HA;
 	lon_work -= ra[0] * rad2HA;
 	ra[1] = lon_work / (rad2HA / 60);
 	lon_work -= ra[1] * (rad2HA / 60);
 	ra_s = lon_work / (rad2HA / 60 / 60);
 
+	// Radians -> dd:mm:ss.sss
 	dec[0] = lat_work / rad2Deg;
 	lat_work -= dec[0] * rad2Deg;
 	dec[1] = lat_work / (rad2Deg / 60);
 	lat_work -= dec[1] * (rad2Deg / 60);
 	dec_s = lat_work / (rad2HA / 60 / 60);
 
+	// Save the radian values to the struct
+	// Swap string destinations based on the digi flag
 	char *dest[2];
 	if (digi) {
+		metadata->ra_rad = lon;
+		metadata->dec_rad = lat;
 		dest[0] = metadata->ra;
 		dest[1] = metadata->dec;
 	} else {
+		metadata->ra_rad_analog = lon;
+		metadata->dec_rad_analog = lat;
 		dest[0] = metadata->ra_analog;
 		dest[1] = metadata->dec_analog;
 	}
 
+	// Print 0-padded dd:mm:ss.sss.. values to strings
 	if (sprintf(dest[0], "%02d:%02d:%012.9lf", ra[0], ra[1], ra_s) < 0) {
 		fprintf(stderr, "ERROR: Failed to print RA/Lon to metadata, exiting.\n");
 		return -1;
@@ -639,6 +669,7 @@ int lofar_udp_metadata_parse_pointing(lofar_udp_metadata *metadata, const char i
 		return -1;
 	}
 
+	// Verify or set the basis
 	if (strlen(metadata->coord_basis) > 0) {
 		VERBOSE(printf("Basis already set, comparing...\n"));
 		if (strcmp(basis, metadata->coord_basis) != 0) {
@@ -651,14 +682,6 @@ int lofar_udp_metadata_parse_pointing(lofar_udp_metadata *metadata, const char i
 			fprintf(stderr, "ERROR: Failed to copy coordinate basis to metadata struct, exiting.\n");
 			return -1;
 		}
-	}
-
-	if (digi) {
-		metadata->ra_rad = lon;
-		metadata->dec_rad = lat;
-	} else {
-		metadata->ra_rad_analog = lon;
-		metadata->dec_rad_analog = lat;
 	}
 
 	return 0;
@@ -1307,8 +1330,7 @@ int lofar_udp_metadata_processing_mode_metadata(lofar_udp_metadata *metadata) {
 			break;
 
 
-			// Stokes outputs
-			// May need to double check, should npol be 1 here?
+		// Stokes outputs
 		case 100 ... 104:
 		case 110 ... 114:
 		case 120 ... 124:
@@ -1317,6 +1339,8 @@ int lofar_udp_metadata_processing_mode_metadata(lofar_udp_metadata *metadata) {
 		case 210 ... 214:
 		case 220 ... 224:
 		case 230 ... 234:
+		case 150 ... 154:
+		case 250 ... 254:
 		case 160 ... 164:
 		case 260 ... 264:
 			// Intensity: Square-law detected total power.
@@ -1327,18 +1351,9 @@ int lofar_udp_metadata_processing_mode_metadata(lofar_udp_metadata *metadata) {
 			}
 			break;
 
-		// I don't think our split order is compatible here, but worth a shot...
-		case 150 ... 154:
-		case 250 ... 254:
-			// Stokes:  Stokes I,Q,U,V.
-			metadata->upm_output_voltages = 0;
-			if (strncpy(metadata->state, "Stokes", META_STR_LEN) != metadata->state) {
-				fprintf(stderr, "ERROR: Failed to set metadata state, exiting.\n");
-				return -1;
-			}
-			break;
-
-
+		default:
+			fprintf(stderr, "ERROR %s: Unknown processing mode %d, exiting.\n", __func__, metadata->upm_procmode);
+			return -1;
 	}
 
 	// Output bit mode
@@ -1357,12 +1372,7 @@ int lofar_udp_metadata_processing_mode_metadata(lofar_udp_metadata *metadata) {
 
 		// Mode 35 is the same as 32, but forced to be floats
 		case 35:
-			metadata->nbit = -32;
-			break;
-
-
-			// Stokes outputs
-			// May need to double check, should npol be 1 here?
+		// Stokes outputs
 		case 100 ... 104:
 		case 110 ... 114:
 		case 120 ... 124:
@@ -1438,7 +1448,7 @@ int lofar_udp_metadata_get_station_name(int stationID, char *stationCode) {
 			break;
 
 
-			// Remote Stations
+		// Remote Stations
 		case 106:
 			sprintf(stationCode, "RS%03d", stationID);
 			break;
@@ -1465,8 +1475,8 @@ int lofar_udp_metadata_get_station_name(int stationID, char *stationCode) {
 			break;
 
 
-			// Intl Stations
-			// DE
+		// Intl Stations
+		// DE
 		case 201 ... 205:
 			sprintf(stationCode, "DE%03d", 601 + (stationID % 201));
 			break;
@@ -1476,42 +1486,42 @@ int lofar_udp_metadata_get_station_name(int stationID, char *stationCode) {
 			break;
 
 
-			// FR
+		// FR
 		case 206:
 			sprintf(stationCode, "FR606");
 			break;
 
-			// SE
+		// SE
 		case 207:
 			sprintf(stationCode, "SE207");
 			break;
 
-			// UK
+		// UK
 		case 208:
 			sprintf(stationCode, "UK208");
 			break;
 
-			// PL
+		// PL
 		case 211 ... 213:
 			sprintf(stationCode, "PL%03d", 610 + (stationID % 211));
 			break;
 
-			// IE
+		// IE
 		case 214:
 			sprintf(stationCode, "IE613");
 			break;
 
-			// LV
+		// LV
 		case 215:
 			sprintf(stationCode, "LV614");
 			break;
 
-			// KAIRA
+		// KAIRA
 		case 901:
 			sprintf(stationCode, "FI901");
 			break;
 
-			// LOFAR4SW test station
+		// LOFAR4SW test station
 		case 902:
 			sprintf(stationCode, "UK902");
 			break;

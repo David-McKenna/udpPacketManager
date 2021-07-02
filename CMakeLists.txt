@@ -12,8 +12,11 @@ if(CMAKE_BUILD_TYPE STREQUAL Debug)
 	set(CMAKE_VERBOSE_MAKEFILE ON)
 endif()
 
-if (NOT VERBOSE)
+if ((NOT VERBOSE) AND NOT (CMAKE_BUILD_TYPE STREQUAL Debug))
 	set(VERBOSE 0)
+else()
+	set(ALLOW_VERBOSE 1)
+	message("Verbose mode enabled")
 endif()
 
 # Describe the project
@@ -105,13 +108,19 @@ ExternalProject_Add(internal_PSRDADA
                     UPDATE_COMMAND ""
                     )
 ExternalProject_Get_Property(internal_PSRDADA install_dir)
+set(psrdada_INSTALL_DIR ${install_dir})
 add_library(psrdada STATIC IMPORTED)
-set_property(TARGET psrdada PROPERTY IMPORTED_LOCATION ${install_dir}/src/internal_PSRDADA/src/.libs/libpsrdada.a)
+set_property(TARGET psrdada PROPERTY IMPORTED_LOCATION ${psrdada_INSTALL_DIR}/src/internal_PSRDADA/src/.libs/libpsrdada.a)
 add_dependencies(psrdada internal_PSRDADA)
 message("")
 
 
-
+#message("Configuring LibYAML")
+#FetchContent_Declare(yaml
+#                     GIT_REPOSITORY https://github.com/yaml/libyaml.git
+#                     GIT_TAG 2c891fc7a770e8ba2fec34fc6b545c672beb37e6 # Git tag for 0.2.5 is erroring
+#                     )
+#FetchContent_MakeAvailable(yaml)
 
 
 # Include compile-time parameters into the headers
@@ -133,7 +142,7 @@ add_library(lofudpman STATIC
             src/lib/lofar_udp_metadata.c
             src/lib/lofar_udp_time.c)
 
-add_dependencies(lofudpman libzstd_static psrdada ) #CSpice::cspice)
+add_dependencies(lofudpman libzstd_static psrdada) #yaml) #CSpice::cspice)
 
 # Include all of our library headers
 target_include_directories(lofudpman PUBLIC
@@ -143,14 +152,16 @@ target_include_directories(lofudpman PUBLIC
 )
 # Include all of our dependency headers
 target_include_directories(lofudpman PUBLIC ${HDF5_INCLUDE_DIRS})
-target_include_directories(lofudpman PUBLIC ${install_dir}/src/internal_PSRDADA/src/)
+target_include_directories(lofudpman PUBLIC ${psrdada_INSTALL_DIR}/src/internal_PSRDADA/src/)
 target_include_directories(lofudpman PUBLIC ${zstd_SOURCE_DIR}/lib/)
+#target_include_directories(lofudpman PUBLIC ${yaml_SOURCE_DIR}/include/)
 
 file(GLOB_RECURSE UDP_INCLUDE_FILES "${PROJECT_SOURCE_DIR}/src/*/*.h" "${PROJECT_SOURCE_DIR}/src/*/*.hpp")
 
 target_link_libraries(lofudpman PUBLIC ${HDF5_C_LIBRARIES})
 target_link_libraries(lofudpman PUBLIC psrdada)
 target_link_libraries(lofudpman PUBLIC libzstd_static)
+#target_link_libraries(lofudpman PUBLIC yaml)
 
 # Set a few extra compiler options
 set(CMAKE_CXX_IMPLICIT_LINK_LIBRARIES "")
