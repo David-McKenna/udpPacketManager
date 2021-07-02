@@ -6,6 +6,20 @@
 #define UPM_VERSION_MINOR @PROJECT_VERSION_MINOR@
 #define UPM_VERSION_PATCH @PROJECT_VERSION_PATCH@
 #define UPM_VERSION "@PROJECT_VERSION@"
+#define ALLOW_VERBOSE "@ALLOW_VERBOSE@"
+
+#ifndef LOFAR_UDP_VERBOSE_MACRO
+#define LOFAR_UDP_VERBOSE_MACRO
+
+#ifdef ALLOW_VERBOSE
+#define VERBOSE(MSG) MSG;
+#define VERBOSEP(...) printf("%s: %s", __func__, ##__VA_ARGS__);
+#else
+#define VERBOSE(MSG) while(0) {};
+#define VERBOSEP(...) while(0) {};
+#endif
+
+#endif // End of LOFAR_UDP_VERBOSE_MACRO
 
 
 // Reader / writer enums
@@ -87,21 +101,6 @@ typedef struct __attribute__((__packed__)) lofar_source_bytes {
 } lofar_source_bytes;
 
 #endif // End of LOFAR_SOURCE_BYTE_STRUCT
-
-
-#ifndef LOFAR_UDP_VERBOSE_MACRO
-#define LOFAR_UDP_VERBOSE_MACRO
-
-#ifdef ALLOW_VERBOSE
-#define VERBOSE(MSG) MSG;
-#define VERBOSEP(...) printf("%s: %s", __func__, ##__VA_ARGS__);
-#else
-#define VERBOSE(MSG) while(0) {};
-#define VERBOSEP(...) while(0) {};
-#endif
-
-#endif // End of LOFAR_UDP_VERBOSE_MACRO
-
 
 
 // Slow stopping macro (enable from makefile)

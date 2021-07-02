@@ -8,15 +8,14 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
-if(CMAKE_BUILD_TYPE STREQUAL Debug)
-	set(CMAKE_VERBOSE_MAKEFILE ON)
-endif()
-
 if ((NOT VERBOSE) AND NOT (CMAKE_BUILD_TYPE STREQUAL Debug))
 	set(VERBOSE 0)
+	set(ALLOW_VERBOSE 0)
 else()
+	set(VERBOSE 1)
 	set(ALLOW_VERBOSE 1)
 	message("Verbose mode enabled")
+	set(CMAKE_VERBOSE_MAKEFILE ON)
 endif()
 
 # Describe the project
