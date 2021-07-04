@@ -141,7 +141,12 @@ int lofar_udp_io_write_setup_FILE(lofar_udp_io_write_config *config, int outp, i
 
 	if (config->readerType == FIFO) {
 		if (mkfifo(outputLocation, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH) < 0) {
-			fprintf(stderr, "ERROR: Failed to create FIFO at %s, exiting.\n", outputLocation);
+			if (!config->progressWithExisting) {
+				fprintf(stderr, "ERROR: Failed to create FIFO at %s, exiting.\n", outputLocation);
+				return -1;
+			} else {
+				fprintf(stderr, "WARNING: Failed to create FIFO at %s, attempting to continue (we may end up writing to a file....\n", outputLocation);
+			}
 		}
 	}
 

@@ -8,14 +8,10 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
-if ((NOT VERBOSE) AND NOT (CMAKE_BUILD_TYPE STREQUAL Debug))
-	set(VERBOSE 0)
-	set(ALLOW_VERBOSE 0)
-else()
-	set(VERBOSE 1)
-	set(ALLOW_VERBOSE 1)
-	message("Verbose mode enabled")
+option(ALLOW_VERBOSE "Enable compile-time verbose mode" OFF)
+if (ALLOW_VERBOSE OR (CMAKE_BUILD_TYPE STREQUAL Debug))
 	set(CMAKE_VERBOSE_MAKEFILE ON)
+	message("Verbose mode enabled")
 endif()
 
 # Describe the project
@@ -24,7 +20,7 @@ project(udpPacketManager 	VERSION 0.7.0
 							LANGUAGES C CXX
 )
 
-set(UPM_CLI_VERSION 0.6)
+set(UPM_CLI_VERSION 0.7)
 
 message("Building udpPacketManager Version ${PROJECT_VERSION}\n\n")
 
@@ -125,7 +121,9 @@ message("")
 # Include compile-time parameters into the headers
 configure_file(	"${PROJECT_SOURCE_DIR}/src/lib/lofar_udp_general.h.in"
 				"${PROJECT_SOURCE_DIR}/src/lib/lofar_udp_general.h"
+				@ONLY
 )
+
 configure_file(	"${PROJECT_SOURCE_DIR}/src/CLI/lofar_cli_meta.h.in"
 				"${PROJECT_SOURCE_DIR}/src/CLI/lofar_cli_meta.h"
 )
@@ -133,6 +131,7 @@ configure_file(	"${PROJECT_SOURCE_DIR}/src/CLI/lofar_cli_meta.h.in"
 
 # Setup the base library object
 add_library(lofudpman STATIC
+            src/lib/lofar_udp_general.c
             src/lib/lofar_udp_backends.cpp
             src/lib/lofar_udp_io.c
             src/lib/lofar_udp_reader.c

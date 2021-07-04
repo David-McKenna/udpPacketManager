@@ -6,7 +6,7 @@
 #define UPM_VERSION_MINOR @PROJECT_VERSION_MINOR@
 #define UPM_VERSION_PATCH @PROJECT_VERSION_PATCH@
 #define UPM_VERSION "@PROJECT_VERSION@"
-#define ALLOW_VERBOSE "@ALLOW_VERBOSE@"
+#cmakedefine ALLOW_VERBOSE
 
 #ifndef LOFAR_UDP_VERBOSE_MACRO
 #define LOFAR_UDP_VERBOSE_MACRO
@@ -141,7 +141,11 @@ typedef struct __attribute__((__packed__)) lofar_source_bytes {
 #define LOFAR_UDP_GENERAL_H
 
 #include <stddef.h>
+#include <stdio.h>
+#include <errno.h>
+#include <string.h>
 #include <stdlib.h>
+#include <signal.h>
 
 // Free if non-null macro
 #define FREE_NOT_NULL(x) if (x != NULL) { free(x); x = NULL; }
@@ -149,5 +153,25 @@ typedef struct __attribute__((__packed__)) lofar_source_bytes {
 // Silence warnings about parameters not used in certain constexpr paths
 // https://stackoverflow.com/a/1486931
 #define UNUSED(expr) do { (void)(expr); } while (0);
+
+// Wrapper for printing errors with debug information as needed
+#define ERROR(format, ...)  {\
+    fprintf(stderr, "ERROR %s_l%d: ", __func__, __LINE__); \
+    fprintf(stderr, format __VA_OPT__(,) __VA_ARGS__);                                  \
+}
+
+
+// Allow C++ imports too
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+void lofar_udp_signal_handler(int signalnum);
+int lofar_udp_prepare_signal_handler();
+
+// Allow C++ imports too
+#ifdef __cplusplus
+}
+#endif
 
 #endif // End of LOFAR_UDP_GENERAL_H
