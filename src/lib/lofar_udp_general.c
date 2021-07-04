@@ -23,7 +23,7 @@ int lofar_udp_prepare_signal_handler() {
 	sig_t returnedFunc;
 	for (int i = 0; i < numSignals; i++) {
 		if ((returnedFunc = signal(handledSignals[i], lofar_udp_signal_handler)) != NULL) {
-			ERROR("While attempting to set a catch for signal %d (i=%d), another function was returned indicating it was previously registered. Continue with caution.", handledSignals[i], i);
+			fprintf(stderr, "WARNING: While attempting to set a catch for signal %d (i=%d), another function was returned indicating it was previously registered. Continue with caution.", handledSignals[i], i);
 		}
 	}
 

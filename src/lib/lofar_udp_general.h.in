@@ -155,11 +155,12 @@ typedef struct __attribute__((__packed__)) lofar_source_bytes {
 #define UNUSED(expr) do { (void)(expr); } while (0);
 
 // Wrapper for printing errors with debug information as needed
+/*
 #define ERROR(format, ...)  {\
     fprintf(stderr, "ERROR %s_l%d: ", __func__, __LINE__); \
     fprintf(stderr, format __VA_OPT__(,) __VA_ARGS__);                                  \
 }
-
+*/
 
 // Allow C++ imports too
 #ifdef __cplusplus
