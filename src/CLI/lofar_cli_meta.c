@@ -6,8 +6,9 @@ const char exitReasons[8][DEF_STR_LEN] = { "", "",
 									"Read less data than requested from file (near EOF or disk error)",
 									"Metadata failed to write",
 									"Output data failed to write",
+									"Failed to re-initialise reader for new event"
 									"Failed to open new file",
-									"Failed to re-initialise reader for new event"};
+};
 
 void processingModes(void) {
 	printf("\n\nProcessing modes:\n");

@@ -92,7 +92,7 @@ int main(int argc, char *argv[]) {
 	}
 
 	// Set up reader loop variables
-	int loops = 0, localLoops = 0, returnVal;
+	int loops = 0, localLoops = 0, returnValMeta = 0, returnVal;
 	long packetsProcessed = 0, packetsWritten = 0, eventPacketsLost[MAX_NUM_PORTS], packetsToWrite;
 
 	// Timing variables
@@ -517,7 +517,7 @@ int main(int argc, char *argv[]) {
 														 multiMaxPackets[eventLoop])) > 0) {
 				fprintf(stderr, "Error re-initialising reader for event %d (error %d), exiting.\n", eventLoop,
 						returnVal);
-				returnVal = -7;
+				returnValMeta = (returnValMeta < 0 && returnValMeta > -6) ? returnValMeta : -6;
 				break;
 			}
 		}
@@ -551,7 +551,7 @@ int main(int argc, char *argv[]) {
 		reader->meta->packetsPerIteration = reader->packetsPerIteration;
 		if ((returnVal = lofar_udp_io_write_setup_helper(outConfig, reader->meta, eventLoop)) < 0) {
 			fprintf(stderr, "ERROR: Failed to open a new output file (%d, errno %d: %s), breaking.\n", returnVal, errno, strerror(errno));
-			returnVal = -6;
+			returnValMeta = (returnValMeta < 0 && returnValMeta > -7) ? returnValMeta : -7;
 			break;
 		}
 
@@ -559,6 +559,10 @@ int main(int argc, char *argv[]) {
 		VERBOSE(if (config->verbose) { printf("Beginning data extraction loop for event %d\n", eventLoop); });
 		// While we receive new data for the current event,
 		while ((returnVal = lofar_udp_reader_step_timed(reader, timing)) < 1) {
+
+			if (returnVal < -1) {
+				returnValMeta = returnVal;
+			}
 
 			CLICK(tock0);
 			if (localLoops == 0) {
@@ -587,7 +591,7 @@ int main(int argc, char *argv[]) {
 				CLICK(tick1);
 				if ((returnVal = lofar_udp_metadata_write_file(reader, outConfig, out, reader->metadata, headerBuffer, 4096 * 8, localLoops == 0)) < 0) {
 					fprintf(stderr, "ERROR: Failed to write header to output (%d, errno %d: %s), breaking.\n", returnVal, errno, strerror(errno));
-					returnVal = -4;
+					returnValMeta = (returnValMeta < 0 && returnValMeta > -4) ? returnValMeta : -4;
 					break;
 				}
 				CLICK(tock1);
@@ -596,10 +600,12 @@ int main(int argc, char *argv[]) {
 				CLICK(tick0);
 				VERBOSE(printf("Writing %ld bytes (%ld packets) to disk for output %d...\n",
 				               packetsToWrite * reader->meta->packetOutputLength[out], packetsToWrite, out));
-				if ((returnVal = lofar_udp_io_write(outConfig, out, reader->meta->outputData[out],
-									   packetsToWrite * reader->meta->packetOutputLength[out])) < 0) {
-					fprintf(stderr, "ERROR: Failed to write data to output (%d, errno %d: %s)), breaking.\n", returnVal, errno, strerror(errno));
-					returnVal = -5;
+				size_t outputLength = packetsToWrite * reader->meta->packetOutputLength[out];
+				size_t outputWritten;
+				if ((outputWritten = lofar_udp_io_write(outConfig, out, reader->meta->outputData[out],
+									   outputLength)) != outputLength) {
+					fprintf(stderr, "ERROR: Failed to write data to output (%ld bytes/%ld bytes writen, errno %d: %s)), breaking.\n", outputWritten, outputLength,  errno, strerror(errno));
+					returnValMeta = (returnValMeta < 0 && returnValMeta > -5) ? returnValMeta : -5;
 					break;
 				}
 				CLICK(tock0);
@@ -607,7 +613,7 @@ int main(int argc, char *argv[]) {
 
 			}
 
-			if (splitEvery != LONG_MAX && returnVal > -1) {
+			if (splitEvery != LONG_MAX && returnValMeta > -2) {
 				if ((localLoops + 1) == splitEvery) {
 					eventLoop += 1;
 
@@ -621,12 +627,13 @@ int main(int argc, char *argv[]) {
 					reader->meta->packetsPerIteration = reader->packetsPerIteration;
 					if ((returnVal = lofar_udp_io_write_setup_helper(outConfig, reader->meta, eventLoop)) < 0) {
 						fprintf(stderr, "ERROR: Failed to open new file are breakpoint reached (%d, errno %d: %s), breaking.\n", returnVal, errno, strerror(errno));
-						returnVal = -6;
+						returnValMeta = (returnValMeta < 0 && returnValMeta > -6) ? returnValMeta : -6;
 						break;
 					}
 
 					localLoops = -1;
 				}
+
 			}
 
 			totalMetadataTime += timing[2];
@@ -643,7 +650,7 @@ int main(int argc, char *argv[]) {
 					timing[idx] = 0.;
 				}
 
-				if (returnVal < 0) {
+				if (returnVal == -1) {
 					for (int port = 0; port < reader->meta->numPorts; port++)
 						if (reader->meta->portLastDroppedPackets[port] != 0) {
 							printf("During this iteration there were %ld dropped packets on port %d.\n",
@@ -656,21 +663,26 @@ int main(int argc, char *argv[]) {
 			loops++;
 			localLoops++;
 
-			// returnVal below 0 indicates we will not be given data on the next iteration, so gracefully exit with the known reason
-			if (returnVal < -1) {
-				printf("We've hit a termination return value (%d, %s), exiting.\n", returnVal,
-					   exitReasons[abs(returnVal)]);
-				break;
-			}
-
 #ifdef __SLOWDOWN
 				sleep(1);
 #endif
 			CLICK(tick0);
+
+			// returnVal below -1 indicates we will not be given data on the next iteration, so gracefully exit with the known reason
+			if (returnValMeta < -1) {
+				break;
+			}
 		}
 
 		for (int outp = 0; outp < reader->meta->numOutputs; outp++) {
 			lofar_udp_io_write_cleanup(outConfig, outp, 1);
+		}
+
+		// returnVal below -1 indicates we will not be given data on the next iteration, so gracefully exit with the known reason
+		if (returnValMeta < -1) {
+			printf("We've hit a termination return value (%d, %s), exiting.\n", returnValMeta,
+			       exitReasons[abs(returnValMeta)]);
+			break;
 		}
 
 	}
