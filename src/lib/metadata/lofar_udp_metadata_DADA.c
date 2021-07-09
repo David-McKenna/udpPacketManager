@@ -129,7 +129,7 @@ int lofar_udp_metadata_write_DADA(const lofar_udp_metadata *hdr, char *headerBuf
 	returnVal += writeInt_DADA(headerBuffer, "NBIT", hdr->nbit > 0 ? hdr->nbit : -1 * hdr->nbit);
 	returnVal += writeInt_DADA(headerBuffer, "RESOLUTION", hdr->resolution);
 	returnVal += writeInt_DADA(headerBuffer, "NDIM", hdr->ndim);
-	returnVal += writeDouble_DADA(headerBuffer, "TSAMP", hdr->tsamp, 0);
+	returnVal += writeDouble_DADA(headerBuffer, "TSAMP", hdr->tsamp * 1e6, 0);
 	returnVal += writeStr_DADA(headerBuffer, "STATE", hdr->state);
 
 
