@@ -87,6 +87,8 @@ if __name__ == '__main__':
     parser.add_argument('--int', dest='inte', default=defaultInt, type=float, help="Integration time per step")
     parser.add_argument('--pnt', dest='pnt', required=True, help="Pointing of the source, eg '0.1,0.3,J2000")
     parser.add_argument('--pipe', dest='pipe', default='/tmp/udp_pipe', help="Where to pipe the output data")
+    parser.add_argument('--always-exact-position', dest='exact_pos', default=False, action='store_true',
+                        help="When used, recalculate the exact RA/Dec in J2000 for sources in other coordinate systems at every time step.")
     parser.add_argument('--silent', dest='silent', default=True, action='store_false',
                         help="Don't silence all outputs.")
 
@@ -163,26 +165,38 @@ if __name__ == '__main__':
         numSamples = int(np.ceil(args.dur / args.inte).value)
 
         # For each time sample, calculate the time and determine a J2000 coordinate for the source, which can then be used to determine the Jones matri
-        # TODO: Larger window between coordinate re-samples to speed up the process?
-        for i in tqdm.trange(numSamples):
-            obsTime = obsTime + args.inte
+        if args.exact_pos:
+           for i in tqdm.trange(numSamples):
+                obsTime = obsTime + args.inte
+                time = dm.epoch('utc', f'{obsTime.mjd}d')
+                dm.do_frame(time)
+
+                for ant in antennaSet:
+                    obs = dm.position('ITRF', f'{obsLoc[ant][0]}m', f'{obsLoc[ant][1]}m', f'{obsLoc[ant][2]}m')
+                    dm.do_frame(obs)
+                    newPnt = dm.measure(pnt, 'J2000')
+                    args.pnt[ant] = [newPnt['m0']['value'], newPnt['m1']['value'], 'J2000']
+
+                if jointInvJones is None:
+                    antJones = generateJones(subbands, antennaSet, args.stn, args.mdl, obsTime.datetime, args.dur.datetime,
+                                             args.inte.datetime, args.pnt, firstOutput=True)
+                    jointInvJones = np.empty((numSamples, antJones.shape[0], 2, 4), dtype=antJones.dtype)
+                    jointInvJones[i, ...] = antJones
+                else:
+                    jointInvJones[i, ...] = generateJones(subbands, antennaSet, args.stn, args.mdl, obsTime.datetime,
+                                                          args.dur.datetime, args.inte.datetime, args.pnt, firstOutput=True)
+        else:
+            obsTime += args.dur / 2
             time = dm.epoch('utc', f'{obsTime.mjd}d')
             dm.do_frame(time)
-
             for ant in antennaSet:
                 obs = dm.position('ITRF', f'{obsLoc[ant][0]}m', f'{obsLoc[ant][1]}m', f'{obsLoc[ant][2]}m')
                 dm.do_frame(obs)
                 newPnt = dm.measure(pnt, 'J2000')
                 args.pnt[ant] = [newPnt['m0']['value'], newPnt['m1']['value'], 'J2000']
 
-            if jointInvJones is None:
-                antJones = generateJones(subbands, antennaSet, args.stn, args.mdl, obsTime.datetime, args.dur.datetime,
-                                         args.inte.datetime, args.pnt, firstOutput=True)
-                jointInvJones = np.empty((numSamples, antJones.shape[0], 2, 4), dtype=antJones.dtype)
-                jointInvJones[i, ...] = antJones
-            else:
-                jointInvJones[i, ...] = generateJones(subbands, antennaSet, args.stn, args.mdl, obsTime.datetime,
-                                                      args.dur.datetime, args.inte.datetime, args.pnt, firstOutput=True)
+            jointInvJones = generateJones(subbands, antennaSet, args.stn, args.mdl, args.time.datetime, args.dur.datetime,
+                                      args.inte.datetime, args.pnt, firstOutput=False)
 
 
     else:
