@@ -1,11 +1,19 @@
+# General ignores
 output*
-test*
+test_old/*
+build/*
+
+# Compilation artefacts
 *.pyc
 *.o
 *.a*
 *.d
 lofar_udp_extractor
-lofar_udp_channelisation
 lofar_udp_guppi_raw
-*pcap*
-*.pcap
+cmake-*
+.idea/*
+build*/*
+
+# Templated files
+src/lib/lofar_udp_general.h
+src/CLI/lofar_cli_meta.h

@@ -1,0 +1,18 @@
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+
+jobs:
+  build_container:
+    runs-on: ubuntu-latest
+    name: Docker Build & Test
+    steps:
+      # To use this repository's private action,
+      # you must check out the repository
+      - name: Checkout
+        uses: actions/checkout@v2
+      - name: Docker Build Step
+        run: docker build . --file src/docker/Dockerfile_github

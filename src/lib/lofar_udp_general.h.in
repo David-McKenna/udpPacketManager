@@ -1,0 +1,178 @@
+#ifndef LOFAR_COMPILE_CONSTANTS
+#define LOFAR_COMPILE_CONSTANTS
+
+// Library information
+#define UPM_VERSION_MAJOR @PROJECT_VERSION_MAJOR@
+#define UPM_VERSION_MINOR @PROJECT_VERSION_MINOR@
+#define UPM_VERSION_PATCH @PROJECT_VERSION_PATCH@
+#define UPM_VERSION "@PROJECT_VERSION@"
+#cmakedefine ALLOW_VERBOSE
+
+#ifndef LOFAR_UDP_VERBOSE_MACRO
+#define LOFAR_UDP_VERBOSE_MACRO
+
+#ifdef ALLOW_VERBOSE
+#define VERBOSE(MSG) MSG;
+#define VERBOSEP(...) printf("%s: %s", __func__, ##__VA_ARGS__);
+#else
+#define VERBOSE(MSG) while(0) {};
+#define VERBOSEP(...) while(0) {};
+#endif
+
+#endif // End of LOFAR_UDP_VERBOSE_MACRO
+
+
+// Reader / writer enums
+typedef enum reader_t {
+	NO_ACTION = -1,
+	NORMAL = 1,
+	FIFO = 2,
+	ZSTDCOMPRESSED = 4,
+	HDF5 = 8,
+	DADA_ACTIVE = 16,
+} reader_t;
+
+// Output metadata formats
+typedef enum metadata_t {
+	NO_META = -1,
+	GUPPI = 1,
+	DADA = 2,
+	SIGPROC = 4,
+	HDF5_META = 8, // Shared with reader_t enum
+
+} metadata_t;
+
+typedef enum calibrate_t {
+	NO_CALIBRATION = -1,
+	GENERATE_JONES = 1,
+	APPLY_CALIBRATION = 2
+} calibrate_t;
+
+// I/O array sizes
+#define MAX_NUM_PORTS 4
+#define MAX_OUTPUT_DIMS 4
+
+// CEP packet reference values
+#define UDPHDRLEN 16
+#define UDPCURVER 3
+#define UDPMAXBEAM 244
+#define UDPNPOL 4
+#define UDPNTIMESLICE 16
+
+// Timing values
+#define LFREPOCH 1199145600 // 2008-01-01 Unix time, sanity check
+#define RSPMAXSEQ 195313
+#define CLOCK200MHZ 195312.5
+#define CLOCK160MHZ 156250.0
+
+// Execution values
+#define DEF_STR_LEN 2048
+#define OMP_THREADS @OMP_THREADS@
+#define OMP_NESTED TRUE
+#define ZSTD_COMP_LEVEL @ZSTD_COMP_LEVEL@
+
+// Header component offsets
+#define CEP_HDR_RSP_VER_OFFSET 0
+#define CEP_HDR_SRC_OFFSET 1
+#define CEP_HDR_STN_ID_OFFSET 4
+#define CEP_HDR_NBEAM_OFFSET 6
+#define CEP_HDR_NTIMESLICE_OFFSET 7
+#define CEP_HDR_TIME_OFFSET 8
+#define CEP_HDR_SEQ_OFFSET 12
+
+#endif // End of LOFAR_COMPILE_CONSTANTS
+
+
+
+
+// Decode the 'two source' bytes in the CEP header
+#ifndef LOFAR_SOURCE_BYTE_STRUCT
+#define LOFAR_SOURCE_BYTE_STRUCT
+
+// For unpacking the header source bytes
+typedef struct __attribute__((__packed__)) lofar_source_bytes {
+	unsigned int rsp: 5;
+	unsigned int padding0: 1;
+	unsigned int errorBit: 1;
+	unsigned int clockBit: 1;
+	unsigned int bitMode: 2;
+	unsigned int padding1: 6;
+
+} lofar_source_bytes;
+
+#endif // End of LOFAR_SOURCE_BYTE_STRUCT
+
+
+// Slow stopping macro (enable from makefile)
+#ifndef LOFAR_SLEEP
+#define LOFAR_SLEEP
+
+#ifdef SLOWDOWN
+#define PAUSE sleep(1);
+#else
+#define PAUSE while(0) {};
+#endif
+
+#endif // End of LOFAR_SLEEP
+
+
+// Timing macro
+#ifndef LOFAR_UDP_TICKTOCK_MACRO
+#define LOFAR_UDP_TICKTOCK_MACRO
+
+#define CLICK(clock) clock_gettime(CLOCK_MONOTONIC_RAW, &clock);
+#define TICKTOCK(tick, tock) ((double) (tock.tv_nsec - tick.tv_nsec) / 1000000000.0) + (tock.tv_sec - tick.tv_sec)
+
+#endif // End of LOFAR_UDP_TICKTOCK_MACRO
+
+// Array initialisation macro
+#ifndef LOFAR_UDP_INIT_MACRO
+#define LOFAR_UDP_INIT_MACRO
+
+#define ARR_INIT(arr, entries, val) \
+	for (int ARRIDX = 0; ARRIDX < entries; ARRIDX++) { \
+		arr[ARRIDX] = val;\
+	}
+#endif // End of LOFAR_UDP_INIT_MACRO
+
+
+
+#ifndef LOFAR_UDP_GENERAL_H
+#define LOFAR_UDP_GENERAL_H
+
+#include <stddef.h>
+#include <stdio.h>
+#include <errno.h>
+#include <string.h>
+#include <stdlib.h>
+#include <signal.h>
+
+// Free if non-null macro
+#define FREE_NOT_NULL(x) if (x != NULL) { free(x); x = NULL; }
+
+// Silence warnings about parameters not used in certain constexpr paths
+// https://stackoverflow.com/a/1486931
+#define UNUSED(expr) do { (void)(expr); } while (0);
+
+// Wrapper for printing errors with debug information as needed
+/*
+#define ERROR(format, ...)  {\
+    fprintf(stderr, "ERROR %s_l%d: ", __func__, __LINE__); \
+    fprintf(stderr, format __VA_OPT__(,) __VA_ARGS__);                                  \
+}
+*/
+
+// Allow C++ imports too
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+void lofar_udp_signal_handler(int signalnum);
+int lofar_udp_prepare_signal_handler();
+
+// Allow C++ imports too
+#ifdef __cplusplus
+}
+#endif
+
+#endif // End of LOFAR_UDP_GENERAL_H
