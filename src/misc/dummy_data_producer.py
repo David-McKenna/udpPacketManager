@@ -186,7 +186,7 @@ if __name__ == '__main__':
 
         args.dropped_packets = []
         for packetOffset, length in zip(tempPackets, counts):
-            args.dropped_packets += list(range(packetOffset, pakcetOffset + length))
+            args.dropped_packets += list(range(packetOffset, packetOffset + length))
 
     assert (args.bits in [4, 8, 16])
     assert (args.clock in [160, 200])
