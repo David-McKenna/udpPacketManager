@@ -204,7 +204,7 @@ install(FILES ${UDP_INCLUDE_FILES} DESTINATION include)
 install(FILES src/misc/dreamBeamJonesGenerator.py DESTINATION bin)
 
 # Add the tests directory
-add_subdirectory(tests EXCLUDE_FROM_ALL)
+#add_subdirectory(tests EXCLUDE_FROM_ALL)
 
 
 #include(CMakePackageConfigHelpers)
