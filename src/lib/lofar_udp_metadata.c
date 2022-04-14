@@ -990,10 +990,9 @@ int lofar_udp_metadata_update_frequencies(lofar_udp_metadata *metadata, int *sub
 
 	VERBOSE(printf("SubbandData: %d, %d, %d\n", subbandData[0], subbandData[1], subbandData[2]));
 
-	// Offset frequency by half a subband to get central frequencies rather than base frequencies
-	metadata->ftop = metadata->channel_bw * (0.5 + subbandData[0]);
-	metadata->freq = metadata->channel_bw * (0.5 + meanSubband);
-	metadata->fbottom = metadata->channel_bw * (0.5 + subbandData[2]);
+	metadata->ftop = metadata->channel_bw * subbandData[0];
+	metadata->freq = metadata->channel_bw * meanSubband;
+	metadata->fbottom = metadata->channel_bw * subbandData[2];
 	// Define the observation bandwidth as the bandwidth between the centre of the top and bottom channels,
 	//  plus a subband to account for the expanded bandwidth from the centre to the edges of the band
 	metadata->bw = (metadata->fbottom - metadata->ftop);
@@ -1117,13 +1116,13 @@ int lofar_udp_metadata_processing_mode_metadata(lofar_udp_metadata *metadata) {
 			strncpy(metadata->upm_outputfmt_comment, "Chunked Time Major, Split by Polarisation", META_STR_LEN);
 			break;
 		case 32:
-			strncpy(metadata->upm_outputfmt[0], "TIME-XrXi", META_STR_LEN);
-			strncpy(metadata->upm_outputfmt[1], "TIME-YrYi", META_STR_LEN);
+			strncpy(metadata->upm_outputfmt[0], "XrXi-TIME", META_STR_LEN);
+			strncpy(metadata->upm_outputfmt[1], "YrYi-TIME", META_STR_LEN);
 			strncpy(metadata->upm_outputfmt_comment, "Chunked Time Major, Split by Antenna", META_STR_LEN);
 			break;
 		case 35:
-			strncpy(metadata->upm_outputfmt[0], "TIME-XrXi", META_STR_LEN);
-			strncpy(metadata->upm_outputfmt[1], "TIME-YrYi", META_STR_LEN);
+			strncpy(metadata->upm_outputfmt[0], "XrXi-TIME", META_STR_LEN);
+			strncpy(metadata->upm_outputfmt[1], "YrYi-TIME", META_STR_LEN);
 			strncpy(metadata->upm_outputfmt_comment, "Chunked Time Major, Split by Antenna, Forced Float Output", META_STR_LEN);
 			break;
 
