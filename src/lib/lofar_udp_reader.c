@@ -1248,6 +1248,7 @@ int lofar_udp_reader_calibration(lofar_udp_reader *reader) {
 					 NULL };
 
 	pid_t pid;
+	printf("Generating Jones matrices via dreamBeamJonesGenerator.py...\n");
 	returnVal = posix_spawnp(&pid, "dreamBeamJonesGenerator.py", NULL, NULL, &(argv[0]), environ);
 
 	VERBOSE(printf("Fork\n"););
@@ -1269,7 +1270,7 @@ int lofar_udp_reader_calibration(lofar_udp_reader *reader) {
 
 	// Get the number of time steps and frequency channels
 	returnVal = fscanf(fifo, "%d,%d\n", &numTimesamples, &numBeamlets);
-	if (returnVal < 0) {
+	if (returnVal == -1) {
 		fprintf(stderr, "ERROR: Failed to parse number of beamlets and time samples from dreamBeam. Exiting.\n");
 		return -1;
 	}

@@ -4,6 +4,7 @@ import lofarantpos.db
 import numpy as np
 import sys
 import tqdm
+import time as timeLib
 from astropy.time import Time, TimeDelta
 from casacore.measures import measures
 from dreambeam.rime.scenarios import on_pointing_axis_tracking
@@ -74,15 +75,15 @@ def pipeJones(pipeDest, silence, jointInvJones, antennaSet):
 # Default integration, 2^16 packets
 defaultInt = 2 ** 16 * (5.12 * 10 ** -6) * 16
 if __name__ == '__main__':
+    initTime = timeLib.perf_counter()
     # dreamBeamJonesGenerator.py --stn STNID --sub ANT,SBL:SBU --time TIME --dur DUR --int INT --pnt P0,P1,BASIS --pipe /tmp/pipe
     parser = argparse.ArgumentParser()
     parser.add_argument('--stn', dest='stn', required=True, help="Observing station code eg. IE613, SE607, etc.")
-    parser.add_argument('--sub', dest='sub', required=True, nargs='+',
-                        help="Observing antenna set and subbands. Add 512 to access mode 7 subbands from the HBAs. Comma separated values, on ranges the upper limit is included to match bamctl logic. eg. 'ANT,SUBLWR:SUBUPR,SUB,SUB,SUB LBA,12:488,499,500,510 HBA,12:128 HBA,540:590")
+    parser.add_argument('--sub', dest='sub', required=True, help="Observing antenna set and subbands. Add 512 to access mode 7 subbands from the HBAs. Comma separated values, on ranges the upper limit is included to match bamctl logic. eg. 'ANT,SUBLWR:SUBUPR,SUB,SUB,SUB LBA,12:488,499,500,510 HBA,12:128 HBA,540:590")
     # Need more models as inputs...
     parser.add_argument('--mdl', dest='mdl', default="Hamaker-default", help="Antenna simulation model",
                         choices={"Hamaker-default", "Hamaker"})
-    parser.add_argument('--time', dest='time', required=True, help="Time of the first sample (UTC, UNIX seconds)")
+    parser.add_argument('--time', dest='time', required=True, help="Time of the first sample (UTC, MJD)")
     parser.add_argument('--dur', dest='dur', default=10., type=float, help="Total duration of time to sample")
     parser.add_argument('--int', dest='inte', default=defaultInt, type=float, help="Integration time per step")
     parser.add_argument('--pnt', dest='pnt', required=True, help="Pointing of the source, eg '0.1,0.3,J2000")
@@ -105,6 +106,8 @@ if __name__ == '__main__':
                 outPipe.write("-1,-1\n".encode("ascii"))
 
         exit(1)
+
+    args.sub = args.sub.split(' ')
 
     # Determine if both HBA and LBAs are needed
     antennaSet = list(set([antSet.split(',')[0].upper() for antSet in args.sub]))
@@ -140,6 +143,9 @@ if __name__ == '__main__':
 
         # Accumulate the results
         subbands.append([splitSub[0].upper(), subStr, result])
+
+    endParseTime = timeLib.perf_counter()
+    print(f"dreamBeamJonesGenerator.py: Parsing completed in {endParseTime - initTime:.3f} seconds.")
 
     # If we aren't in J2000, find the Ra/Dec of the source at each step of the observation (slow, but accurate.)
     if args.pnt[2] != 'J2000':
@@ -203,5 +209,10 @@ if __name__ == '__main__':
         jointInvJones = generateJones(subbands, antennaSet, args.stn, args.mdl, args.time.datetime, args.dur.datetime,
                                       args.inte.datetime, args.pnt, firstOutput=False)
 
-    # Print out the Jones matrix in an easy to parse format.
+    jonesGeneratorTime = timeLib.perf_counter()
+    print(f"dreamBeamJonesGenerator.py: Jones Matrices generated and inverted in {jonesGeneratorTime - endParseTime:.3f} seconds.")
+
+    # Print out the Jones matrix in an easy to parse format to a specified pipe.
     pipeJones(args.pipe, args.silent, jointInvJones, antennaSet)
+    jonesPipeTime = timeLib.perf_counter()
+    print(f"dreamBeamJonesGenerator.py: Jones Matrices piped in {jonesPipeTime - jonesGeneratorTime:.3f} seconds, closing.")
