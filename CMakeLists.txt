@@ -98,7 +98,7 @@ ExternalProject_Add(internal_PSRDADA
                     PREFIX ${CMAKE_CURRENT_BINARY_DIR}/_deps/psrdada
                     BINARY_DIR ${CMAKE_CURRENT_BINARY_DIR}/_deps/psrdada/src/internal_PSRDADA/src/
                     CONFIGURE_COMMAND cd .. && ./bootstrap && ./configure --with-cuda-dir=no
-                    BUILD_COMMAND "make" "libpsrdada.la"
+                    BUILD_COMMAND "make" "libpsrdada.la" "dada_db" "dada_dbmeminfo" "dada_dbmetric" "dada_dbmonitor"
                     INSTALL_COMMAND ""
                     UPDATE_COMMAND ""
                     )

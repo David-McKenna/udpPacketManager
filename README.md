@@ -47,6 +47,9 @@ To automatically install the dependencies on Debian-based systems, the following
 ```shell
 apt-get install git autoconf csh libhdf5-dev libtool wget
 pip install cmake
+
+# Optional, for LLVM compilation
+apt-get install clang libomp-dev libomp5
 ```
 
 While we try to ensure full support for both gcc and icc (LLVM derivatives are not tested at the moment), they have

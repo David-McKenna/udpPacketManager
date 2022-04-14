@@ -30,12 +30,12 @@ Calling this function will read in a standard gulp of data from the set number o
 
 
 ### lofar_udp_reader_step()
-This function performs a combined call to read function in [`lofar_udp_io.c`](../src/lib/lofar_udp_io.c) to get new input data and then passes that input data to the C++ function in [lofar_udp_backends.cpp](../src/lib/lofar_udp_backends.cpp), which handles re-ordering the data to the desired output.
+This function performs a combined call to the read function in [`lofar_udp_io.c`](../src/lib/lofar_udp_io.c) to get new input data and then passes that input data to the C++ function in [lofar_udp_backends.cpp](../src/lib/lofar_udp_backends.cpp), which handles re-ordering the data to the desired output.
 
 In the case that there is large packet loss, a significant number of out-of-order packets or the input returns an end of stream marker, this function will return a non-zero value.
 
 ### lofar_udp_reader_cleanup()
-This function calls `free` on all allocated memory, closes input data streams and generals cleans up after the library.
+This function calls `free` on all dynamically allocated memory, closes input data streams and generals cleans up after the library.
 
 
 ### Implementation details
@@ -50,4 +50,4 @@ The input read buffers are padded in two cases:
 # Python - dreamBeam Wrapper
 
 # The CLIs
-The CLIs act as reference on how to use the library, as well as an interface to process an observation from raw CEP packets to (un)calibrated voltages or Stokes outputs.
+The CLIs act as reference on how to use the library, as well as an interface to process an observation from raw CEP packets to (un)calibrated voltages or Stokes outputs, with optional metadata attached.
