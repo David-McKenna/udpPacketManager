@@ -79,26 +79,30 @@ int lofar_udp_io_write_setup(lofar_udp_io_write_config *config, int iter) {
 		switch (config->readerType) {
 			case NORMAL:
 			case FIFO:
-				returnVal = (returnVal == -1) ? returnVal : lofar_udp_io_write_setup_FILE(config, outp, iter);
+				returnVal = lofar_udp_io_write_setup_FILE(config, outp, iter);
 				break;
 
 			case ZSTDCOMPRESSED:
-				returnVal = (returnVal == -1) ? returnVal : lofar_udp_io_write_setup_ZSTD(config, outp, iter);
+				returnVal = lofar_udp_io_write_setup_ZSTD(config, outp, iter);
 				break;
 
 
 			case DADA_ACTIVE:
-				returnVal = (returnVal == -1) ? returnVal : lofar_udp_io_write_setup_DADA(config, outp);
+				returnVal = lofar_udp_io_write_setup_DADA(config, outp);
 				break;
 
 			case HDF5:
-				returnVal = (returnVal == -1) ? returnVal : lofar_udp_io_write_setup_HDF5(config, outp, iter);
+				returnVal = lofar_udp_io_write_setup_HDF5(config, outp, iter);
 				break;
 
 
 			default:
 				fprintf(stderr, "ERROR: Unknown reader (%d) provided, exiting.\n", config->readerType);
 				return -1;
+		}
+
+		if (returnVal != 0) {
+			return -1;
 		}
 	}
 
@@ -159,6 +163,7 @@ int lofar_udp_io_write_setup_helper(lofar_udp_io_write_config *config, const lof
 	}
 
 	config->firstPacket = meta->lastPacket;
+	config->fallbackMetadata = meta;
 
 	return lofar_udp_io_write_setup(config, iter);
 }
@@ -647,7 +652,10 @@ long lofar_udp_io_write_metadata(lofar_udp_io_write_config *outConfig, int outp,
 
 
 		case HDF5:
-			return lofar_udp_io_write_metadata_HDF5(outConfig, metadata, headerBuffer, trueHeaderLen);
+			if (trueHeaderLen > 0 || headerLength > 0 || (metadata->type != HDF5_META || metadata->type != NO_META)) {
+				fprintf(stderr, "WARNING %s: A header was passed while the output write is HDF5, which does not support binary/ASCII headers.\n", __func__);
+			}
+			return lofar_udp_io_write_metadata_HDF5(outConfig, metadata);
 
 		default:
 			fprintf(stderr, "ERROR: Unknown reader %d, exiting.\n", outConfig->readerType);

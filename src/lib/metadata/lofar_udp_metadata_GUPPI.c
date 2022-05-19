@@ -118,7 +118,7 @@ int lofar_udp_metadata_setup_GUPPI(lofar_udp_metadata *metadata) {
 	// Copy over normal values
 	metadata->output.guppi->obsfreq = metadata->freq;
 	metadata->output.guppi->obsbw = metadata->bw;
-	metadata->output.guppi->chan_bw = metadata->channel_bw;
+	metadata->output.guppi->chan_bw = metadata->subband_bw;
 	metadata->output.guppi->obsnchan = metadata->nchan;
 	metadata->output.guppi->npol = metadata->npol;
 	metadata->output.guppi->nbits = metadata->nbit > 0 ? metadata->nbit : -1 * metadata->nbit;

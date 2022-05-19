@@ -34,6 +34,7 @@ const lofar_udp_io_write_config lofar_udp_io_write_config_default = {
 	// Control options
 	.readerType = NO_ACTION,
 	.metadata = NULL,
+	.fallbackMetadata = NULL,
 	.writeBufSize = { -1 }, // NEEDS FULL RUNTIME INITIALISATION
 	.progressWithExisting = 0,
 	.numOutputs = 0,
@@ -41,15 +42,19 @@ const lofar_udp_io_write_config lofar_udp_io_write_config_default = {
 	// Outputs pre- and post-formatting
 	.outputFormat = "",
 	.outputLocations = { "" },
-	.outputDadaKeys = { -1 }, // NEEDS FULL RUNTIME INITIALISATION
+	.outputDadaKeys = { -1, }, // NEEDS FULL RUNTIME INITIALISATION
 	.baseVal = 0,
 	.stepSize = 1,
 	.firstPacket = 0,
 
 	// Main writing objects
-	.outputFiles = { NULL },
+	.outputFiles = { NULL, },
 	.zstdWriter = { { NULL } },
 	.dadaWriter = { { NULL } },
+	.hdf5Writer = { 0, },
+	.hdf5DSetWriter = { { 0, { 0, 0 }}},
+
+
 
 	// zstd configuration
 	.zstdConfig = {
@@ -87,8 +92,12 @@ const lofar_udp_calibration lofar_udp_calibration_default = {
 // Configuration default
 const lofar_udp_config lofar_udp_config_default = {
 	.inputLocations = {  },
-	.metadataLocation = "",
-	.metadataType = NO_META,
+	.metadata_config = {
+		.metadataType = NO_META,
+		.metadataLocation = "",
+		.externalChannelisation = -1,
+		.externalDownsampling = -1
+	},
 	.numPorts = 4,
 	.replayDroppedPackets = 0,
 	.processingMode = 0,
@@ -96,9 +105,9 @@ const lofar_udp_config lofar_udp_config_default = {
 	.packetsPerIteration = 65536,
 	.startingPacket = -1,
 	.packetsReadMax = -1,
-	.readerType = 0,
+	.readerType = NO_ACTION,
 	.beamletLimits = { 0, 0 },
-	.calibrateData = 0,
+	.calibrateData = NO_CALIBRATION,
 	.calibrationConfiguration = NULL,
 	.ompThreads = OMP_THREADS,
 	.dadaKeys = { -1 }, // NEEDS FULL RUNTIME INITIALISATION

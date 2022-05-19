@@ -10,6 +10,7 @@
 #define __LOFAR_CLI_META
 
 #define UPM_CLI_VERSION "@UPM_CLI_VERSION@"
+#define UPM_FFTW_AVAILABLE "@@"
 
 // Allow C++ imports too
 #ifdef __cplusplus

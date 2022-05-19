@@ -30,25 +30,6 @@ set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -fno-omit-frame-pointer -fsaniti
 set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -fno-omit-frame-pointer -fsanitize=address")
 set(CMAKE_LINKER_FLAGS_DEBUG "${CMAKE_LINKER_FLAGS_DEBUG} -fno-omit-frame-pointer -fsanitize=address")
 
-message("Attempting to detect HDF5 libraries")
-include(FetchContent)
-#set(HDF5_USE_STATIC_LIBRARIES ON)
-#find_package(HDF5 COMPONENTS C CXX)
-find_package(HDF5 REQUIRED COMPONENTS C CXX)
-#if (NOT 0)
-#	message("HDF5 libraries not found, prepping CMake build.")
-#	set(HDF5_EXTERNALLY_CONFIGURED 1)
-#	set(HDF5_INSTALL_NO_DEVELOPMENT 1)
-#	FetchContent_Declare(HDF5
-#                     GIT_REPOSITORY https://github.com/HDFGroup/hdf5
-#                     GIT_TAG 1.12/master
-#)
-#	FetchContent_MakeAvailable(HDF5)
-#	set(HDF5_C_LIBRARIES ${HDF5_LIB_TARGET})
-#	set(HDF5_INCLUDE_DIRS "${HDF5_SRC_DIR};${HDF5_SRC_BINARY_DIR}")
-#endif()
-message("")
-
 # Find the OpenMP package on the system
 
 message("Configuring OpenMP...")
@@ -69,6 +50,7 @@ message("")
 
 # Find the zstandard libraries on the system
 message("Configuring Zstandard")
+include(FetchContent)
 set(ZSTD_BUILD_STATIC ON CACHE INTERNAL "")
 set(ZSTD_BUILD_SHARED OFF CACHE INTERNAL "")
 FetchContent_Declare(zstd
@@ -79,6 +61,7 @@ FetchContent_MakeAvailable(zstd)
 # MakeAvailable doesn't allow for libzstd_static to be used as a target
 # Related? https://github.com/facebook/zstd/issues/2377
 add_subdirectory(${zstd_SOURCE_DIR}/build/cmake/ ${zstd_BINARY_DIR} EXCLUDE_FROM_ALL)
+message("Hello ${zstd_SOURCE_DIR}/lib/")
 message("")
 
 #message("Configuring CSpice")
@@ -89,24 +72,135 @@ message("")
 
 message("")
 
-message ("Configuring PSRDADA")
+message("Configuring HDF5 libraries")
+
+# zlib is "required" by hdf5. If it is present anywhere on the user's path it will be enabled and included, I cannot disable this for the life of me.
 include(ExternalProject)
+ExternalProject_Add(internal_zlib
+                    GIT_REPOSITORY https://github.com/madler/zlib
+                    GIT_TAG v1.2.12
+                    PREFIX ${CMAKE_CURRENT_BINARY_DIR}/_deps/zlib
+                    CONFIGURE_COMMAND ./configure --static --prefix=./
+                    BUILD_COMMAND "make" "test" "install" "-j8"
+                    BUILD_IN_SOURCE TRUE # Keep source beside install prefix
+                    INSTALL_COMMAND ""
+                    UPDATE_COMMAND ""
+                    )
+ExternalProject_Get_Property(internal_zlib INSTALL_DIR)
+# ${HDF5_INCLUDE_DIRS}
+set(zlib_INSTALL_DIR ${INSTALL_DIR})
+add_library(libz STATIC IMPORTED)
+set_property(TARGET libz PROPERTY IMPORTED_LOCATION ${zlib_INSTALL_DIR}/src/internal_zlib/libz.a)
+add_dependencies(libz internal_zlib)
+message("")
+#find_package(HDF5 REQUIRED COMPONENTS C CXX)
+#set(HDF5_EXTERNALLY_CONFIGURED ON CACHE INTERNAL "")
+#set(BUILD_STATIC_LIBS ON CACHE INTERNAL "")
+#set(BUILD_SHARED_LIBS OFF CACHE INTERNAL "")
+#set(HDF5_EXTERNALLY_CONFIGURED ON CACHE INTERNAL "")
+#set(HDF5_INSTALL_NO_DEVELOPMENT ON CACHE INTERNAL "")
+#set(HDF5_BUILD_CPP_LIB ON CACHE INTERNAL "")
+#set(HDF5_ENABLE_THREADSAFE OFF CACHE INTERNAL "")
+#set(HDF5_BUILD_EXAMPLES OFF CACHE INTERNAL "")
+#set(HDF5_BUILD_TOOLS OFF CACHE INTERNAL "")
+#set(HDF5_BUILD_UTILS OFF CACHE INTERNAL "")
+#set(HDF5_BUILD_HL_LIB OFF CACHE INTERNAL "")
+#set(HDF5_BUILD_HL_TOOLS OFF CACHE INTERNAL "")
+#set(BUILD_TESTING OFF CACHE INTERNAL "")
+#FetchContent_Declare(HDF5
+#                     GIT_REPOSITORY https://github.com/HDFGroup/hdf5
+#                     GIT_TAG hdf5-1_12_2
+#                     )
+#FetchContent_MakeAvailable(HDF5)
+#set(HDF5_INCLUDE_DIRS "${HDF5_SRC_SOURCE_DIR};${HDF5_SRC_BINARY_DIR}")
+ExternalProject_Add(internal_hdf5
+                    GIT_REPOSITORY https://github.com/HDFGroup/hdf5
+                    GIT_TAG hdf5-1_12_2
+                    PREFIX ${CMAKE_CURRENT_BINARY_DIR}/_deps/hdf5
+                    CONFIGURE_COMMAND ./configure --disable-dependency-tracking --enable-optimization=high --disable-shared --disable-cxx --disable-hl --disable-hltools --disable-tools --enable-threadsafe --disable-fortran --enable-build-mode=production --with-zlib=/dev/null
+                    BUILD_COMMAND "make" "all" "-j8"
+                    BUILD_IN_SOURCE TRUE # Header gets moved to incorrect folder otherwise
+                    INSTALL_COMMAND ""
+                    UPDATE_COMMAND ""
+                    DEPENDS internal_zlib
+)
+ExternalProject_Get_Property(internal_hdf5 INSTALL_DIR)
+set(hdf5_INSTALL_DIR ${INSTALL_DIR})
+add_library(libhdf5 STATIC IMPORTED)
+set_property(TARGET libhdf5 PROPERTY IMPORTED_LOCATION ${hdf5_INSTALL_DIR}/src/internal_hdf5/src/.libs/libhdf5.a)
+add_dependencies(libhdf5 internal_hdf5)
+message("")
+
+message("Configuring HDF5 plugins")
+ExternalProject_Add(internal_bitshuffle
+                    GIT_REPOSITORY https://github.com/kiyo-masui/bitshuffle
+                    GIT_TAG fdfcd404ac8dcb828857a90c559d36d8ac4c2968
+                    PREFIX ${CMAKE_CURRENT_BINARY_DIR}/_deps/bitshuffle
+                    CONFIGURE_COMMAND cp ${PROJECT_SOURCE_DIR}/src/misc/bitshuffleMakefile ${CMAKE_CURRENT_BINARY_DIR}/_deps/bitshuffle/src/internal_bitshuffle/Makefile
+                    BUILD_COMMAND CMAKE_BASE_DIR=${CMAKE_CURRENT_BINARY_DIR} make link -j8
+                    BUILD_IN_SOURCE TRUE
+                    INSTALL_COMMAND ""
+                    UPDATE_COMMAND ""
+                    DEPENDS internal_hdf5 zstd internal_zlib
+                    )
+ExternalProject_Get_Property(internal_bitshuffle INSTALL_DIR)
+set(bitshuffle_INSTALL_DIR ${INSTALL_DIR})
+add_library(libh5bshuf STATIC IMPORTED)
+set_property(TARGET libh5bshuf PROPERTY IMPORTED_LOCATION ${bitshuffle_INSTALL_DIR}/src/internal_bitshuffle/libh5bshuf.a)
+add_dependencies(libh5bshuf internal_bitshuffle)
+message("")
+
+
+message ("Configuring PSRDADA")
 # Find the PSRDADA libraries on the system (or set NODADA if not found)
 ExternalProject_Add(internal_PSRDADA
                     GIT_REPOSITORY https://git.code.sf.net/p/psrdada/code
                     GIT_TAG ba2b88
                     PREFIX ${CMAKE_CURRENT_BINARY_DIR}/_deps/psrdada
                     BINARY_DIR ${CMAKE_CURRENT_BINARY_DIR}/_deps/psrdada/src/internal_PSRDADA/src/
-                    CONFIGURE_COMMAND cd .. && ./bootstrap && ./configure --with-cuda-dir=no
-                    BUILD_COMMAND "make" "libpsrdada.la" "dada_db" "dada_dbmeminfo" "dada_dbmetric" "dada_dbmonitor"
+                    CONFIGURE_COMMAND cd .. && ./bootstrap && ./configure --disable-dependency-tracking --with-cuda-dir=no
+                    BUILD_COMMAND "make" "libpsrdada.la" "dada_db" "dada_dbmeminfo" "dada_dbmetric" "dada_dbmonitor" "-j4"
                     INSTALL_COMMAND ""
                     UPDATE_COMMAND ""
                     )
-ExternalProject_Get_Property(internal_PSRDADA install_dir)
-set(psrdada_INSTALL_DIR ${install_dir})
-add_library(psrdada STATIC IMPORTED)
-set_property(TARGET psrdada PROPERTY IMPORTED_LOCATION ${psrdada_INSTALL_DIR}/src/internal_PSRDADA/src/.libs/libpsrdada.a)
-add_dependencies(psrdada internal_PSRDADA)
+ExternalProject_Get_Property(internal_PSRDADA INSTALL_DIR)
+set(psrdada_INSTALL_DIR ${INSTALL_DIR})
+add_library(libpsrdada STATIC IMPORTED)
+set_property(TARGET libpsrdada PROPERTY IMPORTED_LOCATION ${psrdada_INSTALL_DIR}/src/internal_PSRDADA/src/.libs/libpsrdada.a)
+add_dependencies(libpsrdada internal_PSRDADA)
+message("")
+
+
+# Configure FFTW3 (w/ floats + omp support, optional)
+
+## CMake config is outdated as of FFTW3 3.3.10, manually building to get AVX-512 support for REALTA
+message("Configuring FFTW3 (static, floats, OpenMP support enabled)")
+#set(ENABLE_FLOAT ON CACHE INTERNAL "")
+#set(ENABLE_OPENMP OFF CACHE INTERNAL "")
+#set(BUILD_SHARED_LIBS OFF CACHE INTERNAL "")
+#set(BUILD_TESTS OFF CACHE INTERNAL "")
+#
+#FetchContent_Declare(fftw3f
+#                     URL "https://www.fftw.org/fftw-3.3.10.tar.gz"
+#                     )
+#FetchContent_MakeAvailable(fftw3f)
+# I do not understand why, but the clean build process fails without the "echo $(pwd)" command.
+ExternalProject_ADD(internal_FFTW3F
+                    URL "https://www.fftw.org/fftw-3.3.10.tar.gz"
+                    URL_HASH "MD5=8ccbf6a5ea78a16dbc3e1306e234cc5c"
+                    PREFIX ${CMAKE_CURRENT_BINARY_DIR}/_deps/fftw3
+                    BINARY_DIR ${CMAKE_CURRENT_BINARY_DIR}/_deps/fftw3/src/internal_FFTW3F/
+                    INSTALL_DIR ${CMAKE_CURRENT_BINARY_DIR}/_deps/fftw3/src/internal_FFTW3F/build/
+                    CONFIGURE_COMMAND echo $(pwd) && mkdir -p ./build/ && ./configure --disable-dependency-tracking --enable-float --enable-openmp --enable-static --prefix ${CMAKE_CURRENT_BINARY_DIR}/_deps/fftw3/src/internal_FFTW3F/build/
+                    BUILD_COMMAND "make" "-j4" "&&" "make" "install" "-j4"
+                    INSTALL_COMMAND ""
+                    UPDATE_COMMAND ""
+                    )
+ExternalProject_Get_Property(internal_FFTW3F install_dir)
+set(fftw3f_INSTALL_DIR ${install_dir})
+add_library(libfftw3fomp STATIC IMPORTED)
+set_property(TARGET libfftw3fomp PROPERTY IMPORTED_LOCATION ${fftw3f_INSTALL_DIR}/lib/libfftw3f_omp.a)
+add_dependencies(libfftw3fomp internal_FFTW3F)
 message("")
 
 
@@ -140,7 +234,7 @@ add_library(lofudpman STATIC
             src/lib/lofar_udp_metadata.c
             src/lib/lofar_udp_time.c)
 
-add_dependencies(lofudpman libzstd_static psrdada) #yaml) #CSpice::cspice)
+add_dependencies(lofudpman libfftw3fomp libzstd_static libpsrdada libhdf5 libh5bshuf) #yaml) #CSpice::cspice)
 
 # Include all of our library headers
 target_include_directories(lofudpman PUBLIC
@@ -149,15 +243,20 @@ target_include_directories(lofudpman PUBLIC
 		${PROJECT_SOURCE_DIR}/src/metadata
 )
 # Include all of our dependency headers
-target_include_directories(lofudpman PUBLIC ${HDF5_INCLUDE_DIRS})
+target_include_directories(lofudpman PUBLIC ${fftw3f_INSTALL_DIR}/include/)
+target_include_directories(lofudpman PUBLIC ${hdf5_INSTALL_DIR}/src/internal_hdf5/src/)
+target_include_directories(lofudpman PUBLIC ${bitshuffle_INSTALL_DIR}/src/internal_bitshuffle/src/)
 target_include_directories(lofudpman PUBLIC ${psrdada_INSTALL_DIR}/src/internal_PSRDADA/src/)
 target_include_directories(lofudpman PUBLIC ${zstd_SOURCE_DIR}/lib/)
 #target_include_directories(lofudpman PUBLIC ${yaml_SOURCE_DIR}/include/)
 
 file(GLOB_RECURSE UDP_INCLUDE_FILES "${PROJECT_SOURCE_DIR}/src/*/*.h" "${PROJECT_SOURCE_DIR}/src/*/*.hpp")
 
-target_link_libraries(lofudpman PUBLIC ${HDF5_C_LIBRARIES})
-target_link_libraries(lofudpman PUBLIC psrdada)
+target_link_libraries(lofudpman PUBLIC libfftw3fomp)
+target_link_libraries(lofudpman PUBLIC libz) # hdf5 requirement, not ours
+target_link_libraries(lofudpman PUBLIC libhdf5)
+target_link_libraries(lofudpman PUBLIC libh5bshuf)
+target_link_libraries(lofudpman PUBLIC libpsrdada)
 target_link_libraries(lofudpman PUBLIC libzstd_static)
 #target_link_libraries(lofudpman PUBLIC yaml)
 
@@ -185,6 +284,8 @@ target_link_libraries(lofudpman PUBLIC OpenMP::OpenMP_CXX OpenMP::OpenMP_C)
 # Setup the CLIs
 add_executable(lofar_udp_extractor src/CLI/lofar_cli_extractor.c)
 target_link_libraries(lofar_udp_extractor PUBLIC lofudpman)
+add_executable(lofar_stokes_extractor src/CLI/lofar_cli_stokes.c)
+target_link_libraries(lofar_stokes_extractor PUBLIC lofudpman)
 
 
 include(CMakePackageConfigHelpers)
@@ -195,7 +296,7 @@ write_basic_package_version_file(
 )
 
 # Install everything
-install(TARGETS lofudpman lofar_udp_extractor
+install(TARGETS lofudpman lofar_udp_extractor lofar_stokes_extractor
 		EXPORT lofudpman
 		LIBRARY DESTINATION lib
 		RUNTIME DESTINATION bin

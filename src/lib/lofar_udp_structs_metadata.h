@@ -155,17 +155,20 @@ typedef struct lofar_udp_metadata {
 
 	double freq; // beamctl
 	double bw; // beamctl
-	double channel_bw; // beamctl
+	double subband_bw; // beamctl
+	double channel_bw;
 	double ftop; // beamctl
 	double fbottom; // beamctl
 	int subbands[MAX_NUM_PORTS * UDPMAXBEAM];
-	int nchan; // beamctl / Library?
+	int nsubband; // beamctl
+	int nchan; // Lib
 	int nrcu; // beamctl
 	int npol; // Standard
 	int nbit; // Lib
 	int resolution; // Standard? DSPSR: minimum number of samples that can be parsed, always 1?
 	int ndim; // Lib
-	double tsamp; // Lib
+	double tsamp_raw; // Lib
+	double tsamp;
 	char state[META_STR_LEN + 1]; // Lib
 	int order; // Lib
 
@@ -199,6 +202,9 @@ typedef struct lofar_udp_metadata {
 	int upm_rawbeamlets;
 	int upm_upperbeam;
 	int upm_lowerbeam;
+
+	int external_channelisation;
+	int external_downsampling;
 
 	struct output {
 		guppi_hdr *guppi;

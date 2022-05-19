@@ -1,0 +1,28 @@
+
+CMAKE_BASE_DIR ?= ../../
+
+CFLAGS += -O3 -ffast-math -std=c99 -static -fno-strict-aliasing -fPIC -DZSTD_SUPPORT
+CFLAGS += -I./src -I./lz4 -I$(CMAKE_BASE_DIR)/_deps/zstd-src/lib/ -I$(CMAKE_BASE_DIR)/_deps/hdf5/src/internal_hdf5/src
+LFLAGS += -L$(CMAKE_BASE_DIR)/_deps/zstd-src/build/cmake -lzstd
+
+SRC_INP =  $(wildcard ./src/*.c)
+SRC_INP += $(wildcard ./lz4/*.c)
+SRC =  $(filter-out ./src/lzf_h5plugin.c,$(SRC_INP))
+
+OBJ =  $(SRC:.c=.o)
+
+LIB_NAME = libh5bshuf
+LIB_VER  = 0.4.2
+
+%.o: %.c
+	$(CC) -c $(CFLAGS) $< -o ./$@ $(LFLAGS)
+
+link: $(OBJ)
+	$(AR) rc $(LIB_NAME).a $(OBJ)
+	-ln -s $(LIB_NAME).a $(LIB_NAME).a.$(LIB_VER)
+
+clean:
+	-rm ./src/*.o ./lz4/*.o
+	-rm ./$(LIB_NAME).a ./$(LIB_NAME).a.$(LIB_VER)
+
+all: link

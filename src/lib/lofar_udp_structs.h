@@ -108,7 +108,7 @@ typedef struct lofar_udp_meta {
 	int clockBit;
 
 	// Calibration data
-	int calibrateData;
+	calibrate_t calibrateData;
 	int calibrationStep;
 	float **jonesMatrices;
 
@@ -169,6 +169,18 @@ typedef struct lofar_udp_reader {
 } lofar_udp_reader;
 extern const lofar_udp_reader lofar_udp_reader_default;
 
+typedef struct metadata_config {
+	// Define the output metadata type (see metadata_t enums)
+	metadata_t metadataType;
+
+	// Points to a file containing metadata that we can parse
+	char metadataLocation[DEF_STR_LEN + 1];
+
+	// External modifiers to final output data
+	int externalChannelisation;
+	int externalDownsampling;
+} metadata_config;
+
 // Configuration struct
 typedef struct lofar_udp_config {
 
@@ -181,10 +193,7 @@ typedef struct lofar_udp_config {
 	// Input PSRDADA ringbuffer keys
 	int dadaKeys[MAX_NUM_PORTS];
 
-	// Define the output metadata type (see metadata_t enums)
-	metadata_t metadataType;
-	// Points to a file containing metadata that we can parse
-	char metadataLocation[DEF_STR_LEN + 1];
+	struct metadata_config metadata_config;
 
 	// Number of valid ports of raw data being provided in inputLocations / dadaKeys
 	//
@@ -224,7 +233,7 @@ typedef struct lofar_udp_config {
 	int beamletLimits[2];
 
 	// Enable / disable dreamBeam polarmetric corrections
-	int calibrateData;
+	calibrate_t calibrateData;
 
 	// Configure calibration parameters
 	// May be overwritten if metadata is provided.
@@ -245,6 +254,7 @@ typedef struct lofar_udp_io_write_config {
 	// Writer configuration, these must be set prior to calling write_setup
 	reader_t readerType;
 	lofar_udp_metadata *metadata;
+	lofar_udp_input_meta const *fallbackMetadata;
 	long writeBufSize[MAX_OUTPUT_DIMS];
 	int progressWithExisting;
 	int numOutputs;

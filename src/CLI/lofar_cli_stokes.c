@@ -1,11 +1,14 @@
 #include "lofar_cli_meta.h"
 
+// Import FFTW3 for channelisation
+#include "fftw3.h"
+
 // Constant to define the length of the timing variable array
 #define TIMEARRLEN 4
 
 void helpMessages() {
-	printf("LOFAR UDP Data extractor (CLI v%s, lib v%s)\n\n", UPM_CLI_VERSION, UPM_VERSION);
-	printf("Usage: ./lofar_cli_extractor <flags>");
+	printf("LOFAR Stokes Data extractor (CLI v%s, lib v%s)\n\n", UPM_CLI_VERSION, UPM_VERSION);
+	printf("Usage: ./lofar_stokes_extractor <flags>");
 
 	printf("\n\n");
 
@@ -23,23 +26,23 @@ void helpMessages() {
 	printf("-e: <fileName>	Specify a file of events to extract; newline separated start time and durations in seconds. Events must not overlap.\n");
 	printf("-p: <mode>		Processing mode, options listed below (default: 0)\n");
 	printf("-r:		Replay the previous packet when a dropped packet is detected (default: pad with 0 values)\n");
-	printf("-c:		Calibrate the data with the given strategy (default: disabled, eg 'HBA,12:499'). Will not run without -d\n");
-	printf("-d:		Calibrate the data with the given pointing (default: disabled, eg '0.1,0.2,J2000'). Will not run without -c\n");
 	printf("-z:		Change to the alternative clock used for modes 4/6 (160MHz clock) (default: False)\n");
 	printf("-q:		Enable silent mode for the CLI, don't print any information outside of library error messes (default: False)\n");
-	printf("-a: <args>		Call mockHeader with the specific flags to prefix output files with a header (default: False)\n");
 	printf("-f:		Append files if they already exist (default: False, exit if exists)\n");
 	printf("-T: <threads>	OpenMP Threads to use during processing (8+ highly recommended, default: %d)\n", OMP_THREADS);
+	printf("-c: <factor>    Channelisation factor to apply when processing data (default: disabled == 1)\n");
+	printf("-d <factor>     Temporal downsampling to apply when processing data (default: disabled == 1)\n");
+	printf("-D              Apply temporal downsampling to spectral data (slower, but higher quality (default: disabled)\n");
 
 	VERBOSE(printf("-v:		Enable verbose output (default: False)\n");
-			printf("-V:		Enable highly verbose output (default: False)\n"));
+		        printf("-V:		Enable highly verbose output (default: False)\n"));
 
 	processingModes();
 
 }
 
 void CLICleanup(int eventCount, char **dateStr, long *startingPackets, long *multiMaxPackets, float *eventSeconds,
-				lofar_udp_config *config, lofar_udp_io_write_config *outConfig, char *headerBuffer) {
+                lofar_udp_config *config, lofar_udp_io_write_config *outConfig, char *headerBuffer) {
 
 	FREE_NOT_NULL(startingPackets);
 	FREE_NOT_NULL(multiMaxPackets);
@@ -106,8 +109,10 @@ int main(int argc, char *argv[]) {
 
 	char *endPtr, flagged = 0;
 
+	size_t channelisation = 1, downsampling = 1, spectralDownsample = 0;
+
 	// Standard ugly input flags parser
-	while ((inputOpt = getopt(argc, argv, "zrqfvVi:o:m:M:I:u:t:s:S:e:p:a:n:b:ck:T:")) != -1) {
+	while ((inputOpt = getopt(argc, argv, "zrqfvVi:o:m:M:I:u:t:s:S:e:p:a:n:b:c:d:k:T:D")) != -1) {
 		input = 1;
 		switch (inputOpt) {
 
@@ -180,7 +185,13 @@ int main(int argc, char *argv[]) {
 				break;
 
 			case 'c':
-				config->calibrateData = 1;
+				channelisation = strtoi(optarg, &endPtr);
+				if (checkOpt(inputOpt, optarg, endPtr)) { flagged = 1; }
+				break;
+
+			case 'd':
+				downsampling = strtoi(optarg, &endPtr);
+				if (checkOpt(inputOpt, optarg, endPtr)) { flagged = 1; }
 				break;
 
 			case 'z':
@@ -208,6 +219,10 @@ int main(int argc, char *argv[]) {
 				if (checkOpt(inputOpt, optarg, endPtr)) { flagged = 1; }
 				break;
 
+			case 'D':
+				spectralDownsample = 1;
+				break;
+
 
 
 				// Silence GCC warnings, fall-through is the desired behaviour
@@ -218,8 +233,8 @@ int main(int argc, char *argv[]) {
 				// Handle edge/error cases
 			case '?':
 				if ((optopt == 'i') || (optopt == 'o') || (optopt == 'm') || (optopt == 'u') || (optopt == 't') ||
-					(optopt == 's') || (optopt == 'e') || (optopt == 'p') || (optopt == 'a') || (optopt == 'c') ||
-					(optopt == 'd')) {
+				    (optopt == 's') || (optopt == 'e') || (optopt == 'p') || (optopt == 'a') || (optopt == 'c') ||
+				    (optopt == 'd')) {
 					fprintf(stderr, "Option '%c' requires an argument.\n", optopt);
 				} else {
 					fprintf(stderr, "Option '%c' is unknown or encountered an error.\n", optopt);
@@ -251,6 +266,34 @@ int main(int argc, char *argv[]) {
 
 	if (!inputProvided) {
 		fprintf(stderr, "ERROR: An input was not provided, exiting.\n");
+		helpMessages();
+		CLICleanup(eventCount, dateStr, startingPackets, multiMaxPackets, eventSeconds, config, outConfig, headerBuffer);
+		return 1;
+	}
+
+	if ((long long) (channelisation * downsampling) < config->packetsPerIteration) {
+		fprintf(stderr, "ERROR: Number of samples needed per iterations for channelisation factor %ld and downsampling factor %ld (%ld) is larger than set number of packets per iteration (%ld), exiting.\n", channelisation, downsampling, channelisation * downsampling, config->packetsPerIteration);
+		helpMessages();
+		CLICleanup(eventCount, dateStr, startingPackets, multiMaxPackets, eventSeconds, config, outConfig, headerBuffer);
+		return 1;
+	}
+
+	if (((long long) (channelisation * downsampling)) % config->packetsPerIteration != 0) {
+		fprintf(stderr, "ERROR: Number of packets per iteration is not evenly divisible by the number of samples needed to process at the given channelisation factor %ld and downsampling factor %ld (%ld, %ld remainder), exiting.\n", channelisation, downsampling, channelisation * downsampling, (channelisation * downsampling) % config->packetsPerIteration);
+		helpMessages();
+		CLICleanup(eventCount, dateStr, startingPackets, multiMaxPackets, eventSeconds, config, outConfig, headerBuffer);
+		return 1;
+	}
+
+	if (channelisation < 1) {
+		fprintf(stderr, "ERROR: Invalid channelisation factor (less than 1)\n");
+		helpMessages();
+		CLICleanup(eventCount, dateStr, startingPackets, multiMaxPackets, eventSeconds, config, outConfig, headerBuffer);
+		return 1;
+	}
+
+	if (downsampling < 1) {
+		fprintf(stderr, "ERROR: Invalid downsampling factor (less than 1)\n");
 		helpMessages();
 		CLICleanup(eventCount, dateStr, startingPackets, multiMaxPackets, eventSeconds, config, outConfig, headerBuffer);
 		return 1;
@@ -295,12 +338,12 @@ int main(int argc, char *argv[]) {
 
 	// Sanity check a few inputs
 	if ((config->numPorts <= 0 || config->numPorts > MAX_NUM_PORTS) || // We are processing a sane number of ports
-		(config->packetsPerIteration < 2) || // We are processing a sane number of packets
-		(config->replayDroppedPackets > 1 || config->replayDroppedPackets < 0) || // Replay key was not malformed
-		(config->processingMode > 1000 || config->processingMode < 0) ||
-		// Processing mode is sane (may still fail later)
-		(seconds < 0) || // Time is sane
-		(config->ompThreads < 1)) // Number of threads will allow execution to continue
+	    (config->packetsPerIteration < 2) || // We are processing a sane number of packets
+	    (config->replayDroppedPackets > 1 || config->replayDroppedPackets < 0) || // Replay key was not malformed
+	    (config->processingMode > 1000 || config->processingMode < 0) ||
+	    // Processing mode is sane (may still fail later)
+	    (seconds < 0) || // Time is sane
+	    (config->ompThreads < 1)) // Number of threads will allow execution to continue
 	{
 
 		fprintf(stderr, "One or more inputs invalid or not fully initialised, exiting.\n");
@@ -311,7 +354,7 @@ int main(int argc, char *argv[]) {
 
 
 	if (silent == 0) {
-		printf("LOFAR UDP Data extractor (v%s, lib v%s)\n\n", UPM_CLI_VERSION, UPM_VERSION);
+		printf("LOFAR Stokes Data extractor (v%s, lib v%s)\n\n", UPM_CLI_VERSION, UPM_VERSION);
 		printf("=========== Given configuration ===========\n");
 
 		printf("Input:\t%s\n", inputFormat);
@@ -355,7 +398,7 @@ int main(int argc, char *argv[]) {
 
 		if (silent == 0) {
 			printf("Events File:\t%s\t\tEvent Count:\t%d\t\t\t200MHz Clock:\t%d\n", eventsFile, eventCount,
-				   clock200MHz);
+			       clock200MHz);
 		}
 
 		// For each event,
@@ -366,7 +409,7 @@ int main(int argc, char *argv[]) {
 
 			if (returnCounter != 2) {
 				fprintf(stderr, "Unable to parse line %d of events file, exiting ('%s', %lf).\n", idx + 1, stringBuff,
-						seconds);
+				        seconds);
 				CLICleanup(eventCount, dateStr, startingPackets, multiMaxPackets, eventSeconds, config, outConfig, headerBuffer);
 				return 1;
 			}
@@ -387,7 +430,7 @@ int main(int argc, char *argv[]) {
 
 			if (silent == 0) {
 				printf("Event:\t%d\tSeconds:\t%.02lf\tInitial Packet:\t%ld\t\tFinal Packet:\t%ld\n", idx, seconds,
-					   startingPackets[idx], startingPackets[idx] + multiMaxPackets[idx]);
+				       startingPackets[idx], startingPackets[idx] + multiMaxPackets[idx]);
 			}
 
 			// Safety check: all events are correctly ordered in increasing time, and do not overlap
@@ -395,16 +438,16 @@ int main(int argc, char *argv[]) {
 			if (idx > 0) {
 				if (startingPackets[idx] < startingPackets[idx - 1]) {
 					fprintf(stderr,
-							"Events %d and %d are out of order, please only use increasing event times, exiting.\n",
-							idx, idx - 1);
+					        "Events %d and %d are out of order, please only use increasing event times, exiting.\n",
+					        idx, idx - 1);
 					CLICleanup(eventCount, dateStr, startingPackets, multiMaxPackets, eventSeconds, config, outConfig, headerBuffer);
 					return 1;
 				}
 
 				if (startingPackets[idx] < startingPackets[idx - 1] + multiMaxPackets[idx - 1]) {
 					fprintf(stderr,
-							"Events %d and %d overlap, please combine them or ensure there is some buffer time between them, exiting.",
-							idx, idx - 1);
+					        "Events %d and %d overlap, please combine them or ensure there is some buffer time between them, exiting.",
+					        idx, idx - 1);
 					CLICleanup(eventCount, dateStr, startingPackets, multiMaxPackets, eventSeconds, config, outConfig, headerBuffer);
 					return 1;
 				}
@@ -450,11 +493,25 @@ int main(int argc, char *argv[]) {
 	if (config->packetsPerIteration > maxPackets) {
 		if (silent == 0) {
 			printf("Packet/Gulp is greater than the maximum packets requested, reducing from %ld to %ld.\n",
-				   config->packetsPerIteration, maxPackets);
+			       config->packetsPerIteration, maxPackets);
 		}
 		config->packetsPerIteration = maxPackets;
 
 	}
+
+	// Pass forward output channelisation and downsampling factors
+	config->metadata_config.externalChannelisation = channelisation;
+	config->metadata_config.externalDownsampling = downsampling;
+
+	if (channelisation > 1) {
+		if (silent == 0) { printf("Computing channelisation chirp\n"); }
+
+		if (spectralDownsample) {
+			channelisation *= downsampling;
+		}
+	}
+
+
 
 	if (silent == 0) { printf("Starting data read/reform operations...\n"); }
 
@@ -477,7 +534,7 @@ int main(int argc, char *argv[]) {
 	// Sanity check that we were passed the correct clock bit
 	if (((lofar_source_bytes *) &(reader->meta->inputData[0][1]))->clockBit != (unsigned int) clock200MHz) {
 		fprintf(stderr,
-				"ERROR: The clock bit of the first packet does not match the clock state given when starting the CLI. Add or remove -c from your command. Exiting.\n");
+		        "ERROR: The clock bit of the first packet does not match the clock state given when starting the CLI. Add or remove -c from your command. Exiting.\n");
 		CLICleanup(eventCount, dateStr, startingPackets, multiMaxPackets, eventSeconds, config, outConfig, headerBuffer);
 		return 1;
 	}
@@ -488,15 +545,15 @@ int main(int argc, char *argv[]) {
 		lofar_udp_time_get_current_isot(reader, stringBuff);
 		printf("\n\n=========== Reader  Information ===========\n");
 		printf("Total Beamlets:\t%d/%d\t\t\t\t\tFirst Packet:\t%ld\n", reader->meta->totalProcBeamlets,
-			   reader->meta->totalRawBeamlets, reader->meta->lastPacket);
+		       reader->meta->totalRawBeamlets, reader->meta->lastPacket);
 		printf("Start time:\t%s\t\tMJD Time:\t%lf\n", stringBuff,
-			   lofar_udp_time_get_packet_time_mjd(reader->meta->inputData[0]));
+		       lofar_udp_time_get_packet_time_mjd(reader->meta->inputData[0]));
 		for (int port = 0; port < reader->meta->numPorts; port++) {
 			printf("------------------ Port %d -----------------\n", port);
 			printf("Port Beamlets:\t%d/%d\t\tPort Bitmode:\t%d\t\tInput Pkt Len:\t%d\n",
-				   reader->meta->upperBeamlets[port] - reader->meta->baseBeamlets[port],
-				   reader->meta->portRawBeamlets[port], reader->meta->inputBitMode,
-				   reader->meta->portPacketLength[port]);
+			       reader->meta->upperBeamlets[port] - reader->meta->baseBeamlets[port],
+			       reader->meta->portRawBeamlets[port], reader->meta->inputBitMode,
+			       reader->meta->portPacketLength[port]);
 		}
 		for (int out = 0; out < reader->meta->numOutputs; out++)
 			printf("Output Pkt Len (%d):\t%d\t\t", out, reader->meta->packetOutputLength[out]);
@@ -514,9 +571,9 @@ int main(int argc, char *argv[]) {
 		// If we are not on the first event, set-up the reader for the current event
 		if (loops != 0) {
 			if ((returnVal = lofar_udp_file_reader_reuse(reader, startingPackets[eventLoop],
-														 multiMaxPackets[eventLoop])) > 0) {
+			                                             multiMaxPackets[eventLoop])) > 0) {
 				fprintf(stderr, "Error re-initialising reader for event %d (error %d), exiting.\n", eventLoop,
-						returnVal);
+				        returnVal);
 				returnValMeta = (returnValMeta < 0 && returnValMeta > -6) ? returnValMeta : -6;
 				break;
 			}
@@ -527,19 +584,19 @@ int main(int argc, char *argv[]) {
 			if (silent == 0) {
 				if (eventLoop > 0) {
 					printf("Completed work for event %d, packets lost for each port during this event was",
-						   eventLoop - 1);
+					       eventLoop - 1);
 					for (int port = 0; port < reader->meta->numPorts; port++) printf(" %ld", eventPacketsLost[port]);
 					printf(".\n\n\n");
 				}
 				printf("Beginning work on event %d at %s: packets %ld to %ld...\n", eventLoop, dateStr[eventLoop],
-					   startingPackets[eventLoop], startingPackets[eventLoop] + multiMaxPackets[eventLoop]);
+				       startingPackets[eventLoop], startingPackets[eventLoop] + multiMaxPackets[eventLoop]);
 				lofar_udp_time_get_current_isot(reader, stringBuff);
 				printf("============ Event %d Information ===========\n", eventLoop);
 				printf("Target Time:\t%s\t\tActual Time:\t%s\n", dateStr[eventLoop], stringBuff);
 				printf("Target Packet:\t%ld\tActual Packet:\t%ld\n", startingPackets[eventLoop],
-					   reader->meta->lastPacket + 1);
+				       reader->meta->lastPacket + 1);
 				printf("Event Length:\t%fs\t\tPacket Count:\t%ld\n", eventSeconds[eventLoop],
-					   multiMaxPackets[eventLoop]);
+				       multiMaxPackets[eventLoop]);
 				printf("MJD Time:\t%lf\n", lofar_udp_time_get_packet_time_mjd(reader->meta->inputData[0]));
 				printf("============= End Information ==============\n");
 			}
@@ -567,11 +624,11 @@ int main(int argc, char *argv[]) {
 			CLICK(tock0);
 			if (localLoops == 0) {
 				timing[0] = TICKTOCK(tick0, tock0) -
-							timing[1];
+				            timing[1];
 			} // _file_reader_step or _reader_reuse does first I/O operation; approximate the time here
 			if (silent == 0) {
 				printf("Read complete for operation %d after %f seconds (I/O: %lf, MemOps: %lf), return value: %d\n",
-					   loops, TICKTOCK(tick0, tock0), timing[0], timing[1], returnVal);
+				       loops, TICKTOCK(tick0, tock0), timing[0], timing[1], returnVal);
 			}
 
 			totalReadTime += timing[0];
@@ -581,6 +638,24 @@ int main(int argc, char *argv[]) {
 			packetsToWrite = reader->meta->packetsPerIteration;
 			if (splitEvery == LONG_MAX && multiMaxPackets[eventLoop] < packetsToWrite) {
 				packetsToWrite = multiMaxPackets[eventLoop];
+			}
+
+			// Perform channelisation, temporal downsampling as needed
+			if (channelisation > 1) {
+				for (int out = 0; out < reader->meta->numOutputs; out++) {
+
+				}
+			}
+			if (downsampling > 1) {
+				if (spectralDownsample) {
+					for (int out = 0; out < reader->meta->numOutputs; out++) {
+
+					}
+				} else {
+					for (int out = 0; out < reader->meta->numOutputs; out++) {
+
+					}
+				}
 			}
 
 
@@ -603,7 +678,7 @@ int main(int argc, char *argv[]) {
 				size_t outputLength = packetsToWrite * reader->meta->packetOutputLength[out];
 				size_t outputWritten;
 				if ((outputWritten = lofar_udp_io_write(outConfig, out, reader->meta->outputData[out],
-									   outputLength)) != outputLength) {
+				                                        outputLength)) != outputLength) {
 					fprintf(stderr, "ERROR: Failed to write data to output (%ld bytes/%ld bytes writen, errno %d: %s)), breaking.\n", outputWritten, outputLength,  errno, strerror(errno));
 					returnValMeta = (returnValMeta < 0 && returnValMeta > -5) ? returnValMeta : -5;
 					break;
@@ -654,7 +729,7 @@ int main(int argc, char *argv[]) {
 					for (int port = 0; port < reader->meta->numPorts; port++)
 						if (reader->meta->portLastDroppedPackets[port] != 0) {
 							printf("During this iteration there were %ld dropped packets on port %d.\n",
-								   reader->meta->portLastDroppedPackets[port], port);
+							       reader->meta->portLastDroppedPackets[port], port);
 						}
 				}
 				printf("\n");
@@ -664,7 +739,7 @@ int main(int argc, char *argv[]) {
 			localLoops++;
 
 #ifdef __SLOWDOWN
-				sleep(1);
+			sleep(1);
 #endif
 			CLICK(tick0);
 
@@ -703,15 +778,15 @@ int main(int argc, char *argv[]) {
 
 		printf("Reader loop exited (%d); overall process took %f seconds.\n", returnVal, TICKTOCK(tick, tock));
 		printf("We processed %ld packets, representing %.03lf seconds of data", packetsProcessed,
-			   (float) (reader->meta->numPorts * packetsProcessed * UDPNTIMESLICE) * 5.12e-6f);
+		       (float) (reader->meta->numPorts * packetsProcessed * UDPNTIMESLICE) * 5.12e-6f);
 		if (reader->meta->numPorts > 1) {
 			printf(" (%.03lf per port)\n", (float) (packetsProcessed * UDPNTIMESLICE) * 5.12e-6f);
 		} else { printf(".\n"); }
 		printf("Total Read Time:\t%3.02lf s\t\t\tTotal CPU Ops Time:\t%3.02lf s\nTotal Write Time:\t%3.02lf s\t\t\tTotal MetaD Time:\t%3.02lf s\n", totalReadTime,
-			   totalOpsTime, totalWriteTime, totalMetadataTime);
+		       totalOpsTime, totalWriteTime, totalMetadataTime);
 		printf("Total Data Read:\t%3.03lf GB\t\tTotal Data Written:\t%3.03lf GB\n",
-			   (double) (packetsProcessed * totalPacketLength) / 1e+9,
-			   (double) (packetsWritten * totalOutLength) / 1e+9);
+		       (double) (packetsProcessed * totalPacketLength) / 1e+9,
+		       (double) (packetsWritten * totalOutLength) / 1e+9);
 		printf("Effective Read Speed:\t%3.01lf MB/s\t\tEffective Write Speed:\t%3.01lf MB/s\n", (double) (packetsProcessed * totalPacketLength) / 1e+6 / totalReadTime,
 		       (double) (packetsWritten * totalOutLength) / 1e+6 / totalWriteTime);
 		printf("Approximate Throughput:\t%3.01lf GB/s\n", (double) (reader->meta->numPorts * packetsProcessed * (totalPacketLength + totalOutLength)) / 1e+9 / totalOpsTime);

@@ -547,9 +547,9 @@ int lofar_udp_setup_processing(lofar_udp_input_meta *meta) {
 	// Sanity check the processing mode
 	switch (meta->processingMode) {
 		case 0 ... 1:
-			if (meta->calibrateData) {
+			if (meta->calibrateData > NO_CALIBRATION) {
 				fprintf(stderr, "WARNING: Modes 0 and 1 cannot be calibrated as they are copying full packets, disabling calibration and continuing.\n");
-				meta->calibrateData = 0;
+				meta->calibrateData = NO_CALIBRATION;
 			}
 		case 2:
 		case 10 ... 11:
@@ -682,7 +682,7 @@ int lofar_udp_setup_processing(lofar_udp_input_meta *meta) {
 	}
 
 	// If we are calibrating the data, the output bit mode is always 32.
-	if (meta->calibrateData == 1) {
+	if (meta->calibrateData == APPLY_CALIBRATION) {
 		meta->outputBitMode = 32;
 	}
 
@@ -744,17 +744,17 @@ int lofar_udp_reader_config_check(lofar_udp_config *config) {
 		}
 	}
 
-	if (config->calibrateData != 0 && config->calibrateData != 1) {
+	if (config->calibrateData < NO_CALIBRATION && config->calibrateData > APPLY_CALIBRATION) {
 		fprintf(stderr, "ERROR: Invalid value for calibrateData (%d, should be 0 or 1), exiting.\n",
 				config->calibrateData);
 		return -1;
 	}
 
-	if (config->calibrateData == 1 && config->calibrationConfiguration == NULL) {
+	if (config->calibrateData > NO_CALIBRATION && config->calibrationConfiguration == NULL) {
 		fprintf(stderr,
 				"ERROR: Calibration was enabled, but the config->calibrationConfiguration struct was not initialised, exiting.\n");
 		return -1;
-	} else if (config->calibrateData == 1 && config->calibrationConfiguration != NULL) {
+	} else if (config->calibrateData > NO_CALIBRATION && config->calibrationConfiguration != NULL) {
 		if (strcmp(config->calibrationConfiguration->calibrationFifo, "") == 0) {
 			fprintf(stderr, "ERROR: Failed to provide valid path to calibration FIFO, exiting.\n");
 			return -1;
@@ -1045,8 +1045,8 @@ lofar_udp_reader *lofar_udp_reader_setup(lofar_udp_config *config) {
 	}
 
 	// TODO: Copy values to calibration struct as needed.
-	if (config->metadataType != NO_META) {
-		VERBOSE(printf("Priming metadata type %d from %s\n", config->metadataType, config->metadataLocation));
+	if (config->metadata_config.metadataType != NO_META) {
+		VERBOSE(printf("Priming metadata type %d from %s\n", config->metadata_config.metadataType, config->metadata_config.metadataLocation));
 		reader->metadata = calloc(1, sizeof(lofar_udp_metadata));
 		*(reader->metadata) = lofar_udp_metadata_default;
 
@@ -1054,14 +1054,14 @@ lofar_udp_reader *lofar_udp_reader_setup(lofar_udp_config *config) {
 			reader->metadata->subbands[i] = -1;
 		}
 
-		reader->metadata->type = config->metadataType;
-		if (lofar_udp_metadata_setup(reader->metadata, reader, config->metadataLocation) < 0) {
+		reader->metadata->type = config->metadata_config.metadataType;
+		if (lofar_udp_metadata_setup(reader->metadata, reader, &(config->metadata_config)) < 0) {
 			lofar_udp_reader_cleanup(reader);
 			return NULL;
 		}
 	}
 
-	if (config->calibrateData == 1) {
+	if (config->calibrateData > NO_CALIBRATION) {
 		reader->calibration = calloc(1, sizeof(lofar_udp_calibration));
 		if (memcpy(reader->calibration, config->calibrationConfiguration, sizeof(lofar_udp_calibration)) != reader->calibration) {
 			fprintf(stderr, "ERROR: Failed to copy calibration to reader struct, exiting.\n");
@@ -1189,7 +1189,7 @@ int lofar_udp_reader_calibration(lofar_udp_reader *reader) {
 	FILE *fifo;
 	int numBeamlets, numTimesamples, returnVal;
 	// Ensure we are meant to be calibrating data
-	if (!reader->meta->calibrateData) {
+	if (reader->meta->calibrateData == NO_CALIBRATION) {
 		fprintf(stderr, "ERROR: Requested calibration while calibration is disabled. Exiting.\n");
 		return -1;
 	}
@@ -1484,7 +1484,7 @@ int lofar_udp_reader_step_timed(lofar_udp_reader *reader, double timing[2]) {
 	const int time = (timing[0] != -1.0);
 
 
-	if (reader->meta->calibrateData &&
+	if ((reader->meta->calibrateData > NO_CALIBRATION) &&
 		reader->meta->calibrationStep >= reader->calibration->calibrationStepsGenerated) {
 		VERBOSE(printf("Calibration buffer has run out, generating new Jones matrices.\n"));
 		if ((readReturnVal = lofar_udp_reader_calibration(reader)) < 0) {

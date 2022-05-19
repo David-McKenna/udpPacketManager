@@ -14,7 +14,7 @@ int lofar_udp_cpp_loop_interface(lofar_udp_input_meta *meta) {
 			   meta->inputBitMode);
 	});
 
-	int calibrateData = meta->calibrateData;
+	calibrate_t calibrateData = meta->calibrateData;
 
 	const int inputBitMode = meta->inputBitMode;
 	const int processingMode = meta->processingMode;
@@ -27,7 +27,7 @@ int lofar_udp_cpp_loop_interface(lofar_udp_input_meta *meta) {
 	// The target template is then used to process the data.
 	// See docs/newProcessingMode.md for more details
 	switch (calibrateData) {
-		case 1:
+		case APPLY_CALIBRATION:
 			// Bit-mode dependant inputs
 			switch (inputBitMode) {
 				case 4:
@@ -645,14 +645,15 @@ int lofar_udp_cpp_loop_interface(lofar_udp_input_meta *meta) {
 			}
 
 
-			// Interfaces to raw data interfaces (no calibration)
-		case 0:
+		// Interfaces to raw data interfaces (no calibration)
+		case NO_CALIBRATION:
+		case GENERATE_JONES:
 			// Bitmode dependant inputs
 			switch (inputBitMode) {
 				case 4:
 					switch (processingMode) {
 						case 0:
-							return lofar_udp_raw_loop<signed char, signed char, 0, 0>(meta);
+							return lofar_udp_raw_loop<signed char, char, 0, 0>(meta);
 						case 1:
 							return lofar_udp_raw_loop<signed char, signed char, 1, 0>(meta);
 						case 2:

@@ -39,16 +39,19 @@ const lofar_udp_metadata lofar_udp_metadata_default = {
 
 	.freq = -1.0,
 	.bw = -0.0,
+	.subband_bw = -0.0,
 	.channel_bw = -0.0,
 	.ftop = -1.0,
 	.fbottom = -1.0,
 	.subbands = { -1 }, // NEEDS FULL RUNTIME INITIALISATION
+	.nsubband = -1,
 	.nchan = -1,
 	.nrcu = -1,
 	.npol = -1,
 	.nbit = -1,
 	.resolution = -1,
 	.ndim = -1,
+	.tsamp_raw = -1.0,
 	.tsamp = -1.0,
 	.state = "",
 
@@ -77,6 +80,9 @@ const lofar_udp_metadata lofar_udp_metadata_default = {
 	.upm_rawbeamlets = -1,
 	.upm_upperbeam = -1,
 	.upm_lowerbeam = -1,
+
+	.external_channelisation = -1,
+	.external_downsampling = -1,
 
 	.output = { NULL , NULL }
 };

@@ -7,9 +7,9 @@ int longNotSet(long input);
 int doubleNotSet(double input, int exception);
 
 
-int lofar_udp_metadata_setup(lofar_udp_metadata *metadata, lofar_udp_reader *reader, const char *inputFile) {
+int lofar_udp_metadata_setup(lofar_udp_metadata *metadata, const lofar_udp_reader *reader, const metadata_config *config) {
 
-	// Sanity check the metadata struct
+	// Sanity check the metadata and reader structs
 	if (metadata == NULL) {
 		fprintf(stderr, "ERROR %s: Metadata pointer is null, exiting.\n", __func__);
 		return -1;
@@ -28,8 +28,8 @@ int lofar_udp_metadata_setup(lofar_udp_metadata *metadata, lofar_udp_reader *rea
 	}
 
 	// Parse the input metadata file with beamctl and other information
-	if (inputFile != NULL) {
-		if (lofar_udp_metadata_parse_input_file(metadata, inputFile) < 0) {
+	if (config->metadataLocation != NULL) {
+		if (lofar_udp_metadata_parse_input_file(metadata, config->metadataLocation) < 0) {
 			return -1;
 		}
 	} else {
@@ -42,10 +42,15 @@ int lofar_udp_metadata_setup(lofar_udp_metadata *metadata, lofar_udp_reader *rea
 			return -1;
 		}
 	} else {
-		fprintf(stderr, "WARNING %s: Insufficient information provided to determine output properties.\n", __func__);
+		fprintf(stderr, "WARNING %s: Reader struct was null, insufficient information provided to determine output properties.\n", __func__);
 	}
 
-	// If the output format isn't PSRDADA, setup the target struct
+	// Handle external modifiers or copy raw values to channel_bw/tsamp
+	if (lofar_udp_metdata_handle_external_factors(metadata, config) < 0) {
+		return -1;
+	}
+
+	// If the output format isn't PSRDADA or HDF5, setup the target struct
 	const int guppiMode = 30;
 	const int stokesMin = 100;
 	switch(metadata->type) {
@@ -55,17 +60,16 @@ int lofar_udp_metadata_setup(lofar_udp_metadata *metadata, lofar_udp_reader *rea
 			}
 			return lofar_udp_metadata_setup_GUPPI(metadata);
 
-		// The DADA header/HDF% metadata are formed from the reference metadata struct
-		case DADA:
-		case HDF5_META:
-			return 0;
-
 		case SIGPROC:
 			if (metadata->upm_procmode < stokesMin) {
 				fprintf(stderr, "WARNING %s: Sigproc headers are intended to be attached to Stokes data (mode > %d, currently in %d).\n", __func__, stokesMin, metadata->upm_procmode);
 			}
 			return lofar_udp_metadata_setup_SIGPROC(metadata);
 
+		// The DADA header/HDF5 metadata are formed from the reference metadata struct
+		case DADA:
+		case HDF5_META:
+			return 0;
 
 		default:
 			fprintf(stderr, "ERROR %s: Unknown metadata type %d, exiting.\n", __func__, metadata->type);
@@ -294,7 +298,7 @@ int lofar_udp_metadata_parse_input_file(lofar_udp_metadata *metadata, const char
 
 	// Update the metadata struct to describe the input commands
 	metadata->upm_lowerbeam = beamctlData[5];
-	metadata->nchan = beamctlData[6];
+	metadata->nsubband = beamctlData[6];
 	metadata->upm_upperbeam = beamctlData[7];
 	metadata->upm_rcuclock = lofar_udp_metadata_get_clockmode(beamctlData[0]);
 
@@ -381,7 +385,8 @@ int lofar_udp_metadata_parse_normal_file(lofar_udp_metadata *metadata, FILE *inp
 	return 0;
 }
 
-int lofar_udp_metadata_parse_yaml_file(lofar_udp_metadata *metadata, FILE *input, int *beamctlData) {
+
+__attribute__((unused)) int lofar_udp_metadata_parse_yaml_file(__attribute__((unused)) lofar_udp_metadata *metadata, __attribute__((unused)) FILE *input, __attribute__((unused)) int *beamctlData) {
 	fprintf(stderr, "YAML files not currently supported, exiting.\n");
 	return -1;
 }
@@ -442,7 +447,7 @@ int lofar_udp_metadata_parse_reader(lofar_udp_metadata *metadata, const lofar_ud
 	}
 
 	// Update number of beamlets
-	metadata->nchan = reader->meta->totalProcBeamlets;
+	metadata->nsubband = reader->meta->totalProcBeamlets;
 	VERBOSE(printf("Reader call\n"));
 	if (lofar_udp_metadata_update_frequencies(metadata, subbandData) < 0) {
 		return -1;
@@ -574,10 +579,10 @@ int lofar_udp_metadata_parse_beamctl(lofar_udp_metadata *metadata, const char *i
 	free(strCopy);
 
 	// Parse the combined beamctl data to determine the frequency information
-	if (metadata->channel_bw != -1.0) {
-		metadata->channel_bw = ((double) metadata->upm_rcuclock) / 1024;
-	} else if (metadata->channel_bw != ((double) metadata->upm_rcuclock) / 1024) {
-		fprintf(stderr, "ERROR: Channel bandwidth mismatch (was %lf, now %lf), exiting.\n", metadata->channel_bw, ((double) metadata->upm_rcuclock) / 1024);
+	if (metadata->subband_bw != -1.0) {
+		metadata->subband_bw = ((double) metadata->upm_rcuclock) / 1024;
+	} else if (metadata->subband_bw != ((double) metadata->upm_rcuclock) / 1024) {
+		fprintf(stderr, "ERROR: Channel bandwidth mismatch (was %lf, now %lf), exiting.\n", metadata->subband_bw, ((double) metadata->upm_rcuclock) / 1024);
 		return -1;
 	}
 
@@ -981,26 +986,26 @@ int lofar_udp_metadata_update_frequencies(lofar_udp_metadata *metadata, int *sub
 		return -1;
 	}
 
-	if (metadata->nchan < 1) {
-		fprintf(stderr, "ERROR %s: passed invalid number of channels (%d), exiting.\n", __func__, metadata->nchan);
+	if (metadata->nsubband < 1) {
+		fprintf(stderr, "ERROR %s: passed invalid number of channels (%d), exiting.\n", __func__, metadata->nsubband);
 		return -1;
 	}
 
-	double meanSubband = (double) subbandData[1] / (double) metadata->nchan;
+	double meanSubband = (double) subbandData[1] / (double) metadata->nsubband;
 
 	VERBOSE(printf("SubbandData: %d, %d, %d\n", subbandData[0], subbandData[1], subbandData[2]));
 
-	metadata->ftop = metadata->channel_bw * subbandData[0];
-	metadata->freq = metadata->channel_bw * meanSubband;
-	metadata->fbottom = metadata->channel_bw * subbandData[2];
+	metadata->ftop = metadata->subband_bw * subbandData[0];
+	metadata->freq = metadata->subband_bw * meanSubband;
+	metadata->fbottom = metadata->subband_bw * subbandData[2];
 	// Define the observation bandwidth as the bandwidth between the centre of the top and bottom channels,
 	//  plus a subband to account for the expanded bandwidth from the centre to the edges of the band
 	metadata->bw = (metadata->fbottom - metadata->ftop);
 
 	if (metadata->bw > 0) {
-		metadata->bw += metadata->channel_bw;
+		metadata->bw += metadata->subband_bw;
 	} else {
-		metadata->bw -= metadata->channel_bw;
+		metadata->bw -= metadata->subband_bw;
 	}
 
 	return 0;
@@ -1024,7 +1029,7 @@ int lofar_udp_metadata_processing_mode_metadata(lofar_udp_metadata *metadata) {
 			metadata->upm_bandflip = 0;
 			break;
 
-			// Frequency order flipped
+		// Frequency order flipped
 		case 20 ... 21:
 		case 100 ... 104:
 		case 110 ... 114:
@@ -1044,7 +1049,7 @@ int lofar_udp_metadata_processing_mode_metadata(lofar_udp_metadata *metadata) {
 		double tmp = metadata->ftop;
 		metadata->ftop = metadata->fbottom;
 		metadata->fbottom = tmp;
-		metadata->channel_bw *= -1;
+		metadata->subband_bw *= -1;
 		metadata->bw *= -1;
 	}
 
@@ -1052,7 +1057,7 @@ int lofar_udp_metadata_processing_mode_metadata(lofar_udp_metadata *metadata) {
 	if (metadata->upm_procmode > 99) {
 		samplingTime *= (double) (1 << (metadata->upm_procmode % 10));
 	}
-	metadata->tsamp = samplingTime;
+	metadata->tsamp_raw = samplingTime;
 
 
 	for (int i = 0; i < MAX_OUTPUT_DIMS; i++) {
@@ -1397,6 +1402,40 @@ int lofar_udp_metadata_processing_mode_metadata(lofar_udp_metadata *metadata) {
 	return 0;
 }
 
+
+int lofar_udp_metdata_handle_external_factors(lofar_udp_metadata *metadata, const metadata_config *config) {
+	if (metadata == NULL || config == NULL) {
+		fprintf(stderr, "ERROR %s: Passed parameter was null (metadata: %p, config %p), exiting.\n", __func__, metadata, config);
+		return -1;
+	}
+
+	if (config->externalChannelisation > 1) {
+		metadata->tsamp = metadata->tsamp_raw * config->externalChannelisation;
+		metadata->channel_bw = metadata->subband_bw / config->externalChannelisation;
+		metadata->nchan = metadata->nsubband * config->externalChannelisation;
+
+		// Account for frequency shifts due to channelisation
+		int bandwidthSign = (metadata->bw > 0 ? 1 : -1);
+		double highestFreq = metadata->freq - ((metadata->nsubband - 1) / (2 * metadata->nsubband)) - (((int) (config->externalChannelisation / 2)) * metadata->channel_bw);
+		double lowestFreq = highestFreq - ((metadata->nchan - 1) * metadata->channel_bw);
+		if (bandwidthSign == 1) {
+			metadata->ftop = lowestFreq;
+			metadata->fbottom = highestFreq;
+		} else {
+			metadata->ftop = highestFreq;
+			metadata->fbottom = lowestFreq;
+		}
+	} else {
+		metadata->tsamp = metadata->tsamp_raw;
+		metadata->channel_bw = metadata->subband_bw;
+	}
+
+	if (config->externalDownsampling > 1) {
+		metadata->tsamp *= config->externalDownsampling;
+	}
+
+	return 0;
+}
 
 
 /**

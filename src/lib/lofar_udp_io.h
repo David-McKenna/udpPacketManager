@@ -10,6 +10,9 @@
 #include <sys/mman.h>
 #include <sys/stat.h>
 
+// BitShuffle header for HDF5 filter
+#include "bshuf_h5filter.h"
+
 
 // Allow C++ imports too
 #ifdef __cplusplus
@@ -55,7 +58,7 @@ lofar_udp_io_read_setup_DADA(lofar_udp_io_read_config *input, const int dadaKey,
 int lofar_udp_io_write_setup_FILE(lofar_udp_io_write_config *config, int outp, int iter);
 int lofar_udp_io_write_setup_ZSTD(lofar_udp_io_write_config *config, int outp, int iter);
 int lofar_udp_io_write_setup_DADA(lofar_udp_io_write_config *config, int outp);
-int lofar_udp_io_write_setup_HDF5(lofar_udp_io_write_config *config, int outp, int iter);
+int lofar_udp_io_write_setup_HDF5(lofar_udp_io_write_config *config, __attribute__((unused)) int outp, int iter);
 
 
 // Operate functions
@@ -68,7 +71,7 @@ long lofar_udp_io_write_FILE(lofar_udp_io_write_config *config, int outp, const 
 long lofar_udp_io_write_ZSTD(lofar_udp_io_write_config *config, int outp, const char *src, const long nchars);
 long lofar_udp_io_write_DADA(ipcio_t *ringbuffer, int outp, char *src, const long nchars);
 long lofar_udp_io_write_HDF5(lofar_udp_io_write_config *config, int outp, const char *src, const long nchars);
-long lofar_udp_io_write_metadata_HDF5(lofar_udp_io_write_config *config, lofar_udp_metadata *metadata, char *headerBuffer, size_t headerLength);
+long lofar_udp_io_write_metadata_HDF5(lofar_udp_io_write_config *config, lofar_udp_metadata *metadata);
 
 int lofar_udp_io_read_temp_FILE(void *outbuf, size_t size, int num, const char inputFile[], int resetSeek);
 int lofar_udp_io_read_temp_ZSTD(void *outbuf, size_t size, int num, const char inputFile[], int resetSeek);

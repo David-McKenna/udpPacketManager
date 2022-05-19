@@ -25,6 +25,7 @@
 // Reader / writer enums
 typedef enum reader_t {
 	NO_ACTION = -1,
+	UNSET = 0,
 	NORMAL = 1,
 	FIFO = 2,
 	ZSTDCOMPRESSED = 4,
@@ -44,8 +45,8 @@ typedef enum metadata_t {
 
 typedef enum calibrate_t {
 	NO_CALIBRATION = -1,
-	GENERATE_JONES = 1,
-	APPLY_CALIBRATION = 2
+	GENERATE_JONES = 0,
+	APPLY_CALIBRATION = 1
 } calibrate_t;
 
 // I/O array sizes

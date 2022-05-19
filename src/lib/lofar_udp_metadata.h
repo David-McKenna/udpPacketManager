@@ -31,7 +31,7 @@ extern "C" {
 int lofar_udp_metadata_get_station_name(int stationID, char *stationCode);
 
 // Main public functions
-int lofar_udp_metadata_setup(lofar_udp_metadata *metadata, lofar_udp_reader *reader, const char *inputFile);
+int lofar_udp_metadata_setup(lofar_udp_metadata *metadata, const lofar_udp_reader *reader, const metadata_config *config);
 int lofar_udp_metadata_update(const lofar_udp_reader *reader, lofar_udp_metadata *metadata, int newObs);
 int lofar_udp_metadata_write_buffer(const lofar_udp_reader *reader, lofar_udp_metadata *metadata, char *headerBuffer, size_t headerBufferSize, int newObs);
 int lofar_udp_metadata_write_buffer_force(const lofar_udp_reader *reader, lofar_udp_metadata *metadata, char *headerBuffer, size_t headerBufferSize, int newObs, int force);
@@ -76,6 +76,7 @@ int lofar_udp_metadata_get_beamlets(int bitmode);
 int lofar_udp_metadata_processing_mode_metadata(lofar_udp_metadata *metadata);
 metadata_t lofar_udp_metadata_string_to_meta(const char input[]);
 int lofar_udp_metadata_update_frequencies(lofar_udp_metadata *metadata, int *subbandData);
+int lofar_udp_metdata_handle_external_factors(lofar_udp_metadata *metadata, const metadata_config *config);
 int lofar_udp_metdata_set_default(lofar_udp_metadata *metadata);
 
 
