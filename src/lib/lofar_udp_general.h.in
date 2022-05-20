@@ -141,6 +141,9 @@ typedef struct __attribute__((__packed__)) lofar_source_bytes {
 #ifndef LOFAR_UDP_GENERAL_H
 #define LOFAR_UDP_GENERAL_H
 
+// Extended stdio functions
+#define __STDC_WANT_LIB_EXT1__ 1
+
 #include <stddef.h>
 #include <stdio.h>
 #include <errno.h>

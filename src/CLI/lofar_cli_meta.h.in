@@ -1,9 +1,9 @@
 // XOPEN -> strptime requirement
 #define __USE_XOPEN 1
-#include <time.h>
 
 #include "lofar_udp_reader.h"
 #include "lofar_udp_time.h"
+#include <time.h>
 
 
 #ifndef __LOFAR_CLI_META

@@ -8,24 +8,26 @@ if (((outGroupVar) = H5Gopen(inputHDF, groupName, 0)) < 0) {    \
 	return -1;                                                  \
 };
 
-#define H5G_SET_ATTRS(groupId, overrideType, toSetAttrs, funcName)  \
-numAttrs = sizeof(toSetAttrs) / sizeof((toSetAttrs)[0]);                        \
+#define VAR_ARR_SIZE(arrayName) \
+	sizeof(arrayName) / sizeof((arrayName)[0])
+
+#define _H5_SET_ATTRS(groupId, overrideType, toSetAttrs, funcName, closeFunc)  \
+numAttrs = VAR_ARR_SIZE(toSetAttrs);                        \
 																								\
 if (funcName(groupId, overrideType &(toSetAttrs), numAttrs) < 0) {   \
-    H5Gclose(groupId);                                                               \
+    closeFunc(groupId);                                                               \
 	return -1;                                                                                  \
 };
 
+#define H5G_SET_ATTRS(groupId, overrideType, toSetAttrs, funcName)  \
+	_H5_SET_ATTRS(groupId, overrideType, toSetAttrs, funcName, H5Gclose)
+
 #define H5D_SET_ATTRS(groupId, overrideType, toSetAttrs, funcName)  \
-numAttrs = sizeof(toSetAttrs) / sizeof((toSetAttrs)[0]);                        \
-																								\
-if (funcName(groupId, overrideType &(toSetAttrs), numAttrs) < 0) {   \
-    H5Dclose(groupId);                                                               \
-	return -1;                                                                                  \
-};
+	_H5_SET_ATTRS(groupId, overrideType, toSetAttrs, funcName, H5Dclose)
 
 #define H5_ERR_CHECK(variable, statement) \
 if ((variable = statement) < 0) {         \
+	fprintf(stderr, "HDF5 Error encountered (%s:%d): ", __FILE__, __LINE__); \
 	H5Eprint(variable, stderr);           \
 };
 
@@ -258,7 +260,7 @@ int hdf5SetupStrAttrs(hid_t group, const strKeyStrVal** attrs, size_t numEntries
 			// Cannot find documentation on modifying string attributes, taking the safe option:
 			//  Delete the existing attribute and re-write
 			if ((status = H5Adelete(group, attrs[atIdx]->key)) < 0) {
-				H5Eprint(attr, stderr);
+				H5Eprint(status, stderr);
 				fprintf(stderr, "ERROR %s: Failed to delete str attribute %s for re-writing, exiting.\n", __func__, attrs[atIdx]->key);
 				return -1;
 			}
@@ -378,7 +380,7 @@ int hdf5SetupLongAttrs(hid_t group, const strKeyLongVal *attrs[], size_t numEntr
 	return 0;
 }
 
-int hdf5SetupLongArrayAttrs(hid_t group, const strKeyLongArrVal *attrs[], size_t numEntries) {
+__attribute__((unused)) int hdf5SetupLongArrayAttrs(hid_t group, const strKeyLongArrVal *attrs[], size_t numEntries) {
 	VERBOSE(printf("long arr attrs\n"));
 	hid_t attr;
 	herr_t status;
@@ -536,14 +538,13 @@ int hdf5SetupBoolAttrs(hid_t group, const strKeyBoolVal *attrs[], size_t numEntr
 long lofar_udp_io_write_metadata_HDF5(lofar_udp_io_write_config *config, lofar_udp_metadata *metadata) {
 	hid_t group;
 	hsize_t dims[2] = { 1 };
-	hsize_t space = H5Screate_simple (1, dims, NULL);
+	hsize_t space;
+	H5_ERR_CHECK(space, H5Screate_simple (1, dims, NULL));
 
 	herr_t status;
 	size_t numAttrs;
 
 	if (!config->hdf5Writer.metadataInitialised) {
-
-
 		// Root group
 		{
 			HDF_OPEN_GROUP(group, config->hdf5Writer.file, "/");
@@ -551,6 +552,7 @@ long lofar_udp_io_write_metadata_HDF5(lofar_udp_io_write_config *config, lofar_u
 			char filterSelection[16];
 			if (strncpy(filterSelection, get_rcumode_str(metadata->upm_rcumode), 15) != filterSelection) {
 				fprintf(stderr, "ERROR: Failed to copy filter selection while generating HDF5 metadata, exiting.\n");
+				H5Gclose(group);
 				return -1;
 			}
 
@@ -597,26 +599,16 @@ long lofar_udp_io_write_metadata_HDF5(lofar_udp_io_write_config *config, lofar_u
 			H5G_SET_ATTRS(group, (const strKeyStrVal **), rootStrPtrAttrs, hdf5SetupStrAttrs);
 
 
-			//char* prealloc1[] = { metadata->telescope };
-			//char* prealloc2[] = { metadata->source };
-
-			/*
+			char **strArr1Alloc[] = { &metadata->telescope };
+			char **strArr2Alloc[] = { &metadata->source };
 			strKeyStrArrVal rootStrArrVal[] = {
-				{ "OBSERVATION_STATION_LIST", 0, { "" } },
-				{ "TARGETS", 0, {  } },
+				{ "OBSERVATION_STATION_LIST", 1, NULL },
+				{ "TARGETS",                  1, NULL },
 			};
+			rootStrArrVal[0].val = strArr1Alloc;
+			rootStrArrVal[1].val = strArr2Alloc;
+			H5G_SET_ATTRS(group, (const strKeyStrArrVal **), rootStrArrVal, hdf5SetupStrArrayAttrs);
 
-
-			numAttrs = sizeof(rootStrArrVal) / sizeof(rootStrArrVal[0]);
-
-			//for (int i = 0; i < rootStrArrVal; i++) {
-			//	rootStrArrVal[i].num = sizeof(rootStrArrVal[i].val) / sizeof(rootStrArrVal[i].val[0]);
-			//}
-
-			if (hdf5SetupStrArrayAttrs(group, &rootStrArrVal, numAttrs) < 0) {
-				return -1;
-			}
-			*/
 
 			strKeyDoubleVal rootDoubleAttrs[] = {
 				{ "OBSERVATION_START_MJD", metadata->obs_mjd_start },
@@ -703,18 +695,15 @@ long lofar_udp_io_write_metadata_HDF5(lofar_udp_io_write_config *config, lofar_u
 			};
 			H5G_SET_ATTRS(group, (const strKeyDoubleVal **), sap0DoubleAttrs, hdf5SetupDoubleAttrs);
 
-			/*
+
+			// TODO
 			double doubleArrVal[] =  { -1.0 };
 			strKeyDoubleArrVal sap0DoubleArrAttrs[] = {
 				{ "POINT_AZIMUTH", 1, &doubleArrVal },
 				{ "POINT_ALTITUDE", 1, &doubleArrVal },
 			};
-			numAttrs = sizeof(sap0DoubleArrAttrs) / sizeof(sap0DoubleArrAttrs[0]);
+			H5G_SET_ATTRS(group, (const strKeyDoubleArrVal **), sap0DoubleArrAttrs, hdf5SetupDoubleArrayAttrs);
 
-			if (hdf5SetupDoubleArrayAttrs(group, (const strKeyDoubleArrVal **) &sap0DoubleArrAttrs, numAttrs) < 0) {
-				return -1;
-			}
-			 */
 
 			strKeyLongVal sap0LongAttrs[] = {
 				{ "OBSERVATION_NOF_BEAMS", 1 },
@@ -798,8 +787,6 @@ long lofar_udp_io_write_metadata_HDF5(lofar_udp_io_write_config *config, lofar_u
 
 			// Variable length array strings
 			{
-				// TODO
-				/*
 				char voltagesArray[4][3] = {
 					"Xi",
 					"Xr",
@@ -819,27 +806,17 @@ long lofar_udp_io_write_metadata_HDF5(lofar_udp_io_write_config *config, lofar_u
 
 
 				strKeyStrArrVal sap0beam0StrArrAttrs[] = {
-					{ "STATION_LIST", 1, {} },
-					{ "TARGETS", 1, {} },
-					{ "STOKES_COMPONENTS", 4, {} },
+					{ "STATION_LIST", 1, NULL },
+					{ "TARGETS", 1, NULL },
+					{ "STOKES_COMPONENTS", 4, NULL },
 				};
 
 				sap0beam0StrArrAttrs[0].val = &metadata->telescope;
 				sap0beam0StrArrAttrs[1].val = &metadata->source;
 				sap0beam0StrArrAttrs[2].val = chosenArray;
 
-
-				for (int i = 0; i < numVariableStr; i++) {
-					if (hdf5SetupStrArrayAttrs(group, arrayNames[i], arrayValues[i], numEntries[i]) < 0) {
-						fprintf(stderr, "Failed to set %s ([0]=%s), exiting.\n", arrayNames[i], arrayValues[i][0]);
-						H5Gclose(group);
-						return -1;
-					}
-				}
-				*/
+				H5G_SET_ATTRS(group, (const strKeyStrArrVal **), sap0beam0StrArrAttrs, hdf5SetupStrArrayAttrs);
 			}
-
-
 
 			strKeyDoubleVal sap0beam0DoubleAttrs[] = {
 				{ "SAMPLING_RATE", 1. / metadata->tsamp },
@@ -896,37 +873,26 @@ long lofar_udp_io_write_metadata_HDF5(lofar_udp_io_write_config *config, lofar_u
 			H5G_SET_ATTRS(group, (const strKeyStrVal **), sap0beam0coordStrAttrs, hdf5SetupStrAttrs);
 
 
-			// TODO
-			/*
 			{
-				#define numVariableStr 2
-				char *arrayNames[numVariableStr] = {
-					"COORDINATES_TYPES",
-					"REF_LOCATION_UNIT"
+				char *coordinateTypes[] = {
+					"Time",
+					"Spectral"
 				};
-				char *arrayValues[numVariableStr][4] = {
-					{
-						"Time",
-						"Spectral"
-					},
-					{
+				char *refUnits[] = {
 						"m", "m", "m"
-					}
-				};
-				size_t numEntries[numVariableStr] = {
-					2, 3
 				};
 
-				for (int i = 0; i < numVariableStr; i++) {
-					if (hdf5SetupStrArrayAttrs(group, arrayNames[i], arrayValues[i], numEntries[i]) < 0) {
-						fprintf(stderr, "Failed to set %s ([0]=%s), exiting.\n", arrayNames[i], arrayValues[i][0]);
-						H5Gclose(group);
-						return -1;
-					}
-				}
-				#undef numVariableStr
+				strKeyStrArrVal sap0beam0coordStrArrAttrs[] = {
+					{ "COORDINATES_TYPES", VAR_ARR_SIZE(coordinateTypes), NULL },
+					{ "REF_LOCATION_UNIT", VAR_ARR_SIZE(refUnits), NULL }
+				};
+				sap0beam0coordStrArrAttrs[0].val = coordinateTypes;
+				sap0beam0coordStrArrAttrs[1].val = refUnits;
+
+				printf("Sanity check: %d vs %d, %d vs %d\n", 2, sap0beam0coordStrArrAttrs[0].num, 3, sap0beam0coordStrArrAttrs[1].num);
+
+				H5G_SET_ATTRS(group, (const strKeyStrArrVal **), sap0beam0coordStrArrAttrs, hdf5SetupStrArrayAttrs);
 			}
-			*/
 
 
 			strKeyDoubleVal sap0beam0coordDoubleAttrs[] = {
@@ -937,20 +903,13 @@ long lofar_udp_io_write_metadata_HDF5(lofar_udp_io_write_config *config, lofar_u
 
 			// Variable length array double entries
 			{
-
-				/*
-				strKeyDoubleArrVal sap0beam0coordDoubleArrAttrs[] = {
-					{ "REF_LOCATION_VALUE", 3,  { 0.0 } },
-				};
-				numAttrs = sizeof(sap0beam0coordDoubleArrAttrs) / sizeof(sap0beam0coordDoubleArrAttrs[0]);
-
 				double attrval[] = { -1.0, -1.0, -1.0 };
-				sap0beam0coordDoubleArrAttrs[0].val = attrval;
+				strKeyDoubleArrVal sap0beam0coordDoubleArrAttrs[] = {
+					{ "REF_LOCATION_VALUE", VAR_ARR_SIZE(attrval),  NULL },
+				};
+				sap0beam0coordDoubleArrAttrs[0].val = &attrval;
 
-				if (hdf5SetupDoubleArrayAttrs(group, (const strKeyDoubleArrVal **) sap0beam0coordDoubleArrAttrs, numAttrs) < 0) {
-					return -1;
-				}
-				*/
+				H5G_SET_ATTRS(group, (const strKeyDoubleArrVal **), sap0beam0coordDoubleArrAttrs, hdf5SetupDoubleArrayAttrs);
 			}
 
 			strKeyLongVal sap0beam0coordLongAttrs[] = {
@@ -962,7 +921,6 @@ long lofar_udp_io_write_metadata_HDF5(lofar_udp_io_write_config *config, lofar_u
 			H5_ERR_CHECK(status, H5Gclose(group));
 		}
 
-		/*
 		// SUB_ARRAY_POINTING_000/BEAM_000/COORDINATES/TIME
 		// Missing:
 		//	PC = { 1. };
@@ -972,83 +930,36 @@ long lofar_udp_io_write_metadata_HDF5(lofar_udp_io_write_config *config, lofar_u
 		// AXES_VALUES_WORLD = { 0. };
 		// INCREMENT = arr dbl
 		{
-			HDF_GROUP_OPEN(group, config->hdf5Writer.file, "/SUB_ARRAY_POINTING_000/BEAM_000/COORDINATES/TIME");
+			HDF_OPEN_GROUP(group, config->hdf5Writer.file, "/SUB_ARRAY_POINTING_000/BEAM_000/COORDINATES/TIME");
 
-			char *stringEntries[] = {
-				"GROUPTYPE", "TimeCoord",
-				"COORDINATE_TYPE", "Time"
+			strKeyStrVal sap0beam0coordtimeStrAttrs[] = {
+				{ "GROUPTYPE", "TimeCoord" },
+				{ "COORDINATE_TYPE", "Time" },
 			};
-
-			numAttrs = sizeof(stringEntries) / sizeof(stringEntries[0]);
-
-			// With key/val in the same array it should always be a multiple of 2 long
-			if (numAttrs % 2) {
-				fprintf(stderr, "ERROR: Odd number of values provided to stringEntries for the SUB_ARRAY_POINTING_000/BEAM_000 group, exiting.\n");
-				H5Gclose(group);
-				return -1;
-			}
-
-			numAttrs /= 2;
-
-			if (hdf5SetupStrAttrs(group, stringEntries, numAttrs) < 0) {
-				return -1;
-			}
+			H5G_SET_ATTRS(group, (const strKeyStrVal **), sap0beam0coordtimeStrAttrs, hdf5SetupStrAttrs);
 
 			{
-				#define numVariableStr 3
-				char *arrayNames[numVariableStr] = {
-					"STORAGE_TYPE",
-					"AXES_NAMES",
-					"AXES_UNITS"
+				char *arrayValues[] = {
+					"Linear",
+					"Time",
+					"s",
 				};
-				char *arrayValues[numVariableStr][4] = {
-					{
-						"Linear"
-					},
-					{
-						"Time"
-					},
-					{
-						"s"
-					}
+				strKeyStrArrVal sap0beam0coordtimeStrArrAttrs[] = {
+					{ "STORAGE_TYPE", 1, NULL },
+					{ "AXES_NAMES", 1, NULL },
+					{ "AXES_UNITS", 1, NULL },
 				};
-				size_t numEntries[numVariableStr] = {
-					1, 1, 1
-				};
-
-				for (int i = 0; i < numVariableStr; i++) {
-					if (hdf5SetupStrArrayAttrs(group, arrayNames[i], arrayValues[i], numEntries[i]) < 0) {
-						fprintf(stderr, "Failed to set %s ([0]=%s), exiting.\n", arrayNames[i], arrayValues[i][0]);
-						H5Gclose(group);
-						return -1;
-					}
-				}
-				#undef numVariableStr
+				for (size_t i = 0; i < VAR_ARR_SIZE(arrayValues); i++) sap0beam0coordtimeStrArrAttrs[i].val = &arrayValues[i];
+				H5G_SET_ATTRS(group, (const strKeyStrArrVal **), sap0beam0coordtimeStrArrAttrs, hdf5SetupStrArrayAttrs);
 			}
 
 
-
-			char *longEntriesKeys[] = {
-				"NOF_AXES",
+			strKeyLongVal sap0beam0coordtimeLongAttrs[] = {
+				{ "NOF_AXES", 1 },
 			};
+			H5G_SET_ATTRS(group, (const strKeyLongVal **), sap0beam0coordtimeLongAttrs, hdf5SetupLongAttrs);
 
-			long longEntriesValues[] = {
-				1
-			};
-
-			numAttrs = sizeof(longEntriesValues) / sizeof(longEntriesValues[0]);
-			if (numAttrs != (sizeof(longEntriesKeys) / sizeof(longEntriesKeys[0]))) {
-				fprintf(stderr, "ERROR: Number of int attribute names does not match number of double attribute values, exiting.\n");
-				return -1;
-			}
-
-			if (hdf5SetupLongAttrs(group, longEntriesKeys, longEntriesValues, numAttrs) < 0) {
-				return -1;
-			}
-
-
-			status = H5Gclose(group);
-
+			H5_ERR_CHECK(status, H5Gclose(group));
 		}
 
 		// SUB_ARRAY_POINTING_000/BEAM_000/COORDINATES/SPECTRAL
@@ -1066,50 +977,20 @@ long lofar_udp_io_write_metadata_HDF5(lofar_udp_io_write_config *config, lofar_u
 		{
 			HDF_OPEN_GROUP(group, config->hdf5Writer.file, "/SUB_ARRAY_POINTING_000/BEAM_000/COORDINATES/SPECTRAL");
 
-			char *stringEntries[] = {
-				"GROUPTYPE", "SpectralCoord",
-				"COORDINATE_TYPE", "Spectral"
+			strKeyStrVal sap0beam0coordtimeStrAttrs[] = {
+				{ "GROUPTYPE", "SpectralCoord" },
+				{ "COORDINATE_TYPE", "Spectral" },
 			};
-
-			numAttrs = sizeof(stringEntries) / sizeof(stringEntries[0]);
-
-			// With key/val in the same array it should always be a multiple of 2 long
-			if (numAttrs % 2) {
-				fprintf(stderr, "ERROR: Odd number of values provided to stringEntries for the SUB_ARRAY_POINTING_000/BEAM_000 group, exiting.\n");
-				H5Gclose(group);
-				return -1;
-			}
-
-			numAttrs /= 2;
-
-			if (hdf5SetupStrAttrs(group, stringEntries, numAttrs) < 0) {
-				return -1;
-			}
+			H5G_SET_ATTRS(group, (const strKeyStrVal **), sap0beam0coordtimeStrAttrs, hdf5SetupStrAttrs);
 
 
-
-			char *longEntriesKeys[] = {
-				"NOF_AXES",
+			strKeyLongVal sap0beam0coordtimeLongAttrs[] = {
+				{ "NOF_AXES", 1 },
 			};
+			H5G_SET_ATTRS(group, (const strKeyLongVal **), sap0beam0coordtimeLongAttrs, hdf5SetupLongAttrs);
 
-			long longEntriesValues[] = {
-				1
-			};
-
-			numAttrs = sizeof(longEntriesValues) / sizeof(longEntriesValues[0]);
-			if (numAttrs != (sizeof(longEntriesKeys) / sizeof(longEntriesKeys[0]))) {
-				fprintf(stderr, "ERROR: Number of int attribute names does not match number of double attribute values, exiting.\n");
-				return -1;
-			}
-
-			if (hdf5SetupLongAttrs(group, longEntriesKeys, longEntriesValues, numAttrs) < 0) {
-				return -1;
-			}
-
-
-			status = H5Gclose(group);
+			H5_ERR_CHECK(status, H5Gclose(group));
 		}
-		*/
 
 
 		H5_ERR_CHECK(status, H5Sclose(space));
@@ -1148,22 +1029,9 @@ long lofar_udp_io_write_metadata_HDF5(lofar_udp_io_write_config *config, lofar_u
 
 
 
-		// SUB_ARRAY_POINTING_000/BEAM_000/STOKES[0..3]
-		// Missing:
-		{
-			/*
-			GROUP STOKES_[0...3]
-
-				NOF_CHANNELS = { 1, 1, 1...}; // Confirm, not 100% sure
-			*/
-		}
-
-
-		VERBOSE(printf("Prop\n"));
 		hid_t prop;
 		H5_ERR_CHECK(prop, H5Pcreate(H5P_DATASET_CREATE));
 		hid_t dataspace;
-		VERBOSE(printf("chunk\n"));
 		int rank = 2;
 		hsize_t maxdims[2] = { H5S_UNLIMITED, H5S_UNLIMITED };
 		hsize_t chunk_dims[2] = { 4096, 32 };
@@ -1181,7 +1049,7 @@ long lofar_udp_io_write_metadata_HDF5(lofar_udp_io_write_config *config, lofar_u
 				BSHUF_H5_COMPRESS_ZSTD, // Use ZSTD as a post-shuffle compressor
 				1, // ZSTD compression level
 			};
-			size_t numFlags = sizeof(bitshuffleFlags) / sizeof(bitshuffleFlags[0]);
+			size_t numFlags = VAR_ARR_SIZE(bitshuffleFlags);
 
 			if ((status = H5Pset_filter(prop, BSHUF_H5FILTER, H5Z_FLAG_OPTIONAL, numFlags, (const unsigned int *) bitshuffleFlags)) < 0) {
 				H5Eprint(status, stderr);
@@ -1189,6 +1057,15 @@ long lofar_udp_io_write_metadata_HDF5(lofar_udp_io_write_config *config, lofar_u
 			}
 		}
 
+		// SUB_ARRAY_POINTING_000/BEAM_000/STOKES[0..3]
+		// Missing:
+		{
+			/*
+			GROUP STOKES_[0...3]
+
+				NOF_CHANNELS = { 1, 1, 1...}; // Confirm, not 100% sure
+			*/
+		}
 		int outputs = 0;
 		VERBOSE(printf("Loop\n"));
 		for (int i = 0; i < MAX_OUTPUT_DIMS; i++) {
@@ -1309,6 +1186,7 @@ long lofar_udp_io_write_HDF5(lofar_udp_io_write_config *config, int outp, const 
 
 	VERBOSE(printf("Writing..\n"));
 	if ((status = H5Dwrite(config->hdf5DSetWriter[outp].dset, config->hdf5Writer.dtype, memspace, filespace, H5P_DEFAULT, src)) < 0) {
+		H5Eprint(status, stderr);
 		fprintf(stderr, "ERROR: Failed to write %ld chars to HDF5 dataset %d, exiting.\n", nchars, outp);
 		return -1;
 	}

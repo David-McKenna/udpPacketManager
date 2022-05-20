@@ -28,9 +28,6 @@ typedef float(StokesFuncType)(float, float, float, float);
 // Define the 4-bit LUT
 extern const char bitmodeConversion[256][2];
 
-#ifdef __cplusplus
-}
-
 // Don't pass the rest of this header to any C code
 
 
@@ -68,6 +65,8 @@ inline float stokesV(float Xr, float Xi, float Yr, float Yi) {
 	return 2.0f * ((Xr * Yi) - (Xi * Yr));
 }
 
+#ifdef __cplusplus
+}
 
 /**
  * @brief      Get the input index for a given packet, frequency

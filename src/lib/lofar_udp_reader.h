@@ -1,10 +1,11 @@
 #ifndef LOFAR_UDP_READER_H
 #define LOFAR_UDP_READER_H
 
+#include "lofar_udp_metadata.h"
 #include "lofar_udp_io.h"
 #include "lofar_udp_time.h"
 #include "lofar_udp_backends.hpp"
-#include "lofar_udp_metadata.h"
+
 
 // Extra required includes
 #include <omp.h>
