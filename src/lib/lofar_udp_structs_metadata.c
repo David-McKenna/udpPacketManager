@@ -4,6 +4,7 @@
 const lofar_udp_metadata lofar_udp_metadata_default = {
 
 	.type = NO_META,
+	.headerBuffer = NULL,
 
 	.hdr_version = 1.0,
 

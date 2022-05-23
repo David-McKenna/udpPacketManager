@@ -206,6 +206,15 @@ int lofar_udp_metadata_cleanup(lofar_udp_metadata *metadata) {
 
 
 int lofar_udp_metdata_set_default(lofar_udp_metadata *metadata) {
+
+	if (metadata->type != HDF5_META) {
+		metadata->headerBuffer = calloc(DEF_HDR_LEN, sizeof(char));
+		if (metadata->headerBuffer == NULL) {
+			fprintf(stderr, "ERROR %s: Failed to allocate %d bytes for header buffer, exiting.\n", __FUNCTION__, DEF_HDR_LEN);
+			return -1;
+		}
+	}
+
 	// Minimum samples that can be parsed by DSPSR per operation
 	// Not 100% sure what this is controlling, may need to vary based on processing mode
 	metadata->resolution = 1;

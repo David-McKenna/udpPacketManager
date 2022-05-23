@@ -7,7 +7,7 @@
 #include <omp.h>
 
 // Constant to define the length of the timing variable array
-#define TIMEARRLEN 4
+#define TIMEARRLEN 7
 
 // Output Stokes Modes
 typedef enum stokes_t {
@@ -190,10 +190,10 @@ void temporalDownsample(float **data, size_t numOutputs, size_t nbin, size_t nch
 		downsampleFactor = 1;
 	}
 
-	size_t inputIdx, outputIdx, outputArr;
+	size_t inputIdx, outputIdx;
 	size_t accumulations = 0;
 
-	#pragma omp parallel for default(shared) private(accumulator, accumulations, inputIdx, outputIdx, outputArr)
+	#pragma omp parallel for default(shared) private(accumulator, accumulations, inputIdx, outputIdx)
 	for (size_t sub = 0; sub < nchans; sub++) {
 		for (size_t output = 0; output < numOutputs; output++)  accumulator[output] = 0.0f;
 		accumulations = 0;
@@ -228,7 +228,7 @@ int main(int argc, char *argv[]) {
 	int inputOpt, input = 0;
 	float seconds = 0.0f;
 	char inputTime[256] = "", eventsFile[DEF_STR_LEN] = "", stringBuff[128] = "", inputFormat[DEF_STR_LEN] = "";
-	int silent = 0, returnCounter = 0, eventCount = 0, callMockHdr = 0, inputProvided = 0, outputProvided = 0;
+	int silent = 0, returnCounter = 0, eventCount = 0, inputProvided = 0, outputProvided = 0;
 	long maxPackets = -1, startingPacket = -1, splitEvery = LONG_MAX;
 	int clock200MHz = 1;
 	FILE *eventsFilePtr;
@@ -256,8 +256,9 @@ int main(int argc, char *argv[]) {
 	long packetsProcessed = 0, packetsWritten = 0, eventPacketsLost[MAX_NUM_PORTS], packetsToWrite;
 
 	// Timing variables
-	double timing[TIMEARRLEN] = { 0. }, totalReadTime = 0., totalOpsTime = 0., totalWriteTime = 0., totalMetadataTime = 0.;
-	struct timespec tick, tick0, tick1, tock, tock0, tock1;
+	double timing[TIMEARRLEN] = { 0.0 }, totalReadTime = 0., totalOpsTime = 0., totalWriteTime = 0., totalMetadataTime = 0., totalChanTime = 0., totalDetectTime = 0., totalDownsampleTime = 0.;
+	ARR_INIT(timing, TIMEARRLEN, 0.0);
+	struct timespec tick, tick0, tick1, tock, tock0, tock1, tickChan, tockChan, tickDown, tockDown, tickDetect, tockDetect;
 
 	// Malloc'd variables: need to be free'd later.
 	long *startingPackets = NULL, *multiMaxPackets = NULL;
@@ -267,8 +268,8 @@ int main(int argc, char *argv[]) {
 	char *endPtr, flagged = 0;
 
 	size_t channelisation = 1, downsampling = 1, spectralDownsample = 0;
-	fftwf_complex *intermediateX;
-	fftwf_complex *intermediateY;
+	fftwf_complex *intermediateX = NULL;
+	fftwf_complex *intermediateY = NULL;
 	fftwf_plan fftForwardX;
 	fftwf_plan fftForwardY;
 	fftwf_plan fftBackwardX;
@@ -570,9 +571,6 @@ int main(int argc, char *argv[]) {
 		printf("Beamlet limits:\t%d, %d\n\n", config->beamletLimits[0], config->beamletLimits[1]);
 	}
 
-	headerBuffer = calloc(4096 * 8, sizeof(char));
-
-
 	// If given an events file,
 	if (strcmp(eventsFile, "") != 0) {
 
@@ -715,10 +713,10 @@ int main(int argc, char *argv[]) {
 	}
 
 	omp_set_num_threads(config->ompThreads);
-	if (fftw_init_threads()) {
-		fprintf(stderr, "ERROR: Failed to initialise multithreaded FFTWF.\n");
+	if (fftwf_init_threads()) {
+		fprintf(stderr, "ERROR: Failed to initialise multi-threaded FFTWF.\n");
 	}
-	fftw_plan_with_nthreads(config->ompThreads);
+	fftwf_plan_with_nthreads(config->ompThreads);
 
 
 
@@ -767,11 +765,11 @@ int main(int argc, char *argv[]) {
 			return -1;
 		}
 
-		fftForwardX = fftwf_plan_many_dft(1, &nbin, nsub, (fftwf_complex *) reader->meta->outputData[0], &nbin, 1, nbin, intermediateX, nbin, 1, nbin, FFTW_FORWARD, FFTW_PATIENT);
-		fftForwardY = fftwf_plan_many_dft(1, &nbin, nsub, (fftwf_complex *) reader->meta->outputData[1], &nbin, 1, nbin, intermediateY, nbin, 1, nbin, FFTW_FORWARD, FFTW_PATIENT);
+		fftForwardX = fftwf_plan_many_dft(1, &nbin, nsub, (fftwf_complex *) reader->meta->outputData[0], &nbin, 1, nbin, intermediateX, &nbin, 1, nbin, FFTW_FORWARD, FFTW_PATIENT);
+		fftForwardY = fftwf_plan_many_dft(1, &nbin, nsub, (fftwf_complex *) reader->meta->outputData[1], &nbin, 1, nbin, intermediateY, &nbin, 1, nbin, FFTW_FORWARD, FFTW_PATIENT);
 
-		fftBackwardX = fftwf_plan_many_dft(1, &mbin, nchan, intermediateX, &mbin, 1, mbin, (fftwf_complex *) reader->meta->outputData[0], mbin, 1, mbin, FFTW_BACKWARD, FFTW_PATIENT);
-		fftBackwardY = fftwf_plan_many_dft(1, &mbin, nchan, intermediateY, &mbin, 1, mbin, (fftwf_complex *) reader->meta->outputData[1], mbin, 1, mbin, FFTW_BACKWARD, FFTW_PATIENT);
+		fftBackwardX = fftwf_plan_many_dft(1, &mbin, nchan, intermediateX, &mbin, 1, mbin, (fftwf_complex *) reader->meta->outputData[0], &mbin, 1, mbin, FFTW_BACKWARD, FFTW_PATIENT);
+		fftBackwardY = fftwf_plan_many_dft(1, &mbin, nchan, intermediateY, &mbin, 1, mbin, (fftwf_complex *) reader->meta->outputData[1], &mbin, 1, mbin, FFTW_BACKWARD, FFTW_PATIENT);
 	} else {
 		for (int i = 0; i < numStokes; i++) {
 			outputStokes[i] = calloc(reader->packetsPerIteration * UDPNTIMESLICE * reader->meta->totalProcBeamlets / downsampling, sizeof(float));
@@ -880,6 +878,7 @@ int main(int argc, char *argv[]) {
 
 			// Perform channelisation, temporal downsampling as needed
 			if (channelisation > 1) {
+				CLICK(tickChan);
 				fftwf_execute(fftForwardX);
 				fftwf_execute(fftForwardY);
 				reorderData(intermediateX, intermediateY, nbin, nsub);
@@ -887,25 +886,41 @@ int main(int argc, char *argv[]) {
 				reorderData(intermediateX, intermediateY, mbin, channelisation);
 				fftwf_execute(fftBackwardX);
 				fftwf_execute(fftBackwardY);
+				CLICK(tockChan);
+				timing[4] = TICKTOCK(tickChan, tockChan);
+				totalChanTime += timing[4];
+				CLICK(tickDetect);
 				transposeDetect((fftwf_complex *) reader->meta->outputData[0], (fftwf_complex *) reader->meta->outputData[1], outputStokes, mbin, channelisation, nsub, spectralDownsample, stokesParameters);
 			} else {
+				CLICK(tickDetect);
 				transposeDetect((fftwf_complex *) reader->meta->outputData[0], (fftwf_complex *) reader->meta->outputData[1], outputStokes, mbin, channelisation, nsub, spectralDownsample, stokesParameters);
 			}
+			CLICK(tockDetect);
+			timing[5] = TICKTOCK(tickDetect, tockDetect);
+			totalDetectTime += timing[5];
 
 			if (downsampling > 1) {
+				CLICK(tickDown);
 				temporalDownsample(outputStokes, numStokes, mbin, nchan / spectralDownsample, downsampling);
+				CLICK(tockDown);
+				timing[6] = TICKTOCK(tickDown, tockDown);
+				totalDownsampleTime += timing[6];
 			}
+
+
 
 
 			for (int out = 0; out < numStokes; out++) {
-				CLICK(tick1);
-				if ((returnVal = lofar_udp_metadata_write_file(reader, outConfig, out, reader->metadata, headerBuffer, 4096 * 8, localLoops == 0)) < 0) {
-					fprintf(stderr, "ERROR: Failed to write header to output (%d, errno %d: %s), breaking.\n", returnVal, errno, strerror(errno));
-					returnValMeta = (returnValMeta < 0 && returnValMeta > -4) ? returnValMeta : -4;
-					break;
+				if (outConfig->metadata->type != NO_META) {
+					CLICK(tick1);
+					if ((returnVal = lofar_udp_metadata_write_file(reader, outConfig, out, reader->metadata, headerBuffer, 4096 * 8, localLoops == 0)) < 0) {
+						fprintf(stderr, "ERROR: Failed to write header to output (%d, errno %d: %s), breaking.\n", returnVal, errno, strerror(errno));
+						returnValMeta = (returnValMeta < 0 && returnValMeta > -4) ? returnValMeta : -4;
+						break;
+					}
+					CLICK(tock1);
+					timing[2] += TICKTOCK(tick1, tock1);
 				}
-				CLICK(tock1);
-				timing[2] += TICKTOCK(tick1, tock1);
 
 				CLICK(tick0);
 				VERBOSE(printf("Writing %ld bytes (%ld packets) to disk for output %d...\n",
@@ -953,12 +968,13 @@ int main(int argc, char *argv[]) {
 			packetsProcessed += reader->meta->packetsPerIteration;
 
 			if (silent == 0) {
-				printf("Metadata processing for operation %d after %f seconds.\n", loops, timing[2]);
+				if (outConfig->metadata->type != NO_META) printf("Metadata processing for operation %d after %f seconds.\n", loops, timing[2]);
 				printf("Disk writes completed for operation %d after %f seconds.\n", loops, timing[3]);
+				printf("Detection completed for operation %d after %f seconds.\n", loops, timing[5]);
+				if (channelisation) printf("Channelisation completed for operation %d after %f seconds.\n", loops, timing[4]);
+				if (downsampling) printf("Temporal downsampling completed for operation %d after %f seconds.\n", loops, timing[6]);
 
-				for (int idx = 0; idx < TIMEARRLEN; idx++) {
-					timing[idx] = 0.;
-				}
+				ARR_INIT(timing, TIMEARRLEN, 0.0);
 
 				if (returnVal == -1) {
 					for (int port = 0; port < reader->meta->numPorts; port++)
@@ -997,14 +1013,14 @@ int main(int argc, char *argv[]) {
 
 	}
 
-	CLICK(tock);
-
 	fftwf_destroy_plan(fftForwardX);
 	fftwf_destroy_plan(fftForwardY);
 	fftwf_destroy_plan(fftBackwardX);
 	fftwf_destroy_plan(fftBackwardY);
 	fftwf_cleanup_threads();
 	fftwf_cleanup();
+
+	CLICK(tock);
 
 	int droppedPackets = 0;
 	long totalPacketLength = 0, totalOutLength = 0;

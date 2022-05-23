@@ -119,6 +119,7 @@ extern const sigproc_hdr sigproc_hdr_default;
 typedef struct lofar_udp_metadata {
 
 	metadata_t type;
+	char *headerBuffer;
 
 	// DADA + DSPSR Defined header values
 	double hdr_version; // Lib

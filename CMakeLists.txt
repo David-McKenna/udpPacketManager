@@ -201,6 +201,9 @@ set(fftw3f_INSTALL_DIR ${install_dir})
 add_library(libfftw3fomp STATIC IMPORTED)
 set_property(TARGET libfftw3fomp PROPERTY IMPORTED_LOCATION ${fftw3f_INSTALL_DIR}/lib/libfftw3f_omp.a)
 add_dependencies(libfftw3fomp internal_FFTW3F)
+add_library(libfftw3f STATIC IMPORTED)
+set_property(TARGET libfftw3f PROPERTY IMPORTED_LOCATION ${fftw3f_INSTALL_DIR}/lib/libfftw3f.a)
+add_dependencies(libfftw3f internal_FFTW3F)
 message("")
 
 
@@ -220,6 +223,7 @@ configure_file(	"${PROJECT_SOURCE_DIR}/src/lib/lofar_udp_general.h.in"
 
 configure_file(	"${PROJECT_SOURCE_DIR}/src/CLI/lofar_cli_meta.h.in"
 				"${PROJECT_SOURCE_DIR}/src/CLI/lofar_cli_meta.h"
+				@ONLY
 )
 
 
@@ -244,18 +248,15 @@ target_include_directories(lofudpman PUBLIC
 )
 # Include all of our dependency headers
 target_include_directories(lofudpman PUBLIC ${fftw3f_INSTALL_DIR}/include/)
-target_include_directories(lofudpman PUBLIC ${hdf5_INSTALL_DIR}/src/internal_hdf5/src/)
-target_include_directories(lofudpman PUBLIC ${bitshuffle_INSTALL_DIR}/src/internal_bitshuffle/src/)
+target_include_directories(lofudpman PUBLIC ${hdf5_INSTALL_DIR}/src/internal_hdf5/src/ ${bitshuffle_INSTALL_DIR}/src/internal_bitshuffle/src/)
 target_include_directories(lofudpman PUBLIC ${psrdada_INSTALL_DIR}/src/internal_PSRDADA/src/)
 target_include_directories(lofudpman PUBLIC ${zstd_SOURCE_DIR}/lib/)
 #target_include_directories(lofudpman PUBLIC ${yaml_SOURCE_DIR}/include/)
 
 file(GLOB_RECURSE UDP_INCLUDE_FILES "${PROJECT_SOURCE_DIR}/src/*/*.h" "${PROJECT_SOURCE_DIR}/src/*/*.hpp")
 
-target_link_libraries(lofudpman PUBLIC libfftw3fomp)
-target_link_libraries(lofudpman PUBLIC libz) # hdf5 requirement, not ours
-target_link_libraries(lofudpman PUBLIC libhdf5)
-target_link_libraries(lofudpman PUBLIC libh5bshuf)
+target_link_libraries(lofudpman PUBLIC libfftw3fomp libfftw3f)
+target_link_libraries(lofudpman PUBLIC libz libhdf5 libh5bshuf)
 target_link_libraries(lofudpman PUBLIC libpsrdada)
 target_link_libraries(lofudpman PUBLIC libzstd_static)
 #target_link_libraries(lofudpman PUBLIC yaml)

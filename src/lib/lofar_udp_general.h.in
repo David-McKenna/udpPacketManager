@@ -68,6 +68,7 @@ typedef enum calibrate_t {
 
 // Execution values
 #define DEF_STR_LEN 2048
+#define DEF_HDR_LEN 32768
 #define OMP_THREADS @OMP_THREADS@
 #define OMP_NESTED TRUE
 #define ZSTD_COMP_LEVEL @ZSTD_COMP_LEVEL@
