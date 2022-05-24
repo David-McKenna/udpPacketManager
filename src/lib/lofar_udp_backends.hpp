@@ -500,6 +500,7 @@ udp_timeMajorSplitPols(long iLoop, char *inputPortData, O **outputData, long las
 
 
 // Time Major, Dual Pols: Change from packet major to time major (as described before), then split data across X/Y.
+// This output matches the input format required by FFTW
 template<typename I, typename O, const int calibrateData>
 void inline
 udp_timeMajorDualPols(long iLoop, char *inputPortData, O **outputData, long lastInputPacketOffset, int timeStepSize,

@@ -87,7 +87,6 @@ ExternalProject_Add(internal_zlib
                     UPDATE_COMMAND ""
                     )
 ExternalProject_Get_Property(internal_zlib INSTALL_DIR)
-# ${HDF5_INCLUDE_DIRS}
 set(zlib_INSTALL_DIR ${INSTALL_DIR})
 add_library(libz STATIC IMPORTED)
 set_property(TARGET libz PROPERTY IMPORTED_LOCATION ${zlib_INSTALL_DIR}/src/internal_zlib/libz.a)
@@ -117,7 +116,7 @@ ExternalProject_Add(internal_hdf5
                     GIT_REPOSITORY https://github.com/HDFGroup/hdf5
                     GIT_TAG hdf5-1_12_2
                     PREFIX ${CMAKE_CURRENT_BINARY_DIR}/_deps/hdf5
-                    CONFIGURE_COMMAND ./configure --disable-dependency-tracking --enable-optimization=high --disable-shared --disable-cxx --disable-hl --disable-hltools --disable-tools --enable-threadsafe --disable-fortran --enable-build-mode=production --with-zlib=/dev/null
+                    CONFIGURE_COMMAND ./configure --disable-dependency-tracking --enable-optimization=high --disable-shared --disable-cxx --disable-hl --disable-hltools --disable-tools --enable-threadsafe --disable-fortran --enable-build-mode=production --with-zlib=${zlib_INSTALL_DIR}/src/internal_zlib/
                     BUILD_COMMAND "make" "all" "-j8"
                     BUILD_IN_SOURCE TRUE # Header gets moved to incorrect folder otherwise
                     INSTALL_COMMAND ""
@@ -158,8 +157,8 @@ ExternalProject_Add(internal_PSRDADA
                     GIT_TAG ba2b88
                     PREFIX ${CMAKE_CURRENT_BINARY_DIR}/_deps/psrdada
                     BINARY_DIR ${CMAKE_CURRENT_BINARY_DIR}/_deps/psrdada/src/internal_PSRDADA/src/
-                    CONFIGURE_COMMAND cd .. && ./bootstrap && ./configure --disable-dependency-tracking --with-cuda-dir=no
-                    BUILD_COMMAND "make" "libpsrdada.la" "dada_db" "dada_dbmeminfo" "dada_dbmetric" "dada_dbmonitor" "-j4"
+                    CONFIGURE_COMMAND cd .. && ./bootstrap && ./configure  --with-cuda-dir=no && cd 3rdparty && make libtimers.la # libtimers fails to compile during normal step with older Make versions
+                    BUILD_COMMAND make libpsrdada.la dada_db dada_dbmeminfo dada_dbmetric dada_dbmonitor -j4
                     INSTALL_COMMAND ""
                     UPDATE_COMMAND ""
                     )
@@ -238,7 +237,7 @@ add_library(lofudpman STATIC
             src/lib/lofar_udp_metadata.c
             src/lib/lofar_udp_time.c)
 
-add_dependencies(lofudpman libfftw3fomp libzstd_static libpsrdada libhdf5 libh5bshuf) #yaml) #CSpice::cspice)
+add_dependencies(lofudpman libfftw3fomp libzstd_static libpsrdada libz libhdf5 libh5bshuf) #yaml) #CSpice::cspice)
 
 # Include all of our library headers
 target_include_directories(lofudpman PUBLIC
@@ -248,7 +247,7 @@ target_include_directories(lofudpman PUBLIC
 )
 # Include all of our dependency headers
 target_include_directories(lofudpman PUBLIC ${fftw3f_INSTALL_DIR}/include/)
-target_include_directories(lofudpman PUBLIC ${hdf5_INSTALL_DIR}/src/internal_hdf5/src/ ${bitshuffle_INSTALL_DIR}/src/internal_bitshuffle/src/)
+target_include_directories(lofudpman PUBLIC ${zlib_INSTALL_DIR}/src/internal_zlib/ ${hdf5_INSTALL_DIR}/src/internal_hdf5/src/ ${bitshuffle_INSTALL_DIR}/src/internal_bitshuffle/src/)
 target_include_directories(lofudpman PUBLIC ${psrdada_INSTALL_DIR}/src/internal_PSRDADA/src/)
 target_include_directories(lofudpman PUBLIC ${zstd_SOURCE_DIR}/lib/)
 #target_include_directories(lofudpman PUBLIC ${yaml_SOURCE_DIR}/include/)
@@ -256,12 +255,13 @@ target_include_directories(lofudpman PUBLIC ${zstd_SOURCE_DIR}/lib/)
 file(GLOB_RECURSE UDP_INCLUDE_FILES "${PROJECT_SOURCE_DIR}/src/*/*.h" "${PROJECT_SOURCE_DIR}/src/*/*.hpp")
 
 target_link_libraries(lofudpman PUBLIC libfftw3fomp libfftw3f)
-target_link_libraries(lofudpman PUBLIC libz libhdf5 libh5bshuf)
+target_link_libraries(lofudpman PUBLIC libz libhdf5 libh5bshuf ${CMAKE_DL_LIBS}) # Some cases need libdl for HDF5
 target_link_libraries(lofudpman PUBLIC libpsrdada)
 target_link_libraries(lofudpman PUBLIC libzstd_static)
 #target_link_libraries(lofudpman PUBLIC yaml)
 
 # Set a few extra compiler options
+# Overwrite pre-installed libraries that we re-compile
 set(CMAKE_CXX_IMPLICIT_LINK_LIBRARIES "")
 set(CMAKE_CXX_IMPLICIT_LINK_DIRECTORIES "")
 set_property(TARGET lofudpman PROPERTY LINKER_LANGUAGE CXX)

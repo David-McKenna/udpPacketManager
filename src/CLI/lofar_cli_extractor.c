@@ -180,7 +180,7 @@ int main(int argc, char *argv[]) {
 				break;
 
 			case 'c':
-				config->calibrateData = 1;
+				config->calibrateData = APPLY_CALIBRATION;
 				break;
 
 			case 'z':
@@ -287,7 +287,7 @@ int main(int argc, char *argv[]) {
 		return 1;
 	}
 
-	if (config->calibrateData && strcmp(config->metadata_config.metadataLocation, "") == 0) {
+	if (config->calibrateData != NO_CALIBRATION && strcmp(config->metadata_config.metadataLocation, "") == 0) {
 		fprintf(stderr, "ERROR: Data calibration was enabled, but metadata was not provided. Exiting.\n");
 		CLICleanup(eventCount, dateStr, startingPackets, multiMaxPackets, eventSeconds, config, outConfig, headerBuffer);
 		return 1;
