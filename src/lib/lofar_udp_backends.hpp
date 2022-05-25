@@ -415,7 +415,7 @@ template<typename I, typename O, const int calibrateData>
 void inline udp_timeMajor(long iLoop, char *inputPortData, O **outputData, long lastInputPacketOffset, int timeStepSize,
 						  int upperBeamlet, int cumulativeBeamlets, long packetsPerIteration, int baseBeamlet,
 						  float *jonesMatrix) {
-	long outputTimeIdx = iLoop * UDPNTIMESLICE / sizeof(O);
+	long outputTimeIdx = iLoop * UDPNTIMESLICE;
 
 	O Xr, Xi, Yr, Yi;
 	float *beamletJones;
@@ -460,7 +460,7 @@ void inline
 udp_timeMajorSplitPols(long iLoop, char *inputPortData, O **outputData, long lastInputPacketOffset, int timeStepSize,
 					   int upperBeamlet, int cumulativeBeamlets, long packetsPerIteration, int baseBeamlet,
 					   float *jonesMatrix) {
-	long outputTimeIdx = iLoop * UDPNTIMESLICE / sizeof(O);
+	long outputTimeIdx = iLoop * UDPNTIMESLICE;
 
 	O Xr, Xi, Yr, Yi;
 	float *beamletJones;
@@ -506,7 +506,7 @@ void inline
 udp_timeMajorDualPols(long iLoop, char *inputPortData, O **outputData, long lastInputPacketOffset, int timeStepSize,
 					  int upperBeamlet, int cumulativeBeamlets, long packetsPerIteration, int baseBeamlet,
 					  float *jonesMatrix) {
-	long outputTimeIdx = iLoop * UDPNTIMESLICE / sizeof(O);
+	long outputTimeIdx = iLoop * UDPNTIMESLICE;
 
 	O Xr, Xi, Yr, Yi;
 	float *beamletJones;
@@ -556,7 +556,7 @@ udp_stokes(long iLoop, char *inputPortData, O **outputData, long lastInputPacket
 	if constexpr (order < 2) {
 		outputPacketOffset = iLoop * packetOutputLength / sizeof(O);
 	} else if constexpr (order < 4) {
-		outputPacketOffset = iLoop * UDPNTIMESLICE / sizeof(O);
+		outputPacketOffset = iLoop * UDPNTIMESLICE;
 	} else {
 		__builtin_unreachable();
 	}
@@ -622,7 +622,7 @@ void inline udp_stokesDecimation(long iLoop, char *inputPortData, O **outputData
 	if constexpr (order < 2) {
 		outputPacketOffset = iLoop * packetOutputLength / sizeof(O);
 	} else if constexpr (order < 4) {
-		outputPacketOffset = iLoop * UDPNTIMESLICE / sizeof(O);
+		outputPacketOffset = iLoop * UDPNTIMESLICE;
 	} else {
 		__builtin_unreachable();
 	}
@@ -696,7 +696,7 @@ udp_fullStokes(long iLoop, char *inputPortData, O **outputData, long lastInputPa
 	if constexpr (order < 2) {
 		outputPacketOffset = iLoop * packetOutputLength / sizeof(O);
 	} else if constexpr (order < 4) {
-		outputPacketOffset = iLoop * UDPNTIMESLICE / sizeof(O);
+		outputPacketOffset = iLoop * UDPNTIMESLICE;
 	} else {
 		__builtin_unreachable();
 	}
@@ -777,7 +777,7 @@ void inline udp_fullStokesDecimation(long iLoop, char *inputPortData, O **output
 	if constexpr (order < 2) {
 		outputPacketOffset = iLoop * packetOutputLength / sizeof(O);
 	} else if constexpr (order < 4) {
-		outputPacketOffset = iLoop * UDPNTIMESLICE / sizeof(O);
+		outputPacketOffset = iLoop * UDPNTIMESLICE;
 	} else {
 		__builtin_unreachable();
 	}
@@ -904,7 +904,7 @@ udp_usefulStokes(long iLoop, char *inputPortData, O **outputData, long lastInput
 	if constexpr (order < 2) {
 		outputPacketOffset = iLoop * packetOutputLength / sizeof(O);
 	} else if constexpr (order < 4) {
-		outputPacketOffset = iLoop * UDPNTIMESLICE / sizeof(O);
+		outputPacketOffset = iLoop * UDPNTIMESLICE;
 	} else {
 		__builtin_unreachable();
 	}
@@ -977,7 +977,7 @@ void inline udp_usefulStokesDecimation(long iLoop, char *inputPortData, O **outp
 	if constexpr (order < 2) {
 		outputPacketOffset = iLoop * packetOutputLength / sizeof(O);
 	} else if constexpr (order < 4) {
-		outputPacketOffset = iLoop * UDPNTIMESLICE / sizeof(O);
+		outputPacketOffset = iLoop * UDPNTIMESLICE;
 	} else {
 		__builtin_unreachable();
 	}
