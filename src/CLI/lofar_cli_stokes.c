@@ -83,81 +83,24 @@ void CLICleanup(int eventCount, char **dateStr, long *startingPackets, long *mul
 	}
 }
 
-void shiftAndOverlap(fftwf_complex *output, fftwf_complex *input, size_t noverlap, size_t nbins, size_t numFft, size_t nsub) {
+void reorderData(fftwf_complex (*x), fftwf_complex (*y), size_t bins, size_t channels, float scale) {
+	fftwf_complex *data[] = { x, y };
 
-	printf("shiftAndOverlap: %zu, %zu, %zu, %zu\n", noverlap, nbins, numFft, nsub);
-	for (size_t sub = 0; sub < nsub; sub++) {
-		for (size_t fft = 0; fft < numFft; fft++) {
-			for (size_t bin = 0; bin < nbins; bin++) {
-				size_t inputIdx = (bin - noverlap) + (fft * (nbins - noverlap)) + (sub * numFft * (nbins - noverlap));
-				size_t outputIdx = bin + (fft * nbins) + (sub * numFft * nbins);
+	const int copySize = (bins / 2) * sizeof(fftwf_complex);
 
-				if (bin > 0 || fft > 0) {
-					output[outputIdx][0] = input[inputIdx][0];
-					output[outputIdx][1] = input[inputIdx][1];
-				}
-			}
-		}
-	}
-}
-
-void padNextIteration(fftwf_complex *output, fftwf_complex *input, size_t noverlap, size_t nbins, size_t numFft, size_t nsub, int localLoops) {
-	printf("padNextIteration: %zu, %zu, %zu, %zu, %d\n", noverlap, nbins, numFft, nsub, localLoops);
-	for (size_t sub = 0; sub < nsub; sub++) {
-		for (size_t fft = 0; fft < numFft; fft++) {
-			for (size_t bin = 0; bin < noverlap; bin++) {
-				size_t inputIdx;
-				if (localLoops) {
-					inputIdx = bin + (fft * (nbins - noverlap)) + (sub * numFft * (nbins - noverlap));
-				} else {
-					inputIdx = (nbins - 2 * noverlap + bin) + (fft * (nbins - noverlap)) + (sub * numFft * (nbins - noverlap));
-				}
-				size_t outputIdx = bin + (fft * nbins) + (sub * numFft * nbins);
-				output[outputIdx][0] = input[inputIdx][0];
-				output[outputIdx][1] = input[inputIdx][1];
-			}
-		}
-	}
-}
-
-void reorderData(fftwf_complex *X, fftwf_complex *Y, size_t bins, size_t channels, float scale) {
-	const fftwf_complex *data[] = { X, Y };
-	const int shiftBins = (bins / 2) * sizeof(fftwf_complex);
-
-	printf("reorderData: %zu, %zu, %f\n", bins, channels, scale);
-
-	#pragma omp parallel for default(none) firstprivate(data, bins, channels, scale, shiftBins)
+	#pragma omp parallel for default(shared)
 	for (int i = 0; i < 2; i++) {
 		fftwf_complex *workingPtr = data[i];
-		fftwf_complex *tmpBuffer = fftwf_alloc_complex(shiftBins / sizeof(fftwf_complex));
+		fftwf_complex *tmpBuffer = fftwf_alloc_complex(bins / 2);
 
 		for (size_t channel = 0; channel < channels; channel++) {
 			size_t inputIdx = channel * bins;
 			size_t outputIdx = inputIdx + (bins / 2);
 
-			/*
-			//fftwf_complex tmp = { 0.0f, 0.0f };
-			for (size_t sample = 0; sample < (bins / 2); sample++) {
-
-				inputIdx = sample + channel * bins;
-				outputIdx = inputIdx + (bins / 2);
-
-				tmp[0] = workingPtr[inputIdx][0] * scale;
-				tmp[1] = workingPtr[inputIdx][1] * scale;
-				workingPtr[inputIdx][0] = workingPtr[outputIdx][0] * scale;
-				workingPtr[inputIdx][1] = workingPtr[outputIdx][1] * scale;
-				workingPtr[outputIdx][0] = tmp[0];
-				workingPtr[outputIdx][1] = tmp[1];
-
-
-
-			}
-			*/
-
 			if ((bins / 2) > 1) {
-				memcpy(tmpBuffer, workingPtr[inputIdx], shiftBins);
-				memmove(workingPtr[inputIdx], workingPtr[outputIdx], shiftBins);
-				memcpy(workingPtr[outputIdx], tmpBuffer, shiftBins);
+				memcpy(tmpBuffer, workingPtr[inputIdx], copySize);
+				memmove(workingPtr[inputIdx], workingPtr[outputIdx], copySize);
+				memcpy(workingPtr[outputIdx], tmpBuffer, copySize);
 			}
 
 			if (scale != 1.0) {
@@ -176,34 +119,32 @@ void reorderData(fftwf_complex *X, fftwf_complex *Y, size_t bins, size_t channel
 
 
 void
-transposeDetect(fftwf_complex (*X), fftwf_complex (*Y), float **outputs, size_t noverlap, size_t mbin, size_t nfft, size_t channelisation, size_t nsub,
-                size_t channelDownsample, int stokesFlags) {
+transposeDetect(fftwf_complex *X, fftwf_complex *Y, float **outputs, size_t mbin, size_t nfft, size_t channelisation, size_t nsub, size_t channelDownsample,
+                int stokesFlags) {
+	float accumulator[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
 
 	if (channelDownsample < 1) {
 		channelDownsample = 1;
 	}
 
-
-	const size_t channelOutputRatio = channelisation / channelDownsample;
-	const size_t outputNchan = nsub * channelOutputRatio;
+	const size_t outputNchan = nsub * channelisation / channelDownsample;
 
 	printf("Detecting for: %zu, %zu, %zu, %zu\n", mbin, channelisation, nsub, channelDownsample);
 
-	//#pragma omp parallel for default(shared)
+	#pragma omp parallel for default(shared) private(accumulator)
 	for (size_t sub = 0; sub < nsub; sub++) {
-		float accumulator[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
-
 		for (size_t fft = 0; fft < nfft; fft++) {
-			for (size_t sample = noverlap; sample < (mbin - noverlap); sample++) {
+			for (size_t sample = 0; sample < mbin; sample++) {
 				ARR_INIT(accumulator, 4, 0.0f);
+
 				size_t accumulations = 0;
 
-				//#pragma omp simd //nontemporal(outputs)
+				#pragma omp simd //nontemporal(outputs)
 				for (size_t chan = 0; chan < channelisation; chan++) {
 
 					// Input is time major
 					//         curr     fft offset     channel offset         size per channel
-					size_t inputIdx = sample + (chan * mbin) + (fft * mbin * channelisation) + (sub * channelisation * nfft * mbin);
+					size_t inputIdx = sample + (chan * mbin) + (fft * mbin * channelisation) + (sub * channelisation) * (mbin * nfft);
 
 					if (stokesFlags & STOKESI) {
 						accumulator[0] += stokesI(X[inputIdx][0], X[inputIdx][1], Y[inputIdx][0], Y[inputIdx][1]);
@@ -221,8 +162,7 @@ transposeDetect(fftwf_complex (*X), fftwf_complex (*Y), float **outputs, size_t 
 					if (++accumulations == channelDownsample) {
 						// Output is channel major
 						//          curr                         total channels         size per time sample
-						size_t outputIdx = (chan / channelDownsample) + (sub * channelOutputRatio) + outputNchan * ((sample - noverlap) + ((mbin - 2 * noverlap) * fft));
-
+						size_t outputIdx = (chan / channelDownsample) + (sub * channelisation / channelDownsample) + (outputNchan * (sample + mbin * fft));
 						size_t outputArr = 0;
 						if (stokesFlags & STOKESI) {
 							outputs[outputArr][outputIdx] = accumulator[0];
@@ -553,40 +493,19 @@ int main(int argc, char *argv[]) {
 		return 1;
 	}
 
-	// Pass forward output channelisation and downsampling factors
-	config->metadata_config.externalChannelisation = channelisation;
-	config->metadata_config.externalDownsampling = downsampling;
-
 	if (spectralDownsample) {
 		spectralDownsample = downsampling;
 		downsampling = 1;
 	}
 
-	if (channelisation > 1 || spectralDownsample > 1) {
-		if (silent == 0) { printf("Computing channelisation chirp\n"); }
-
-		if (spectralDownsample) {
-			channelisation *= spectralDownsample;
-		}
-	}
-
-	int nbinIn = 64 * channelisation;
-	int noverlap = nbinIn / 8;
-	size_t effectiveFFTLen = config->packetsPerIteration * UDPNTIMESLICE;
-	if (channelisation) {
-		if (noverlap < 16 || config->packetsPerIteration < 2) {
-			fprintf(stderr, "ERROR: Not loading enough data to pad FFTs\n");
-			return 0;
-		}
-		config->packetsPerIteration -= noverlap / UDPNTIMESLICE;
-	}
-	if (((effectiveFFTLen) % (channelisation * downsampling)) != 0) {
-		fprintf(stderr, "ERROR: Number of samples needed per iterations must be a multiple of the product of the channelisation factor %ld and downsampling factor %ld (%ld) exiting.\n", channelisation, downsampling, channelisation * downsampling, effectiveFFTLen);
+	int FFTBIN = 64;
+	if (((config->packetsPerIteration * UDPNTIMESLICE / FFTBIN) % (channelisation * downsampling)) != 0) {
+		fprintf(stderr, "ERROR: Number of samples needed per iterations must be a multiple of the product of the channelisation factor %ld and downsampling factor %ld (%ld) exiting.\n", config->packetsPerIteration * UDPNTIMESLICE, channelisation, downsampling, channelisation * downsampling);
 		helpMessages();
 		CLICleanup(eventCount, dateStr, startingPackets, multiMaxPackets, eventSeconds, config, outConfig, intermediateX, intermediateY);
 		return 1;
 	}
-	int numFft = effectiveFFTLen / nbinIn;
+	int numFft = (config->packetsPerIteration * UDPNTIMESLICE) / FFTBIN / (channelisation * (spectralDownsample ?: 1));
 
 	/*
 	if (((long long) (channelisation * downsampling)) % config->packetsPerIteration != 0) {
@@ -789,6 +708,18 @@ int main(int argc, char *argv[]) {
 
 	}
 
+	// Pass forward output channelisation and downsampling factors
+	config->metadata_config.externalChannelisation = channelisation;
+	config->metadata_config.externalDownsampling = downsampling;
+
+	if (channelisation > 1) {
+		if (silent == 0) { printf("Computing channelisation chirp\n"); }
+
+		if (spectralDownsample) {
+			channelisation *= spectralDownsample;
+		}
+	}
+
 	if (fftwf_init_threads() == 0) {
 		fprintf(stderr, "ERROR: Failed to initialise multi-threaded FFTWF.\n");
 	}
@@ -824,13 +755,14 @@ int main(int argc, char *argv[]) {
 	}
 
 	// Channelisation setup
+	int nbinIn = FFTBIN * channelisation;
 	int mbinOut = nbinIn / channelisation;
 	int nSubIn = reader->meta->totalProcBeamlets;
 	int nChanOut = reader->meta->totalProcBeamlets * channelisation;
 	size_t fftBufferElements = 0, fftBufferSize = 0;
 
-	fftwf_complex *in1 = NULL;
-	fftwf_complex *in2 = NULL;
+	fftwf_complex * in1 = NULL;
+	fftwf_complex * in2 = NULL;
 	printf("%d, %d, %d, %d, %d\n", numFft, nbinIn, mbinOut, nSubIn, nChanOut);
 
 	float *outputStokes[MAX_OUTPUT_DIMS];
@@ -856,8 +788,8 @@ int main(int argc, char *argv[]) {
 		fftBackwardY = fftwf_plan_many_dft(1, &mbinOut, numFft * nChanOut, intermediateY, &mbinOut, 1, mbinOut, in2, &mbinOut, 1, mbinOut, FFTW_BACKWARD, FFTW_ESTIMATE_PATIENT);
 	}
 
-	size_t outputFloats = (nbinIn - 2 * noverlap) * numFft * reader->meta->totalProcBeamlets / (spectralDownsample ?: 1);
-	printf("floats %ld, %ld, %ld, %ld\n", outputFloats, effectiveFFTLen * reader->meta->totalProcBeamlets, spectralDownsample, (spectralDownsample ?: 1));
+	size_t outputFloats = reader->packetsPerIteration * UDPNTIMESLICE * reader->meta->totalProcBeamlets / (spectralDownsample ?: 1);
+	printf("floats %ld, %ld, %ld, %ld\n", outputFloats, reader->packetsPerIteration * UDPNTIMESLICE * reader->meta->totalProcBeamlets, spectralDownsample, (spectralDownsample ?: 1));
 	for (int i = 0; i < numStokes; i++) {
 		outputStokes[i] = calloc(outputFloats, sizeof(float));
 	}
@@ -964,32 +896,27 @@ int main(int argc, char *argv[]) {
 			}
 
 			printf("Begin channelisation %zu %zu %zu %d\n", channelisation, spectralDownsample, downsampling, numFft);
-			printf("Begin channelisation %zu %zu %d\n", noverlap, nbinIn, localLoops);
 			// Perform channelisation, temporal downsampling as needed
 			if (channelisation > 1) {
 				CLICK(tickChan);
-				if (!localLoops) {
-					padNextIteration(in1, (float *) reader->meta->outputData[0], noverlap, nbinIn, numFft, nSubIn, localLoops);
-					padNextIteration(in2, (float *)reader->meta->outputData[1], noverlap, nbinIn, numFft, nSubIn, localLoops);
-				}
-				shiftAndOverlap(in1, (float *) reader->meta->outputData[0], noverlap, nbinIn, numFft, nSubIn);
-				shiftAndOverlap(in2, (float *) reader->meta->outputData[1], noverlap, nbinIn, numFft, nSubIn);
+				memcpy(in1, reader->meta->outputData[0], fftBufferSize);
+				memcpy(in2, reader->meta->outputData[1], fftBufferSize);
 				printf("Execute\n");
 				fftwf_execute(fftForwardX);
 				fftwf_execute(fftForwardY);
-				quickdump("test_0", in1, fftBufferSize);
-				quickdump("test_1", intermediateX, fftBufferSize);
+				//quickdump("test_0", in1, fftBufferSize);
+				//quickdump("test_1", intermediateX, fftBufferSize);
 
 				printf("Reorder 0\n");
 				reorderData(intermediateX, intermediateY, nbinIn, numFft * nSubIn, 1.0 / (float) nbinIn);
 				printf("Reorder 1\n");
 				//windowData();
 				printf("Reorder 2\n");
-				quickdump("test_2", intermediateX, fftBufferSize);
+				//quickdump("test_2", intermediateX, fftBufferSize);
 				printf("Reorder 3\n");
 				reorderData(intermediateX, intermediateY, mbinOut, numFft * nSubIn * channelisation, 1.0);
 				printf("Reorder 4\n");
-				quickdump("test_3", intermediateX, fftBufferSize);
+				//quickdump("test_3", intermediateX, fftBufferSize);
 				printf("Reorder 5\n");
 				ARR_INIT(((float *) in1), fftBufferElements * sizeof(fftwf_complex) / sizeof(float), 0.0f);
 				printf("Reorder 6\n");
@@ -997,22 +924,20 @@ int main(int argc, char *argv[]) {
 				printf("Execute\n");
 				fftwf_execute(fftBackwardX);
 				fftwf_execute(fftBackwardY);
-				quickdump("test_4", in1, fftBufferSize);
+				//quickdump("test_4", in1, nbinIn * nSubIn * 2 * sizeof(float));
 				CLICK(tockChan);
 				timing[4] = TICKTOCK(tickChan, tockChan);
 				totalChanTime += timing[4];
 				CLICK(tickDetect);
 				printf("Detect\n");
-				transposeDetect(in1, in2, outputStokes, noverlap / channelisation, mbinOut, numFft, channelisation, nSubIn, spectralDownsample, stokesParameters);
-				quickdump("test_5", outputStokes[0], outputFloats * sizeof(float));
+				transposeDetect(in1, in2, outputStokes, mbinOut, numFft, channelisation, nSubIn, spectralDownsample, stokesParameters);
+				//quickdump("test_5", outputStokes[0], 4 * mbinOut * channelisation * nSubIn / (spectralDownsample ?:1));
 				ARR_INIT(((float *) intermediateX), fftBufferElements * sizeof(fftwf_complex) / sizeof(float), 0.0f);
 				ARR_INIT(((float *) intermediateY), fftBufferElements * sizeof(fftwf_complex) / sizeof(float), 0.0f);
-				padNextIteration(in1, reader->meta->outputData[0], noverlap, nbinIn, numFft, nSubIn, localLoops + 1);
-				padNextIteration(in2, reader->meta->outputData[1], noverlap, nbinIn, numFft, nSubIn, localLoops + 1);
 			} else {
 				CLICK(tickDetect);
 				printf("Detectsolo\n");
-				transposeDetect((fftwf_complex *) reader->meta->outputData[0], (fftwf_complex *) reader->meta->outputData[1], outputStokes, 0,
+				transposeDetect((fftwf_complex *) reader->meta->outputData[0], (fftwf_complex *) reader->meta->outputData[1], outputStokes,
 				                packetsToWrite * UDPNTIMESLICE, 1, 1, nSubIn, 1, stokesParameters);
 			}
 
@@ -1025,7 +950,7 @@ int main(int argc, char *argv[]) {
 			printf("Begin downsampling\n");
 			if (downsampling > 1) {
 				CLICK(tickDown);
-				temporalDownsample(outputStokes, numStokes, (mbinOut - 2 * noverlap / (channelisation ?: 1)) * numFft, nChanOut, downsampling);
+				temporalDownsample(outputStokes, numStokes, mbinOut * numFft, nChanOut, downsampling);
 				CLICK(tockDown);
 				timing[6] = TICKTOCK(tickDown, tockDown);
 				totalDownsampleTime += timing[6];
