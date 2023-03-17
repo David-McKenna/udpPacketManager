@@ -14,6 +14,12 @@ if (ALLOW_VERBOSE OR (CMAKE_BUILD_TYPE STREQUAL Debug))
 	message("Verbose mode enabled")
 endif()
 
+
+# Silence timestamp warning
+if (CMAKE_VERSION VERSION_GREATER_EQUAL "3.24")
+	cmake_policy(SET CMP0135 NEW)
+endif()
+
 # Describe the project
 project(udpPacketManager 	VERSION 0.7.0
 							DESCRIPTION "C Library for handling CEP packet data from an international LOFAR station"
@@ -24,8 +30,8 @@ set(UPM_CLI_VERSION 0.7)
 
 message("Building udpPacketManager Version ${PROJECT_VERSION}\n\n")
 
-set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -W -Wall -DALLOW_VERBOSE -g")
-set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -W -Wall -DALLOW_VERBOSE -g")
+set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -W -Wall -g")
+set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -W -Wall -g")
 set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -fno-omit-frame-pointer -fsanitize=address")
 set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -fno-omit-frame-pointer -fsanitize=address")
 set(CMAKE_LINKER_FLAGS_DEBUG "${CMAKE_LINKER_FLAGS_DEBUG} -fno-omit-frame-pointer -fsanitize=address")
@@ -237,7 +243,7 @@ add_library(lofudpman STATIC
             src/lib/lofar_udp_metadata.c
             src/lib/lofar_udp_time.c)
 
-add_dependencies(lofudpman libfftw3fomp libzstd_static libpsrdada libz libhdf5 libh5bshuf) #yaml) #CSpice::cspice)
+add_dependencies(lofudpman libfftw3fomp libzstd_static libpsrdada libhdf5 libz libh5bshuf) #yaml) #CSpice::cspice)
 
 # Include all of our library headers
 target_include_directories(lofudpman PUBLIC
@@ -247,7 +253,7 @@ target_include_directories(lofudpman PUBLIC
 )
 # Include all of our dependency headers
 target_include_directories(lofudpman PUBLIC ${fftw3f_INSTALL_DIR}/include/)
-target_include_directories(lofudpman PUBLIC ${zlib_INSTALL_DIR}/src/internal_zlib/ ${hdf5_INSTALL_DIR}/src/internal_hdf5/src/ ${bitshuffle_INSTALL_DIR}/src/internal_bitshuffle/src/)
+target_include_directories(lofudpman PUBLIC ${hdf5_INSTALL_DIR}/src/internal_hdf5/src/ ${zlib_INSTALL_DIR}/src/internal_zlib/ ${bitshuffle_INSTALL_DIR}/src/internal_bitshuffle/src/)
 target_include_directories(lofudpman PUBLIC ${psrdada_INSTALL_DIR}/src/internal_PSRDADA/src/)
 target_include_directories(lofudpman PUBLIC ${zstd_SOURCE_DIR}/lib/)
 #target_include_directories(lofudpman PUBLIC ${yaml_SOURCE_DIR}/include/)
@@ -255,13 +261,15 @@ target_include_directories(lofudpman PUBLIC ${zstd_SOURCE_DIR}/lib/)
 file(GLOB_RECURSE UDP_INCLUDE_FILES "${PROJECT_SOURCE_DIR}/src/*/*.h" "${PROJECT_SOURCE_DIR}/src/*/*.hpp")
 
 target_link_libraries(lofudpman PUBLIC libfftw3fomp libfftw3f)
-target_link_libraries(lofudpman PUBLIC libz libhdf5 libh5bshuf ${CMAKE_DL_LIBS}) # Some cases need libdl for HDF5
+target_link_libraries(lofudpman PUBLIC libhdf5 libz libh5bshuf ${CMAKE_DL_LIBS}) # Some cases need libdl for HDF5
 target_link_libraries(lofudpman PUBLIC libpsrdada)
 target_link_libraries(lofudpman PUBLIC libzstd_static)
 #target_link_libraries(lofudpman PUBLIC yaml)
 
 # Set a few extra compiler options
 # Overwrite pre-installed libraries that we re-compile
+set(CMAKE_C_IMPLICIT_LINK_LIBRARIES "")
+set(CMAKE_C_IMPLICIT_LINK_DIRECTORIES "")
 set(CMAKE_CXX_IMPLICIT_LINK_LIBRARIES "")
 set(CMAKE_CXX_IMPLICIT_LINK_DIRECTORIES "")
 set_property(TARGET lofudpman PROPERTY LINKER_LANGUAGE CXX)
@@ -284,8 +292,8 @@ target_link_libraries(lofudpman PUBLIC OpenMP::OpenMP_CXX OpenMP::OpenMP_C)
 
 # Setup the CLIs
 add_executable(lofar_udp_extractor src/CLI/lofar_cli_extractor.c)
-target_link_libraries(lofar_udp_extractor PUBLIC lofudpman)
 add_executable(lofar_stokes_extractor src/CLI/lofar_cli_stokes.c)
+target_link_libraries(lofar_udp_extractor PUBLIC lofudpman)
 target_link_libraries(lofar_stokes_extractor PUBLIC lofudpman)
 
 
@@ -306,7 +314,7 @@ install(FILES ${UDP_INCLUDE_FILES} DESTINATION include)
 install(FILES src/misc/dreamBeamJonesGenerator.py DESTINATION bin)
 
 # Add the tests directory
-#add_subdirectory(tests EXCLUDE_FROM_ALL)
+add_subdirectory(tests)
 
 
 #include(CMakePackageConfigHelpers)

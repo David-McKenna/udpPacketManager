@@ -42,7 +42,7 @@ void processingModes(void) {
 		"the frequency order will be changed to be increasing (positive frequency offset, matching the telescope configuration).\n");
 }
 
-int checkOpt(char opt, char* inp, char* endPtr) {
+int checkOpt(int opt, char* inp, char* endPtr) {
 	if (inp != endPtr && *(endPtr) == '\0') {
 		return 0;
 	}

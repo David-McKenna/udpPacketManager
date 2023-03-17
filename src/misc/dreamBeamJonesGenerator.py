@@ -12,14 +12,16 @@ from dreambeam.rime.scenarios import on_pointing_axis_tracking
 
 def generateJones(subbands, antennaSet, stn, mdl, time, dur, inte, pnt, firstOutput=False):
     results = {}
-    # Antenna list is sorted -> reverse the order so that we process the LBAs first if multiple antenna sets are used
-    for ant in reversed(antennaSet):
-        # Get the Jones Matrix data
+    for ant in ['LBA', 'HBA']:
+        if ant not in antennaSet:
+            continue
 
         if isinstance(pnt, dict):
             pntLocal = pnt[ant]
         else:
             pntLocal = pnt
+
+        # Get the Jones Matrix data
         __, __, antJones, __ = on_pointing_axis_tracking("LOFAR", stn, ant, mdl, time, dur, inte, pntLocal,
                                                          do_parallactic_rot=True)
 
@@ -107,11 +109,14 @@ if __name__ == '__main__':
 
         exit(1)
 
-    args.sub = args.sub.split(' ')
+    args.sub = list(map(int, args.sub.split(',')))
 
     # Determine if both HBA and LBAs are needed
-    antennaSet = list(set([antSet.split(',')[0].upper() for antSet in args.sub]))
-    antennaSet.sort()
+    antennaSet = []
+    if min(args.sub) > -1 and min(args.sub) < 512:
+        antennaSet.append("LBA")
+    if max(args.sub) > 512 and max(args.sub) < (1024 + 512):
+        antennaSet.append("HBA")
 
     # Split the pointing into it's components
     args.pnt = args.pnt.split(',')
@@ -125,24 +130,13 @@ if __name__ == '__main__':
 
     # Determine all the subbands we need to extract data for
     subbands = []
-    for subStr in args.sub:
-        result = []
-        splitSub = subStr.split(',')
-
-        for ele in splitSub[1:]:
-            if ':' in ele:
-                # Generate an input for range, either a:b or a:b:c where c is stepping
-                subs = list(map(int, ele.split(':')))
-                # Include the last subband
-                subs[1] += 1
-                # Generate all the frequency subbands
-                result += list(range(*subs))
-
-            else:
-                result += [int(ele)]
-
-        # Accumulate the results
-        subbands.append([splitSub[0].upper(), subStr, result])
+    beamlet = 0
+    for sub in args.sub:
+        if sub < 512:
+            subbands.append(("LBA", sub, beamlet))
+        else:
+            subbands.append(("HBA", sub - 512, beamlet))
+        beamlet += 1
 
     endParseTime = timeLib.perf_counter()
     print(f"dreamBeamJonesGenerator.py: Parsing completed in {endParseTime - initTime:.3f} seconds.")

@@ -19,7 +19,7 @@ const double clock160MHzPacketRate = CLOCK160MHZ / 16;
  *
  * @return     The starting packet.
  */
-long lofar_udp_time_get_packet_from_isot(const char *inputTime, const unsigned int clock200MHz) {
+long lofar_udp_time_get_packet_from_isot(const char *inputTime, const uint32_t clock200MHz) {
 	struct tm unixTm;
 	time_t unixEpoch;
 
@@ -41,7 +41,7 @@ long lofar_udp_time_get_packet_from_isot(const char *inputTime, const unsigned i
  *
  * @return     The number of packets generated
  */
-long lofar_udp_time_get_packets_from_seconds(double seconds, const unsigned int clock200MHz) {
+long lofar_udp_time_get_packets_from_seconds(double seconds, const uint32_t clock200MHz) {
 	return (long) (seconds * (clock200MHz * clock200MHzSteps + (float) (1 - clock200MHz) * clock160MHzSteps) /
 	               (float) UDPNTIMESLICE);
 }
@@ -59,36 +59,27 @@ float getPacketsToSeconds(long packetCount, const int clock200MHz) {
 }
 */
 
+
 /**
  * @brief      Convert the current packet to an ISOT string
- *  TODO: Use a dfferent input, this does not account for packet loss.
  *
  * @param      reader      The UDP reader
  * @param      stringBuff  The string buffer
  */
-void lofar_udp_time_get_current_isot_offset(const lofar_udp_reader *reader, char *stringBuff, double offsetSeconds) {
+void lofar_udp_time_get_current_isot(const lofar_udp_reader *reader, char *stringBuff, int strlen) {
 	double startTime;
 	time_t startTimeUnix;
 	struct tm *startTimeStruct;
 
 	startTime = lofar_udp_time_get_packet_time(reader->meta->inputData[0]);
-	startTimeUnix = (unsigned int) (startTime + offsetSeconds);
+	startTimeUnix = (unsigned int) (startTime);
 	startTimeStruct = gmtime(&startTimeUnix);
 
 	char localBuff[32];
 	strftime(localBuff, sizeof(localBuff), "%Y-%m-%dT%H:%M:%S", startTimeStruct);
-	sprintf(stringBuff, "%s.%09d", localBuff, (int) ((startTime - startTimeUnix) * 1e9));
+	snprintf(stringBuff, strlen,  "%s.%09d", localBuff, (int) ((startTime - startTimeUnix) * 1e9));
 }
 
-/**
- * @brief      Convert the current packet to an ISOT string
- *
- * @param      reader      The UDP reader
- * @param      stringBuff  The string buffer
- */
-void lofar_udp_time_get_current_isot(const lofar_udp_reader *reader, char *stringBuff) {
-	lofar_udp_time_get_current_isot_offset(reader, stringBuff, 0.0);
-}
 /**
  * @brief      Get the unix timestamp for a given packet
  *
@@ -96,9 +87,9 @@ void lofar_udp_time_get_current_isot(const lofar_udp_reader *reader, char *strin
  *
  * @return     Unix time double
  */
-double lofar_udp_time_get_packet_time(const char *inputData) {
-	return (double) *((unsigned int *) &(inputData[CEP_HDR_TIME_OFFSET])) +
-		   ((double) *((unsigned int *) &(inputData[CEP_HDR_SEQ_OFFSET])) /
+double lofar_udp_time_get_packet_time(const int8_t *inputData) {
+	return (double) *((uint32_t *) &(inputData[CEP_HDR_TIME_OFFSET])) +
+		   ((double) *((int32_t *) &(inputData[CEP_HDR_SEQ_OFFSET])) /
 			(clock160MHzSteps + clockStepsDelta * ((lofar_source_bytes *) &(inputData[CEP_HDR_SRC_OFFSET]))->clockBit));
 }
 /**
@@ -108,7 +99,7 @@ double lofar_udp_time_get_packet_time(const char *inputData) {
  *
  * @return     MJD double
  */
-double lofar_udp_time_get_packet_time_mjd(const char *inputData) {
+double lofar_udp_time_get_packet_time_mjd(const int8_t *inputData) {
 	double unixTime = lofar_udp_time_get_packet_time(inputData);
 
 	return (unixTime / 86400.0) + 40587.0;
@@ -125,7 +116,7 @@ double lofar_udp_time_get_packet_time_mjd(const char *inputData) {
  *
  * @return     Packet delta
  */
-long lofar_get_packet_difference(unsigned int ts, long packetNumber, unsigned int clock200MHz) {
+long lofar_get_packet_difference(uint32_t ts, int64_t packetNumber, int32_t clock200MHz) {
 	return lofar_udp_time_beamformed_packno(ts, 0, clock200MHz) - packetNumber;
 }
 
@@ -135,7 +126,7 @@ long lofar_get_packet_difference(unsigned int ts, long packetNumber, unsigned in
  * @param      reader      The lofar_udp_reader
  * @param      stringBuff  The output time string buffer
  */
-void lofar_udp_time_get_daq(const lofar_udp_reader *reader, char *stringBuff) {
+void lofar_udp_time_get_daq(const lofar_udp_reader *reader, char *stringBuff, int strlen) {
 	double startTime;
 	time_t startTimeUnix;
 	struct tm *startTimeStruct;
@@ -144,5 +135,5 @@ void lofar_udp_time_get_daq(const lofar_udp_reader *reader, char *stringBuff) {
 	startTimeUnix = (unsigned int) startTime;
 	startTimeStruct = gmtime(&startTimeUnix);
 
-	strftime(stringBuff, 24, "%a %b %e %H:%M:%S %Y", startTimeStruct);
+	strftime(stringBuff, strlen, "%a %b %e %H:%M:%S %Y", startTimeStruct);
 }

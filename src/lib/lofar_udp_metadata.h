@@ -31,6 +31,7 @@ extern "C" {
 int lofar_udp_metadata_get_station_name(int stationID, char *stationCode);
 
 // Main public functions
+metadata_t lofar_udp_metadata_parse_type_output(const char optargc[]);
 int lofar_udp_metadata_setup(lofar_udp_metadata *metadata, const lofar_udp_reader *reader, const metadata_config *config);
 int lofar_udp_metadata_update(const lofar_udp_reader *reader, lofar_udp_metadata *metadata, int newObs);
 int lofar_udp_metadata_write_buffer(const lofar_udp_reader *reader, lofar_udp_metadata *metadata, char *headerBuffer, size_t headerBufferSize, int newObs);

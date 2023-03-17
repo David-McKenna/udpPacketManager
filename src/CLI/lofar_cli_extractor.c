@@ -12,7 +12,7 @@ void helpMessages() {
 	printf("-i: <format>	[OUTDATED] Input file name format (default: './%%d')\n");
 	printf("-o: <format>	[OUTDATED] Output file name format (provide %%d, %%s and %%ld to fill in output ID, date/time string and the starting packet number) (default: './output%%d_%%s_%%ld')\n");
 	printf("-m: <numPack>	Number of packets to process in each read request (default: 65536)\n");
-	printf("-M: <str>		Metadata format (SIGPROC, DADA, GUPPI, default: NONE)n");
+	printf("-M: <str>		Metadata format (SIGPROC, DADA, GUPPI, default: NONE)\n");
 	printf("-I: <str>		Input metadata file (default: '')\n");
 	printf("-u: <numPort>	Number of ports to combine (default: 4)\n");
 	printf("-n: <baseNum>	Base value to iterate when choosing ports (default: 0)\n");
@@ -107,7 +107,7 @@ int main(int argc, char *argv[]) {
 	char *endPtr, flagged = 0;
 
 	// Standard ugly input flags parser
-	while ((inputOpt = getopt(argc, argv, "zrqfvVi:o:m:M:I:u:t:s:S:e:p:a:n:b:ck:T:")) != -1) {
+	while ((inputOpt = getopt(argc, argv, "hzrqfvVi:o:m:M:I:u:t:s:S:e:p:a:n:b:ck:T:")) != -1) {
 		input = 1;
 		switch (inputOpt) {
 
@@ -123,6 +123,7 @@ int main(int argc, char *argv[]) {
 					CLICleanup(eventCount, dateStr, startingPackets, multiMaxPackets, eventSeconds, config, outConfig, headerBuffer);
 					return 1;
 				}
+				if (config->metadata_config.metadataType == NO_META) config->metadata_config.metadataType = lofar_udp_metadata_parse_type_output(optarg);
 				outputProvided = 1;
 				break;
 
@@ -285,6 +286,10 @@ int main(int argc, char *argv[]) {
 		fprintf(stderr, "ERROR: An output was not provided, exiting.\n");
 		CLICleanup(eventCount, dateStr, startingPackets, multiMaxPackets, eventSeconds, config, outConfig, headerBuffer);
 		return 1;
+	}
+
+	if (config->metadata_config.metadataType == NO_META) {
+		config->metadata_config.metadataType = lofar_udp_metadata_parse_type_output(outConfig->outputFormat);
 	}
 
 	if (config->calibrateData != NO_CALIBRATION && strcmp(config->metadata_config.metadataLocation, "") == 0) {
@@ -485,7 +490,7 @@ int main(int argc, char *argv[]) {
 
 
 	if (silent == 0) {
-		lofar_udp_time_get_current_isot(reader, stringBuff);
+		lofar_udp_time_get_current_isot(reader, stringBuff, sizeof(stringBuff) / sizeof(stringBuff[0]));
 		printf("\n\n=========== Reader  Information ===========\n");
 		printf("Total Beamlets:\t%d/%d\t\t\t\t\tFirst Packet:\t%ld\n", reader->meta->totalProcBeamlets,
 			   reader->meta->totalRawBeamlets, reader->meta->lastPacket);
@@ -533,7 +538,7 @@ int main(int argc, char *argv[]) {
 				}
 				printf("Beginning work on event %d at %s: packets %ld to %ld...\n", eventLoop, dateStr[eventLoop],
 					   startingPackets[eventLoop], startingPackets[eventLoop] + multiMaxPackets[eventLoop]);
-				lofar_udp_time_get_current_isot(reader, stringBuff);
+				lofar_udp_time_get_current_isot(reader, stringBuff, sizeof(stringBuff) / sizeof(stringBuff[0]));
 				printf("============ Event %d Information ===========\n", eventLoop);
 				printf("Target Time:\t%s\t\tActual Time:\t%s\n", dateStr[eventLoop], stringBuff);
 				printf("Target Packet:\t%ld\tActual Packet:\t%ld\n", startingPackets[eventLoop],

@@ -6,7 +6,15 @@
 
 lofar_udp_io_read_config* lofar_udp_io_alloc_read() {
 	lofar_udp_io_read_config *input = calloc(1, sizeof(lofar_udp_io_read_config));
-	(*input) = lofar_udp_io_read_config_default;
+	if (input == NULL) {
+		fprintf(stderr, "ERROR: Failed to allocate IO-read struct, exiting.\n");
+		return NULL;
+	}
+	if (memcpy(input, &lofar_udp_io_read_config_default, sizeof(lofar_udp_io_read_config)) != input) {
+		fprintf(stderr, "ERROR: Failed to copy IO-read default struct, exiting.\n");
+		free(input);
+		return NULL;
+	}
 
 	ARR_INIT(input->readBufSize, MAX_NUM_PORTS, -1);
 	ARR_INIT(input->portPacketLength, MAX_NUM_PORTS, -1);
@@ -18,7 +26,15 @@ lofar_udp_io_read_config* lofar_udp_io_alloc_read() {
 
 lofar_udp_io_write_config* lofar_udp_io_alloc_write() {
 	lofar_udp_io_write_config *output = calloc(1, sizeof(lofar_udp_io_write_config));
-	(*output) = lofar_udp_io_write_config_default;
+	if (output == NULL) {
+		fprintf(stderr, "ERROR: Failed to allocate IO-read struct, exiting.\n");
+		return NULL;
+	}
+	if (memcpy(output, &lofar_udp_io_write_config_default, sizeof(lofar_udp_io_read_config)) != output) {
+		fprintf(stderr, "ERROR: Failed to copy IO-read default struct, exiting.\n");
+		free(output);
+		return NULL;
+	}
 
 	ARR_INIT(output->writeBufSize, MAX_OUTPUT_DIMS, -1);
 	ARR_INIT(output->outputDadaKeys, MAX_OUTPUT_DIMS, -1);
@@ -283,10 +299,10 @@ reader_t lofar_udp_io_parse_type_optarg(const char optargc[], char *fileFormat, 
 		if (strstr(optargc, ".zst") != NULL) {
 			VERBOSE(printf("%s, COMPRESSED\n", optargc));
 			reader = ZSTDCOMPRESSED;
-		} else if (strstr(optargc, ".hdf5") != NULL) {
+		} else if (strstr(optargc, ".hdf5") != NULL || strstr(optargc, ".h5") != NULL) {
 			VERBOSE(printf("%s, HDF5\n", optargc));
 			reader = HDF5;
-		}else {
+		} else {
 			reader = NORMAL;
 		}
 		sscanf(optargc, "%[^,],%d,%d", fileFormat, baseVal, offsetVal);
@@ -355,29 +371,44 @@ int lofar_udp_io_parse_format(char *dest, const char format[], int port, int ite
 	}
 	char *startSubStr;
 	// Please don't ever bring up how disgusting this loop is.
+	int notrigger = 1;
 	while (strstr(formatCopySrc, "[[")) {
+		notrigger = notrigger ?: 1;
 		if ((startSubStr = strstr(formatCopySrc, "[[port]]"))) {
 			(*startSubStr) = '\0';
 			sprintf(formatCopyDst, "%s%d%s", formatCopySrc, port, startSubStr + sizeof("[port]]"));
 			swapCharPtr(&formatCopyDst, &formatCopySrc);
+			notrigger = 0;
 		}
 
 		if ((startSubStr = strstr(formatCopySrc, "[[iter]]"))) {
 			(*startSubStr) = '\0';
 			sprintf(formatCopyDst, "%s%04d%s", formatCopySrc, iter, startSubStr + sizeof("[iter]]"));
 			swapCharPtr(&formatCopyDst, &formatCopySrc);
+			notrigger = 0;
 		}
 
 		if ((startSubStr = strstr(formatCopySrc, "[[idx]]"))) {
 			(*startSubStr) = '\0';
 			sprintf(formatCopyDst, "%s%d%s", formatCopySrc, idx, startSubStr + sizeof("[idx]]"));
 			swapCharPtr(&formatCopyDst, &formatCopySrc);
+			notrigger = 0;
 		}
 
 		if ((startSubStr = strstr(formatCopySrc, "[[pack]]"))) {
 			(*startSubStr) = '\0';
 			sprintf(formatCopyDst, "%s%ld%s", formatCopySrc, pack, startSubStr + sizeof("[pack]]"));
 			swapCharPtr(&formatCopyDst, &formatCopySrc);
+			notrigger = 0;
+		}
+
+		if (notrigger != 0) {
+			if (notrigger != 1) {
+				fprintf(stderr, "WARNING %s: Failed to detect keyword in input format %s, but key [[ is still present.\n", __func__, formatCopySrc);
+				break;
+			} else{
+				notrigger += 1;
+			}
 		}
 	}
 
@@ -551,7 +582,7 @@ int lofar_udp_io_write_parse_optarg(lofar_udp_io_write_config *config, const cha
 //
 // @return     long: bytes read */
 //
-long lofar_udp_io_read(lofar_udp_io_read_config *input, int port, char *targetArray, long nchars) {
+long lofar_udp_io_read(lofar_udp_io_read_config *input, int port, int8_t *targetArray, const long nchars) {
 
 	// Sanity check input
 	if (nchars < 0) {
@@ -598,7 +629,7 @@ long lofar_udp_io_read(lofar_udp_io_read_config *input, int port, char *targetAr
  *
  * @return     { description_of_the_return_value }
  */
-long lofar_udp_io_write(lofar_udp_io_write_config *config, int outp, char *src, const long nchars) {
+long lofar_udp_io_write(lofar_udp_io_write_config *config, int outp, const int8_t *src, const long nchars) {
 	// Sanity check input
 	if (nchars < 0) {
 		fprintf(stderr, "ERROR: Requested negative write size %ld on output %d, exiting.\n", nchars, outp);
@@ -652,9 +683,11 @@ long lofar_udp_io_write_metadata(lofar_udp_io_write_config *outConfig, int outp,
 
 
 		case HDF5:
+			/*
 			if (trueHeaderLen > 0 || headerLength > 0 || (metadata->type != HDF5_META || metadata->type != NO_META)) {
 				fprintf(stderr, "WARNING %s: A header was passed while the output write is HDF5, which does not support binary/ASCII headers.\n", __func__);
 			}
+			*/
 			return lofar_udp_io_write_metadata_HDF5(outConfig, metadata);
 
 		default:

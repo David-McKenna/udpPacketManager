@@ -38,7 +38,7 @@ lofar_udp_reader *lofar_udp_reader_setup(lofar_udp_config *config);
 int lofar_udp_file_reader_reuse(lofar_udp_reader *reader, long startingPacket, long packetsReadMax);
 
 // Initialisation helpers
-int lofar_udp_parse_headers(lofar_udp_input_meta *meta, char header[MAX_NUM_PORTS][UDPHDRLEN], const int beamletLimits[2]);
+int lofar_udp_parse_headers(lofar_udp_input_meta *meta, const int8_t header[4][16], const int16_t beamletLimits[2]);
 int lofar_udp_setup_processing(lofar_udp_input_meta *meta);
 int lofar_udp_get_first_packet_alignment(lofar_udp_reader *reader);
 

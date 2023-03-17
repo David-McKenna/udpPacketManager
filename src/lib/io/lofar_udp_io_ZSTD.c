@@ -356,7 +356,7 @@ int lofar_udp_io_write_setup_ZSTD(lofar_udp_io_write_config *config, int outp, i
  * @return     { description_of_the_return_value }
  */
 long
-lofar_udp_io_write_ZSTD(lofar_udp_io_write_config *config, int outp, const char *src, const long nchars) {
+lofar_udp_io_write_ZSTD(lofar_udp_io_write_config *config, const int outp, const int8_t *src, const long nchars) {
 
 	ZSTD_inBuffer input = { src, nchars, 0 };
 	ZSTD_outBuffer output = { config->zstdWriter[outp].compressionBuffer.dst, config->zstdWriter[outp].compressionBuffer.size, 0 };

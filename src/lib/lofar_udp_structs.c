@@ -74,6 +74,7 @@ const lofar_udp_io_write_config lofar_udp_io_write_config_default = {
 	// Misc options
 	.cparams = NULL, // ZSTD configuration
 	.enableMultilog = 1,
+	.externalChannelisation = 1,
 
 };
 
@@ -83,10 +84,7 @@ const lofar_udp_io_write_config lofar_udp_io_write_config_default = {
 const lofar_udp_calibration lofar_udp_calibration_default = {
 	.calibrationStepsGenerated = 0,
 	.calibrationFifo = "/tmp/udp_calibation_pipe",
-	.calibrationSubbands = "HBA,12:499",
 	.calibrationDuration = 3600.0f,
-	.calibrationPointing = { 0.0f, 0.7853982f },
-	.calibrationPointingBasis = "AZELGO"
 };
 
 // Configuration default

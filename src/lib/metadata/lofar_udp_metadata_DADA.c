@@ -22,13 +22,13 @@ int lofar_udp_metadata_update_DADA(const lofar_udp_reader *reader, lofar_udp_met
 	// But since we use this struct as the base, we'll need to update the bulk of the contents on every iteration.
 
 	if (newObs) {
-		lofar_udp_time_get_current_isot(reader, metadata->obs_utc_start);
+		lofar_udp_time_get_current_isot(reader, metadata->obs_utc_start, sizeof(metadata->obs_utc_start) / sizeof(metadata->obs_utc_start[0]));
 		metadata->obs_mjd_start = lofar_udp_time_get_packet_time_mjd(reader->meta->inputData[0]);
 		metadata->upm_processed_packets = 0;
 		metadata->upm_dropped_packets = 0;
 	}
 
-	lofar_udp_time_get_daq(reader, metadata->upm_daq);
+	lofar_udp_time_get_daq(reader, metadata->upm_daq, sizeof(metadata->upm_daq) / sizeof(metadata->upm_daq[0]));
 	metadata->upm_pack_per_iter = reader->meta->packetsPerIteration;
 	metadata->upm_blocksize = metadata->upm_pack_per_iter * reader->meta->packetOutputLength[0];
 	metadata->upm_processed_packets += metadata->upm_pack_per_iter * metadata->upm_num_inputs;

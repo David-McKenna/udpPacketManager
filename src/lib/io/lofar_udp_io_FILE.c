@@ -175,7 +175,7 @@ int lofar_udp_io_write_setup_FILE(lofar_udp_io_write_config *config, int outp, i
  *
  * @return     { description_of_the_return_value }
  */
-long lofar_udp_io_write_FILE(lofar_udp_io_write_config *config, int outp, const char *src, const long nchars) {
+long lofar_udp_io_write_FILE(lofar_udp_io_write_config *config, const int outp, const int8_t *src, const long nchars) {
 	return (long) fwrite(src, sizeof(char), nchars, config->outputFiles[outp]);
 }
 

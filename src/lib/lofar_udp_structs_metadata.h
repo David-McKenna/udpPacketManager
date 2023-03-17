@@ -29,9 +29,9 @@ typedef struct guppi_hdr {
 	double obsfreq;
 	double obsbw;
 	double chan_bw;
-	int obsnchan;
-	int npol;
-	int nbits;
+	int32_t obsnchan;
+	int32_t npol;
+	int32_t nbits;
 	double tbin;
 
 	char fd_poln[META_STR_LEN + 1];
@@ -46,17 +46,17 @@ typedef struct guppi_hdr {
 	char frontend[META_STR_LEN + 1];
 	char backend[META_STR_LEN + 1];
 	char datahost[META_STR_LEN + 1];
-	int dataport;
-	int overlap;
+	int32_t dataport;
+	int32_t overlap;
 
-	long blocsize;
+	int64_t blocsize;
 	char daqpulse[META_STR_LEN + 1];
-	int stt_imjd;
-	int stt_smjd;
-	long pktidx;
+	int32_t stt_imjd;
+	int32_t stt_smjd;
+	int64_t pktidx;
 	char pktfmt[META_STR_LEN + 1];
 	double stt_offs;
-	int pktsize;
+	int32_t pktsize;
 	double dropblk;
 	double droptot;
 
@@ -72,17 +72,17 @@ extern const guppi_hdr guppi_hdr_default;
 //  - fchannel array support is included in the headed, but not likely to get implemented as nobody supports it
 typedef struct sigproc_hdr {
 	// Observatory information
-	int telescope_id;
-	int machine_id;
+	int32_t telescope_id;
+	int32_t machine_id;
 
 	// File information
-	int data_type;
+	int32_t data_type;
 	char rawdatafile[DEF_STR_LEN];
 
 	// Observation parameters
 	char source_name[META_STR_LEN + 1];
-	int barycentric;
-	int pulsarcentric;
+	int32_t barycentric;
+	int32_t pulsarcentric;
 
 	double az_start;
 	double za_start;
@@ -92,14 +92,14 @@ typedef struct sigproc_hdr {
 	double tstart;
 	double tsamp;
 
-	int nbits;
-	//int nsamples;
+	int32_t nbits;
+	//int32_t nsamples;
 
 	double fch1;
 	double foff;
 	double *fchannel;
-	int nchans;
-	int nifs;
+	int32_t nchans;
+	int32_t nifs;
 
 	// Pulsar information
 	double refdm;
@@ -119,20 +119,20 @@ extern const sigproc_hdr sigproc_hdr_default;
 typedef struct lofar_udp_metadata {
 
 	metadata_t type;
-	char *headerBuffer;
+	int8_t *headerBuffer;
 
 	// DADA + DSPSR Defined header values
 	double hdr_version; // Lib
 
 	char instrument[META_STR_LEN + 1]; // Standard
 	char telescope[META_STR_LEN + 1]; // Lib
-	int telescope_rsp_id;
+	int32_t telescope_rsp_id;
 	char receiver[META_STR_LEN + 1]; // Lib
 	char observer[META_STR_LEN + 1]; // External
 	char hostname[META_STR_LEN + 1]; // Lib
-	int baseport; // Lib
+	int32_t baseport; // Lib
 	char rawfile[MAX_NUM_PORTS][DEF_STR_LEN];
-	int output_file_number; // Lib
+	int32_t output_file_number; // Lib
 
 
 	char source[META_STR_LEN + 1]; // External
@@ -148,8 +148,8 @@ typedef struct lofar_udp_metadata {
 	char obs_id[META_STR_LEN + 1]; // External
 	char obs_utc_start[META_STR_LEN + 1]; // Lib
 	double obs_mjd_start; // Lib
-	long obs_offset; // Lib, always 0? "offset of the first sample in bytes recorded after UTC_START"
-	long obs_overlap; // Lib, always 0? We never overlap
+	int64_t obs_offset; // Lib, always 0? "offset of the first sample in bytes recorded after UTC_START"
+	int64_t obs_overlap; // Lib, always 0? We never overlap
 	char basis[META_STR_LEN + 1]; // Standard
 	char mode[META_STR_LEN + 1]; // Standard, currently not set
 
@@ -160,18 +160,20 @@ typedef struct lofar_udp_metadata {
 	double channel_bw;
 	double ftop; // beamctl
 	double fbottom; // beamctl
-	int subbands[MAX_NUM_PORTS * UDPMAXBEAM];
-	int nsubband; // beamctl
-	int nchan; // Lib
-	int nrcu; // beamctl
-	int npol; // Standard
-	int nbit; // Lib
-	int resolution; // Standard? DSPSR: minimum number of samples that can be parsed, always 1?
-	int ndim; // Lib
+	int32_t subbands[MAX_NUM_PORTS * UDPMAXBEAM];
+	int32_t lowerBeamlet;
+	int32_t upperBeamlet;
+	int32_t nsubband; // beamctl
+	int32_t nchan; // Lib
+	int32_t nrcu; // beamctl
+	int32_t npol; // Standard
+	int32_t nbit; // Lib
+	int32_t resolution; // Standard? DSPSR: minimum number of samples that can be parsed, always 1?
+	int32_t ndim; // Lib
 	double tsamp_raw; // Lib
 	double tsamp;
 	char state[META_STR_LEN + 1]; // Lib
-	int order; // Lib
+	int32_t order; // Lib
 
 	// UPM Extra values
 	char upm_version[META_STR_LEN + 1];
@@ -181,31 +183,31 @@ typedef struct lofar_udp_metadata {
 	char upm_outputfmt[MAX_OUTPUT_DIMS][META_STR_LEN + 1];
 	char upm_outputfmt_comment[DEF_STR_LEN + 1];
 
-	int upm_num_inputs;
-	int upm_num_outputs;
-	int upm_reader;
-	int upm_procmode;
-	int upm_replay;
-	int upm_calibrated;
-	long upm_blocksize;
-	long upm_pack_per_iter;
-	long upm_processed_packets;
-	long upm_dropped_packets;
-	long upm_last_dropped_packets;
+	int32_t upm_num_inputs;
+	int32_t upm_num_outputs;
+	int32_t upm_reader;
+	int32_t upm_procmode;
+	int32_t upm_replay;
+	int32_t upm_calibrated;
+	int64_t upm_blocksize;
+	int64_t upm_pack_per_iter;
+	int64_t upm_processed_packets;
+	int64_t upm_dropped_packets;
+	int64_t upm_last_dropped_packets;
 
 	char upm_rel_outputs[MAX_OUTPUT_DIMS];
-	int upm_bandflip;
-	int upm_output_voltages;
+	int32_t upm_bandflip;
+	int32_t upm_output_voltages;
 
-	int upm_input_bitmode;
-	int upm_rcuclock;
-	int upm_rcumode;
-	int upm_rawbeamlets;
-	int upm_upperbeam;
-	int upm_lowerbeam;
+	int32_t upm_input_bitmode;
+	int32_t upm_rcuclock;
+	int32_t upm_rcumode;
+	int32_t upm_rawbeamlets;
+	int32_t upm_upperbeam;
+	int32_t upm_lowerbeam;
 
-	int external_channelisation;
-	int external_downsampling;
+	int32_t external_channelisation;
+	int32_t external_downsampling;
 
 	struct output {
 		guppi_hdr *guppi;

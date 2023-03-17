@@ -99,7 +99,6 @@ typedef struct __attribute__((__packed__)) lofar_source_bytes {
 	unsigned int clockBit: 1;
 	unsigned int bitMode: 2;
 	unsigned int padding1: 6;
-
 } lofar_source_bytes;
 
 #endif // End of LOFAR_SOURCE_BYTE_STRUCT
@@ -132,7 +131,7 @@ typedef struct __attribute__((__packed__)) lofar_source_bytes {
 #define LOFAR_UDP_INIT_MACRO
 
 #define ARR_INIT(arr, entries, val) \
-	for (int ARRIDX = 0; ARRIDX < entries; ARRIDX++) { \
+	for (uint64_t ARRIDX = 0; ARRIDX < entries; ARRIDX++) { \
 		arr[ARRIDX] = val;\
 	}
 #endif // End of LOFAR_UDP_INIT_MACRO
@@ -151,6 +150,10 @@ typedef struct __attribute__((__packed__)) lofar_source_bytes {
 #include <string.h>
 #include <stdlib.h>
 #include <signal.h>
+
+// Allocation check
+#define CHECK_ALLOC(alloced, returnVal, cleanup) if (alloced == NULL) { fprintf(stderr, "ERROR %s%d: Failed to allocate " #alloced", returning.\n", __FILE__, __LINE__); return returnVal; cleanup;}
+#define CHECK_ALLOC_NOCLEAN(alloced, returnVal) CHECK_ALLOC(alloced, returnVal, ;)
 
 // Free if non-null macro
 #define FREE_NOT_NULL(x) if (x != NULL) { free(x); x = NULL; }

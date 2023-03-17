@@ -6,7 +6,41 @@ int intNotSet(int input);
 int longNotSet(long input);
 int doubleNotSet(double input, int exception);
 
+/**
+ * @brief 			Provide a guess at the intended output metadata based on a filename
+ * @param optargc 	Input filename
+ * @return 			metadata_t: Best guess at type
+ */
+metadata_t lofar_udp_metadata_parse_type_output(const char optargc[]) {
 
+	if (!strlen(optargc)) {
+		return NO_META;
+	}
+
+	if (strstr(optargc, "GUPPI") != NULL) {
+		return GUPPI;
+	} else if (strstr(optargc, "DADA") != NULL) {
+			return DADA;
+	} else if (strstr(optargc, ".fil") != NULL ||
+				strstr(optargc, "SIGPROC") != NULL) {
+		return SIGPROC;
+	} else if (strstr(optargc, ".h5") != NULL ||
+				strstr(optargc, ".hdf5") != NULL ||
+				strstr(optargc, "HDF5") != NULL) {
+		return HDF5_META;
+	}
+
+	return NO_META;
+
+}
+
+/**
+ * @brief
+ * @param metadata
+ * @param reader
+ * @param config
+ * @return
+ */
 int lofar_udp_metadata_setup(lofar_udp_metadata *metadata, const lofar_udp_reader *reader, const metadata_config *config) {
 
 	// Sanity check the metadata and reader structs
@@ -207,7 +241,7 @@ int lofar_udp_metadata_cleanup(lofar_udp_metadata *metadata) {
 
 int lofar_udp_metdata_set_default(lofar_udp_metadata *metadata) {
 
-	if (metadata->type != HDF5_META) {
+	if (metadata->type != NO_META && metadata->type != HDF5_META) {
 		metadata->headerBuffer = calloc(DEF_HDR_LEN, sizeof(char));
 		if (metadata->headerBuffer == NULL) {
 			fprintf(stderr, "ERROR %s: Failed to allocate %d bytes for header buffer, exiting.\n", __FUNCTION__, DEF_HDR_LEN);
@@ -261,17 +295,23 @@ int lofar_udp_metadata_parse_input_file(lofar_udp_metadata *metadata, const char
 		return -1;
 	}
 
+	// Defaults
+	strncpy(metadata->obs_id, "UNKNOWN", META_STR_LEN);
+	strncpy(metadata->observer, "UNKNOWN", META_STR_LEN);
+	strncpy(metadata->source, "UNKNOWN", META_STR_LEN);
+
 	// Sanity check the input file
+
+	if (!strlen(inputFile)) {
+		fprintf(stderr, "WARNING: Metadata is enabled, but no metadata was passed. Attempting to continue.\n");
+		return 0;
+	}
+
 	FILE *input = fopen(inputFile, "r");
 	if (input == NULL) {
 		fprintf(stderr, "ERROR %s: Failed to open metadata file at '%s' exiting.\n", __func__, inputFile);
 		return -1;
 	}
-
-	// Defaults
-	strncpy(metadata->obs_id, "UNKNOWN", META_STR_LEN);
-	strncpy(metadata->observer, "UNKNOWN", META_STR_LEN);
-	strncpy(metadata->source, "UNKNOWN", META_STR_LEN);
 
 
 	int beamctlData[] = { -1, INT_MAX, 0, -1, 0, INT_MAX, 0, -1, 0 };
@@ -409,91 +449,100 @@ int lofar_udp_metadata_parse_reader(lofar_udp_metadata *metadata, const lofar_ud
 
 	// Check the metadata state -- we need it to have been populated with beamctl data before we can do anything useful
 	if (metadata->upm_rcuclock == -1 || metadata->upm_upperbeam == -1 || metadata->upm_lowerbeam == -1) {
-		fprintf(stderr, "WARNING: Unable to update frequency information from reader.\n"
+		fprintf(stderr, "WARNING: Unable to update frequency information from reader. "
 				  "Either the rcuclock (%d),  lower (%d) or upper (%d) beam was undefined.\n",
 				  metadata->upm_rcuclock, metadata->upm_lowerbeam, metadata->upm_upperbeam);
-		return -1;
-	}
 
-	int beamletsPerPort;
-	int clockAlias = reader->meta->clockBit ? 200 : 160; // 1 -> 200Mhz, 0 -> 160MHz, verify, sample data doesn't change the bit...
-	if (clockAlias != metadata->upm_rcuclock) {
-		fprintf(stderr, "WARNING: Clock bit mismatch (metadata suggests the %d clock, raw data suggests the %d clock\n", metadata->upm_rcuclock, reader->meta->clockBit);
-	}
-
-	if ((beamletsPerPort = lofar_udp_metadata_get_beamlets(reader->meta->inputBitMode)) < 0) {
-		return -1;
-	}
-
-	VERBOSE(printf("%d, %d, %d, %d, %d\n", reader->input->numInputs, (reader->input->offsetPortCount), (beamletsPerPort), reader->meta->baseBeamlets[0], reader->meta->upperBeamlets[reader->meta->numPorts - 1]));
-	int lowerBeamlet = (reader->input->offsetPortCount * beamletsPerPort) + reader->meta->baseBeamlets[0];
-	// Upper beamlet is exclusive in UPM, not inclusive like LOFAR inputs
-	int upperBeamlet = ((reader->input->offsetPortCount + (reader->input->numInputs - 1)) * beamletsPerPort) + reader->meta->upperBeamlets[reader->meta->numPorts - 1];
-
-
-	// Sanity check the beamlet limits
-	if ((upperBeamlet - lowerBeamlet) != reader->meta->totalProcBeamlets) {
-		fprintf(stderr, "WARNING: Mismatch between beamlets limits (lower/upper %d-%d vs totalProcBeamlets %d), something hs gone very wrong.\n",
-	   lowerBeamlet, upperBeamlet, reader->meta->totalProcBeamlets);
-	}
-
-	int subbandData[3] = { INT_MAX, 0, -1 };
-	// Parse the new sub-set of beamlets
-	for (int beamlet = lowerBeamlet; beamlet < upperBeamlet; beamlet++) {
-		// Edge case: undefined subband is used as a beamlet
-		VERBOSE(printf("Beamlet %d: Subband %d\n", beamlet, metadata->subbands[beamlet]));
-		if (metadata->subbands[beamlet] != -1) {
-			if (metadata->subbands[beamlet] > subbandData[2]) {
-				subbandData[2] = metadata->subbands[beamlet];
-			}
-
-			if (metadata->subbands[beamlet] < subbandData[0]) {
-				subbandData[0] = metadata->subbands[beamlet];
-			}
-
-			subbandData[1] += metadata->subbands[beamlet];
+		if (metadata->upm_rcuclock == -1) {
+			metadata->upm_rcuclock = reader->meta->clockBit ? 200 : 160;
 		}
-	}
+		return 0;
+	} else {
 
-	// Update number of beamlets
-	metadata->nsubband = reader->meta->totalProcBeamlets;
-	VERBOSE(printf("Reader call\n"));
-	if (lofar_udp_metadata_update_frequencies(metadata, subbandData) < 0) {
-		return -1;
-	}
+		int beamletsPerPort;
+		int clockAlias = reader->meta->clockBit ? 200 : 160; // 1 -> 200Mhz, 0 -> 160MHz, verify, sample data doesn't change the bit...
+		if (clockAlias != metadata->upm_rcuclock) {
+			fprintf(stderr, "WARNING: Clock bit mismatch (metadata suggests the %d clock, raw data suggests the %d clock\n", metadata->upm_rcuclock,
+			        reader->meta->clockBit);
+		}
 
-	metadata->telescope_rsp_id = reader->meta->stationID;
-	if (lofar_udp_metadata_get_station_name(metadata->telescope_rsp_id, metadata->telescope) < 0) {
-		return -1;
-	}
-
-	metadata->baseport = reader->input->basePort;
-	metadata->upm_reader = reader->input->readerType;
-	metadata->upm_replay = reader->meta->replayDroppedPackets;
-	metadata->upm_pack_per_iter = reader->packetsPerIteration;
-	metadata->upm_blocksize = metadata->upm_pack_per_iter * reader->meta->packetOutputLength[0];
-
-
-	// These are needed for the next function
-	metadata->upm_procmode = reader->meta->processingMode;
-	metadata->upm_input_bitmode = reader->meta->inputBitMode;
-	metadata->upm_calibrated = reader->meta->calibrateData;
-	if (lofar_udp_metadata_processing_mode_metadata(metadata) < 0) {
-		return -1;
-	}
-
-	metadata->upm_num_inputs = reader->input->numInputs;
-	metadata->upm_num_outputs = reader->meta->numOutputs;
-
-
-	lofar_udp_time_get_current_isot(reader, metadata->obs_utc_start);
-	metadata->obs_mjd_start = lofar_udp_time_get_packet_time_mjd(reader->meta->inputData[0]);
-	lofar_udp_time_get_daq(reader, metadata->upm_daq);
-
-	for (int port = 0; port < metadata->upm_num_inputs; port++) {
-		if (strncpy(metadata->rawfile[port], reader->input->inputLocations[port], META_STR_LEN) != metadata->rawfile[port]) {
-			fprintf(stderr, "ERROR: Failed to copy raw filename %d to metadata struct, exiting.\n", port);
+		if ((beamletsPerPort = lofar_udp_metadata_get_beamlets(reader->meta->inputBitMode)) < 0) {
 			return -1;
+		}
+
+		VERBOSE(printf("%d, %d, %d, %d, %d\n", reader->input->numInputs, (reader->input->offsetPortCount), (beamletsPerPort), reader->meta->baseBeamlets[0],
+		               reader->meta->upperBeamlets[reader->meta->numPorts - 1]));
+		metadata->lowerBeamlet = (reader->input->offsetPortCount * beamletsPerPort) + reader->meta->baseBeamlets[0];
+		// Upper beamlet is exclusive in UPM, not inclusive like LOFAR inputs
+		metadata->upperBeamlet =
+			((reader->input->offsetPortCount + (reader->input->numInputs - 1)) * beamletsPerPort) + reader->meta->upperBeamlets[reader->meta->numPorts - 1];
+
+
+		// Sanity check the beamlet limits
+		if ((metadata->upperBeamlet - metadata->lowerBeamlet) != reader->meta->totalProcBeamlets) {
+			fprintf(stderr,
+			        "WARNING: Mismatch between beamlets limits (lower/upper %d->%d=%d vs totalProcBeamlets %d), are beamlets non-sequential? Metadata ma be cimpromised..\n",
+			        metadata->lowerBeamlet, metadata->upperBeamlet, metadata->upperBeamlet - metadata->lowerBeamlet, reader->meta->totalProcBeamlets);
+		}
+
+		int subbandData[3] = { INT_MAX, 0, -1 };
+		// Parse the new sub-set of beamlets
+		for (int beamlet = metadata->lowerBeamlet; beamlet < metadata->upperBeamlet; beamlet++) {
+			// Edge case: undefined subband is used as a beamlet
+			VERBOSE(printf("Beamlet %d: Subband %d\n", beamlet, metadata->subbands[beamlet]));
+			if (metadata->subbands[beamlet] != -1) {
+				if (metadata->subbands[beamlet] > subbandData[2]) {
+					subbandData[2] = metadata->subbands[beamlet];
+				}
+
+				if (metadata->subbands[beamlet] < subbandData[0]) {
+					subbandData[0] = metadata->subbands[beamlet];
+				}
+
+				subbandData[1] += metadata->subbands[beamlet];
+			}
+		}
+
+		// Update number of beamlets
+		metadata->nsubband = reader->meta->totalProcBeamlets;
+		VERBOSE(printf("Reader call\n"));
+		if (lofar_udp_metadata_update_frequencies(metadata, subbandData) < 0) {
+			return -1;
+		}
+
+		metadata->telescope_rsp_id = reader->meta->stationID;
+		if (lofar_udp_metadata_get_station_name(metadata->telescope_rsp_id, metadata->telescope) < 0) {
+			return -1;
+		}
+
+		metadata->baseport = reader->input->basePort;
+		metadata->upm_reader = reader->input->readerType;
+		metadata->upm_replay = reader->meta->replayDroppedPackets;
+		metadata->upm_pack_per_iter = reader->packetsPerIteration;
+		metadata->upm_blocksize = metadata->upm_pack_per_iter * reader->meta->packetOutputLength[0];
+
+
+		// These are needed for the next function
+		metadata->upm_procmode = reader->meta->processingMode;
+		metadata->upm_input_bitmode = reader->meta->inputBitMode;
+		metadata->upm_calibrated = reader->meta->calibrateData;
+		if (lofar_udp_metadata_processing_mode_metadata(metadata) < 0) {
+			return -1;
+		}
+
+		metadata->upm_num_inputs = reader->input->numInputs;
+		metadata->upm_num_outputs = reader->meta->numOutputs;
+
+
+		lofar_udp_time_get_current_isot(reader, metadata->obs_utc_start, sizeof(metadata->obs_utc_start) / sizeof(metadata->obs_utc_start[0]));
+		metadata->obs_mjd_start = lofar_udp_time_get_packet_time_mjd(reader->meta->inputData[0]);
+		lofar_udp_time_get_daq(reader, metadata->upm_daq, sizeof(metadata->upm_daq) / sizeof(metadata->upm_daq[0]));
+
+		for (int port = 0; port < metadata->upm_num_inputs; port++) {
+			if (strncpy(metadata->rawfile[port], reader->input->inputLocations[port], META_STR_LEN) != metadata->rawfile[port]) {
+				fprintf(stderr, "ERROR: Failed to copy raw filename %d to metadata struct, exiting.\n", port);
+				return -1;
+			}
 		}
 	}
 
@@ -758,10 +807,33 @@ int lofar_udp_metadata_parse_subbands(lofar_udp_metadata *metadata, const char *
 
 	// Subband offset
 	// Simpler way of calculating the frequencies -- use an offset to emulate the true frequency across several RCU modes
-	// Mode 3/4 -- 0 offset, subband (0-511), 0.19..MHz bandwidth, 0 - 100MHz
-	// Mode 5/6 -- 512 offset, subband (512 - 1023), 0.19 / 0.156..MHz bandwidth, 100 - 200MHz and 160 - 240MHz
-	// Mode 7 -- 1024 offset, subband (1024 - 1535), 0.19 MHz bandwidth, 200 - 300MHz
-	int subbandOffset = (512 * (results[0] - 3) / 2);
+	// Mode 1/2/3/4 -- 0 offset, subband (0-511), 0.19 MHz bandwidth, 0 - 100MHz
+	// Mode 5 -- 512 offset, subband (512 - 1023), 0.19 MHz bandwidth, 100 - 200MHz
+	// Mode 6/7 -- 1024 offset, subband (1024 - 1535), 0.19 / 0.16 MHz bandwidth, 160 - 240MHz and 200 - 300MHz
+	int subbandOffset;
+	switch (results[0]) {
+
+		case 1:
+		case 2:
+		case 3:
+		case 4:
+			subbandOffset = 0;
+			break;
+
+		case 5:
+			subbandOffset = 512;
+			break;
+
+		case 6:
+		case 7:
+			subbandOffset = 1024;
+			break;
+
+		case 0:
+		default:
+			fprintf(stderr, "ERROR: Invalid rcumode %d, exiting.\n", results[0]);
+			return -1;
+	}
 
 	// As a result, for mode 5, subbands 512 - 1023, we have (512 - 1023) * (0.19) = 100 - 200MHz
 	// Similarly no offset for mode 3, double the offset for mode 7, etc.
