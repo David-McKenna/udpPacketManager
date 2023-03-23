@@ -37,14 +37,13 @@ extern "C" {
 
 long lofar_udp_time_get_packet_from_isot(const char *inputTime, const uint32_t clock200MHz);
 long lofar_udp_time_get_packets_from_seconds(double seconds, const uint32_t clock200MHz);
-void lofar_udp_time_get_current_isot_offset(const lofar_udp_reader *reader, char *stringBuff, double offsetSeconds);
 void lofar_udp_time_get_current_isot(const lofar_udp_reader *reader, char *stringBuff, int strlen);
 void lofar_udp_time_get_daq(const lofar_udp_reader *reader, char *stringBuff, int strlen);
 double lofar_udp_time_get_packet_time(const int8_t *inputData);
 double lofar_udp_time_get_packet_time_mjd(const int8_t *inputData);
-inline long lofar_udp_time_beamformed_packno(uint32_t timestamp, uint32_t sequence, uint32_t clock200MHz);
+inline int64_t lofar_udp_time_beamformed_packno(uint32_t timestamp, uint32_t sequence, uint32_t clock200MHz);
 inline long lofar_udp_time_get_packet_number(const int8_t *inputData);
-inline unsigned int lofar_udp_time_get_next_packet_sequence(const int8_t *inputData);
+inline uint32_t lofar_udp_time_get_next_packet_sequence(const int8_t *inputData);
 
 
 // Define inlines in the header
@@ -58,7 +57,7 @@ inline unsigned int lofar_udp_time_get_next_packet_sequence(const int8_t *inputD
 //
 // @return     { description_of_the_return_value }
 //
-inline long lofar_udp_time_beamformed_packno(unsigned int timestamp, unsigned int sequence, unsigned int clock200MHz) {
+inline int64_t lofar_udp_time_beamformed_packno(uint32_t timestamp, uint32_t sequence, uint32_t clock200MHz) {
 	// VERBOSE(printf("Packetno: %d, %d, %d\n", timestamp, sequence,
 	// clock200MHz););
 	return ((timestamp * 1000000l * (160 + 40 * clock200MHz) + 512) / 1024 + sequence) / 16;
@@ -88,12 +87,9 @@ inline long lofar_udp_time_get_packet_number(const int8_t *inputData) {
  *
  * @return     The suggested sequence value
  */
-inline unsigned int lofar_udp_time_get_next_packet_sequence(const int8_t *inputData) {
-	return (unsigned int) ((16 * \
-            (lofar_udp_time_beamformed_packno(*((uint32_t *) &(inputData[CEP_HDR_TIME_OFFSET])),
-	                                          *((uint32_t *) &(inputData[CEP_HDR_SEQ_OFFSET])),
-	                                          ((lofar_source_bytes *) &(inputData[CEP_HDR_SRC_OFFSET]))->clockBit) + 1))
-	                       - (*((uint32_t *) &(inputData[CEP_HDR_TIME_OFFSET])) * 1000000l * 200 + 512) / 1024);
+inline uint32_t lofar_udp_time_get_next_packet_sequence(const int8_t *inputData) {
+	return (uint32_t) (*((int32_t *) &(inputData[CEP_HDR_SEQ_OFFSET])) + 16);
+
 }
 
 #ifdef __cplusplus

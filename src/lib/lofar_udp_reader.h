@@ -52,6 +52,9 @@ int lofar_udp_shift_remainder_packets(lofar_udp_reader *reader, const long shift
 // Reader struct cleanup
 void lofar_udp_reader_cleanup(lofar_udp_reader *reader);
 
+// Internal
+lofar_udp_reader* lofar_udp_reader_alloc();
+
 #ifdef __cplusplus
 }
 #endif

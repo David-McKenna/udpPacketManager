@@ -21,15 +21,18 @@ const double clock160MHzPacketRate = CLOCK160MHZ / 16;
  */
 long lofar_udp_time_get_packet_from_isot(const char *inputTime, const uint32_t clock200MHz) {
 	struct tm unixTm;
-	time_t unixEpoch;
+	time_t unixEpoch = 0;
 
-	if (strptime(inputTime, "%Y-%m-%dT%H:%M:%S", &unixTm) != NULL) {
+	char *lastParsedChar = strptime(inputTime, "%Y-%m-%dT%H:%M:%S", &unixTm);
+	if ((lastParsedChar != NULL) && (lastParsedChar[0] == '\0')) {
 		unixEpoch = timegm(&unixTm);
-		return lofar_udp_time_beamformed_packno(unixEpoch, 0, clock200MHz);
-	} else {
-		fprintf(stderr, "Invalid time string, %s, exiting.\n", inputTime);
-		return 1;
+		if (unixEpoch != -1) {
+			return lofar_udp_time_beamformed_packno(unixEpoch, 0, clock200MHz);
+		}
 	}
+
+	fprintf(stderr, "Invalid time string, %s / %lu, exiting.\n", inputTime, unixEpoch);
+	return 1;
 
 }
 
@@ -77,7 +80,7 @@ void lofar_udp_time_get_current_isot(const lofar_udp_reader *reader, char *strin
 
 	char localBuff[32];
 	strftime(localBuff, sizeof(localBuff), "%Y-%m-%dT%H:%M:%S", startTimeStruct);
-	snprintf(stringBuff, strlen,  "%s.%09d", localBuff, (int) ((startTime - startTimeUnix) * 1e9));
+	snprintf(stringBuff, strlen,  "%s.%06ld", localBuff, (int64_t) ((startTime - (double) startTimeUnix) * 1e6 + 0.5));
 }
 
 /**
@@ -116,9 +119,11 @@ double lofar_udp_time_get_packet_time_mjd(const int8_t *inputData) {
  *
  * @return     Packet delta
  */
+/*
 long lofar_get_packet_difference(uint32_t ts, int64_t packetNumber, int32_t clock200MHz) {
 	return lofar_udp_time_beamformed_packno(ts, 0, clock200MHz) - packetNumber;
 }
+ */
 
 /**
  * @brief      Emulate the GUPPI DAQ time string from the current data timestamp

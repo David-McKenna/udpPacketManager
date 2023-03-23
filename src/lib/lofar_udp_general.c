@@ -1,21 +1,26 @@
 #include "lofar_udp_general.h"
 
+
 void lofar_udp_signal_handler(int signalnum) {
 	switch (signalnum) {
 		case SIGPIPE:
 			fprintf(stderr, "WARNING: SIGPIPE sent, reader/writer may have been pre-maturely closed. Attempting to continue.\n");
 			break;
-
+		/*
 		case SIGFPE:
 			fprintf(stderr, "WARNING: Floating point exception occurred. Attempting to continue.\n");
 			break;
+		*/
+
+
 	}
 }
+
 
 int lofar_udp_prepare_signal_handler() {
 	int handledSignals[] = {
 		SIGPIPE,
-		SIGFPE,
+		//SIGFPE,
 	};
 
 	int numSignals = sizeof(handledSignals) / sizeof(handledSignals[0]);
