@@ -25,8 +25,6 @@
 
 #include <stdio.h>
 
-
-
 typedef struct lofar_udp_calibration {
 	// The current calibration step we are on and the amount that have been generated
 	int32_t calibrationStepsGenerated;
@@ -71,7 +69,7 @@ typedef struct lofar_udp_io_read_config {
 extern const lofar_udp_io_read_config lofar_udp_io_read_config_default;
 
 // Metadata struct
-typedef struct lofar_udp_meta {
+typedef struct lofar_udp_obs_meta {
 	// Input/Output data storage
 	int8_t *inputData[MAX_NUM_PORTS];
 	int8_t *outputData[MAX_OUTPUT_DIMS];
@@ -134,8 +132,8 @@ typedef struct lofar_udp_meta {
 	int32_t VERBOSE;
 #endif
 
-} lofar_udp_input_meta;
-extern const lofar_udp_input_meta lofar_udp_input_meta_default;
+} lofar_udp_obs_meta;
+extern const lofar_udp_obs_meta lofar_udp_obs_meta_default;
 
 // Main operations struct
 typedef struct lofar_udp_reader {
@@ -143,7 +141,7 @@ typedef struct lofar_udp_reader {
 	lofar_udp_io_read_config *input;
 
 	// Input data metadata
-	lofar_udp_input_meta *meta;
+	lofar_udp_obs_meta *meta;
 
 	// Observation metadata
 	lofar_udp_metadata *metadata;
@@ -171,6 +169,7 @@ typedef struct metadata_config {
 	int32_t externalChannelisation;
 	int32_t externalDownsampling;
 } metadata_config;
+extern const metadata_config metadata_config_default;
 
 // Configuration struct
 typedef struct lofar_udp_config {
@@ -245,7 +244,7 @@ typedef struct lofar_udp_io_write_config {
 	// Writer configuration, these must be set prior to calling write_setup
 	reader_t readerType;
 	lofar_udp_metadata *metadata;
-	lofar_udp_input_meta const *fallbackMetadata;
+	lofar_udp_obs_meta const *fallbackMetadata;
 	long writeBufSize[MAX_OUTPUT_DIMS];
 	int32_t progressWithExisting;
 	int32_t numOutputs;
@@ -309,5 +308,28 @@ typedef struct lofar_udp_io_write_config {
 
 } lofar_udp_io_write_config;
 extern const lofar_udp_io_write_config lofar_udp_io_write_config_default;
+
+
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+// Helper functions to allocate and initialised structs
+// External
+lofar_udp_config *lofar_udp_config_alloc();
+void lofar_udp_config_cleanup(lofar_udp_config *config);
+
+// Internal
+lofar_udp_calibration *lofar_udp_calibration_alloc();
+lofar_udp_obs_meta *lofar_udp_obs_meta_alloc();
+lofar_udp_reader *lofar_udp_reader_alloc(lofar_udp_obs_meta *meta); // Reminder that reader is always built AFTER meta parsing
+lofar_udp_io_read_config *lofar_udp_io_alloc_read();
+lofar_udp_io_write_config *lofar_udp_io_alloc_write();
+
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif // End of LOFAR_UDP_STRUCTS_H

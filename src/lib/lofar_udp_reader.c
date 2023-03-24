@@ -3,29 +3,6 @@
 
 
 /**
- * @brief Generate a fully allocated reader struct
- *
- * @return ptr: success, NULL: failure
- */
-lofar_udp_reader* lofar_udp_reader_alloc() {
-	lofar_udp_reader *reader = calloc(1, sizeof(lofar_udp_reader));
-	CHECK_ALLOC_NOCLEAN(reader, NULL);
-	if (memcpy(reader, &lofar_udp_reader_default, sizeof(lofar_udp_reader)) != reader) {
-		fprintf(stderr, "ERROR: Failed to initialise reader, returning.\n");
-		free(reader);
-		return NULL;
-	}
-
-	(*reader) = lofar_udp_reader_default;
-	lofar_udp_io_read_config *input = lofar_udp_io_alloc_read();
-	CHECK_ALLOC(input, NULL, free(reader);)
-	reader->input = input;
-
-
-	return reader;
-}
-
-/**
  * @brief 			Check input header data for malformed variables
  * @param port 		Reference port number in case an error occurs
  * @param header 	Header data
@@ -94,13 +71,13 @@ int lofar_udp_reader_malformed_header_checks(const int8_t header[UDPHDRLEN]) {
 }
 
 /**
- * @brief			Extract LOFAR header metadata to a lofar_udp_input_meta struct
+ * @brief			Extract LOFAR header metadata to a lofar_udp_obs_meta struct
  * @param port		Current port (for storing in meta)
  * @param meta		The output metadata struct
  * @param header	The raw header bytes
  * @param beamletLimits		The upper and lower limit beamlets used for data extraction
  */
-void lofar_udp_parse_extract_header_metadata(int port, lofar_udp_input_meta *meta, const int8_t header[UDPHDRLEN], const int16_t beamletLimits[2]) {
+void lofar_udp_parse_extract_header_metadata(int port, lofar_udp_obs_meta *meta, const int8_t header[UDPHDRLEN], const int16_t beamletLimits[2]) {
 	lofar_source_bytes *source = (lofar_source_bytes *) &(header[CEP_HDR_SRC_OFFSET]);
 
 	// Extract the station ID
@@ -175,13 +152,13 @@ void lofar_udp_parse_extract_header_metadata(int port, lofar_udp_input_meta *met
  * @brief      Parse LOFAR UDP headers to determine some metadata about the
  *             input port data
  *
- * @param      meta           The lofar_udp_input_meta to initialise
+ * @param      meta           The lofar_udp_obs_meta to initialise
  * @param[in]  header         The header data to process
  * @param[in]  beamletLimits  The upper/lower beamlets limits
  *
  * @return     0: Success, -1: Fatal error
  */
-int lofar_udp_parse_headers(lofar_udp_input_meta *meta, const int8_t header[MAX_NUM_PORTS][UDPHDRLEN], const int16_t beamletLimits[2]) {
+int lofar_udp_parse_headers(lofar_udp_obs_meta *meta, const int8_t header[MAX_NUM_PORTS][UDPHDRLEN], const int16_t beamletLimits[2]) {
 
 	lofar_source_bytes *source;
 	float bitMul;
@@ -585,11 +562,11 @@ int lofar_udp_file_reader_reuse(lofar_udp_reader *reader, const long startingPac
  * @brief      Set the processing function. output length per packet based on
  *             the processing mode given by the metadata,
  *
- * @param      meta  The lofar_udp_input_meta to read from and update
+ * @param      meta  The lofar_udp_obs_meta to read from and update
  *
  * @return     0: Success, -1: Unknown processing mode supplied
  */
-int lofar_udp_setup_processing(lofar_udp_input_meta *meta) {
+int lofar_udp_setup_processing(lofar_udp_obs_meta *meta) {
 	int hdrOffset = -1 * UDPHDRLEN; // Default: no header, offset by -16
 	int equalIO = 0; // If packet length in + out should match
 	float mulFactor = 1.0f; // Scale packet length linearly
@@ -859,7 +836,7 @@ int lofar_udp_reader_config_check(lofar_udp_config *config) {
 }
 
 /**
- * @brief      Set up a lofar_udp_reader and associated lofar_udp_input_meta using a
+ * @brief      Set up a lofar_udp_reader and associated lofar_udp_obs_meta using a
  *             set of input files and pre-set control/metadata parameters
  *
  * @param      config  The configuration struct, detailed options above
@@ -878,13 +855,8 @@ lofar_udp_reader *lofar_udp_reader_setup(lofar_udp_config *config) {
 	}
 
 	// Setup the metadata struct and a few variables we'll need
-	lofar_udp_input_meta *meta = calloc(1, sizeof(lofar_udp_input_meta));
+	lofar_udp_obs_meta *meta = lofar_udp_obs_meta_alloc();
 	CHECK_ALLOC_NOCLEAN(meta, NULL);
-	if (memcpy(meta, &lofar_udp_input_meta_default, sizeof(lofar_udp_input_meta)) != meta) {
-		fprintf(stderr, "ERROR: Failed to initialise input metadata struct, exiting.\n");
-		free(meta);
-		return NULL;
-	}
 
 	// Reset the maximum packets to LONG_MAX if set to an unreasonable value
 	long localMaxPackets = config->packetsReadMax;
@@ -1082,7 +1054,7 @@ lofar_udp_reader *lofar_udp_reader_setup(lofar_udp_config *config) {
 
 
 	// Allocate the structs and initialise them
-	lofar_udp_reader *reader = lofar_udp_reader_alloc();
+	lofar_udp_reader *reader = lofar_udp_reader_alloc(meta);
 
 	// Initialise the reader struct from config
 	reader->input->readerType = config->readerType;
@@ -1110,13 +1082,9 @@ lofar_udp_reader *lofar_udp_reader_setup(lofar_udp_config *config) {
 	// TODO: Copy values to calibration struct as needed.
 	if (config->metadata_config.metadataType != NO_META) {
 		VERBOSE(printf("Priming metadata type %d from %s\n", config->metadata_config.metadataType, config->metadata_config.metadataLocation));
-		reader->metadata = calloc(1, sizeof(lofar_udp_metadata));
 
-		if (memcpy(reader->metadata, &lofar_udp_metadata_default, sizeof(lofar_udp_metadata)) != reader->metadata) {
-			fprintf(stderr, "ERROR: Failed to copy default metadata struct, exiting.\n");
-			lofar_udp_reader_cleanup(reader);
-			return NULL;
-		}
+		reader->metadata = lofar_udp_metadata_alloc();
+		CHECK_ALLOC(reader->metadata, NULL, lofar_udp_reader_cleanup(reader););
 
 		for (int i = 0; i < MAX_NUM_PORTS * UDPMAXBEAM; i++) {
 			reader->metadata->subbands[i] = -1;
@@ -1189,61 +1157,6 @@ lofar_udp_reader *lofar_udp_reader_setup(lofar_udp_config *config) {
 	return reader;
 }
 
-
-/**
- * @brief      Optionally close input files, free alloc'd memory, free zstd
- *             decompression streams once we are finished.
- *
- * @param[in]  reader  The lofar_udp_reader struct to cleanup
- * @param[in]  closeFiles  bool: close input files (1) or don't (0)
- *
- * @return     int: 0: Success, other: ???
- */
-void lofar_udp_reader_cleanup(lofar_udp_reader *reader) {
-
-	// Cleanup the malloc/calloc'd memory addresses, close the input files.
-	for (int i = 0; i < reader->meta->numOutputs; i++) {
-		FREE_NOT_NULL(reader->meta->outputData[i]);
-	}
-
-	for (int i = 0; i < reader->meta->numPorts; i++) {
-		// Free input data pointer (from the correct offset)
-		if (reader->meta->inputData[i] != NULL) {
-			
-			VERBOSE(if (reader->meta->VERBOSE) {
-				printf("On port: %d freeing inputData at %p\n", i, reader->meta->inputData[i] -
-																   2 * reader->meta->portPacketLength[i]);
-			});
-
-			int8_t *tmpPtr = (reader->meta->inputData[i] - 2 * reader->meta->portPacketLength[i]);
-			FREE_NOT_NULL(tmpPtr);
-			reader->meta->inputData[i] = NULL;
-		}
-		if (reader->input != NULL) {
-			lofar_udp_io_read_cleanup(reader->input, i);
-		}
-	}
-
-	// Cleanup Jones matrices if they are allocated
-	if (reader->meta->jonesMatrices != NULL) {
-		for (int i = 0; i < reader->calibration->calibrationStepsGenerated; i++) {
-			FREE_NOT_NULL(reader->meta->jonesMatrices[i]);
-		}
-		FREE_NOT_NULL(reader->meta->jonesMatrices);
-	}
-
-	if (reader->metadata != NULL) {
-		lofar_udp_metadata_cleanup(reader->metadata);
-	}
-
-	// Free the reader
-	FREE_NOT_NULL(reader->meta);
-	FREE_NOT_NULL(reader->input);
-	FREE_NOT_NULL(reader->calibration);
-	FREE_NOT_NULL(reader);
-
-	//return 0;
-}
 
 
 /**
@@ -1690,7 +1603,7 @@ int lofar_udp_get_first_packet_alignment(lofar_udp_reader *reader) {
  *                            from the tail of each port by
  * @param[in]  handlePadding  Allow the function to handle copying the last
  *                            packet to the padding offset
- * @param      meta  The input lofar_udp_input_meta struct to process
+ * @param      meta  The input lofar_udp_obs_meta struct to process
  *
  * @return     int: 0: Success, -1: Negative shift requested, out of order data
  *             on last gulp,
@@ -1785,6 +1698,63 @@ int lofar_udp_shift_remainder_packets(lofar_udp_reader *reader, const long shift
 	}
 
 	return returnVal;
+}
+
+/**
+ * @brief      Optionally close input files, free alloc'd memory, free zstd
+ *             decompression streams once we are finished.
+ *
+ * @param[in]  reader  The lofar_udp_reader struct to cleanup
+ * @param[in]  closeFiles  bool: close input files (1) or don't (0)
+ *
+ * @return     int: 0: Success, other: ???
+ */
+void lofar_udp_reader_cleanup(lofar_udp_reader *reader) {
+
+	if (reader->meta != NULL) {
+		// Cleanup the malloc/calloc'd memory addresses, close the input files.
+		for (int i = 0; i < reader->meta->numOutputs; i++) {
+			FREE_NOT_NULL(reader->meta->outputData[i]);
+		}
+
+		for (int i = 0; i < reader->meta->numPorts; i++) {
+			// Free input data pointer (from the correct offset)
+			if (reader->meta->inputData[i] != NULL) {
+
+				VERBOSE(if (reader->meta->VERBOSE) {
+					printf("On port: %d freeing inputData at %p\n", i, reader->meta->inputData[i] -
+					                                                   2 * reader->meta->portPacketLength[i]);
+				});
+
+				int8_t *tmpPtr = (reader->meta->inputData[i] - 2 * reader->meta->portPacketLength[i]);
+				FREE_NOT_NULL(tmpPtr);
+				reader->meta->inputData[i] = NULL;
+			}
+			if (reader->input != NULL) {
+				lofar_udp_io_read_cleanup(reader->input, i);
+			}
+		}
+
+		// Cleanup Jones matrices if they are allocated
+		if (reader->meta->jonesMatrices != NULL) {
+			for (int i = 0; i < reader->calibration->calibrationStepsGenerated; i++) {
+				FREE_NOT_NULL(reader->meta->jonesMatrices[i]);
+			}
+			FREE_NOT_NULL(reader->meta->jonesMatrices);
+		}
+	}
+
+	if (reader->metadata != NULL) {
+		lofar_udp_metadata_cleanup(reader->metadata);
+	}
+
+	// Free the reader
+	FREE_NOT_NULL(reader->meta);
+	FREE_NOT_NULL(reader->input);
+	FREE_NOT_NULL(reader->calibration);
+	FREE_NOT_NULL(reader);
+
+	//return 0;
 }
 
 

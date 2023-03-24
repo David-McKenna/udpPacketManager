@@ -15,7 +15,7 @@ const lofar_udp_metadata lofar_udp_metadata_default = {
 	.observer = "",
 	.hostname = "",
 	.baseport = -1,
-	.rawfile = {  },
+	.rawfile = {{""}}, // NEEDS FULL RUNTIME INITIALISATION
 	.output_file_number = -1,
 
 
@@ -44,7 +44,7 @@ const lofar_udp_metadata lofar_udp_metadata_default = {
 	.channel_bw = -0.0,
 	.ftop = -1.0,
 	.fbottom = -1.0,
-	.subbands = { -1 }, // NEEDS FULL RUNTIME INITIALISATION
+	.subbands = { {-1} }, // NEEDS FULL RUNTIME INITIALISATION
 	.lowerBeamlet = -1,
 	.upperBeamlet = -1,
 	.nsubband = -1,
@@ -63,7 +63,7 @@ const lofar_udp_metadata lofar_udp_metadata_default = {
 	.rec_version = "",
 	.upm_daq = "",
 	.upm_beamctl = "",
-	.upm_outputfmt = {  },
+	.upm_outputfmt = {{""}}, // NEEDS FULL RUNTIME INITIALISATION
 	.upm_outputfmt_comment = "",
 	.upm_num_inputs = -1,
 	.upm_num_outputs = -1,
@@ -135,7 +135,7 @@ const sigproc_hdr sigproc_hdr_default = {
 	.machine_id = -1,
 
 	.data_type = -1,
-	.rawdatafile = {  },
+	.rawdatafile = "",
 
 	// Observation parameters
 	.source_name = "",
@@ -151,7 +151,7 @@ const sigproc_hdr sigproc_hdr_default = {
 	.tsamp = -1.0,
 
 	.nbits = -1,
-	//.nsamples = -1,
+	.nsamples = -1,
 
 	.fch1 = -1.0,
 	.foff = 0.0,
@@ -163,3 +163,22 @@ const sigproc_hdr sigproc_hdr_default = {
 	.refdm = -1.0,
 	.period = -1.0
 };
+
+lofar_udp_metadata* lofar_udp_metadata_alloc() {
+	DEFAULT_STRUCT_ALLOC(lofar_udp_metadata, meta, lofar_udp_metadata_default, ;, NULL);
+	STR_INIT(meta->rawfile, MAX_NUM_PORTS);
+	ARR_INIT(meta->subbands, MAX_NUM_PORTS * UDPMAXBEAM, -1);
+	STR_INIT(meta->upm_outputfmt, MAX_NUM_PORTS);
+
+	return meta;
+}
+sigproc_hdr* sigproc_hdr_alloc() {
+	DEFAULT_STRUCT_ALLOC(sigproc_hdr, hdr, sigproc_hdr_default, ;, NULL);
+
+	return hdr;
+}
+guppi_hdr* guppi_hdr_alloc() {
+	DEFAULT_STRUCT_ALLOC(guppi_hdr, hdr, guppi_hdr_default, ;, NULL);
+
+	return hdr;
+}

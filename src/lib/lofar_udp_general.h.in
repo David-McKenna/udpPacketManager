@@ -134,6 +134,11 @@ typedef struct __attribute__((__packed__)) lofar_source_bytes {
 	for (uint64_t ARRIDX = 0; ARRIDX < entries; ARRIDX++) { \
 		arr[ARRIDX] = val;\
 	}
+
+#define STR_INIT(arr, entries) \
+	for (uint64_t ARRIDX = 0; ARRIDX < entries; ARRIDX++) { \
+		arr[ARRIDX][0] = '\0';\
+	}
 #endif // End of LOFAR_UDP_INIT_MACRO
 
 
@@ -154,6 +159,21 @@ typedef struct __attribute__((__packed__)) lofar_source_bytes {
 // Allocation check
 #define CHECK_ALLOC(alloced, returnVal, cleanup) if (alloced == NULL) { fprintf(stderr, "ERROR %s%d: Failed to allocate " #alloced", returning.\n", __FILE__, __LINE__); return returnVal; cleanup;}
 #define CHECK_ALLOC_NOCLEAN(alloced, returnVal) CHECK_ALLOC(alloced, returnVal, ;)
+
+#define STRUCT_COPY_INIT(structtype, variable, defaultstruct, cleanup, returnVal) \
+	if (memcpy(variable, &defaultstruct, sizeof(structtype)) != variable) {              \
+        fprintf(stderr, "ERROR: Failed to initialise " #variable", returning.\n");    \
+        free(variable);                                                               \
+		cleanup; \
+		return returnVal; \
+	}
+
+#define DEFAULT_STRUCT_ALLOC(structtype, variable, defaultstruct, cleanup, returnVal) \
+	_Static_assert(sizeof(structtype) == sizeof(defaultstruct));                                                                             \
+	structtype *variable = calloc(1, sizeof(structtype)); \
+	CHECK_ALLOC(variable, returnVal, cleanup);                            \
+	STRUCT_COPY_INIT(structtype, variable, defaultstruct, cleanup, returnVal)
+
 
 // Free if non-null macro
 #define FREE_NOT_NULL(x) if (x != NULL) { free(x); x = NULL; }

@@ -2,14 +2,15 @@
 
 const double clock200MHzSteps = CLOCK200MHZ;
 const double clock160MHzSteps = CLOCK160MHZ;
-const double clockStepsDelta = CLOCK200MHZ - CLOCK160MHZ;
+const double clockStepsDelta = clock200MHzSteps - clock160MHzSteps;
 
 const double clock200MHzSampleTime = 1.0 / CLOCK200MHZ;
 const double clock160MHzSampleTime = 1.0 / CLOCK160MHZ;
-
+const double clockSampleTimeDelta = clock200MHzSampleTime - clock160MHzSampleTime;
 
 const double clock200MHzPacketRate = CLOCK200MHZ / 16;
 const double clock160MHzPacketRate = CLOCK160MHZ / 16;
+const double clockPacketRateDelta = clock200MHzPacketRate - clock160MHzPacketRate;
 
 /**
  * @brief      Gets the starting packet for a given Unix time
@@ -19,7 +20,7 @@ const double clock160MHzPacketRate = CLOCK160MHZ / 16;
  *
  * @return     The starting packet.
  */
-long lofar_udp_time_get_packet_from_isot(const char *inputTime, const uint32_t clock200MHz) {
+int64_t lofar_udp_time_get_packet_from_isot(const char *inputTime, uint8_t clock200MHz) {
 	struct tm unixTm;
 	time_t unixEpoch = 0;
 
@@ -44,9 +45,8 @@ long lofar_udp_time_get_packet_from_isot(const char *inputTime, const uint32_t c
  *
  * @return     The number of packets generated
  */
-long lofar_udp_time_get_packets_from_seconds(double seconds, const uint32_t clock200MHz) {
-	return (long) (seconds * (clock200MHz * clock200MHzSteps + (float) (1 - clock200MHz) * clock160MHzSteps) /
-	               (float) UDPNTIMESLICE);
+int64_t lofar_udp_time_get_packets_from_seconds(double seconds, uint32_t clock200MHz) {
+	return (long) (seconds * (clock160MHzPacketRate + clockPacketRateDelta * clock200MHz));
 }
 
 /**
@@ -119,6 +119,7 @@ double lofar_udp_time_get_packet_time_mjd(const int8_t *inputData) {
  *
  * @return     Packet delta
  */
+
 /*
 long lofar_get_packet_difference(uint32_t ts, int64_t packetNumber, int32_t clock200MHz) {
 	return lofar_udp_time_beamformed_packno(ts, 0, clock200MHz) - packetNumber;

@@ -226,16 +226,16 @@ int lofar_udp_metadata_write_file_force(const lofar_udp_reader *reader, lofar_ud
 	return returnVal;
 }
 
-int lofar_udp_metadata_cleanup(lofar_udp_metadata *metadata) {
-	if (metadata == NULL) {
-		return 0;
+void lofar_udp_metadata_cleanup(lofar_udp_metadata *meta) {
+	if (meta != NULL) {
+		if (meta->output.sigproc != NULL) {
+			FREE_NOT_NULL(meta->output.sigproc->fchannel);
+		}
+
+		FREE_NOT_NULL(meta->output.sigproc);
+		FREE_NOT_NULL(meta->output.guppi);
 	}
-
-	FREE_NOT_NULL(metadata->output.guppi);
-	FREE_NOT_NULL(metadata->output.sigproc);
-	FREE_NOT_NULL(metadata);
-
-	return 0;
+	FREE_NOT_NULL(meta);
 }
 
 

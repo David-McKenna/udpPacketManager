@@ -10,6 +10,6 @@ add_executable(lib_tests_run
                lib_time_tests.cpp
 )
 
-target_link_libraries(lib_tests_run gtest_main lofudpman)
+target_link_libraries(lib_tests_run gtest_main gmock_main lofudpman)
 
 add_test(NAME lib_tests COMMAND lib_tests_run)

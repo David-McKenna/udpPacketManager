@@ -11,8 +11,10 @@ void lofar_udp_signal_handler(int signalnum) {
 			fprintf(stderr, "WARNING: Floating point exception occurred. Attempting to continue.\n");
 			break;
 		*/
+		default:
 
-
+			fprintf(stderr, "ERROR %s: Signal %d sent unexpectedly, exiting.\n", __func__, signalnum);
+			exit(EXIT_FAILURE);
 	}
 }
 
@@ -25,10 +27,14 @@ int lofar_udp_prepare_signal_handler() {
 
 	int numSignals = sizeof(handledSignals) / sizeof(handledSignals[0]);
 
-	sig_t returnedFunc;
+	int returnedFunc;
+	struct sigaction regSignal;
+	regSignal.sa_handler = lofar_udp_signal_handler;
 	for (int i = 0; i < numSignals; i++) {
-		if ((returnedFunc = signal(handledSignals[i], lofar_udp_signal_handler)) != NULL) {
-			fprintf(stderr, "WARNING: While attempting to set a catch for signal %d (i=%d), another function was returned indicating it was previously registered. Continue with caution.", handledSignals[i], i);
+		sigemptyset(&regSignal.sa_mask);
+
+		if ((returnedFunc = sigaction(handledSignals[i], &regSignal, NULL)) == -1) {
+			fprintf(stderr, "WARNING: While attempting to set a catch for signal %d (i=%d), an error was raised (%d, %s). Continue with caution.", handledSignals[i], i, errno, strerror(errno));
 		}
 	}
 

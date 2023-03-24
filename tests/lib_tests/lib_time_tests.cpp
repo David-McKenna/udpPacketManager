@@ -176,6 +176,7 @@ TEST(LibTimeTests, DerivedFromPackets) {
 
 		dummyHeader header160M;
 		dummyHeader header200M;
+		header160M.setClock(0);
 		header200M.setClock(1);
 
 		const int32_t baseTime = 1600000000;
@@ -237,8 +238,8 @@ TEST(LibTimeTests, DerivedFromReader) {
 
 		dummyHeader header;
 		header.setClock(1);
-		lofar_udp_reader *reader = lofar_udp_reader_alloc();
-		reader->meta = (lofar_udp_meta *) calloc(1, sizeof(lofar_udp_meta));
+		lofar_udp_obs_meta *meta = (lofar_udp_obs_meta *) calloc(1, sizeof(lofar_udp_obs_meta));
+		lofar_udp_reader *reader = lofar_udp_reader_alloc(meta);
 		reader->meta->inputData[0] = &(header.data[0]);
 
 		const size_t outputStrLen = 64;

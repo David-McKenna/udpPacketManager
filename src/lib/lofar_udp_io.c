@@ -3,45 +3,6 @@
 
 // Setup functions
 
-
-lofar_udp_io_read_config* lofar_udp_io_alloc_read() {
-	lofar_udp_io_read_config *input = calloc(1, sizeof(lofar_udp_io_read_config));
-	if (input == NULL) {
-		fprintf(stderr, "ERROR: Failed to allocate IO-read struct, exiting.\n");
-		return NULL;
-	}
-	if (memcpy(input, &lofar_udp_io_read_config_default, sizeof(lofar_udp_io_read_config)) != input) {
-		fprintf(stderr, "ERROR: Failed to copy IO-read default struct, exiting.\n");
-		free(input);
-		return NULL;
-	}
-
-	ARR_INIT(input->readBufSize, MAX_NUM_PORTS, -1);
-	ARR_INIT(input->portPacketLength, MAX_NUM_PORTS, -1);
-	ARR_INIT(input->dadaKeys, MAX_NUM_PORTS, -1);
-	ARR_INIT(input->dadaPageSize, MAX_NUM_PORTS, -1);
-
-	return input;
-}
-
-lofar_udp_io_write_config* lofar_udp_io_alloc_write() {
-	lofar_udp_io_write_config *output = calloc(1, sizeof(lofar_udp_io_write_config));
-	if (output == NULL) {
-		fprintf(stderr, "ERROR: Failed to allocate IO-read struct, exiting.\n");
-		return NULL;
-	}
-	if (memcpy(output, &lofar_udp_io_write_config_default, sizeof(lofar_udp_io_read_config)) != output) {
-		fprintf(stderr, "ERROR: Failed to copy IO-read default struct, exiting.\n");
-		free(output);
-		return NULL;
-	}
-
-	ARR_INIT(output->writeBufSize, MAX_OUTPUT_DIMS, -1);
-	ARR_INIT(output->outputDadaKeys, MAX_OUTPUT_DIMS, -1);
-
-	return output;
-}
-
 // @param      input   The input
 // @param[in]  config  The configuration
 // @param[in]  meta    The meta
@@ -126,7 +87,7 @@ int lofar_udp_io_write_setup(lofar_udp_io_write_config *config, int iter) {
 }
 
 
-int lofar_udp_io_read_setup_helper(lofar_udp_io_read_config *input, const lofar_udp_config *config, const lofar_udp_input_meta *meta,
+int lofar_udp_io_read_setup_helper(lofar_udp_io_read_config *input, const lofar_udp_config *config, const lofar_udp_obs_meta *meta,
                                    int port) {
 
 	// If this is the first initialisation call, copy over the specified reader type
@@ -172,7 +133,7 @@ int lofar_udp_io_read_setup_helper(lofar_udp_io_read_config *input, const lofar_
 	return lofar_udp_io_read_setup(input, port);
 }
 
-int lofar_udp_io_write_setup_helper(lofar_udp_io_write_config *config, const lofar_udp_input_meta *meta, int iter) {
+int lofar_udp_io_write_setup_helper(lofar_udp_io_write_config *config, const lofar_udp_obs_meta *meta, int iter) {
 	config->numOutputs = meta->numOutputs;
 	for (int outp = 0; outp < config->numOutputs; outp++) {
 		config->writeBufSize[outp] = meta->packetsPerIteration * meta->packetOutputLength[outp];

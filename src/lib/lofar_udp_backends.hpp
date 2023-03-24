@@ -20,7 +20,7 @@ extern "C" {
 
 
 // Define the C-access interfaces
-int lofar_udp_cpp_loop_interface(lofar_udp_input_meta *meta);
+int lofar_udp_cpp_loop_interface(lofar_udp_obs_meta *meta);
 
 // Declare the Stokes Vector Functions
 typedef float(StokesFuncType)(float, float, float, float);
@@ -1053,7 +1053,7 @@ void inline udp_usefulStokesDecimation(long iLoop, int8_t *inputPortData, O **ou
 
 // Define the main processing loop
 template<typename I, typename O, const int state, const int calibrateData>
-int lofar_udp_raw_loop(lofar_udp_input_meta *meta) {
+int lofar_udp_raw_loop(lofar_udp_obs_meta *meta) {
 	// Setup return variable
 	int packetLoss = 0;
 

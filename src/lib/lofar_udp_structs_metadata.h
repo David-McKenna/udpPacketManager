@@ -93,7 +93,7 @@ typedef struct sigproc_hdr {
 	double tsamp;
 
 	int32_t nbits;
-	//int32_t nsamples;
+	int32_t nsamples;
 
 	double fch1;
 	double foff;
@@ -216,5 +216,19 @@ typedef struct lofar_udp_metadata {
 
 } lofar_udp_metadata;
 extern const lofar_udp_metadata lofar_udp_metadata_default;
+
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+lofar_udp_metadata* lofar_udp_metadata_alloc();
+sigproc_hdr* sigproc_hdr_alloc();
+guppi_hdr* guppi_hdr_alloc();
+
+#ifdef __cplusplus
+}
+#endif
+
 
 #endif // End of LOFAR_UDP_STRUCTS_METADATA_H
