@@ -1,7 +1,6 @@
 #include "lofar_udp_reader.h"
 #include "lofar_udp_time.h"
 
-
 /**
  * @brief 			Check input header data for malformed variables
  * @param port 		Reference port number in case an error occurs
@@ -24,12 +23,12 @@ int lofar_udp_reader_malformed_header_checks(const int8_t header[UDPHDRLEN]) {
 		return -1;
 	}
 
-	if (*((uint32_t *) &(header[CEP_HDR_TIME_OFFSET])) < LFREPOCH) {
+	if (*((int32_t *) &(header[CEP_HDR_TIME_OFFSET])) < LFREPOCH) {
 		fprintf(stderr, "Input header appears malformed (data timestamp before 2008, %ls), exiting.\n", ((uint32_t *) &(header[CEP_HDR_TIME_OFFSET])));
 		return -1;
 	}
 
-	if (*((uint32_t *) &(header[CEP_HDR_SEQ_OFFSET])) > RSPMAXSEQ) {
+	if (*((int32_t *) &(header[CEP_HDR_SEQ_OFFSET])) > RSPMAXSEQ) {
 		fprintf(stderr,
 		        "Input header appears malformed (sequence higher than 200MHz clock maximum, %d), exiting.\n", *((uint32_t *) &(header[CEP_HDR_SEQ_OFFSET])));
 		return -1;
@@ -302,7 +301,7 @@ int lofar_udp_skip_to_packet(lofar_udp_reader *reader) {
 			scanning = 1;
 
 			// Read in a new block of data on all ports, error check
-			returnVal = lofar_udp_reader_read_step(reader);
+			returnVal = lofar_udp_reader_internal_read_step(reader);
 			if (returnVal < 0) { return returnVal; }
 
 			currentPacket = lofar_udp_time_get_packet_number(&(reader->meta->inputData[port][lastPacketOffset]));
@@ -746,8 +745,8 @@ int lofar_udp_setup_processing(lofar_udp_obs_meta *meta) {
  */
 int lofar_udp_reader_config_check(lofar_udp_config *config) {
 
-	if (config->numPorts > MAX_NUM_PORTS) {
-		fprintf(stderr, "ERROR: You requested %d ports, but LOFAR can only produce %d, exiting.\n", config->numPorts,
+	if (config->numPorts > MAX_NUM_PORTS || config->numPorts < 1) {
+		fprintf(stderr, "ERROR: You requested %d ports, but LOFAR can only produce between 1 and %d, exiting.\n", config->numPorts,
 				MAX_NUM_PORTS);
 		return -1;
 	}
@@ -807,7 +806,7 @@ int lofar_udp_reader_config_check(lofar_udp_config *config) {
 	}
 
 	if (config->packetsReadMax < 1) {
-		fprintf(stderr, "ERROR@ Invalid cap on packets to read (%ld), exiting.\n", config->packetsReadMax);
+		fprintf(stderr, "ERROR: Invalid cap on packets to read (%ld), exiting.\n", config->packetsReadMax);
 		return -1;
 	}
 
@@ -817,11 +816,11 @@ int lofar_udp_reader_config_check(lofar_udp_config *config) {
 	}
 
 	if ((2 * config->ompThreads) < config->numPorts) {
-		fprintf(stderr, "WARNING: You have requested less threads than advised (2* number of ports), this might be a slow run (%d threads, %d ports).\n", config->ompThreads, config->numPorts);
-
 		if (config->ompThreads < 1) {
 			fprintf(stderr, "WARNING: Thread count unset. Resetting number of threads to compile-time default, %d.\n", OMP_THREADS);
 			config->ompThreads = OMP_THREADS;
+		} else {
+			fprintf(stderr, "WARNING: You have requested less threads than advised (2* number of ports), this might be a slow run (%d threads, %d ports).\n", config->ompThreads, config->numPorts);
 		}
 	}
 
@@ -1107,7 +1106,7 @@ lofar_udp_reader *lofar_udp_reader_setup(lofar_udp_config *config) {
 	}
 
 	// Gulp the first set of raw data
-	if (lofar_udp_reader_read_step(reader) < 0) {
+	if (lofar_udp_reader_internal_read_step(reader) < 0) {
 		lofar_udp_reader_cleanup(reader);
 		return NULL;
 	}
@@ -1384,7 +1383,7 @@ int lofar_udp_reader_calibration(lofar_udp_reader *reader) {
  * @return     int: 0: Success, -1, Failure, -2: Final iteration, reached packet cap, -3:
  *             Final iteration, received less data than requested (EOF)
  */
-int lofar_udp_reader_read_step(lofar_udp_reader *reader) {
+int lofar_udp_reader_internal_read_step(lofar_udp_reader *reader) {
 	int returnVal = 0;
 
 	// Make sure we have work to perform
@@ -1499,7 +1498,7 @@ int lofar_udp_reader_step_timed(lofar_udp_reader *reader, double timing[2]) {
 	});
 	// Check if the data states are ready for a new gulp
 	if (reader->meta->inputDataReady != 1 && reader->meta->outputDataReady != 0) {
-		if ((readReturnVal = lofar_udp_reader_read_step(reader)) == -1) { return readReturnVal; }
+		if ((readReturnVal = lofar_udp_reader_internal_read_step(reader)) == -1) { return readReturnVal; }
 		reader->meta->leadingPacket = reader->meta->lastPacket + 1;
 		reader->meta->outputDataReady = 0;
 	}
@@ -1551,7 +1550,7 @@ int lofar_udp_reader_step_timed(lofar_udp_reader *reader, double timing[2]) {
  * @return     int: 0: Success, < 0: Some data issues, but tolerable: > 1: Fatal
  *             errors
  */
-__attribute__((unused)) int lofar_udp_reader_step(lofar_udp_reader *reader) {
+int lofar_udp_reader_step(lofar_udp_reader *reader) {
 	double fakeTiming[2] = { -1.0, 0 };
 
 	return lofar_udp_reader_step_timed(reader, fakeTiming);

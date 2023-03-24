@@ -44,12 +44,16 @@ int lofar_udp_get_first_packet_alignment(lofar_udp_reader *reader);
 // Raw input data handlers
 int lofar_udp_reader_step(lofar_udp_reader *reader);
 int lofar_udp_reader_step_timed(lofar_udp_reader *reader, double timing[2]);
-int lofar_udp_reader_read_step(lofar_udp_reader *reader);
 int lofar_udp_shift_remainder_packets(lofar_udp_reader *reader, const long shiftPackets[], int handlePadding);
 //int lofar_udp_realign_data(lofar_udp_reader *reader);
 
 // Reader struct cleanup
 void lofar_udp_reader_cleanup(lofar_udp_reader *reader);
+
+// Internal functions
+int lofar_udp_reader_config_check(lofar_udp_config *config);
+int lofar_udp_reader_internal_read_step(lofar_udp_reader *reader); // INTERNAL
+int lofar_udp_reader_malformed_header_checks(const int8_t header[UDPHDRLEN]);
 
 #ifdef __cplusplus
 }
