@@ -87,7 +87,7 @@ typedef struct sigproc_hdr {
 	double az_start;
 	double za_start;
 	double src_raj;
-	double src_dej;
+	double src_decj;
 
 	double tstart;
 	double tsamp;
@@ -98,6 +98,7 @@ typedef struct sigproc_hdr {
 	double fch1;
 	double foff;
 	double *fchannel;
+	int32_t fchannels;
 	int32_t nchans;
 	int32_t nifs;
 
@@ -154,10 +155,11 @@ typedef struct lofar_udp_metadata {
 	char mode[META_STR_LEN + 1]; // Standard, currently not set
 
 
-	double freq; // beamctl
+	double freq_raw; // beamctl
+	double freq; // Derived
 	double bw; // beamctl
 	double subband_bw; // beamctl
-	double channel_bw;
+	double channel_bw; // Derived
 	double ftop; // beamctl
 	double fbottom; // beamctl
 	int32_t subbands[MAX_NUM_PORTS * UDPMAXBEAM];
@@ -171,7 +173,7 @@ typedef struct lofar_udp_metadata {
 	int32_t resolution; // Standard? DSPSR: minimum number of samples that can be parsed, always 1?
 	int32_t ndim; // Lib
 	double tsamp_raw; // Lib
-	double tsamp;
+	double tsamp; // Derived
 	char state[META_STR_LEN + 1]; // Lib
 	int32_t order; // Lib
 
@@ -186,7 +188,7 @@ typedef struct lofar_udp_metadata {
 	int32_t upm_num_inputs;
 	int32_t upm_num_outputs;
 	int32_t upm_reader;
-	int32_t upm_procmode;
+	processMode_t upm_procmode;
 	int32_t upm_replay;
 	int32_t upm_calibrated;
 	int64_t upm_blocksize;
@@ -223,7 +225,7 @@ extern "C" {
 #endif
 
 lofar_udp_metadata* lofar_udp_metadata_alloc();
-sigproc_hdr* sigproc_hdr_alloc();
+sigproc_hdr* sigproc_hdr_alloc(int32_t fchannels);
 guppi_hdr* guppi_hdr_alloc();
 
 #ifdef __cplusplus

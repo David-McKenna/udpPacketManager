@@ -13,16 +13,16 @@
  * @return     { description_of_the_return_value }
  */
 int
-lofar_udp_io_read_setup_ZSTD(lofar_udp_io_read_config *input, const char *inputLocation, const int port) {
+_lofar_udp_io_read_setup_ZSTD(lofar_udp_io_read_config *input, const char *inputLocation, int8_t port) {
 	// Copy the file reference into input
 	// Leave in boilerplate return encase the function gets more complicated in future
 	int returnVal;
-	if ((returnVal = lofar_udp_io_read_setup_FILE(input, inputLocation, port)) != 0) {
+	if ((returnVal = _lofar_udp_io_read_setup_FILE(input, inputLocation, port)) != 0) {
 		return returnVal;
 	}
 
 	// Find the file size (needed for mmap)
-	long fileSize = FILE_file_size(input->fileRef[port]);
+	int64_t fileSize = _FILE_file_size(input->fileRef[port]);
 	// Ensure there wasn't an error
 	if (fileSize < 0) {
 		fprintf(stderr, "ERROR: Failed to get size of file at %s, exiting.\n", inputLocation);
@@ -56,12 +56,17 @@ lofar_udp_io_read_setup_ZSTD(lofar_udp_io_read_config *input, const char *inputL
 	}
 
 	// Setup the decompressed data buffer/struct
-	long bufferSize = input->readBufSize[port];
+	int64_t bufferSize = input->readBufSize[port];
 	VERBOSE(printf("reader_setup: expending decompression buffer by %ld bytes\n",
-				   (long) ZSTD_DStreamOutSize() - (bufferSize % (long) ZSTD_DStreamOutSize())));
-	bufferSize += (long) ZSTD_DStreamOutSize() - (bufferSize % (long) ZSTD_DStreamOutSize());
+				   (int64_t) ZSTD_DStreamOutSize() - (bufferSize % (int64_t) ZSTD_DStreamOutSize())));
+	bufferSize += (int64_t) ZSTD_DStreamOutSize() - (bufferSize % (int64_t) ZSTD_DStreamOutSize());
+	input->readBufSize[port] = bufferSize;
 	input->decompressionTracker[port].size = bufferSize;
 	input->decompressionTracker[port].pos = 0; // Initialisation for our step-by-step reader
+
+	if (input->readerType == ZSTDCOMPRESSED_INDIRECT && input->decompressionTracker[port].dst == NULL) {
+		input->decompressionTracker[port].dst = calloc(bufferSize, sizeof(int8_t));
+	}
 
 	return 0;
 }
@@ -75,10 +80,12 @@ lofar_udp_io_read_setup_ZSTD(lofar_udp_io_read_config *input, const char *inputL
  *
  * @return     { description_of_the_return_value }
  */
-int lofar_udp_io_read_cleanup_ZSTD(lofar_udp_io_read_config *input, const int port) {
-	if (lofar_udp_io_read_cleanup_FILE(input, port) != 0) {
-		fprintf(stderr, "ERROR: Failed to close file on port %d\n", port);
+void _lofar_udp_io_read_cleanup_ZSTD(lofar_udp_io_read_config *input, int8_t port) {
+	if (input == NULL) {
+		return;
 	}
+
+	_lofar_udp_io_read_cleanup_FILE(input, port);
 
 	// Free the decompression stream
 	if (input->dstream[port] != NULL) {
@@ -89,7 +96,9 @@ int lofar_udp_io_read_cleanup_ZSTD(lofar_udp_io_read_config *input, const int po
 		input->dstream[port] = NULL;
 	}
 
-	return 0;
+	if (input->readerType == ZSTDCOMPRESSED_INDIRECT) {
+		FREE_NOT_NULL(input->decompressionTracker[port].dst);
+	}
 }
 
 
@@ -106,8 +115,8 @@ int lofar_udp_io_read_cleanup_ZSTD(lofar_udp_io_read_config *input, const int po
  *
  * @return     int 0: ZSTD error, 1: File error, other: data read length
  */
-int lofar_udp_io_read_temp_ZSTD(void *outbuf, const size_t size, const int num, const char inputFile[],
-								 const int resetSeek) {
+int64_t _lofar_udp_io_read_temp_ZSTD(void *outbuf, int64_t size, int8_t num, const char inputFile[],
+                                     int resetSeek) {
 	VERBOSE(printf("%s: %s, %ld\n", __func__, inputFile, strlen(inputFile)));
 	FILE *inputFilePtr = fopen(inputFile, "rb");
 	if (inputFilePtr == NULL) {
@@ -123,15 +132,15 @@ int lofar_udp_io_read_temp_ZSTD(void *outbuf, const size_t size, const int num, 
 	ZSTD_initDStream(dstreamTmp);
 
 	// Allocate the buffer memory, build the buffer structs
-	char *inBuff = calloc(minRead, sizeof(char));
-	char *localOutBuff = calloc(minOut, sizeof(char));
+	int8_t *inBuff = calloc(minRead, sizeof(int8_t));
+	int8_t *localOutBuff = calloc(minOut, sizeof(int8_t));
 
-	ZSTD_inBuffer tmpRead = { inBuff, minRead * sizeof(char), 0 };
-	ZSTD_outBuffer tmpDecom = { localOutBuff, minOut * sizeof(char), 0 };
+	ZSTD_inBuffer tmpRead = { inBuff, minRead * sizeof(int8_t), 0 };
+	ZSTD_outBuffer tmpDecom = { localOutBuff, minOut * sizeof(int8_t), 0 };
 
 	// Read in the compressed data
-	long readlen = (long) fread(inBuff, sizeof(char), minRead, inputFilePtr);
-	if (readlen != (long) minRead) {
+	int64_t readlen = (int64_t) fread(inBuff, sizeof(int8_t), minRead, inputFilePtr);
+	if (readlen != (int64_t) minRead) {
 		fprintf(stderr, "Unable to read in data from file; exiting.\n");
 		fclose(inputFilePtr);
 		ZSTD_freeDStream(dstreamTmp);
@@ -142,7 +151,7 @@ int lofar_udp_io_read_temp_ZSTD(void *outbuf, const size_t size, const int num, 
 
 	// Move the read head back to the start of the packer
 	if (resetSeek) {
-		if (fseek(inputFilePtr, -(long) minRead, SEEK_CUR) != 0) {
+		if (fseek(inputFilePtr, -(int64_t) minRead, SEEK_CUR) != 0) {
 			fprintf(stderr, "Failed to reset seek head, exiting.\n");
 			fclose(inputFilePtr);
 			return -2;
@@ -166,8 +175,8 @@ int lofar_udp_io_read_temp_ZSTD(void *outbuf, const size_t size, const int num, 
 	}
 
 	// Cap the return value of the data
-	readlen = (long) tmpDecom.pos;
-	if (readlen > (long) size * num) { readlen = size * num; }
+	readlen = (int64_t) tmpDecom.pos;
+	if (readlen > (int64_t) size * num) { readlen = size * num; }
 
 	// Copy the output and cleanup
 	memcpy(outbuf, localOutBuff, size * num);
@@ -188,11 +197,16 @@ int lofar_udp_io_read_temp_ZSTD(void *outbuf, const size_t size, const int num, 
  *
  * @return     { description_of_the_return_value }
  */
-long lofar_udp_io_read_ZSTD(lofar_udp_io_read_config *input, int port, char *targetArray, long nchars) {
+int64_t _lofar_udp_io_read_ZSTD(lofar_udp_io_read_config *input, int8_t port, int8_t *targetArray, int64_t nchars) {
 	// Compressed file: Perform streaming decompression on a zstandard compressed file
 	VERBOSE(printf("reader_nchars: Entering read request (compressed): %d, %ld\n", port, nchars));
 
-	long dataRead = 0, byteDelta;
+	if (input->decompressionTracker[port].dst == NULL) {
+		fprintf(stderr, "ERROR: ZSTD decompression array was not initialised, exiting.\n");
+		return -1;
+	}
+
+	int64_t dataRead = 0, byteDelta;
 	size_t previousDecompressionPos;
 	size_t returnVal;
 
@@ -200,20 +214,38 @@ long lofar_udp_io_read_ZSTD(lofar_udp_io_read_config *input, int port, char *tar
 	               input->readingTracker[port].size, input->decompressionTracker[port].pos, dataRead, nchars););
 
 	// Move the trailing end of the buffer to the start of the target read
-	if ((long) input->decompressionTracker[port].pos > input->readBufSize[port]) {
-		dataRead = input->decompressionTracker[port].pos - input->readBufSize[port];
-		if (memmove(targetArray, &(((char*) input->decompressionTracker[port].dst)[input->readBufSize[port]]), dataRead) != targetArray) {
-			fprintf(stderr, "ERROR: Failed to copy end of ZSTD buffer, exiting.\n");
-			return -1;
-		}
-		// Update the position marker
-		input->decompressionTracker[port].pos = targetArray - (char*) input->decompressionTracker[port].dst + dataRead;
+	if (input->readerType == ZSTDCOMPRESSED) {
+		if ((int64_t) input->decompressionTracker[port].pos > input->readBufSize[port]) {
+			dataRead = input->decompressionTracker[port].pos - input->readBufSize[port];
+			if (memmove(targetArray, &(((char *) input->decompressionTracker[port].dst)[input->readBufSize[port]]), dataRead) != targetArray) {
+				fprintf(stderr, "ERROR: Failed to copy end of ZSTD buffer, exiting.\n");
+				return -1;
+			}
+			// Update the position marker
+			input->decompressionTracker[port].pos = targetArray - (int8_t *) input->decompressionTracker[port].dst + dataRead;
 
-		VERBOSE(printf("ZSTD READ %d, base offset, read: %ld, %ld\n", port, input->decompressionTracker[port].pos, dataRead));
+			VERBOSE(printf("ZSTD READ %d, base offset, read: %ld, %ld\n", port, input->decompressionTracker[port].pos, dataRead));
+		} else {
+			// Update the position marker
+			input->decompressionTracker[port].pos = targetArray - ((int8_t *) input->decompressionTracker[port].dst);
+			VERBOSE(printf("ZSTD READ%d, base offset: %ld\n", port, input->decompressionTracker[port].pos));
+		}
 	} else {
-		// Update the position marker
-		input->decompressionTracker[port].pos = targetArray - ((char*) input->decompressionTracker[port].dst);
-		VERBOSE(printf("ZSTD READ%d, base offset: %ld\n", port, input->decompressionTracker[port].pos));
+		if ((int64_t) input->decompressionTracker[port].pos > input->zstdLastRead[port]) {
+			dataRead = input->decompressionTracker[port].pos - input->zstdLastRead[port];
+			if (memmove(input->decompressionTracker[port].dst, &(((char *) input->decompressionTracker[port].dst)[input->zstdLastRead[port]]), dataRead) != targetArray) {
+				fprintf(stderr, "ERROR: Failed to copy end of ZSTD buffer, exiting.\n");
+				return -1;
+			}
+			// Update the position marker
+			input->decompressionTracker[port].pos = dataRead;
+
+			VERBOSE(printf("ZSTD READ %d, base offset, read: %ld, %ld\n", port, input->decompressionTracker[port].pos, dataRead));
+		} else {
+			// Update the position marker
+			input->decompressionTracker[port].pos = 0;
+			VERBOSE(printf("ZSTD READ%d, base offset: %ld\n", port, input->decompressionTracker[port].pos));
+		}
 	}
 
 	VERBOSE(printf("ZSTD Read: starting loop with %ld/%ld\n", dataRead, nchars));
@@ -231,7 +263,7 @@ long lofar_udp_io_read_ZSTD(lofar_udp_io_read_config *input, int port, char *tar
 		}
 
 		// Determine how much data we just added to the buffer
-		byteDelta = ((long) input->decompressionTracker[port].pos - (long) previousDecompressionPos);
+		byteDelta = ((int64_t) input->decompressionTracker[port].pos - (int64_t) previousDecompressionPos);
 
 		// Update the total data read + check if we have reached our goal
 		dataRead += byteDelta;
@@ -259,6 +291,14 @@ long lofar_udp_io_read_ZSTD(lofar_udp_io_read_config *input, int port, char *tar
 		        errno, strerror(errno));
 	}
 
+	if (input->readerType == ZSTDCOMPRESSED_INDIRECT) {
+		if (memcpy(targetArray, input->decompressionTracker[port].dst, nchars) != targetArray) {
+			fprintf(stderr, "ERROR: Failed to copy ZSTD decompress output to array, exiting.\n");
+			return -1;
+		}
+		input->zstdLastRead[port] = nchars;
+	}
+
 
 	return dataRead;
 }
@@ -279,8 +319,8 @@ long lofar_udp_io_read_ZSTD(lofar_udp_io_read_config *input, int port, char *tar
  *
  * @return     { description_of_the_return_value }
  */
-int lofar_udp_io_write_setup_ZSTD(lofar_udp_io_write_config *config, int outp, int iter) {
-	if (lofar_udp_io_write_setup_FILE(config, outp, iter) < 0) {
+int _lofar_udp_io_write_setup_ZSTD(lofar_udp_io_write_config *config, int8_t outp, int32_t iter) {
+	if (_lofar_udp_io_write_setup_FILE(config, outp, iter) < 0) {
 		return -1;
 	}
 
@@ -310,14 +350,14 @@ int lofar_udp_io_write_setup_ZSTD(lofar_udp_io_write_config *config, int outp, i
 			return -1;
 		}
 
-		long inputSize = config->writeBufSize[outp];
+		int64_t inputSize = config->writeBufSize[outp];
 		if (inputSize % ZSTD_CStreamInSize() != 0) {
-			inputSize += (long) ZSTD_CStreamInSize() - (inputSize % (long) ZSTD_CStreamInSize());
+			inputSize += (int64_t) ZSTD_CStreamInSize() - (inputSize % (int64_t) ZSTD_CStreamInSize());
 		}
 
 
 		if (inputSize % ZSTD_CStreamOutSize() != 0) {
-			inputSize += (long) ZSTD_CStreamInSize() - (inputSize % (long) ZSTD_CStreamOutSize());
+			inputSize += (int64_t) ZSTD_CStreamInSize() - (inputSize % (int64_t) ZSTD_CStreamOutSize());
 		}
 		config->zstdWriter[outp].compressionBuffer.dst = calloc(inputSize, sizeof(char));
 
@@ -355,8 +395,8 @@ int lofar_udp_io_write_setup_ZSTD(lofar_udp_io_write_config *config, int outp, i
  *
  * @return     { description_of_the_return_value }
  */
-long
-lofar_udp_io_write_ZSTD(lofar_udp_io_write_config *config, const int outp, const int8_t *src, const long nchars) {
+int64_t
+_lofar_udp_io_write_ZSTD(lofar_udp_io_write_config *config, int8_t outp, const int8_t *src, int64_t nchars) {
 
 	ZSTD_inBuffer input = { src, nchars, 0 };
 	ZSTD_outBuffer output = { config->zstdWriter[outp].compressionBuffer.dst, config->zstdWriter[outp].compressionBuffer.size, 0 };
@@ -371,7 +411,7 @@ lofar_udp_io_write_ZSTD(lofar_udp_io_write_config *config, const int outp, const
 
 	config->zstdWriter[outp].compressionBuffer.pos = output.pos;
 
-	if (lofar_udp_io_write_FILE(config, outp, config->zstdWriter[outp].compressionBuffer.dst, (long) output.pos) < 0) {
+	if (_lofar_udp_io_write_FILE(config, outp, config->zstdWriter[outp].compressionBuffer.dst, (int64_t) output.pos) < 0) {
 		return -1;
 	}
 
@@ -387,8 +427,11 @@ lofar_udp_io_write_ZSTD(lofar_udp_io_write_config *config, const int outp, const
  *
  * @return     { description_of_the_return_value }
  */
-int lofar_udp_io_write_cleanup_ZSTD(lofar_udp_io_write_config *config, int outp, int fullClean) {
-	lofar_udp_io_write_cleanup_FILE(config, outp);
+void _lofar_udp_io_write_cleanup_ZSTD(lofar_udp_io_write_config *config, int8_t outp, int fullClean) {
+	if (config == NULL) {
+		return;
+	}
+	_lofar_udp_io_write_cleanup_FILE(config, outp);
 
 	if (fullClean && config->zstdWriter[outp].cstream != NULL) {
 		ZSTD_freeCStream(config->zstdWriter[outp].cstream);
@@ -404,5 +447,4 @@ int lofar_udp_io_write_cleanup_ZSTD(lofar_udp_io_write_config *config, int outp,
 		config->cparams = NULL;
 	}
 
-	return 0;
 }

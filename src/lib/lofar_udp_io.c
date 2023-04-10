@@ -10,24 +10,27 @@
 //
 // @return     { description_of_the_return_value }
 //
-int lofar_udp_io_read_setup(lofar_udp_io_read_config *input, int port) {
+int lofar_udp_io_read_setup(lofar_udp_io_read_config *input, int8_t port) {
+	if (input == NULL) {
+		fprintf(stderr, "ERROR %s: passed null input configuration, exiting.\n", __func__);
+		return -1;
+	}
 
 	switch (input->readerType) {
 		// Normal files and FIFOs use the same read interface
 		case NORMAL:
 		case FIFO:
 			input->numInputs++;
-			return lofar_udp_io_read_setup_FILE(input, input->inputLocations[port], port);
-
+			return _lofar_udp_io_read_setup_FILE(input, input->inputLocations[port], port);
 
 		case ZSTDCOMPRESSED:
+		case ZSTDCOMPRESSED_INDIRECT:
 			input->numInputs++;
-			return lofar_udp_io_read_setup_ZSTD(input, input->inputLocations[port], port);
-
+			return _lofar_udp_io_read_setup_ZSTD(input, input->inputLocations[port], port);
 
 		case DADA_ACTIVE:
 			input->numInputs++;
-			return lofar_udp_io_read_setup_DADA(input, input->dadaKeys[port], port);
+			return _lofar_udp_io_read_setup_DADA(input, input->inputDadaKeys[port], port);
 
 		case HDF5:
 			fprintf(stderr, "ERROR: Reading from HDF5 files is currently not supported, exiting.\n");
@@ -50,28 +53,34 @@ int lofar_udp_io_read_setup(lofar_udp_io_read_config *input, int port) {
  *
  * @return     { description_of_the_return_value }
  */
-int lofar_udp_io_write_setup(lofar_udp_io_write_config *config, int iter) {
+int lofar_udp_io_write_setup(lofar_udp_io_write_config *config, int32_t iter) {
+	if (config == NULL) {
+		fprintf(stderr, "ERROR %s: passed null input configuration, exiting.\n", __func__);
+		return -1;
+	}
+
+	if (config->readerType == ZSTDCOMPRESSED_INDIRECT) {
+		config->readerType = ZSTDCOMPRESSED;
+	}
 	int returnVal = 0;
-	for (int outp = 0; outp < config->numOutputs; outp++) {
+	for (int8_t outp = 0; outp < config->numOutputs; outp++) {
 		switch (config->readerType) {
 			case NORMAL:
 			case FIFO:
-				returnVal = lofar_udp_io_write_setup_FILE(config, outp, iter);
+				returnVal = _lofar_udp_io_write_setup_FILE(config, outp, iter);
 				break;
 
 			case ZSTDCOMPRESSED:
-				returnVal = lofar_udp_io_write_setup_ZSTD(config, outp, iter);
+				returnVal = _lofar_udp_io_write_setup_ZSTD(config, outp, iter);
 				break;
 
-
 			case DADA_ACTIVE:
-				returnVal = lofar_udp_io_write_setup_DADA(config, outp);
+				returnVal = _lofar_udp_io_write_setup_DADA(config, outp);
 				break;
 
 			case HDF5:
-				returnVal = lofar_udp_io_write_setup_HDF5(config, outp, iter);
+				returnVal = _lofar_udp_io_write_setup_HDF5(config, outp, iter);
 				break;
-
 
 			default:
 				fprintf(stderr, "ERROR: Unknown reader (%d) provided, exiting.\n", config->readerType);
@@ -87,8 +96,13 @@ int lofar_udp_io_write_setup(lofar_udp_io_write_config *config, int iter) {
 }
 
 
-int lofar_udp_io_read_setup_helper(lofar_udp_io_read_config *input, const lofar_udp_config *config, const lofar_udp_obs_meta *meta,
-                                   int port) {
+int _lofar_udp_io_read_setup_internal_lib_helper(lofar_udp_io_read_config *input, const lofar_udp_config *config, const lofar_udp_obs_meta *meta,
+                                                 int8_t port) {
+
+	if (input == NULL || config == NULL || meta == NULL) {
+		fprintf(stderr, "ERROR %s: passed null input configuration (input: %p, config: %p, meta: %p), exiting.\n", __func__, input, config, meta);
+		return -1;
+	}
 
 	// If this is the first initialisation call, copy over the specified reader type
 	if (input->readerType == NO_ACTION) {
@@ -120,7 +134,7 @@ int lofar_udp_io_read_setup_helper(lofar_udp_io_read_config *input, const lofar_
 		input->decompressionTracker[port].dst = meta->inputData[port];
 	// Copy over the PSRDADA keys since they aren't parsed as strings
 	} else if (input->readerType == DADA_ACTIVE) {
-		input->dadaKeys[port] = config->dadaKeys[port];
+		input->inputDadaKeys[port] = config->inputDadaKeys[port];
 	}
 
 	// Copy over the raw input locations
@@ -133,9 +147,35 @@ int lofar_udp_io_read_setup_helper(lofar_udp_io_read_config *input, const lofar_
 	return lofar_udp_io_read_setup(input, port);
 }
 
-int lofar_udp_io_write_setup_helper(lofar_udp_io_write_config *config, const lofar_udp_obs_meta *meta, int iter) {
+int lofar_udp_io_read_setup_helper(lofar_udp_io_read_config *input, const int8_t **outputArr, int64_t maxReadSize, int8_t port) {
+
+	// If this is the first initialisation call, copy over the specified reader type
+	if (input->readerType == NO_ACTION) {
+		fprintf(stderr, "ERROR: Input reader configuration does not specify a reader type, exiting.\n");
+		return -1;
+	}
+
+	// PSRDADA needs port packet length to do corrections if we reconnect to a partially processed ringbuffer
+	input->portPacketLength[port] = 1;
+	// Set the maximum length read buffer
+	input->readBufSize[port] = maxReadSize;
+
+	// ZSTD needs to write directly to a given output buffer
+	if (input->readerType == ZSTDCOMPRESSED) {
+		input->decompressionTracker[port].dst = outputArr;
+	}
+
+	// Call the main setup function
+	return lofar_udp_io_read_setup(input, port);
+}
+
+int lofar_udp_io_write_setup_helper(lofar_udp_io_write_config *config, const lofar_udp_obs_meta *meta, int32_t iter) {
+	if (config == NULL || meta == NULL) {
+		fprintf(stderr, "ERROR %s: passed null input configuration (onfig: %p, meta: %p), exiting.\n", __func__, config, meta);
+		return -1;
+	}
 	config->numOutputs = meta->numOutputs;
-	for (int outp = 0; outp < config->numOutputs; outp++) {
+	for (int8_t outp = 0; outp < config->numOutputs; outp++) {
 		config->writeBufSize[outp] = meta->packetsPerIteration * meta->packetOutputLength[outp];
 	}
 
@@ -156,28 +196,30 @@ int lofar_udp_io_write_setup_helper(lofar_udp_io_write_config *config, const lof
  *
  * @return     { description_of_the_return_value }
  */
-int lofar_udp_io_read_cleanup(lofar_udp_io_read_config *input, const int port) {
+void lofar_udp_io_read_cleanup(lofar_udp_io_read_config *input, const int8_t port) {
+	if (input == NULL) {
+		return;
+	}
 
 	switch (input->readerType) {
 		// Normal files and FIFOs use the same interface
 		case NORMAL:
 		case FIFO:
-			return lofar_udp_io_read_cleanup_FILE(input, port);
-
+			return _lofar_udp_io_read_cleanup_FILE(input, port);
 
 		case ZSTDCOMPRESSED:
-			return lofar_udp_io_read_cleanup_ZSTD(input, port);
-
+		case ZSTDCOMPRESSED_INDIRECT:
+			return _lofar_udp_io_read_cleanup_ZSTD(input, port);
 
 		case DADA_ACTIVE:
-			return lofar_udp_io_read_cleanup_DADA(input, port);
+			return _lofar_udp_io_read_cleanup_DADA(input, port);
 
 		case HDF5:
-			return lofar_udp_io_read_cleanup_HDF5(input, port);
+			return _lofar_udp_io_read_cleanup_HDF5(input, port);
 
 		default:
 			fprintf(stderr, "ERROR: Unknown reader (%d) provided, exiting.\n", input->readerType);
-			return -1;
+			return;
 	}
 }
 
@@ -190,29 +232,30 @@ int lofar_udp_io_read_cleanup(lofar_udp_io_read_config *input, const int port) {
  *
  * @return     { description_of_the_return_value }
  */
-int lofar_udp_io_write_cleanup(lofar_udp_io_write_config *config, const int outp, const int fullClean) {
+void lofar_udp_io_write_cleanup(lofar_udp_io_write_config *config, const int8_t outp, const int fullClean) {
+	if (config == NULL) {
+		return;
+	}
 
 	switch (config->readerType) {
 		// Normal files and FIFOs use the same interface
 		case NORMAL:
 		case FIFO:
-			return lofar_udp_io_write_cleanup_FILE(config, outp);
-
+			return _lofar_udp_io_write_cleanup_FILE(config, outp);
 
 		case ZSTDCOMPRESSED:
-			return lofar_udp_io_write_cleanup_ZSTD(config, outp, fullClean);
-
+		case ZSTDCOMPRESSED_INDIRECT:
+			return _lofar_udp_io_write_cleanup_ZSTD(config, outp, fullClean);
 
 		case DADA_ACTIVE:
-			return lofar_udp_io_write_cleanup_DADA(config, outp, fullClean);
+			return _lofar_udp_io_write_cleanup_DADA(config, outp, fullClean);
 
 		case HDF5:
-			return lofar_udp_io_write_cleanup_HDF5(config, outp, fullClean);
-
+			return _lofar_udp_io_write_cleanup_HDF5(config, outp, fullClean);
 
 		default:
 			fprintf(stderr, "ERROR: Unknown type (%d) provided, exiting.\n", config->readerType);
-			return -1;
+			return;
 	}
 }
 
@@ -228,7 +271,10 @@ int lofar_udp_io_write_cleanup(lofar_udp_io_write_config *config, const int outp
  * @return     { description_of_the_return_value }
  */
 reader_t lofar_udp_io_parse_type_optarg(const char optargc[], char *fileFormat, int *baseVal, int *stepSize, int *offsetVal) {
-
+	if (optargc == NULL || fileFormat == NULL || baseVal == NULL || stepSize == NULL || offsetVal == NULL) {
+		fprintf(stderr, "ERROR %s: Passed null ptr (optargc: %p, fileFormat: %p, baseVal: %p, stepSize: %p, offsetVal: %p), exiting.\n", __func__, optargc, fileFormat, baseVal, stepSize, offsetVal);
+		return NO_ACTION;
+	}
 	reader_t reader;
 
 	if (strstr(optargc, "%") != NULL) {
@@ -294,8 +340,11 @@ reader_t lofar_udp_io_parse_type_optarg(const char optargc[], char *fileFormat, 
  *
  * @return     { description_of_the_return_value }
  */
-int lofar_udp_io_parse_format(char *dest, const char format[], int port, int iter, int idx, long pack) {
-
+int lofar_udp_io_parse_format(char *dest, const char format[], int8_t port, int iter, int idx, long pack) {
+	if (dest == NULL || format == NULL) {
+		fprintf(stderr, "ERROR: Passed null input, (dest: %p, format: %p), exiting.\n", dest, format);
+		return -1;
+	}
 	/*
 	if ((sizeof(dest) / sizeof(dest[0])) < (sizeof(format) / sizeof(format[0]))) {
 		fprintf(stderr, "ERROR: Destination is smaller than the input (%ld vs %ld), it is unsafe to continue, exiting.\n", sizeof(dest) / sizeof(dest[0]), sizeof(format) / sizeof(format[0]));
@@ -338,28 +387,28 @@ int lofar_udp_io_parse_format(char *dest, const char format[], int port, int ite
 		if ((startSubStr = strstr(formatCopySrc, "[[port]]"))) {
 			(*startSubStr) = '\0';
 			sprintf(formatCopyDst, "%s%d%s", formatCopySrc, port, startSubStr + sizeof("[port]]"));
-			swapCharPtr(&formatCopyDst, &formatCopySrc);
+			_swapCharPtr(&formatCopyDst, &formatCopySrc);
 			notrigger = 0;
 		}
 
 		if ((startSubStr = strstr(formatCopySrc, "[[iter]]"))) {
 			(*startSubStr) = '\0';
 			sprintf(formatCopyDst, "%s%04d%s", formatCopySrc, iter, startSubStr + sizeof("[iter]]"));
-			swapCharPtr(&formatCopyDst, &formatCopySrc);
+			_swapCharPtr(&formatCopyDst, &formatCopySrc);
 			notrigger = 0;
 		}
 
 		if ((startSubStr = strstr(formatCopySrc, "[[idx]]"))) {
 			(*startSubStr) = '\0';
 			sprintf(formatCopyDst, "%s%d%s", formatCopySrc, idx, startSubStr + sizeof("[idx]]"));
-			swapCharPtr(&formatCopyDst, &formatCopySrc);
+			_swapCharPtr(&formatCopyDst, &formatCopySrc);
 			notrigger = 0;
 		}
 
 		if ((startSubStr = strstr(formatCopySrc, "[[pack]]"))) {
 			(*startSubStr) = '\0';
 			sprintf(formatCopyDst, "%s%ld%s", formatCopySrc, pack, startSubStr + sizeof("[pack]]"));
-			swapCharPtr(&formatCopyDst, &formatCopySrc);
+			_swapCharPtr(&formatCopyDst, &formatCopySrc);
 			notrigger = 0;
 		}
 
@@ -388,9 +437,8 @@ int lofar_udp_io_parse_format(char *dest, const char format[], int port, int ite
  * @return     { description_of_the_return_value }
  */
 int lofar_udp_io_read_parse_optarg(lofar_udp_config *config, const char optargc[]) {
-
-	if (config == NULL) {
-		fprintf(stderr, "ERROR: Input config is NULL, exiting.\n");
+	if (config == NULL || optargc == NULL) {
+		fprintf(stderr, "ERROR %s: Input pointer is null (config: %p, optargc: %p), exiting.\n", __func__, config, optargc);
 		return -1;
 	}
 
@@ -408,9 +456,10 @@ int lofar_udp_io_read_parse_optarg(lofar_udp_config *config, const char optargc[
 		case NORMAL:
 		case FIFO:
 		case ZSTDCOMPRESSED:
+		case ZSTDCOMPRESSED_INDIRECT:
 		case HDF5:
 			for (int i = 0; i < (MAX_NUM_PORTS - config->offsetPortCount); i++) {
-				int port = (config->basePort + config->offsetPortCount * config->stepSizePort) + i * config->stepSizePort;
+				int8_t port = (config->basePort + config->offsetPortCount * config->stepSizePort) + i * config->stepSizePort;
 
 				if (lofar_udp_io_parse_format(config->inputLocations[i], fileFormat, port, -1, i, -1) < 0) {
 					return -1;
@@ -447,7 +496,7 @@ int lofar_udp_io_read_parse_optarg(lofar_udp_config *config, const char optargc[
 
 			// Populate the dada keys
 			for (int i = 0; i < MAX_NUM_PORTS; i++) {
-				config->dadaKeys[i] = (config->basePort + config->offsetPortCount * config->stepSizePort) + i * config->stepSizePort;
+				config->inputDadaKeys[i] = (config->basePort + config->offsetPortCount * config->stepSizePort) + i * config->stepSizePort;
 			}
 			break;
 
@@ -469,9 +518,8 @@ int lofar_udp_io_read_parse_optarg(lofar_udp_config *config, const char optargc[
  * @return     { description_of_the_return_value }
  */
 int lofar_udp_io_write_parse_optarg(lofar_udp_io_write_config *config, const char optargc[]) {
-
-	if (config == NULL) {
-		fprintf(stderr, "ERROR: Input config is NULL, exiting.\n");
+	if (config == NULL || optargc == NULL) {
+		fprintf(stderr, "ERROR %s: Input pointer is null (config: %p, optargc: %p), exiting.\n", __func__, config, optargc);
 		return -1;
 	}
 
@@ -489,6 +537,7 @@ int lofar_udp_io_write_parse_optarg(lofar_udp_io_write_config *config, const cha
 		case NORMAL:
 		case FIFO:
 		case ZSTDCOMPRESSED:
+		case ZSTDCOMPRESSED_INDIRECT:
 		case HDF5:
 			// Nothing needs to be done for normal files here
 			break;
@@ -543,30 +592,37 @@ int lofar_udp_io_write_parse_optarg(lofar_udp_io_write_config *config, const cha
 //
 // @return     long: bytes read */
 //
-long lofar_udp_io_read(lofar_udp_io_read_config *input, int port, int8_t *targetArray, const long nchars) {
+int64_t lofar_udp_io_read(lofar_udp_io_read_config *input, int8_t port, int8_t *targetArray, int64_t nchars) {
 
 	// Sanity check input
 	if (nchars < 0) {
 		fprintf(stderr, "ERROR: Requested negative read size %ld on port %d, exiting.\n", nchars, port);
 		return -1;
 	}
-	if (input == NULL) {
+
+	if (input == NULL || targetArray == NULL) {
 		fprintf(stderr, "ERROR: Inputs were nulled at some point, cannot read new data, exiting.\n");
+		return -1;
+	}
+
+	if (port < 0 || port > MAX_NUM_PORTS) {
+		fprintf(stderr, "ERROR: Invalid port index (%d)\n, exiting.", port);
 		return -1;
 	}
 
 	switch (input->readerType) {
 		case NORMAL:
 		case FIFO:
-			return lofar_udp_io_read_FILE(input, port, targetArray, nchars);
+			return _lofar_udp_io_read_FILE(input, port, targetArray, nchars);
 
 
 		case ZSTDCOMPRESSED:
-			return lofar_udp_io_read_ZSTD(input, port, targetArray, nchars);
+		case ZSTDCOMPRESSED_INDIRECT:
+			return _lofar_udp_io_read_ZSTD(input, port, targetArray, nchars);
 
 
 		case DADA_ACTIVE:
-			return lofar_udp_io_read_DADA(input, port, targetArray, nchars);
+			return _lofar_udp_io_read_DADA(input, port, targetArray, nchars);
 
 		case HDF5:
 		default:
@@ -590,32 +646,36 @@ long lofar_udp_io_read(lofar_udp_io_read_config *input, int port, int8_t *target
  *
  * @return     { description_of_the_return_value }
  */
-long lofar_udp_io_write(lofar_udp_io_write_config *config, int outp, const int8_t *src, const long nchars) {
+int64_t lofar_udp_io_write(lofar_udp_io_write_config *config, int8_t outp, const int8_t *src, int64_t nchars) {
 	// Sanity check input
 	if (nchars < 0) {
 		fprintf(stderr, "ERROR: Requested negative write size %ld on output %d, exiting.\n", nchars, outp);
 		return -1;
 	}
-	if (config == NULL) {
-		fprintf(stderr, "ERROR: Write config was nulled at some point, cannot read new data, exiting.\n");
+	if (config == NULL || src == NULL) {
+		fprintf(stderr, "ERROR: Target was nulled at some point, cannot write new data, exiting.\n");
+		return -1;
+	}
+	if (outp < 0 || outp > MAX_NUM_PORTS) {
+		fprintf(stderr, "ERROR: Invalid port index (%d)\n, exiting.", outp);
 		return -1;
 	}
 
 	switch (config->readerType) {
 		case NORMAL:
-		case FIFO:
-			return lofar_udp_io_write_FILE(config, outp, src, nchars);
+			return _lofar_udp_io_write_FILE(config, outp, src, nchars);
 
+		case FIFO:
+			return _lofar_udp_io_write_FIFO(config, outp, src, nchars);
 
 		case ZSTDCOMPRESSED:
-			return lofar_udp_io_write_ZSTD(config, outp, src, nchars);
-
+			return _lofar_udp_io_write_ZSTD(config, outp, src, nchars);
 
 		case DADA_ACTIVE:
-			return lofar_udp_io_write_DADA(config->dadaWriter[outp].ringbuffer, outp, src, nchars);
+			return _lofar_udp_io_write_DADA(config->dadaWriter[outp].hdu->data_block, src, nchars, 0);
 
 		case HDF5:
-			return lofar_udp_io_write_HDF5(config, outp, src, nchars);
+			return _lofar_udp_io_write_HDF5(config, outp, src, nchars);
 
 		default:
 			fprintf(stderr, "ERROR: Unknown reader %d, exiting.\n", config->readerType);
@@ -625,10 +685,18 @@ long lofar_udp_io_write(lofar_udp_io_write_config *config, int outp, const int8_
 }
 
 
-long lofar_udp_io_write_metadata(lofar_udp_io_write_config *outConfig, int outp, lofar_udp_metadata *metadata, char *headerBuffer, size_t headerLength) {
+int64_t lofar_udp_io_write_metadata(lofar_udp_io_write_config *outConfig, int8_t outp, const lofar_udp_metadata *metadata, const int8_t *headerBuffer, int64_t headerLength) {
+	if (outConfig == NULL || metadata == NULL) {
+		fprintf(stderr, "ERROR %s: Invalid struct (outConfig: %p, metadata: %p), exiting.\n", __func__, outConfig, metadata);
+		return -1;
+	}
 	if ((outConfig->readerType == HDF5 && metadata->type != HDF5_META)
 		|| (outConfig->readerType != HDF5 && metadata->type == HDF5_META)) {
-		fprintf(stderr, "ERROR: Only HDF5 metadata can only be written to a HDF5 output (outp: %d, meta: %d), exiting.\n", outConfig->readerType, metadata->type);
+		fprintf(stderr, "ERROR %s: Only HDF5 metadata can only be written to a HDF5 output (outp: %d, meta: %d), exiting.\n", __func__, outConfig->readerType, metadata->type);
+		return -1;
+	}
+	if (outConfig->readerType != HDF5 && headerBuffer == NULL) {
+		fprintf(stderr, "ERROR %s: Header buffer is null, exiting.\n", __func__);
 		return -1;
 	}
 
@@ -639,17 +707,13 @@ long lofar_udp_io_write_metadata(lofar_udp_io_write_config *outConfig, int outp,
 		case NORMAL:
 		case FIFO:
 		case ZSTDCOMPRESSED:
-		case DADA_ACTIVE:
 			return lofar_udp_io_write(outConfig, outp, headerBuffer, trueHeaderLen);
 
+		case DADA_ACTIVE:
+			return _lofar_udp_io_write_DADA((ipcio_t*) outConfig->dadaWriter[outp].hdu->header_block, headerBuffer, trueHeaderLen, 1);
 
 		case HDF5:
-			/*
-			if (trueHeaderLen > 0 || headerLength > 0 || (metadata->type != HDF5_META || metadata->type != NO_META)) {
-				fprintf(stderr, "WARNING %s: A header was passed while the output write is HDF5, which does not support binary/ASCII headers.\n", __func__);
-			}
-			*/
-			return lofar_udp_io_write_metadata_HDF5(outConfig, metadata);
+			return _lofar_udp_io_write_metadata_HDF5(outConfig, metadata);
 
 		default:
 			fprintf(stderr, "ERROR: Unknown reader %d, exiting.\n", outConfig->readerType);
@@ -673,29 +737,45 @@ long lofar_udp_io_write_metadata(lofar_udp_io_write_config *outConfig, int outp,
 ///
 /// @return     { description_of_the_return_value }
 ///
-int
-lofar_udp_io_read_temp(const lofar_udp_config *config, const int port, void *outbuf, const size_t size, const int num,
-						const int resetSeek) {
+int64_t
+lofar_udp_io_read_temp(const lofar_udp_config *config, int8_t port, int8_t *outbuf, size_t size, int64_t num,
+                       int resetSeek) {
+	if (config == NULL || outbuf == NULL) {
+		fprintf(stderr, "ERROR: Pass a null buffer (config: %p, outbuf: %p), exiting.\n", config, outbuf);
+		return -1;
+	}
+
+	if (port < 0 || port > MAX_NUM_PORTS) {
+		fprintf(stderr, "ERROR: Invalid port index (%d)\n, exiting.", port);
+		return -1;
+	}
+
 	if (num < 1 || size < 1) {
-		fprintf(stderr, "ERROR: Invalid number of elements to read (%d * %ld), exiting.\n", num, size);
+		fprintf(stderr, "ERROR: Invalid number of elements to read (%ld * %ld), exiting.\n", num, size);
+		return -1;
 	}
 
 	switch (config->readerType) {
-		case NORMAL:
 		case FIFO:
-			return lofar_udp_io_read_temp_FILE(outbuf, size, num, config->inputLocations[port], resetSeek);
+			if (resetSeek) {
+				fprintf(stderr, "ERROR %s: Cannot perform a temporary read on a FIFO and reset the pointer location, exiting.\n", __func__);
+				return -1;
+			}
+		case NORMAL:
+			return _lofar_udp_io_read_temp_FILE(outbuf, size, num, config->inputLocations[port], resetSeek);
 
 
 		case ZSTDCOMPRESSED:
-			return lofar_udp_io_read_temp_ZSTD(outbuf, size, num, config->inputLocations[port], resetSeek);
+			return _lofar_udp_io_read_temp_ZSTD(outbuf, size, num, config->inputLocations[port], resetSeek);
 
 
 		case DADA_ACTIVE:
-			return lofar_udp_io_read_temp_DADA(outbuf, size, num, config->dadaKeys[port], resetSeek);
+			return _lofar_udp_io_read_temp_DADA(outbuf, size, num, config->inputDadaKeys[port], resetSeek);
 
 		case HDF5:
 			fprintf(stderr, "ERROR: Reading from HDF5 files is not currently supported, exiting.\n");
 			return -1;
+
 
 		default:
 			fprintf(stderr, "ERROR: Unknown reader type (%d), exiting.\n", config->readerType);
@@ -704,16 +784,9 @@ lofar_udp_io_read_temp(const lofar_udp_config *config, const int port, void *out
 
 }
 
-#include "./io/lofar_udp_io_FILE.c"
-#include "./io/lofar_udp_io_ZSTD.c"
-#include "./io/lofar_udp_io_DADA.c"
-#include "./io/lofar_udp_io_HDF5.c"
-
-
-
 // Metadata functions
 
-void swapCharPtr(char **a, char **b) {
+void _swapCharPtr(char **a, char **b) {
 	char *tmp = *a;
 	*a = *b;
 	*b = tmp;
@@ -728,8 +801,8 @@ void swapCharPtr(char **a, char **b) {
 //
 // @return     long: size of file on disk in bytes */
 //
-long FILE_file_size(FILE *fileptr) {
-	return fd_file_size(fileno(fileptr));
+long _FILE_file_size(FILE *fileptr) {
+	return _fd_file_size(fileno(fileptr));
 }
 
 /**
@@ -739,7 +812,7 @@ long FILE_file_size(FILE *fileptr) {
  *
  * @return     long: size of file on disk in bytes
  */
-long fd_file_size(int fd) {
+long _fd_file_size(int fd) {
 	struct stat stat_s;
 	int status = fstat(fd, &stat_s);
 
@@ -750,3 +823,8 @@ long fd_file_size(int fd) {
 
 	return stat_s.st_size;
 }
+
+#include "./io/lofar_udp_io_FILE.c"
+#include "./io/lofar_udp_io_ZSTD.c"
+#include "./io/lofar_udp_io_DADA.c"
+#include "./io/lofar_udp_io_HDF5.c"

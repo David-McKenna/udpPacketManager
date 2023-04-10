@@ -12,7 +12,7 @@ const lofar_udp_io_read_config lofar_udp_io_read_config_default = {
 
 	// Inputs pre- and post-formatting
 	.inputLocations = { "" },
-	.dadaKeys = { -1 }, // NEEDS FULL RUNTIME INITIALISATION
+	.inputDadaKeys = { -1 }, // NEEDS FULL RUNTIME INITIALISATION
 	.basePort = 0,
 	.offsetPortCount = 0,
 	.stepSizePort = 1,
@@ -25,6 +25,7 @@ const lofar_udp_io_read_config lofar_udp_io_read_config_default = {
 	// Associated objects
 	.readingTracker = { { NULL } },
 	.decompressionTracker = { { NULL } },
+	.zstdLastRead = { 0 },
 	.multilog = { NULL },
 	.dadaPageSize = { -1 } // NEEDS FULL RUNTIME INITIALISATION
 };
@@ -95,7 +96,7 @@ const lofar_udp_config lofar_udp_config_default = {
 	},
 	.numPorts = 4,
 	.replayDroppedPackets = 0,
-	.processingMode = 0,
+	.processingMode = UNSET_MODE,
 	.verbose = 0,
 	.packetsPerIteration = 65536,
 	.startingPacket = -1,
@@ -105,7 +106,7 @@ const lofar_udp_config lofar_udp_config_default = {
 	.calibrateData = NO_CALIBRATION,
 	.calibrationConfiguration = NULL,
 	.ompThreads = OMP_THREADS,
-	.dadaKeys = { -1 }, // NEEDS FULL RUNTIME INITIALISATION
+	.inputDadaKeys = { -1 }, // NEEDS FULL RUNTIME INITIALISATION
 
 	.basePort = 0,
 	.offsetPortCount = 0,
@@ -171,9 +172,15 @@ lofar_udp_calibration* lofar_udp_calibration_alloc() {
 	return calibration;
 }
 
+metadata_config* lofar_udp_metadata_config_alloc() {
+	DEFAULT_STRUCT_ALLOC(metadata_config, config, metadata_config_default, ;, NULL);
+
+	return config;
+}
+
 lofar_udp_config* lofar_udp_config_alloc() {
 	DEFAULT_STRUCT_ALLOC(lofar_udp_config, config, lofar_udp_config_default, ;, NULL);
-	STRUCT_COPY_INIT(metadata_config, &(config->metadata_config), metadata_config_default, free(config);, NULL);
+	STRUCT_COPY_INIT(metadata_config, &(config->metadata_config), metadata_config_default);
 
 	config->calibrationConfiguration = lofar_udp_calibration_alloc();
 	CHECK_ALLOC(config->calibrationConfiguration, NULL, free(config););
@@ -187,8 +194,9 @@ lofar_udp_io_read_config* lofar_udp_io_alloc_read() {
 
 	ARR_INIT(input->readBufSize, MAX_NUM_PORTS, -1);
 	ARR_INIT(input->portPacketLength, MAX_NUM_PORTS, -1);
-	ARR_INIT(input->dadaKeys, MAX_NUM_PORTS, -1);
+	ARR_INIT(input->inputDadaKeys, MAX_NUM_PORTS, -1);
 	ARR_INIT(input->dadaPageSize, MAX_NUM_PORTS, -1);
+	ARR_INIT(input->zstdLastRead, MAX_NUM_PORTS, 0);
 
 	return input;
 }

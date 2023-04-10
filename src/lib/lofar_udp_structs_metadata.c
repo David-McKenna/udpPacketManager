@@ -15,7 +15,7 @@ const lofar_udp_metadata lofar_udp_metadata_default = {
 	.observer = "",
 	.hostname = "",
 	.baseport = -1,
-	.rawfile = {{""}}, // NEEDS FULL RUNTIME INITIALISATION
+	.rawfile = {""}, // NEEDS FULL RUNTIME INITIALISATION
 	.output_file_number = -1,
 
 
@@ -38,13 +38,14 @@ const lofar_udp_metadata lofar_udp_metadata_default = {
 	.mode = "",
 
 
+	.freq_raw = -1.0,
 	.freq = -1.0,
 	.bw = -0.0,
 	.subband_bw = -0.0,
 	.channel_bw = -0.0,
 	.ftop = -1.0,
 	.fbottom = -1.0,
-	.subbands = { {-1} }, // NEEDS FULL RUNTIME INITIALISATION
+	.subbands = { -1 }, // NEEDS FULL RUNTIME INITIALISATION
 	.lowerBeamlet = -1,
 	.upperBeamlet = -1,
 	.nsubband = -1,
@@ -63,12 +64,12 @@ const lofar_udp_metadata lofar_udp_metadata_default = {
 	.rec_version = "",
 	.upm_daq = "",
 	.upm_beamctl = "",
-	.upm_outputfmt = {{""}}, // NEEDS FULL RUNTIME INITIALISATION
+	.upm_outputfmt = {""}, // NEEDS FULL RUNTIME INITIALISATION
 	.upm_outputfmt_comment = "",
 	.upm_num_inputs = -1,
 	.upm_num_outputs = -1,
 	.upm_reader = -1,
-	.upm_procmode = -1,
+	.upm_procmode = UNSET_MODE,
 	.upm_bandflip = -1,
 	.upm_replay = -1,
 	.upm_calibrated = -1,
@@ -145,7 +146,7 @@ const sigproc_hdr sigproc_hdr_default = {
 	.az_start = -1.0,
 	.za_start = -1.0,
 	.src_raj = -1.0,
-	.src_dej = -1.0,
+	.src_decj = -1.0,
 
 	.tstart = -1.0,
 	.tsamp = -1.0,
@@ -156,6 +157,7 @@ const sigproc_hdr sigproc_hdr_default = {
 	.fch1 = -1.0,
 	.foff = 0.0,
 	.fchannel = NULL,
+	.fchannels = -1,
 	.nchans = -1,
 	.nifs = -1,
 
@@ -166,14 +168,21 @@ const sigproc_hdr sigproc_hdr_default = {
 
 lofar_udp_metadata* lofar_udp_metadata_alloc() {
 	DEFAULT_STRUCT_ALLOC(lofar_udp_metadata, meta, lofar_udp_metadata_default, ;, NULL);
-	STR_INIT(meta->rawfile, MAX_NUM_PORTS);
 	ARR_INIT(meta->subbands, MAX_NUM_PORTS * UDPMAXBEAM, -1);
+	STR_INIT(meta->rawfile, MAX_NUM_PORTS);
 	STR_INIT(meta->upm_outputfmt, MAX_NUM_PORTS);
 
 	return meta;
 }
-sigproc_hdr* sigproc_hdr_alloc() {
+sigproc_hdr* sigproc_hdr_alloc(int32_t fchannels) {
 	DEFAULT_STRUCT_ALLOC(sigproc_hdr, hdr, sigproc_hdr_default, ;, NULL);
+
+	if (fchannels) {
+		hdr->fchannel = calloc(fchannels, sizeof(double));
+		CHECK_ALLOC(hdr->fchannel, NULL, free(hdr));
+		hdr->fchannels = fchannels;
+		ARR_INIT(hdr->fchannel, fchannels, (double) -1);
+	}
 
 	return hdr;
 }

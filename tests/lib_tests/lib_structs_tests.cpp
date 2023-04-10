@@ -5,6 +5,8 @@
 
 TEST(LibStructsTests, NormalAllocTests) {
 	// lofar_udp_obs_meta *lofar_udp_obs_meta_alloc()
+	SCOPED_TRACE("lofar_udp_setup_allocs");
+
 	lofar_udp_obs_meta *meta = lofar_udp_obs_meta_alloc();
 	EXPECT_NE(nullptr, meta);
 
@@ -29,16 +31,25 @@ TEST(LibStructsTests, NormalAllocTests) {
 }
 
 TEST(LibStructsTests, MetadataAllocTests) {
+
+	SCOPED_TRACE("lofar_udp_metadata_alloc");
 	//lofar_udp_metadata* lofar_udp_metadata_alloc();
 	lofar_udp_metadata *meta = lofar_udp_metadata_alloc();
 	EXPECT_NE(nullptr, meta);
 
-	//sigproc_hdr* sigproc_hdr_alloc();
-	meta->output.sigproc = sigproc_hdr_alloc();
-	EXPECT_NE(nullptr, meta->output.sigproc);
-	//guppi_hdr* guppi_hdr_alloc();
-	meta->output.guppi = guppi_hdr_alloc();
-	EXPECT_NE(nullptr, meta->output.guppi);
+	{
+		SCOPED_TRACE("sigproc_hdr_alloc");
+		//sigproc_hdr* sigproc_hdr_alloc();
+		meta->output.sigproc = sigproc_hdr_alloc(64);
+		EXPECT_NE(nullptr, meta->output.sigproc);
+		EXPECT_NE(nullptr, meta->output.sigproc->fchannel);
+	}
+	{
+		SCOPED_TRACE("guppi_hdr_alloc");
+		//guppi_hdr* guppi_hdr_alloc();
+		meta->output.guppi = guppi_hdr_alloc();
+		EXPECT_NE(nullptr, meta->output.guppi);
+	}
 
 	free(meta->output.sigproc);
 	free(meta->output.guppi);

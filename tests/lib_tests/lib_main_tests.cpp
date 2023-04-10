@@ -9,4 +9,5 @@ TEST(LibSignalTests, SignalHandler) {
 	//void lofar_udp_signal_handler(int signalnum)
 	EXPECT_NO_THROW(lofar_udp_signal_handler(SIGPIPE));
 	EXPECT_DEATH(lofar_udp_signal_handler(SIGKILL), ".*");
+
 }

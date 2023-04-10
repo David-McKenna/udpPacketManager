@@ -35,25 +35,22 @@ extern "C" {
 // Reader/meta struct initialisation
 lofar_udp_reader *lofar_udp_reader_setup(lofar_udp_config *config);
 int lofar_udp_file_reader_reuse(lofar_udp_reader *reader, long startingPacket, long packetsReadMax);
-
-// Initialisation helpers
-int lofar_udp_parse_headers(lofar_udp_obs_meta *meta, const int8_t header[4][16], const int16_t beamletLimits[2]);
-int lofar_udp_setup_processing(lofar_udp_obs_meta *meta);
-int lofar_udp_get_first_packet_alignment(lofar_udp_reader *reader);
-
-// Raw input data handlers
+// Iteration handlers
 int lofar_udp_reader_step(lofar_udp_reader *reader);
 int lofar_udp_reader_step_timed(lofar_udp_reader *reader, double timing[2]);
-int lofar_udp_shift_remainder_packets(lofar_udp_reader *reader, const long shiftPackets[], int handlePadding);
-//int lofar_udp_realign_data(lofar_udp_reader *reader);
-
 // Reader struct cleanup
 void lofar_udp_reader_cleanup(lofar_udp_reader *reader);
 
 // Internal functions
-int lofar_udp_reader_config_check(lofar_udp_config *config);
-int lofar_udp_reader_internal_read_step(lofar_udp_reader *reader); // INTERNAL
-int lofar_udp_reader_malformed_header_checks(const int8_t header[UDPHDRLEN]);
+int _lofar_udp_parse_headers(lofar_udp_obs_meta *meta, const int8_t header[4][16], const int16_t beamletLimits[2]);
+int _lofar_udp_setup_processing(lofar_udp_obs_meta *meta);
+int _lofar_udp_get_first_packet_alignment(lofar_udp_reader *reader);
+int _lofar_udp_shift_remainder_packets(lofar_udp_reader *reader, const long shiftPackets[], int handlePadding);
+//int _lofar_udp_realign_data(lofar_udp_reader *reader);
+int _lofar_udp_reader_config_check(lofar_udp_config *config);
+int _lofar_udp_reader_internal_read_step(lofar_udp_reader *reader);
+int _lofar_udp_reader_malformed_header_checks(const int8_t header[16]);
+void _lofar_udp_configure_obs_meta(const lofar_udp_config *config, lofar_udp_obs_meta *meta);
 
 #ifdef __cplusplus
 }

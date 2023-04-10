@@ -1,20 +1,5 @@
 
-// Internal prototypes
-int sigprocStationID(int telescopeId);
-__attribute__((unused)) int sigprocMachineID(char *machineName); // Currently not implemented
-double sigprocStr2Pointing(char *input);
-
-char* writeKey_SIGPROC(char *buffer, const char *name);
-char* writeStr_SIGPROC(char *buffer, const char *name, const char *value);
-char* writeInt_SIGPROC(char *buffer, const char *name, int value);
-char* writeDouble_SIGPROC(char *buffer, const char *name, double value, int exception);
-
-// Spec doesn't have any longs or floats, define the functions anyway
-__attribute__((unused)) char* writeLong_SIGPROC(char *buffer, const char *name, long value);
-__attribute__((unused)) char* writeFloat_SIGPROC(char *buffer, const char *name, float value, int exception);
-
-
-int lofar_udp_metadata_setup_SIGPROC(lofar_udp_metadata *metadata) {
+int _lofar_udp_metadata_setup_SIGPROC(lofar_udp_metadata *metadata) {
 
 	if (metadata->output.sigproc == NULL) {
 		if ((metadata->output.sigproc = calloc(1, sizeof(sigproc_hdr))) == NULL) {
@@ -36,11 +21,11 @@ int lofar_udp_metadata_setup_SIGPROC(lofar_udp_metadata *metadata) {
 	}
 
 	// Copy over assigned metadata
-	metadata->output.sigproc->telescope_id = sigprocStationID(metadata->telescope_rsp_id);
+	metadata->output.sigproc->telescope_id = _sigprocStationID(metadata->telescope_rsp_id);
 	//metadata->output.sigproc->machine_id = sigprocMachineID(metadata->machine);
 	metadata->output.sigproc->tstart = metadata->obs_mjd_start;
 	metadata->output.sigproc->tsamp = metadata->tsamp;
-	metadata->output.sigproc->fch1 = metadata->ftop;
+	metadata->output.sigproc->fch1 = metadata->ftop + 0.5 * metadata->channel_bw; // fch1 is half a channel offset from the top of the bandwidth
 	metadata->output.sigproc->foff = metadata->channel_bw;
 	metadata->output.sigproc->nchans = metadata->nchan;
 
@@ -48,17 +33,18 @@ int lofar_udp_metadata_setup_SIGPROC(lofar_udp_metadata *metadata) {
 	metadata->output.sigproc->nbits = metadata->nbit > 0 ? metadata->nbit : -1 * metadata->nbit;
 
 	// Constants for what we produce
+	// TODO: Modify if we want support for more than just single(-Stokes) outputs
 	metadata->output.sigproc->nifs = 1;
 	metadata->output.sigproc->data_type = 1;
 
 	// Sigproc pointing variables take the form of a double, which is parsed as ddmmss.ss
-	metadata->output.sigproc->src_raj = sigprocStr2Pointing(metadata->ra);
-	metadata->output.sigproc->src_dej = sigprocStr2Pointing(metadata->dec);
+	metadata->output.sigproc->src_raj = _sigprocStr2Pointing(metadata->ra);
+	metadata->output.sigproc->src_decj = _sigprocStr2Pointing(metadata->dec);
 
 	return 0;
 }
 
-int lofar_udp_metadata_update_SIGPROC(lofar_udp_metadata *metadata, int newObs) {
+int _lofar_udp_metadata_update_SIGPROC(lofar_udp_metadata *metadata, int newObs) {
 
 	if (metadata == NULL || metadata->output.sigproc == NULL) {
 		fprintf(stderr, "ERROR %s: Input metadata struct is null, exiting.\n", __func__);
@@ -75,45 +61,45 @@ int lofar_udp_metadata_update_SIGPROC(lofar_udp_metadata *metadata, int newObs) 
 	return 0;
 }
 
-int lofar_udp_metadata_write_SIGPROC(const sigproc_hdr *hdr, char *headerBuffer, size_t headerLength) {
+int _lofar_udp_metadata_write_SIGPROC(const sigproc_hdr *hdr, char * const headerBuffer, size_t headerLength) {
 	if (headerBuffer == NULL) {
 		fprintf(stderr, "ERROR: Null buffer provided to %s, exiting.\n", __func__);
 	}
 
-	size_t estimatedLength = 300;
+	size_t estimatedLength = 380;
 	estimatedLength += strlen(hdr->rawdatafile) + strlen(hdr->source_name);
 
 	if (headerLength < estimatedLength) {
 		fprintf(stderr, "WARNING: Buffer is short (<%ld chars), we may overflow this buffer. Continuing with caution...\n", estimatedLength);
 	}
 
-	char *workingPtr = writeKey_SIGPROC(headerBuffer, "HEADER_START");
-	workingPtr = writeInt_SIGPROC(workingPtr, "telescope_id", hdr->telescope_id);
-	workingPtr = writeInt_SIGPROC(workingPtr, "machine_id", hdr->machine_id);
-	workingPtr = writeInt_SIGPROC(workingPtr, "data_type", hdr->data_type);
-	workingPtr = writeStr_SIGPROC(workingPtr, "rawdatafile", hdr->rawdatafile);
-	workingPtr = writeStr_SIGPROC(workingPtr, "source_name", hdr->source_name);
-	workingPtr = writeInt_SIGPROC(workingPtr, "barycentric", hdr->barycentric);
-	workingPtr = writeInt_SIGPROC(workingPtr, "pulsarcentric", hdr->pulsarcentric);
-	workingPtr = writeDouble_SIGPROC(workingPtr, "az_start", hdr->az_start, 0);
-	workingPtr = writeDouble_SIGPROC(workingPtr, "za_start", hdr->za_start, 0);
-	workingPtr = writeDouble_SIGPROC(workingPtr, "src_raj", hdr->src_raj, 0);// Maybe exception? Though ra/dec of  -1 arcsec seems less likely than 0
-	workingPtr = writeDouble_SIGPROC(workingPtr, "src_dej", hdr->src_dej, 0);// Maybe exception?
-	workingPtr = writeDouble_SIGPROC(workingPtr, "tstart", hdr->tstart, 0);
-	workingPtr = writeDouble_SIGPROC(workingPtr, "tsamp", hdr->tsamp, 0);
-	workingPtr = writeInt_SIGPROC(workingPtr, "nbits", hdr->nbits);
-	//workingPtr = writeInt_SIGPROC(workingPtr, "nsamples", hdr->nsamples);
-	workingPtr = writeDouble_SIGPROC(workingPtr, "fch1", hdr->fch1, 0);
-	workingPtr = writeDouble_SIGPROC(workingPtr, "foff", hdr->foff, 1);
-	workingPtr = writeInt_SIGPROC(workingPtr, "nchans", hdr->nchans);
-	workingPtr = writeInt_SIGPROC(workingPtr, "nifs", hdr->nifs);
-	workingPtr = writeDouble_SIGPROC(workingPtr, "refdm", hdr->refdm, 0);
-	workingPtr = writeDouble_SIGPROC(workingPtr, "period", hdr->period, 0);
+	char *workingPtr = _writeKey_SIGPROC(headerBuffer, "HEADER_START");
+	workingPtr = _writeInt_SIGPROC(workingPtr, "telescope_id", hdr->telescope_id);
+	workingPtr = _writeInt_SIGPROC(workingPtr, "machine_id", hdr->machine_id);
+	workingPtr = _writeInt_SIGPROC(workingPtr, "data_type", hdr->data_type);
+	workingPtr = _writeStr_SIGPROC(workingPtr, "rawdatafile", hdr->rawdatafile);
+	workingPtr = _writeStr_SIGPROC(workingPtr, "source_name", hdr->source_name);
+	workingPtr = _writeInt_SIGPROC(workingPtr, "barycentric", hdr->barycentric);
+	workingPtr = _writeInt_SIGPROC(workingPtr, "pulsarcentric", hdr->pulsarcentric);
+	workingPtr = _writeDouble_SIGPROC(workingPtr, "az_start", hdr->az_start, 0);
+	workingPtr = _writeDouble_SIGPROC(workingPtr, "za_start", hdr->za_start, 0);
+	workingPtr = _writeDouble_SIGPROC(workingPtr, "src_raj", hdr->src_raj, 0);// Maybe exception? Though ra/dec of  -1 arcsec seems less likely than 0
+	workingPtr = _writeDouble_SIGPROC(workingPtr, "src_dej", hdr->src_decj, 0);// Maybe exception?
+	workingPtr = _writeDouble_SIGPROC(workingPtr, "tstart", hdr->tstart, 0);
+	workingPtr = _writeDouble_SIGPROC(workingPtr, "tsamp", hdr->tsamp, 0);
+	workingPtr = _writeInt_SIGPROC(workingPtr, "nbits", hdr->nbits);
+	//workingPtr = writeInt_SIGPROC(workingPtr, "nsamples", hdr->nsamples); // Unfortunately we can't predict the future yet :(
+	workingPtr = _writeDouble_SIGPROC(workingPtr, "fch1", hdr->fch1, 0);
+	workingPtr = _writeDouble_SIGPROC(workingPtr, "foff", hdr->foff, 1);
+	workingPtr = _writeInt_SIGPROC(workingPtr, "nchans", hdr->nchans);
+	workingPtr = _writeInt_SIGPROC(workingPtr, "nifs", hdr->nifs);
+	workingPtr = _writeDouble_SIGPROC(workingPtr, "refdm", hdr->refdm, 0);
+	workingPtr = _writeDouble_SIGPROC(workingPtr, "period", hdr->period, 0);
 
 	// Don't implement frequency tables for now
 	// if (hdr->fchannel != NULL) workingPtr = writeDoubleArray_SIGPROC(workingPtr, header->fchannel);
 
-	workingPtr = writeKey_SIGPROC(workingPtr, "HEADER_END");
+	workingPtr = _writeKey_SIGPROC(workingPtr, "HEADER_END");
 
 	if (workingPtr == NULL) {
 		fprintf(stderr, "ERROR: Failed to generate sigproc header exiting.\n");
@@ -125,7 +111,7 @@ int lofar_udp_metadata_write_SIGPROC(const sigproc_hdr *hdr, char *headerBuffer,
 }
 
 
-int sigprocStationID(int telescopeId) {
+int _sigprocStationID(int telescopeId) {
 	switch(telescopeId) {
 		// IE613 RSP code
 		case 214:
@@ -136,7 +122,7 @@ int sigprocStationID(int telescopeId) {
 	}
 }
 
-__attribute__((unused)) int sigprocMachineID(char *machineName) {
+__attribute__((unused)) int _sigprocMachineID(const char *machineName) {
 	if (strcmp(machineName, "REALTA_ucc1") == 0) {
 		return 1916;
 	} else {
@@ -144,7 +130,7 @@ __attribute__((unused)) int sigprocMachineID(char *machineName) {
 	}
 }
 
-double sigprocStr2Pointing(char *input) {
+double _sigprocStr2Pointing(const char *input) {
 	int dd, mm;
 	double ss;
 	if (sscanf(input, "%d:%d:%lf", &dd, &mm, &ss) != 3) {
@@ -155,29 +141,29 @@ double sigprocStr2Pointing(char *input) {
 	// Flip the sign for minutes / seconds if needed
 	int sign = (dd > 0) ? 1 : -1;
 
-	return dd * 10000.0 + sign * mm * 100.0 + sign * ss;
+	return dd * 1e4 + sign * mm * 1e2 + sign * ss;
 }
 
-char* writeKey_SIGPROC(char *buffer, const char *name) {
-	if (buffer == NULL) {
+char* _writeKey_SIGPROC(char *buffer, const char *name) {
+	if (buffer == NULL || name == NULL) {
 		return NULL;
 	}
 
-	int len = strlen(name);
+	int32_t len = strlen(name);
 
 	if (len == 0) {
 		fprintf(stderr, "ERROR: Sigproc writer input string is empty, exiting.\n");
 		return NULL;
 	}
 
-	size_t bufLen = sizeof(int);
-	VERBOSE(printf("strlen %s: %d\n", name, len));
+	size_t bufLen = sizeof(int32_t);
 	if (memcpy(buffer, &len, bufLen) != buffer) {
 		fprintf(stderr, "ERROR: Failed to write string length for string %s, exiting.\n", name);
 		return NULL;
 	}
 	buffer += bufLen;
 
+	VERBOSE(printf("strlen %s: %d\n", name, len));
 	if (memcpy(buffer, name, len) != buffer) {
 		fprintf(stderr, "ERROR: Failed to write sigproc header string %s to buffer, exiting.\n", name);
 		return NULL;
@@ -186,41 +172,37 @@ char* writeKey_SIGPROC(char *buffer, const char *name) {
 	return buffer + len;
 }
 
-char* writeStr_SIGPROC(char *buffer, const char *name, const char *value) {
-	if (buffer == NULL) {
+char* _writeStr_SIGPROC(char *buffer, const char *name, const char *value) {
+	if (buffer == NULL || name == NULL || value == NULL) {
 		return NULL;
 	}
 
-	if (isEmpty(value)) {
+
+	if (_isEmpty(value) || _isEmpty(name)) {
 		return buffer;
 	}
 
-	if ((buffer = writeKey_SIGPROC(buffer, name)) == NULL) {
+	if ((buffer = _writeKey_SIGPROC(buffer, name)) == NULL) {
 		return NULL;
 	}
 
-	if ((buffer = writeKey_SIGPROC(buffer, value)) == NULL) {
-		return NULL;
-	}
-
-	return buffer;
+	return _writeKey_SIGPROC(buffer, value);
 }
 
-// Wish I had some templates right about now...
-char* writeInt_SIGPROC(char *buffer, const char *name, int value) {
-	if (buffer == NULL) {
+char* _writeInt_SIGPROC(char *buffer, const char *name, int32_t value) {
+	if (buffer == NULL || name == NULL) {
 		return NULL;
 	}
 
-	if (intNotSet(value)) {
+	if (_intNotSet(value) || _isEmpty(name)) {
 		return buffer;
 	}
 
-	if ((buffer = writeKey_SIGPROC(buffer, name)) == NULL) {
+	if ((buffer = _writeKey_SIGPROC(buffer, name)) == NULL) {
 		return NULL;
 	}
 
-	size_t chars = sizeof(int);
+	size_t chars = sizeof(int32_t);
 	if (memcpy(buffer, &value, chars) != buffer) {
 		fprintf(stderr, "ERROR: Failed to copy sigproc header int %s: %d to buffer, exiting.\n", name, value);
 		return NULL;
@@ -229,20 +211,20 @@ char* writeInt_SIGPROC(char *buffer, const char *name, int value) {
 	return buffer + chars;
 }
 
-char* writeLong_SIGPROC(char *buffer, const char *name, long value) {
-	if (buffer == NULL) {
+char* _writeLong_SIGPROC(char *buffer, const char *name, int64_t value) {
+	if (buffer == NULL || name == NULL) {
 		return NULL;
 	}
 
-	if (longNotSet(value)) {
+	if (_longNotSet(value) || _isEmpty(name)) {
 		return buffer;
 	}
 
-	if ((buffer = writeKey_SIGPROC(buffer, name)) == NULL) {
+	if ((buffer = _writeKey_SIGPROC(buffer, name)) == NULL) {
 		return NULL;
 	}
 
-	size_t chars = sizeof(long);
+	size_t chars = sizeof(int64_t);
 	if (memcpy(buffer, &value, chars) != buffer) {
 		fprintf(stderr, "ERROR: Failed to copy sigproc header long %s: %ld to buffer, exiting.\n", name, value);
 		return NULL;
@@ -252,16 +234,16 @@ char* writeLong_SIGPROC(char *buffer, const char *name, long value) {
 }
 
 // Spec doesn't have any floats, define the function anyway
-__attribute__((unused)) char* writeFloat_SIGPROC(char *buffer, const char *name, float value, int exception) {
-	if (buffer == NULL) {
+__attribute__((unused)) char* _writeFloat_SIGPROC(char *buffer, const char *name, float value, int exception) {
+	if (buffer == NULL || name == NULL) {
 		return NULL;
 	}
 
-	if (floatNotSet(value, exception)) {
+	if (_floatNotSet(value, exception) || _isEmpty(name)) {
 		return buffer;
 	}
 
-	if ((buffer = writeKey_SIGPROC(buffer, name)) == NULL) {
+	if ((buffer = _writeKey_SIGPROC(buffer, name)) == NULL) {
 		return NULL;
 	}
 
@@ -274,16 +256,16 @@ __attribute__((unused)) char* writeFloat_SIGPROC(char *buffer, const char *name,
 	return buffer + chars;
 }
 
-char* writeDouble_SIGPROC(char *buffer, const char *name, double value, int exception) {
-	if (buffer == NULL) {
+char* _writeDouble_SIGPROC(char *buffer, const char *name, double value, int exception) {
+	if (buffer == NULL || name == NULL) {
 		return NULL;
 	}
 
-	if (doubleNotSet(value, exception)) {
+	if (_doubleNotSet(value, exception) || _isEmpty(name)) {
 		return buffer;
 	}
 
-	if ((buffer = writeKey_SIGPROC(buffer, name)) == NULL) {
+	if ((buffer = _writeKey_SIGPROC(buffer, name)) == NULL) {
 		return NULL;
 	}
 

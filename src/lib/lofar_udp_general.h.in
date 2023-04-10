@@ -21,20 +21,109 @@
 
 #endif // End of LOFAR_UDP_VERBOSE_MACRO
 
+#include <stdint.h>
+// Processing mode enums
+typedef enum {
+	UNSET_MODE = -1,
+	PACKET_FULL_COPY = 0,
+	PACKET_NOHDR_COPY = 1,
+	PACKET_SPLIT_POL = 2,
+	BEAMLET_MAJOR_FULL = 10,
+	BEAMLET_MAJOR_SPLIT_POL = 11,
+	BEAMLET_MAJOR_FULL_REV = 20,
+	BEAMLET_MAJOR_SPLIT_POL_REV = 21,
+	TIME_MAJOR_FULL = 30,
+	TIME_MAJOR_SPLIT_POL = 31,
+	TIME_MAJOR_ANT_POL = 32,
+	TIME_MAJOR_ANT_POL_FLOAT = 35,
+
+	TEST_INVALID_MODE = 66,
+
+	STOKES_I = 100,
+	STOKES_Q = 110,
+	STOKES_U = 120,
+	STOKES_V = 130,
+	STOKES_IQUV = 150,
+	STOKES_IV = 160,
+
+	STOKES_I_DS2 = 101,
+	STOKES_Q_DS2 = 111,
+	STOKES_U_DS2 = 121,
+	STOKES_V_DS2 = 131,
+	STOKES_IQUV_DS2 = 151,
+	STOKES_IV_DS2 = 161,
+
+	STOKES_I_DS4 = 102,
+	STOKES_Q_DS4 = 112,
+	STOKES_U_DS4 = 122,
+	STOKES_V_DS4 = 132,
+	STOKES_IQUV_DS4 = 152,
+	STOKES_IV_DS4 = 162,
+
+	STOKES_I_DS8 = 103,
+	STOKES_Q_DS8 = 113,
+	STOKES_U_DS8 = 123,
+	STOKES_V_DS8 = 133,
+	STOKES_IQUV_DS8 = 153,
+	STOKES_IV_DS8 = 163,
+
+	STOKES_I_DS16 = 104,
+	STOKES_Q_DS16 = 114,
+	STOKES_U_DS16 = 124,
+	STOKES_V_DS16 = 134,
+	STOKES_IQUV_DS16 = 154,
+	STOKES_IV_DS16 = 164,
+
+	STOKES_I_REV = 200,
+	STOKES_Q_REV = 210,
+	STOKES_U_REV = 220,
+	STOKES_V_REV = 230,
+	STOKES_IQUV_REV = 250,
+	STOKES_IV_REV = 260,
+
+	STOKES_I_DS2_REV = 201,
+	STOKES_Q_DS2_REV = 211,
+	STOKES_U_DS2_REV = 221,
+	STOKES_V_DS2_REV = 231,
+	STOKES_IQUV_DS2_REV = 251,
+	STOKES_IV_DS2_REV = 261,
+
+	STOKES_I_DS4_REV = 202,
+	STOKES_Q_DS4_REV = 212,
+	STOKES_U_DS4_REV = 222,
+	STOKES_V_DS4_REV = 232,
+	STOKES_IQUV_DS4_REV = 252,
+	STOKES_IV_DS4_REV = 262,
+
+	STOKES_I_DS8_REV = 203,
+	STOKES_Q_DS8_REV = 213,
+	STOKES_U_DS8_REV = 223,
+	STOKES_V_DS8_REV = 233,
+	STOKES_IQUV_DS8_REV = 253,
+	STOKES_IV_DS8_REV = 263,
+
+	STOKES_I_DS16_REV = 204,
+	STOKES_Q_DS16_REV = 214,
+	STOKES_U_DS16_REV = 224,
+	STOKES_V_DS16_REV = 234,
+	STOKES_IQUV_DS16_REV = 254,
+	STOKES_IV_DS16_REV = 264,
+} processMode_t;
 
 // Reader / writer enums
-typedef enum reader_t {
+typedef enum {
 	NO_ACTION = -1,
-	UNSET = 0,
+	UNSET_READER = 0,
 	NORMAL = 1,
 	FIFO = 2,
 	ZSTDCOMPRESSED = 4,
+	ZSTDCOMPRESSED_INDIRECT = 5,
 	HDF5 = 8,
 	DADA_ACTIVE = 16,
 } reader_t;
 
 // Output metadata formats
-typedef enum metadata_t {
+typedef enum {
 	NO_META = -1,
 	GUPPI = 1,
 	DADA = 2,
@@ -43,7 +132,7 @@ typedef enum metadata_t {
 
 } metadata_t;
 
-typedef enum calibrate_t {
+typedef enum {
 	NO_CALIBRATION = -1,
 	GENERATE_JONES = 0,
 	APPLY_CALIBRATION = 1
@@ -160,19 +249,23 @@ typedef struct __attribute__((__packed__)) lofar_source_bytes {
 #define CHECK_ALLOC(alloced, returnVal, cleanup) if (alloced == NULL) { fprintf(stderr, "ERROR %s%d: Failed to allocate " #alloced", returning.\n", __FILE__, __LINE__); return returnVal; cleanup;}
 #define CHECK_ALLOC_NOCLEAN(alloced, returnVal) CHECK_ALLOC(alloced, returnVal, ;)
 
-#define STRUCT_COPY_INIT(structtype, variable, defaultstruct, cleanup, returnVal) \
-	if (memcpy(variable, &defaultstruct, sizeof(structtype)) != variable) {              \
+#define STRUCT_COPY_INIT(structtype, variable, defaultstruct) \
+    _Static_assert(sizeof(structtype) == sizeof(defaultstruct)); \
+	*variable = defaultstruct;
+	/*
+	 * 	if (memcpy(variable, &defaultstruct, sizeof(structtype)) != variable) {              \
         fprintf(stderr, "ERROR: Failed to initialise " #variable", returning.\n");    \
         free(variable);                                                               \
 		cleanup; \
 		return returnVal; \
 	}
+	 */
 
 #define DEFAULT_STRUCT_ALLOC(structtype, variable, defaultstruct, cleanup, returnVal) \
 	_Static_assert(sizeof(structtype) == sizeof(defaultstruct));                                                                             \
 	structtype *variable = calloc(1, sizeof(structtype)); \
 	CHECK_ALLOC(variable, returnVal, cleanup);                            \
-	STRUCT_COPY_INIT(structtype, variable, defaultstruct, cleanup, returnVal)
+	STRUCT_COPY_INIT(structtype, variable, defaultstruct);
 
 
 // Free if non-null macro

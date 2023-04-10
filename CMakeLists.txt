@@ -141,7 +141,7 @@ ExternalProject_Add(internal_bitshuffle
                     GIT_REPOSITORY https://github.com/kiyo-masui/bitshuffle
                     GIT_TAG fdfcd404ac8dcb828857a90c559d36d8ac4c2968
                     PREFIX ${CMAKE_CURRENT_BINARY_DIR}/_deps/bitshuffle
-                    CONFIGURE_COMMAND cp ${PROJECT_SOURCE_DIR}/src/misc/bitshuffleMakefile ${CMAKE_CURRENT_BINARY_DIR}/_deps/bitshuffle/src/internal_bitshuffle/Makefile
+                    CONFIGURE_COMMAND cp ${CMAKE_CURRENT_SOURCE_DIR}/src/misc/bitshuffleMakefile ${CMAKE_CURRENT_BINARY_DIR}/_deps/bitshuffle/src/internal_bitshuffle/Makefile
                     BUILD_COMMAND CMAKE_BASE_DIR=${CMAKE_CURRENT_BINARY_DIR} make link -j8
                     BUILD_IN_SOURCE TRUE
                     INSTALL_COMMAND ""
@@ -221,13 +221,13 @@ message("")
 
 
 # Include compile-time parameters into the headers
-configure_file(	"${PROJECT_SOURCE_DIR}/src/lib/lofar_udp_general.h.in"
-				"${PROJECT_SOURCE_DIR}/src/lib/lofar_udp_general.h"
+configure_file(	"${CMAKE_CURRENT_SOURCE_DIR}/src/lib/lofar_udp_general.h.in"
+				"${CMAKE_CURRENT_BINARY_DIR}/src/lib/lofar_udp_general.h"
 				@ONLY
 )
 
-configure_file(	"${PROJECT_SOURCE_DIR}/src/CLI/lofar_cli_meta.h.in"
-				"${PROJECT_SOURCE_DIR}/src/CLI/lofar_cli_meta.h"
+configure_file(	"${CMAKE_CURRENT_SOURCE_DIR}/src/CLI/lofar_cli_meta.h.in"
+				"${CMAKE_CURRENT_BINARY_DIR}/src/CLI/lofar_cli_meta.h"
 				@ONLY
 )
 
@@ -247,9 +247,12 @@ add_dependencies(lofudpman libfftw3fomp libzstd_static libpsrdada libhdf5 libz l
 
 # Include all of our library headers
 target_include_directories(lofudpman PUBLIC
-		${PROJECT_SOURCE_DIR}/src/lib
-		${PROJECT_SOURCE_DIR}/src/CLI
-		${PROJECT_SOURCE_DIR}/src/metadata
+       ${CMAKE_CURRENT_SOURCE_DIR}/src/lib
+       ${CMAKE_CURRENT_BINARY_DIR}/src/lib
+       ${CMAKE_CURRENT_SOURCE_DIR}/src/CLI
+       ${CMAKE_CURRENT_BINARY_DIR}/src/CLI
+       ${CMAKE_CURRENT_SOURCE_DIR}/src/metadata
+
 )
 # Include all of our dependency headers
 target_include_directories(lofudpman PUBLIC ${fftw3f_INSTALL_DIR}/include/)
@@ -258,7 +261,7 @@ target_include_directories(lofudpman PUBLIC ${psrdada_INSTALL_DIR}/src/internal_
 target_include_directories(lofudpman PUBLIC ${zstd_SOURCE_DIR}/lib/)
 #target_include_directories(lofudpman PUBLIC ${yaml_SOURCE_DIR}/include/)
 
-file(GLOB_RECURSE UDP_INCLUDE_FILES "${PROJECT_SOURCE_DIR}/src/*/*.h" "${PROJECT_SOURCE_DIR}/src/*/*.hpp")
+file(GLOB_RECURSE UDP_INCLUDE_FILES "${CMAKE_CURRENT_SOURCE_DIR}/src/*/*.h" "${CMAKE_CURRENT_SOURCE_DIR}/src/*/*.hpp" "${CMAKE_CURRENT_BINARY_DIR}/src/*/*.h" "${CMAKE_CURRENT_BINARY_DIR}/src/*/*.hpp")
 
 target_link_libraries(lofudpman PUBLIC libfftw3fomp libfftw3f)
 target_link_libraries(lofudpman PUBLIC libhdf5 libz libh5bshuf ${CMAKE_DL_LIBS}) # Some cases need libdl for HDF5
@@ -313,7 +316,23 @@ install(TARGETS lofudpman lofar_udp_extractor lofar_stokes_extractor
 install(FILES ${UDP_INCLUDE_FILES} DESTINATION include)
 install(FILES src/misc/dreamBeamJonesGenerator.py DESTINATION bin)
 
+
+# Wildcards not supported
+find_program(CLANG_SCAN_BUILD scan-build-14)
+if(CLANG_SCAN_BUILD)
+	add_custom_target(analyze
+	                  COMMAND ${CLANG_SCAN_BUILD} -o ${CMAKE_BINARY_DIR}/clang-analyzer make
+	                  WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+	                  COMMENT "Running Clang Static Analyzer"
+	                  VERBATIM
+	                  )
+else()
+	message("Failed to find clang static analyzer.\n")
+endif()
+
 # Add the tests directory
+enable_testing()
+set(TEST_ENV_PATH ${CMAKE_CURRENT_SOURCE_DIR}/misc/)
 add_subdirectory(tests)
 
 

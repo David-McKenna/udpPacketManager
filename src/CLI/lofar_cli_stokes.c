@@ -959,7 +959,7 @@ int main(int argc, char *argv[]) {
 				               outputLength, packetsToWrite, out));
 				size_t outputWritten;
 				printf("Writing...\n");
-				if ((outputWritten = lofar_udp_io_write(outConfig, out, (char *) outputStokes[out],
+				if ((outputWritten = lofar_udp_io_write(outConfig, out, outputStokes[out],
 				                                        outputLength)) != outputLength) {
 					fprintf(stderr, "ERROR: Failed to write data to output (%ld bytes/%ld bytes writen, errno %d: %s)), breaking.\n", outputWritten, outputLength,  errno, strerror(errno));
 					returnValMeta = (returnValMeta < 0 && returnValMeta > -5) ? returnValMeta : -5;

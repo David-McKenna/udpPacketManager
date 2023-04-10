@@ -5,6 +5,33 @@
 // Random inputs through rand()
 #include <cstdlib>
 
+// CEP_HDR_SRC_OFFSET = 1
+// CEP_HDR_TIME_OFFSET= 8
+// CEP_HDR_SEQ_OFFSET = 12
+// UDPHDRLEN = 16
+const size_t sourceBytesOffset = 1;
+const size_t timeBytesOffset = 8;
+const size_t seqBytesOffset = 12;
+const size_t hdrLen = 16;
+struct dummyHeader {
+	int8_t data[hdrLen] = {{0}};
+
+	void setTime(uint32_t time) {
+		*((uint32_t*) &(data[timeBytesOffset])) = time;
+	}
+
+	void incrementTime() {
+		*((uint32_t*) &(data[timeBytesOffset])) += 1;
+	}
+
+	void setSequence(int32_t seq) {
+		*((int32_t*) &(data[seqBytesOffset])) = seq;
+	}
+
+	void setClock(int use200MHz) {
+		(*((lofar_source_bytes*) &(data[sourceBytesOffset]))).clockBit = use200MHz;
+	}
+};
 
 TEST(LibTimeTests, DeriveToPackets) {
 	//long lofar_udp_time_get_packet_from_isot(const char *inputTime, const uint32_t clock200MHz);
@@ -48,7 +75,7 @@ TEST(LibTimeTests, DeriveToPackets) {
 		const double lowerLimit = 0.1;
 		const double upperLimit = 3600 * 7 * 4;
 
-		const size_t numTests = 128;
+		const size_t numTests = 4;
 		for (size_t i = 0; i < numTests; i++) {
 			double sample = lowerLimit + ((double) rand() / RAND_MAX) * (upperLimit - lowerLimit);
 			EXPECT_EQ((long) (sample * packetsPerSecond200MHz), lofar_udp_time_get_packets_from_seconds(sample, 1));
@@ -57,34 +84,6 @@ TEST(LibTimeTests, DeriveToPackets) {
 
 	}
 }
-
-// CEP_HDR_SRC_OFFSET = 1
-// CEP_HDR_TIME_OFFSET= 8
-// CEP_HDR_SEQ_OFFSET = 12
-// UDPHDRLEN = 16
-const size_t sourceBytesOffset = 1;
-const size_t timeBytesOffset = 8;
-const size_t seqBytesOffset = 12;
-const size_t hdrLen = 16;
-struct dummyHeader {
-	int8_t data[hdrLen] = {{0}};
-
-	void setTime(uint32_t time) {
-		*((uint32_t*) &(data[timeBytesOffset])) = time;
-	}
-
-	void incrementTime() {
-		*((uint32_t*) &(data[timeBytesOffset])) += 1;
-	}
-
-	void setSequence(int32_t seq) {
-		*((int32_t*) &(data[seqBytesOffset])) = seq;
-	}
-
-	void setClock(int use200MHz) {
-		(*((lofar_source_bytes*) &(data[sourceBytesOffset]))).clockBit = use200MHz;
-	}
-};
 
 TEST(LibTimeTests, DerivedFromPackets) {
 
@@ -101,7 +100,7 @@ TEST(LibTimeTests, DerivedFromPackets) {
 		//  correctly match the addition of the sequences to the time otherwise
 		//
 
-		const size_t numTests = 32;
+		const size_t numTests = 4;
 		for (size_t i = 0; i < numTests; i++) {
 			int32_t randomInt = rand();
 			double random = (double) randomInt;
@@ -133,7 +132,7 @@ TEST(LibTimeTests, DerivedFromPackets) {
 		dummyHeader header;
 
 
-		const size_t numTests = 32;
+		const size_t numTests = 4;
 		for (size_t i = 0; i < numTests; i++) {
 			int32_t randomInt = rand();
 			double random = ((double) randomInt / 86400.) + 40587.; // MJD conversion

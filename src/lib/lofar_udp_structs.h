@@ -10,6 +10,10 @@
 #include <zstd.h>
 #include <hdf5.h>
 
+#ifdef NODADA
+#define key_t int32_t
+#endif
+
 // PSRDADA include may not be available
 #ifndef DADA_INCLUDES
 #define DADA_INCLUDES
@@ -47,7 +51,7 @@ typedef struct lofar_udp_io_read_config {
 
 	// Inputs post-formatting
 	char inputLocations[MAX_NUM_PORTS][DEF_STR_LEN + 1];
-	int32_t dadaKeys[MAX_NUM_PORTS];
+	key_t inputDadaKeys[MAX_NUM_PORTS];
 	int32_t basePort;
 	int32_t offsetPortCount;
 	int32_t stepSizePort;
@@ -60,6 +64,7 @@ typedef struct lofar_udp_io_read_config {
 	// ZSTD requirements
 	ZSTD_inBuffer readingTracker[MAX_NUM_PORTS];
 	ZSTD_outBuffer decompressionTracker[MAX_NUM_PORTS];
+	int64_t zstdLastRead[MAX_NUM_PORTS];
 
 	// PSRDADA requirements
 	multilog_t *multilog[MAX_NUM_PORTS];
@@ -115,7 +120,7 @@ typedef struct lofar_udp_obs_meta {
 
 	// Configuration: replay last packet or copy a 0 packed file, set the processing mode and it's related processing function
 	int32_t replayDroppedPackets;
-	int32_t processingMode;
+	processMode_t processingMode;
 
 	// Overall runtime information
 	int64_t packetsPerIteration;
@@ -181,7 +186,7 @@ typedef struct lofar_udp_config {
 	char inputLocations[MAX_NUM_PORTS][DEF_STR_LEN + 1];
 
 	// Input PSRDADA ringbuffer keys
-	int32_t dadaKeys[MAX_NUM_PORTS];
+	key_t inputDadaKeys[MAX_NUM_PORTS];
 
 	struct metadata_config metadata_config;
 
@@ -192,7 +197,7 @@ typedef struct lofar_udp_config {
 	// stepSizePort - the number to add to basePort for each port (any non-zero number)
 	// numPorts - the number of ports to process, [1, 4 - offsetPortCount]
 	// basePort must ALWAYS be the absolute base value if you want to parse metadata, i.e.
-	//  if you want to parse ust ports 2 and 3, set the baseVal to 0, offsetPortCount to 2
+	//  if you want to parse just ports 2 and 3, set the baseVal to 0, offsetPortCount to 2
 	//  and numPorts to 2. Otherwise we can't parse the beamctl command correctly.
 	//
 	// These can all be set by using the io_read_parse_optarg function
@@ -205,13 +210,13 @@ typedef struct lofar_udp_config {
 	int32_t processingMode;
 
 	// Number of packets to process per iteration
-	long packetsPerIteration;
+	int64_t packetsPerIteration;
 
 	// Packet number of the starting packet
-	long startingPacket;
+	int64_t startingPacket;
 
 	// Packet number / offset from base of the last packet to process
-	long packetsReadMax;
+	int64_t packetsReadMax;
 
 	// Configure whether to path with 0's (0) or replay last packet (1) when we
 	// encounter a dropped/missed packet
@@ -245,17 +250,17 @@ typedef struct lofar_udp_io_write_config {
 	reader_t readerType;
 	lofar_udp_metadata *metadata;
 	lofar_udp_obs_meta const *fallbackMetadata;
-	long writeBufSize[MAX_OUTPUT_DIMS];
+	int64_t writeBufSize[MAX_OUTPUT_DIMS];
 	int32_t progressWithExisting;
 	int32_t numOutputs;
 
 	// Outputs pre- and post-formatting
 	char outputFormat[DEF_STR_LEN + 1];
 	char outputLocations[MAX_OUTPUT_DIMS][DEF_STR_LEN + 1];
-	int32_t outputDadaKeys[MAX_OUTPUT_DIMS];
+	key_t outputDadaKeys[MAX_OUTPUT_DIMS];
 	int32_t baseVal;
 	int32_t stepSize;
-	long firstPacket;
+	int64_t firstPacket;
 
 	// Main writer objects
 	FILE *outputFiles[MAX_OUTPUT_DIMS];
@@ -264,8 +269,7 @@ typedef struct lofar_udp_io_write_config {
 		ZSTD_outBuffer compressionBuffer;
 	} zstdWriter[MAX_OUTPUT_DIMS];
 	struct {
-		ipcio_t *ringbuffer;
-		ipcio_t *header;
+		dada_hdu_t *hdu;
 		multilog_t *multilog;
 	} dadaWriter[MAX_OUTPUT_DIMS];
 	
@@ -321,6 +325,7 @@ lofar_udp_config *lofar_udp_config_alloc();
 void lofar_udp_config_cleanup(lofar_udp_config *config);
 
 // Internal
+metadata_config* lofar_udp_metadata_config_alloc();
 lofar_udp_calibration *lofar_udp_calibration_alloc();
 lofar_udp_obs_meta *lofar_udp_obs_meta_alloc();
 lofar_udp_reader *lofar_udp_reader_alloc(lofar_udp_obs_meta *meta); // Reminder that reader is always built AFTER meta parsing

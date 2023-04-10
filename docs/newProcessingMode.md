@@ -200,7 +200,7 @@ else if (trueState == KERNEL_ENUM_VAL) {
 
 ```
 
-5. Go to `lofar_udp_reader.c` and find the `int lofar_udp_setup_processing(lofar_udp_obs_meta *meta)` function. You will
+5. Go to `lofar_udp_reader.c` and find the `int _lofar_udp_setup_processing(lofar_udp_obs_meta *meta)` function. You will
    need to add your mode to two switch statements here. One is a simple fall-through to check that the mode is defned.
    For the second, you'll need to determine the input / output data sizes and add your processing mode to the second
    switch statement. If adding a completely new calculation, be sure to add a `break;` statement afterwards, as the

@@ -1,97 +1,11 @@
+int _lofar_udp_metadata_setup_GUPPI(lofar_udp_metadata *metadata) {
 
-/**
- * @brief      Writes a string value to the buffer, padded to 80 chars long
- *
- * @param      fileRef  The file reference
- * @param      key      The key
- * @param      val      The value
- */
-int writeStr_GUPPI(char *headerBuffer, const char *key, const char *val) {
-	char tmpStr[81];
-	// 80 base length - 10 for key / separator - 2 for wrapping ' - length of string
-	int parseChars = sprintf(tmpStr, "%-8s= '%s'%-*.s", key, val, 80 - 10 - 2 - (int) strlen(val), " ");
-	VERBOSE(printf("GUPPI %s: %s\t %s\n", key, val, tmpStr));
-	return (strcat(headerBuffer, tmpStr) != headerBuffer) + (parseChars != 80);
-}
-
-/**
- * @brief      Writes an integer value to the buffer, padded to 80 chars long
- *
- * @param      fileRef  The file reference
- * @param      key      The key
- * @param[in]  val      The value
- */
-int writeInt_GUPPI(char *headerBuffer, char *key, int val) {
-	char tmpStr[81];
-	char intStr[META_STR_LEN + 2];
-	sprintf(intStr, "%d", val);
-	int parseChars = sprintf(tmpStr, "%-8s= %-70s", key, intStr);
-	VERBOSE(printf("GUPPI %s: %d, %s\t%s\n", key, val, intStr, tmpStr));
-	return (strcat(headerBuffer, tmpStr) != headerBuffer) + (parseChars != 80);
-}
-
-/**
- * @brief      Writes a long value to the buffer, padded to 80 chars long
- *
- * @param      fileRef  The file reference
- * @param      key      The key
- * @param[in]  val      The value
- */
-int writeLong_GUPPI(char *headerBuffer, char *key, long val) {
-	char tmpStr[81];
-	char longStr[META_STR_LEN + 2];
-	sprintf(longStr, "%ld", val);
-	int parseChars = sprintf(tmpStr, "%-8s= %-70s", key, longStr);
-	VERBOSE(printf("GUPPI %s: %ld, %s\t%s\n", key, val, longStr, tmpStr));
-	return (strcat(headerBuffer, tmpStr) != headerBuffer) + (parseChars != 80);
-}
-
-/**
- * @brief      Writes a float value to the buffer, padded to 80 chars long
- *
- * @param      fileRef  The file reference
- * @param      key      The key
- * @param[in]  val      The value
- */
-__attribute__((unused)) int writeFloat_GUPPI(char *headerBuffer, char *key, float val) {
-	char tmpStr[81];
-	char floatStr[META_STR_LEN + 2];
-	sprintf(floatStr, "%.12f", val);
-	int parseChars = sprintf(tmpStr, "%-8s= %-70s", key, floatStr);
-	VERBOSE(printf("GUPPI %s: %f, %s\t%s\n", key, val, floatStr, tmpStr));
-	return (strcat(headerBuffer, tmpStr) != headerBuffer) + (parseChars != 80);
-}
-
-/**
- * @brief      Writes a double value to the buffer, padded to 80 chars long
- *
- * @param      fileRef  The file reference
- * @param      key      The key
- * @param[in]  val      The value
- */
-int writeDouble_GUPPI(char *headerBuffer, char *key, double val) {
-	char tmpStr[81];
-	char doubleStr[META_STR_LEN + 2];
-	sprintf(doubleStr, "%.17f", val);
-	int parseChars = sprintf(tmpStr, "%-8s= %-70s", key, doubleStr);
-	VERBOSE(printf("GUPPI %s: %lf, %s\t%s\n", key, val, doubleStr, tmpStr));
-	return (strcat(headerBuffer, tmpStr) != headerBuffer) + (parseChars != 80);
-}
-
-int lofar_udp_metadata_setup_GUPPI(lofar_udp_metadata *metadata) {
-
-	if (metadata->output.guppi == NULL) {
-		if ((metadata->output.guppi = calloc(1, sizeof(guppi_hdr))) == NULL) {
-			fprintf(stderr, "ERROR: Failed to allocate memory for guppi_hdr struct, exiting.\n");
-			return -1;
-		}
-	}
-	*(metadata->output.guppi) = guppi_hdr_default;
+	metadata->output.guppi = guppi_hdr_alloc();
+	CHECK_ALLOC_NOCLEAN(metadata->output.guppi, -1);
 
 	int returnVal = 0;
 
 	// Make these pointers to each other?
-	// META_STR_LEN > META_STR_LEN
 	returnVal += (metadata->output.guppi->src_name != strncpy(metadata->output.guppi->src_name, metadata->source, META_STR_LEN));
 	returnVal += (metadata->output.guppi->ra_str != strncpy(metadata->output.guppi->ra_str, metadata->ra, META_STR_LEN));
 	returnVal += (metadata->output.guppi->dec_str != strncpy(metadata->output.guppi->dec_str, metadata->dec, META_STR_LEN));
@@ -111,20 +25,21 @@ int lofar_udp_metadata_setup_GUPPI(lofar_udp_metadata *metadata) {
 	returnVal += (metadata->output.guppi->daqpulse != strncpy(metadata->output.guppi->daqpulse, "", META_STR_LEN));
 
 	if (returnVal > 0) {
-		fprintf(stderr, "ERROR: Failed to copy data to guppi_hdr, exiting.\n");
+		fprintf(stderr, "ERROR: Failed to copy str data to guppi_hdr, exiting.\n");
 		return -1;
 	}
 
 	// Copy over normal values
 	metadata->output.guppi->obsfreq = metadata->freq;
 	metadata->output.guppi->obsbw = metadata->bw;
-	metadata->output.guppi->chan_bw = metadata->subband_bw;
+	metadata->output.guppi->chan_bw = metadata->channel_bw;
 	metadata->output.guppi->obsnchan = metadata->nchan;
 	metadata->output.guppi->npol = metadata->npol;
 	metadata->output.guppi->nbits = metadata->nbit > 0 ? metadata->nbit : -1 * metadata->nbit;
 	metadata->output.guppi->tbin = metadata->tsamp;
 	metadata->output.guppi->dataport = metadata->baseport;
 	metadata->output.guppi->stt_imjd = (int) metadata->obs_mjd_start;
+	// TODO: Leap seconds
 	metadata->output.guppi->stt_smjd = (int) ((metadata->obs_mjd_start - (int) metadata->obs_mjd_start) * 86400);
 	metadata->output.guppi->stt_offs = ((metadata->obs_mjd_start - (int) metadata->obs_mjd_start) * 86400) - metadata->output.guppi->stt_smjd;
 
@@ -133,17 +48,22 @@ int lofar_udp_metadata_setup_GUPPI(lofar_udp_metadata *metadata) {
 	return 0;
 }
 
-int lofar_udp_metadata_update_GUPPI(lofar_udp_metadata *metadata, int newObs) {
+int _lofar_udp_metadata_update_GUPPI(lofar_udp_metadata *metadata, int newObs) {
 
 	if (metadata == NULL || metadata->output.guppi == NULL) {
 		fprintf(stderr, "ERROR %s: Input metadata struct is null, exiting.\n", __func__);
 		return -1;
 	}
 
+	if (metadata->upm_pack_per_iter == 0 || metadata->upm_num_inputs == 0 || metadata->upm_processed_packets == 0) {
+		fprintf(stderr, "ERROR %s: Input data is badly initialised and would cause division by 0 (pack_per_iter: %ld, num_inputs: %d, processed_packets: %ld), exiting.\n", __func__, metadata->upm_pack_per_iter, metadata->upm_num_inputs, metadata->upm_processed_packets);
+		return -1;
+	}
+
 	metadata->output.guppi->blocsize = metadata->upm_blocksize;
 
 	// Should this be processing time, rather than the recording time?
-	if (strcpy(metadata->output.guppi->daqpulse, metadata->upm_daq) != metadata->output.guppi->daqpulse) {
+	if (strncpy(metadata->output.guppi->daqpulse, metadata->upm_daq, META_STR_LEN) != metadata->output.guppi->daqpulse) {
 		fprintf(stderr, "ERROR: Failed to copy DAQ string to GUPPI header, exiting.\n");
 		return -1;
 	}
@@ -169,10 +89,10 @@ int lofar_udp_metadata_update_GUPPI(lofar_udp_metadata *metadata, int newObs) {
  * @param      fileRef  The file reference
  * @param      header   The ASCII header struct
  */
-int lofar_udp_metadata_write_GUPPI(const guppi_hdr *hdr, char *headerBuffer, size_t headerLength) {
+int _lofar_udp_metadata_write_GUPPI(const guppi_hdr *hdr, char * const headerBuffer, size_t headerLength) {
 	// 35 * 80 + (1x \0) byte entries -> need headerLength to be larger than this or we'll have a bad time.
 	if (headerLength <= (ASCII_HDR_MEMBS * 80 + 1)) {
-		fprintf(stderr, "ERROR: Passed header buffer is too small (%ld vs minimum of %d), exiting.", headerLength, (ASCII_HDR_MEMBS * 80 + 1));
+		fprintf(stderr, "ERROR: Passed header buffer is too small (%ld vs minimum of %d), exiting.\n", headerLength, (ASCII_HDR_MEMBS * 80 + 1));
 		return -1;
 	}
 
@@ -182,58 +102,60 @@ int lofar_udp_metadata_write_GUPPI(const guppi_hdr *hdr, char *headerBuffer, siz
 	}
 
 	int returnVal = 0;
+	char *workingBuffer = headerBuffer;
+	workingBuffer = _writeStr_GUPPI(workingBuffer, "SRC_NAME", hdr->src_name);
+	workingBuffer = _writeStr_GUPPI(workingBuffer, "RA_STR", hdr->ra_str);
+	workingBuffer = _writeStr_GUPPI(workingBuffer, "DEC_STR", hdr->dec_str);
 
-	returnVal += writeStr_GUPPI(headerBuffer, "SRC_NAME", hdr->src_name);
-	returnVal += writeStr_GUPPI(headerBuffer, "RA_STR", hdr->ra_str);
-	returnVal += writeStr_GUPPI(headerBuffer, "DEC_STR", hdr->dec_str);
+	workingBuffer = _writeDouble_GUPPI(workingBuffer, "OBSFREQ", hdr->obsfreq);
+	workingBuffer = _writeDouble_GUPPI(workingBuffer, "OBSBW", hdr->obsbw);
+	workingBuffer = _writeDouble_GUPPI(workingBuffer, "CHAN_BW", hdr->chan_bw);
+	workingBuffer = _writeInt_GUPPI(workingBuffer, "OBSNCHAN", hdr->obsnchan);
+	workingBuffer = _writeInt_GUPPI(workingBuffer, "NPOL", hdr->npol);
+	workingBuffer = _writeInt_GUPPI(workingBuffer, "NBITS", hdr->nbits);
+	workingBuffer = _writeDouble_GUPPI(workingBuffer, "TBIN", hdr->tbin);
 
-	returnVal += writeDouble_GUPPI(headerBuffer, "OBSFREQ", hdr->obsfreq);
-	returnVal += writeDouble_GUPPI(headerBuffer, "OBSBW", hdr->obsbw);
-	returnVal += writeDouble_GUPPI(headerBuffer, "CHAN_BW", hdr->chan_bw);
-	returnVal += writeInt_GUPPI(headerBuffer, "OBSNCHAN", hdr->obsnchan);
-	returnVal += writeInt_GUPPI(headerBuffer, "NPOL", hdr->npol);
-	returnVal += writeInt_GUPPI(headerBuffer, "NBITS", hdr->nbits);
-	returnVal += writeDouble_GUPPI(headerBuffer, "TBIN", hdr->tbin);
+	workingBuffer = _writeStr_GUPPI(workingBuffer, "FD_POLN", hdr->fd_poln);
+	workingBuffer = _writeStr_GUPPI(workingBuffer, "TRK_MODE", hdr->trk_mode);
+	workingBuffer = _writeStr_GUPPI(workingBuffer, "OBS_MODE", hdr->obs_mode);
+	workingBuffer = _writeStr_GUPPI(workingBuffer, "CAL_MODE", hdr->cal_mode);
+	workingBuffer = _writeDouble_GUPPI(workingBuffer, "SCANLEN", hdr->scanlen);
 
-	returnVal += writeStr_GUPPI(headerBuffer, "FD_POLN", hdr->fd_poln);
-	returnVal += writeStr_GUPPI(headerBuffer, "TRK_MODE", hdr->trk_mode);
-	returnVal += writeStr_GUPPI(headerBuffer, "OBS_MODE", hdr->obs_mode);
-	returnVal += writeStr_GUPPI(headerBuffer, "CAL_MODE", hdr->cal_mode);
-	returnVal += writeDouble_GUPPI(headerBuffer, "SCANLEN", hdr->scanlen);
+	workingBuffer = _writeStr_GUPPI(workingBuffer, "PROJID", hdr->projid);
+	workingBuffer = _writeStr_GUPPI(workingBuffer, "OBSERVER", hdr->observer);
+	workingBuffer = _writeStr_GUPPI(workingBuffer, "TELESCOP", hdr->telescop);
+	workingBuffer = _writeStr_GUPPI(workingBuffer, "FRONTEND", hdr->frontend);
+	workingBuffer = _writeStr_GUPPI(workingBuffer, "BACKEND", hdr->backend);
+	workingBuffer = _writeStr_GUPPI(workingBuffer, "DATAHOST", hdr->datahost);
+	workingBuffer = _writeInt_GUPPI(workingBuffer, "DATAPORT", hdr->dataport);
+	workingBuffer = _writeInt_GUPPI(workingBuffer, "OVERLAP", hdr->overlap);
 
-	returnVal += writeStr_GUPPI(headerBuffer, "PROJID", hdr->projid);
-	returnVal += writeStr_GUPPI(headerBuffer, "OBSERVER", hdr->observer);
-	returnVal += writeStr_GUPPI(headerBuffer, "TELESCOP", hdr->telescop);
-	returnVal += writeStr_GUPPI(headerBuffer, "FRONTEND", hdr->frontend);
-	returnVal += writeStr_GUPPI(headerBuffer, "BACKEND", hdr->backend);
-	returnVal += writeStr_GUPPI(headerBuffer, "DATAHOST", hdr->datahost);
-	returnVal += writeInt_GUPPI(headerBuffer, "DATAPORT", hdr->dataport);
-	returnVal += writeInt_GUPPI(headerBuffer, "OVERLAP", hdr->overlap);
+	workingBuffer = _writeLong_GUPPI(workingBuffer, "BLOCSIZE", hdr->blocsize);
+	workingBuffer = _writeStr_GUPPI(workingBuffer, "DAQPULSE", hdr->daqpulse);
 
-	returnVal += writeLong_GUPPI(headerBuffer, "BLOCSIZE", hdr->blocsize);
-	returnVal += writeStr_GUPPI(headerBuffer, "DAQPULSE", hdr->daqpulse);
+	workingBuffer = _writeInt_GUPPI(workingBuffer, "STT_IMJD", hdr->stt_imjd);
+	workingBuffer = _writeInt_GUPPI(workingBuffer, "STT_SMJD", hdr->stt_smjd);
+	workingBuffer = _writeDouble_GUPPI(workingBuffer, "STT_OFFS", hdr->stt_offs);
 
-	returnVal += writeInt_GUPPI(headerBuffer, "STT_IMJD", hdr->stt_imjd);
-	returnVal += writeInt_GUPPI(headerBuffer, "STT_SMJD", hdr->stt_smjd);
-	returnVal += writeDouble_GUPPI(headerBuffer, "STT_OFFS", hdr->stt_offs);
+	workingBuffer = _writeLong_GUPPI(workingBuffer, "PKTIDX", hdr->pktidx);
+	workingBuffer = _writeStr_GUPPI(workingBuffer, "PKTFMT", hdr->pktfmt);
+	workingBuffer = _writeInt_GUPPI(workingBuffer, "PKTSIZE", hdr->pktsize);
 
-	returnVal += writeLong_GUPPI(headerBuffer, "PKTIDX", hdr->pktidx);
-	returnVal += writeStr_GUPPI(headerBuffer, "PKTFMT", hdr->pktfmt);
-	returnVal += writeInt_GUPPI(headerBuffer, "PKTSIZE", hdr->pktsize);
+	workingBuffer = _writeDouble_GUPPI(workingBuffer, "DROPBLK", hdr->dropblk);
+	workingBuffer = _writeDouble_GUPPI(workingBuffer, "DROPTOT", hdr->droptot);
 
-	returnVal += writeDouble_GUPPI(headerBuffer, "DROPBLK", hdr->dropblk);
-	returnVal += writeDouble_GUPPI(headerBuffer, "DROPTOT", hdr->droptot);
-
+	if (workingBuffer == NULL) {
+		fprintf(stderr, "ERROR: Failed to build GUPPI header, exiting.\n");
+		return -1;
+	}
 
 
 	// All headers are terminated with "END" followed by 77 spaces.
 	const char end[4] = "END";
-	char tmpStr[81];
-	int parseChars = sprintf(tmpStr, "%-80s", end);
-	returnVal += (strcat(headerBuffer, tmpStr) != headerBuffer) + (parseChars != 80);
+	int parsedChars = snprintf(workingBuffer, headerLength - (workingBuffer - headerBuffer), "%-80s", end);
 
-	if (returnVal > 0) {
-		fprintf(stderr, "ERROR: %d errors occurred while preparing the header, exiting.\n", returnVal);
+	if (parsedChars != 80) {
+		fprintf(stderr, "ERROR: Failed to append end to GUPPI header (parsed %d chars), exiting.\n", parsedChars);
 		return -1;
 	}
 
@@ -242,8 +164,150 @@ int lofar_udp_metadata_write_GUPPI(const guppi_hdr *hdr, char *headerBuffer, siz
 
 
 
+/**
+ * @brief      Writes a string value to the buffer, padded to 80 chars long
+ *
+ * @param      fileRef  The file reference
+ * @param      key      The key
+ * @param      val      The value
+ */
+const int32_t outputLength = 81;
+char* _writeStr_GUPPI(char *headerBuffer, const char *key, const char *val) {
+	if (headerBuffer == NULL) {
+		return NULL;
+	}
+
+	// 80 base length - 10 for key / separator - 2 for wrapping ' - length of string
+	int32_t parseChars = snprintf(headerBuffer, outputLength, "%-8s= '%s'%-*.s", key, val, 80 - 10 - 2 - (int) strnlen(val, META_STR_LEN), " ");
+	VERBOSE(printf("GUPPI %s: %s\t %s\n", key, val, headerBuffer));
+
+	if (parseChars != (outputLength - 1)) {
+		fprintf(stderr, "ERROR: Failed to build GUPPI header for key/value pair %s:%s (%d), exiting.\n", key, val, parseChars);
+		return NULL;
+	}
+
+	return headerBuffer + parseChars;
+}
+
+/**
+ * @brief      Writes an integer value to the buffer, padded to 80 chars long
+ *
+ * @param      fileRef  The file reference
+ * @param      key      The key
+ * @param[in]  val      The value
+ */
+char* _writeInt_GUPPI(char *headerBuffer, const char *key, int32_t val) {
+	if (headerBuffer == NULL) {
+		return NULL;
+	}
+
+	char intStr[META_STR_LEN + 2];
+	if (snprintf(intStr, META_STR_LEN, "%d", val) < 0) {
+		fprintf(stderr, "ERROR: Failed to stringify int %d for GUPPI header key %s, returning.\n", val, key);
+		return NULL;
+	}
+	int32_t parseChars = snprintf(headerBuffer, outputLength, "%-8s= %-70s", key, intStr);
+	VERBOSE(printf("GUPPI %s: %d, %s\t%s\n", key, val, intStr, headerBuffer));
+
+	if (parseChars != (outputLength - 1)) {
+		fprintf(stderr, "ERROR: Failed to build GUPPI header for key/value pair %s:%d (%d), exiting.\n", key, val, parseChars);
+		return NULL;
+	}
+
+	return headerBuffer + parseChars;
+}
+
+/**
+ * @brief      Writes a long value to the buffer, padded to 80 chars long
+ *
+ * @param      fileRef  The file reference
+ * @param      key      The key
+ * @param[in]  val      The value
+ */
+char* _writeLong_GUPPI(char *headerBuffer, const char *key, int64_t val) {
+	if (headerBuffer == NULL) {
+		return NULL;
+	}
+
+	char longStr[META_STR_LEN + 2];
+	if (snprintf(longStr, META_STR_LEN, "%ld", val) < 0) {
+		fprintf(stderr, "ERROR: Failed to stringify long %ld for GUPPI header key %s, returning.\n", val, key);
+		return NULL;
+	}
+
+	int32_t parseChars = snprintf(headerBuffer, outputLength, "%-8s= %-70s", key, longStr);
+	VERBOSE(printf("GUPPI %s: %ld, %s\t%s\n", key, val, longStr, headerBuffer));
+
+	if (parseChars != (outputLength - 1)) {
+		fprintf(stderr, "ERROR: Failed to build GUPPI header for key/value pair %s:%ld (%d), exiting.\n", key, val, parseChars);
+		return NULL;
+	}
+
+	return headerBuffer + parseChars;
+}
+
+/**
+ * @brief      Writes a float value to the buffer, padded to 80 chars long
+ *
+ * @param      fileRef  The file reference
+ * @param      key      The key
+ * @param[in]  val      The value
+ */
+__attribute__((unused)) char* _writeFloat_GUPPI(char *headerBuffer, const char *key, float val) {
+	if (headerBuffer == NULL) {
+		return NULL;
+	}
+
+	char floatStr[META_STR_LEN + 2];
+	if (snprintf(floatStr, META_STR_LEN, "%.12f", val) < 0) {
+		fprintf(stderr, "ERROR: Failed to stringify float %f for GUPPI header key %s, returning.\n", val, key);
+		return NULL;
+	}
+
+	int32_t parseChars = snprintf(headerBuffer, outputLength, "%-8s= %-70s", key, floatStr);
+	VERBOSE(printf("GUPPI %s: %f, %s\t%s\n", key, val, floatStr, headerBuffer));
+
+	if (parseChars != (outputLength - 1)) {
+		fprintf(stderr, "ERROR: Failed to build GUPPI header for key/value pair %s:%f (%d), exiting.\n", key, val, parseChars);
+		return NULL;
+	}
+
+	return headerBuffer + parseChars;
+}
 
 
+/**
+ * @brief      Writes a double value to the buffer, padded to 80 chars long
+ *
+ * @param      fileRef  The file reference
+ * @param      key      The key
+ * @param[in]  val      The value
+ */
+char* _writeDouble_GUPPI(char *headerBuffer, const char *key, double val) {
+	if (headerBuffer == NULL) {
+		return NULL;
+	}
+
+	char doubleStr[META_STR_LEN + 2];
+	if (snprintf(doubleStr, META_STR_LEN, "%.17f", val) < 0) {
+		fprintf(stderr, "ERROR: Failed to stringify double %lf for GUPPI header key %s, returning.\n", val, key);
+		return NULL;
+	}
+
+	int32_t parseChars = snprintf(headerBuffer, outputLength, "%-8s= %-70s", key, doubleStr);
+	VERBOSE(printf("GUPPI %s: %lf, %s\t%s\n", key, val, doubleStr, headerBuffer));
+
+	if (parseChars != (outputLength - 1)) {
+		fprintf(stderr, "ERROR: Failed to build GUPPI header for key/value pair %s:%lf (%d), exiting.\n", key, val, parseChars);
+		return NULL;
+	}
+
+	return headerBuffer + parseChars;
+}
+
+
+
+/*
 // Old GUPPI parser / formatter using getopt_long file as an input
 
 // Setup the getopt_long keys + short keys
@@ -286,7 +350,7 @@ static struct option long_options[] = {
 	{ 0, 0, NULL, 0 }
 };
 
-/**
+\/**
  * @brief      Parse a header file and populate an ASCII header struct with the
  *             new values
  *
@@ -294,7 +358,7 @@ static struct option long_options[] = {
  * @param      header     The ASCII header struct
  *
  * @return     Success (0), Failure (>0), Unknown Flag Parsed (-1)
- */
+ *\/
   __attribute__((unused)) int lofar_udp_metdata_GUPPI_configure_from_file(const char *inputFile, guppi_hdr *header) {
 	int returnVal = 0;
 
@@ -479,4 +543,4 @@ static struct option long_options[] = {
 	// Return 0 / -1 depending on the parsed flags
 	return returnVal;
 }
-
+*/
