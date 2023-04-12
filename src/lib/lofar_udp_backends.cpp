@@ -20,7 +20,7 @@ int32_t lofar_udp_cpp_loop_interface(lofar_udp_obs_meta *meta) {
 		meta->calibrationStep += 1;
 	}
 
-	const int32_t inputBitMode = meta->inputBitMode;
+	const int8_t inputBitMode = meta->inputBitMode;
 	const processMode_t processingMode = meta->processingMode;
 	// Interfaces to calibrateData cases
 
@@ -95,7 +95,7 @@ int32_t lofar_udp_cpp_loop_interface(lofar_udp_obs_meta *meta) {
 							return lofar_udp_raw_loop<int8_t, float, 4000 + STOKES_I_DS16, 1>(meta);
 
 
-							// Deciates Stokes Q
+							// Decimated Stokes Q
 						case STOKES_Q_DS2:
 							return lofar_udp_raw_loop<int8_t, float, 4000 + STOKES_Q_DS2, 1>(meta);
 						case STOKES_Q_DS4:
@@ -176,7 +176,7 @@ int32_t lofar_udp_cpp_loop_interface(lofar_udp_obs_meta *meta) {
 							return lofar_udp_raw_loop<int8_t, float, 4000 + 204, 1>(meta);
 
 
-							// Deciates Stokes Q
+							// Decimated Stokes Q
 						case 211:
 							return lofar_udp_raw_loop<int8_t, float, 4000 + 211, 1>(meta);
 						case 212:
@@ -298,7 +298,7 @@ int32_t lofar_udp_cpp_loop_interface(lofar_udp_obs_meta *meta) {
 							return lofar_udp_raw_loop<int8_t, float, STOKES_I_DS16, 1>(meta);
 
 
-							// Deciates Stokes Q
+							// Decimated Stokes Q
 						case STOKES_Q_DS2:
 							return lofar_udp_raw_loop<int8_t, float, STOKES_Q_DS2, 1>(meta);
 						case STOKES_Q_DS4:
@@ -381,7 +381,7 @@ int32_t lofar_udp_cpp_loop_interface(lofar_udp_obs_meta *meta) {
 							return lofar_udp_raw_loop<int8_t, float, 204, 1>(meta);
 
 
-							// Deciates Stokes Q
+							// Decimated Stokes Q
 						case 211:
 							return lofar_udp_raw_loop<int8_t, float, 211, 1>(meta);
 						case 212:
@@ -504,7 +504,7 @@ int32_t lofar_udp_cpp_loop_interface(lofar_udp_obs_meta *meta) {
 							return lofar_udp_raw_loop<int16_t, float, STOKES_I_DS16, 1>(meta);
 
 
-							// Deciates Stokes Q
+							// Decimated Stokes Q
 						case STOKES_Q_DS2:
 							return lofar_udp_raw_loop<int16_t, float, STOKES_Q_DS2, 1>(meta);
 						case STOKES_Q_DS4:
@@ -586,7 +586,7 @@ int32_t lofar_udp_cpp_loop_interface(lofar_udp_obs_meta *meta) {
 							return lofar_udp_raw_loop<int16_t, float, 204, 1>(meta);
 
 
-							// Deciates Stokes Q
+							// Decimated Stokes Q
 						case 211:
 							return lofar_udp_raw_loop<int16_t, float, 211, 1>(meta);
 						case 212:
@@ -724,7 +724,7 @@ int32_t lofar_udp_cpp_loop_interface(lofar_udp_obs_meta *meta) {
 							return lofar_udp_raw_loop<int8_t, float, 4000 + STOKES_I_DS16, 0>(meta);
 
 
-							// Deciates Stokes Q
+							// Decimated Stokes Q
 						case STOKES_Q_DS2:
 							return lofar_udp_raw_loop<int8_t, float, 4000 + STOKES_Q_DS2, 0>(meta);
 						case STOKES_Q_DS4:
@@ -805,7 +805,7 @@ int32_t lofar_udp_cpp_loop_interface(lofar_udp_obs_meta *meta) {
 								return lofar_udp_raw_loop<int8_t, float, 4000 + 204, 0>(meta);
 
 
-								// Deciates Stokes Q
+								// Decimated Stokes Q
 							case 211:
 								return lofar_udp_raw_loop<int8_t, float, 4000 + 211, 0>(meta);
 							case 212:
@@ -930,7 +930,7 @@ int32_t lofar_udp_cpp_loop_interface(lofar_udp_obs_meta *meta) {
 							return lofar_udp_raw_loop<int8_t, float, STOKES_I_DS16, 0>(meta);
 
 
-							// Deciates Stokes Q
+							// Decimated Stokes Q
 						case STOKES_Q_DS2:
 							return lofar_udp_raw_loop<int8_t, float, STOKES_Q_DS2, 0>(meta);
 						case STOKES_Q_DS4:
@@ -1012,7 +1012,7 @@ int32_t lofar_udp_cpp_loop_interface(lofar_udp_obs_meta *meta) {
 								return lofar_udp_raw_loop<int8_t, float, 204, 0>(meta);
 
 
-								// Deciates Stokes Q
+								// Decimated Stokes Q
 							case 211:
 								return lofar_udp_raw_loop<int8_t, float, 211, 0>(meta);
 							case 212:
@@ -1138,7 +1138,7 @@ int32_t lofar_udp_cpp_loop_interface(lofar_udp_obs_meta *meta) {
 							return lofar_udp_raw_loop<int16_t, float, STOKES_I_DS16, 0>(meta);
 
 
-							// Deciates Stokes Q
+							// Decimated Stokes Q
 						case STOKES_Q_DS2:
 							return lofar_udp_raw_loop<int16_t, float, STOKES_Q_DS2, 0>(meta);
 						case STOKES_Q_DS4:
@@ -1220,7 +1220,7 @@ int32_t lofar_udp_cpp_loop_interface(lofar_udp_obs_meta *meta) {
 								return lofar_udp_raw_loop<int16_t, float, 204, 0>(meta);
 
 
-								// Deciates Stokes Q
+								// Decimated Stokes Q
 							case 211:
 								return lofar_udp_raw_loop<int16_t, float, 211, 0>(meta);
 							case 212:

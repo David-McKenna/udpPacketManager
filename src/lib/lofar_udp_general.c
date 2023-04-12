@@ -27,13 +27,12 @@ int lofar_udp_prepare_signal_handler() {
 
 	int numSignals = sizeof(handledSignals) / sizeof(handledSignals[0]);
 
-	int returnedFunc;
 	struct sigaction regSignal;
 	regSignal.sa_handler = lofar_udp_signal_handler;
 	for (int i = 0; i < numSignals; i++) {
 		sigemptyset(&regSignal.sa_mask);
 
-		if ((returnedFunc = sigaction(handledSignals[i], &regSignal, NULL)) == -1) {
+		if (sigaction(handledSignals[i], &regSignal, NULL) == -1) {
 			fprintf(stderr, "WARNING: While attempting to set a catch for signal %d (i=%d), an error was raised (%d, %s). Continue with caution.", handledSignals[i], i, errno, strerror(errno));
 		}
 	}
@@ -41,3 +40,14 @@ int lofar_udp_prepare_signal_handler() {
 	return 0;
 }
 
+int32_t internal_strtoi(char *str, char **endPtr) {
+	long intermediate = strtol(str, endPtr, 10);
+
+	if (intermediate < INT32_MIN || intermediate > INT32_MAX) {
+		*(endPtr) = str;
+		errno = ERANGE;
+		return INT32_MAX;
+	}
+
+	return (int32_t) intermediate;
+}

@@ -30,8 +30,8 @@ typedef struct guppi_hdr {
 	double obsbw;
 	double chan_bw;
 	int32_t obsnchan;
-	int32_t npol;
-	int32_t nbits;
+	int8_t npol;
+	int8_t nbits;
 	double tbin;
 
 	char fd_poln[META_STR_LEN + 1];
@@ -56,7 +56,7 @@ typedef struct guppi_hdr {
 	int64_t pktidx;
 	char pktfmt[META_STR_LEN + 1];
 	double stt_offs;
-	int32_t pktsize;
+	int16_t pktsize;
 	double dropblk;
 	double droptot;
 
@@ -162,20 +162,20 @@ typedef struct lofar_udp_metadata {
 	double channel_bw; // Derived
 	double ftop; // beamctl
 	double fbottom; // beamctl
-	int32_t subbands[MAX_NUM_PORTS * UDPMAXBEAM];
-	int32_t lowerBeamlet;
-	int32_t upperBeamlet;
-	int32_t nsubband; // beamctl
+	int16_t subbands[MAX_NUM_PORTS * UDPMAXBEAM];
+	int16_t lowerBeamlet;
+	int16_t upperBeamlet;
+	int16_t nsubband; // beamctl
 	int32_t nchan; // Lib
-	int32_t nrcu; // beamctl
-	int32_t npol; // Standard
-	int32_t nbit; // Lib
+	int16_t nrcu; // beamctl
+	int8_t npol; // Standard
+	int8_t nbit; // Lib
 	int32_t resolution; // Standard? DSPSR: minimum number of samples that can be parsed, always 1?
-	int32_t ndim; // Lib
+	int8_t ndim; // Lib
 	double tsamp_raw; // Lib
 	double tsamp; // Derived
 	char state[META_STR_LEN + 1]; // Lib
-	int32_t order; // Lib
+	int8_t order; // Lib
 
 	// UPM Extra values
 	char upm_version[META_STR_LEN + 1];
@@ -185,12 +185,12 @@ typedef struct lofar_udp_metadata {
 	char upm_outputfmt[MAX_OUTPUT_DIMS][META_STR_LEN + 1];
 	char upm_outputfmt_comment[DEF_STR_LEN + 1];
 
-	int32_t upm_num_inputs;
-	int32_t upm_num_outputs;
+	int8_t upm_num_inputs;
+	int8_t upm_num_outputs;
 	int32_t upm_reader;
 	processMode_t upm_procmode;
-	int32_t upm_replay;
-	int32_t upm_calibrated;
+	int8_t upm_replay;
+	int8_t upm_calibrated;
 	int64_t upm_blocksize;
 	int64_t upm_pack_per_iter;
 	int64_t upm_processed_packets;
@@ -198,15 +198,15 @@ typedef struct lofar_udp_metadata {
 	int64_t upm_last_dropped_packets;
 
 	char upm_rel_outputs[MAX_OUTPUT_DIMS];
-	int32_t upm_bandflip;
+	int8_t upm_bandflip;
 	int32_t upm_output_voltages;
 
-	int32_t upm_input_bitmode;
-	int32_t upm_rcuclock;
-	int32_t upm_rcumode;
-	int32_t upm_rawbeamlets;
-	int32_t upm_upperbeam;
-	int32_t upm_lowerbeam;
+	int8_t upm_input_bitmode;
+	int16_t upm_rcuclock;
+	int8_t upm_rcumode;
+	int16_t upm_rawbeamlets;
+	int16_t upm_upperbeam;
+	int16_t upm_lowerbeam;
 
 	int32_t external_channelisation;
 	int32_t external_downsampling;

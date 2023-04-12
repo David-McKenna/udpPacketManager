@@ -61,10 +61,12 @@ int _lofar_udp_metadata_update_SIGPROC(lofar_udp_metadata *metadata, int newObs)
 	return 0;
 }
 
-int _lofar_udp_metadata_write_SIGPROC(const sigproc_hdr *hdr, char * const headerBuffer, size_t headerLength) {
-	if (headerBuffer == NULL) {
+int64_t _lofar_udp_metadata_write_SIGPROC(const sigproc_hdr *hdr, int8_t *const headerBuffer, int64_t headerLength) {
+	if (headerBuffer == NULL || hdr == NULL) {
 		fprintf(stderr, "ERROR: Null buffer provided to %s, exiting.\n", __func__);
 	}
+
+	headerLength /= sizeof(char) / sizeof(int8_t);
 
 	size_t estimatedLength = 380;
 	estimatedLength += strlen(hdr->rawdatafile) + strlen(hdr->source_name);
@@ -73,7 +75,7 @@ int _lofar_udp_metadata_write_SIGPROC(const sigproc_hdr *hdr, char * const heade
 		fprintf(stderr, "WARNING: Buffer is short (<%ld chars), we may overflow this buffer. Continuing with caution...\n", estimatedLength);
 	}
 
-	char *workingPtr = _writeKey_SIGPROC(headerBuffer, "HEADER_START");
+	int8_t *workingPtr = _writeKey_SIGPROC(headerBuffer, "HEADER_START");
 	workingPtr = _writeInt_SIGPROC(workingPtr, "telescope_id", hdr->telescope_id);
 	workingPtr = _writeInt_SIGPROC(workingPtr, "machine_id", hdr->machine_id);
 	workingPtr = _writeInt_SIGPROC(workingPtr, "data_type", hdr->data_type);

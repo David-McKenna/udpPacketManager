@@ -17,7 +17,7 @@ int _lofar_udp_io_write_setup_DADA_ringbuffer(int32_t dadaKey, uint64_t nbufs, i
  * @return     { description_of_the_return_value }
  */
 int
-_lofar_udp_io_read_setup_DADA(lofar_udp_io_read_config *input, int32_t dadaKey, int8_t port) {
+_lofar_udp_io_read_setup_DADA(lofar_udp_io_read_config *const input, int32_t dadaKey, int8_t port) {
 #ifndef NODADA
 	// Init the logger and HDU
 	input->multilog[port] = multilog_open("udpPacketManager", 0);
@@ -80,22 +80,22 @@ _lofar_udp_io_read_setup_DADA(lofar_udp_io_read_config *input, int32_t dadaKey, 
  *
  * @return     { description_of_the_return_value }
  */
-int64_t _lofar_udp_io_read_DADA(lofar_udp_io_read_config *input, int8_t port, int8_t *targetArray, int64_t nchars) {
+int64_t _lofar_udp_io_read_DADA(lofar_udp_io_read_config *const input, int8_t port, int8_t *targetArray, int64_t nchars) {
 #ifndef NODADA
 
 	VERBOSE(printf("reader_nchars: Entering read request (dada): %d, %d, %ld\n", port, input->inputDadaKeys[port], nchars));
 
-	long dataRead = 0, currentRead;
+	int64_t dataRead = 0, currentRead;
 
 	// To prevent a lock up when we call ipcio_stop, read the data in gulps
-	long readChars = ((dataRead + input->dadaPageSize[port]) > nchars) ? (nchars - dataRead)
+	int64_t readChars = ((dataRead + input->dadaPageSize[port]) > nchars) ? (nchars - dataRead)
 																	   : input->dadaPageSize[port];
 	// Loop until we read the requested amount of data
 	if (dada_hdu_lock_read(input->dadaReader[port])) {
 		return -1;
 	}
 	while (dataRead < nchars) {
-		if ((currentRead = ipcio_read(input->dadaReader[port]->data_block, &(targetArray[dataRead]), readChars)) < 1) {
+		if ((currentRead = ipcio_read(input->dadaReader[port]->data_block, (char *) &(targetArray[dataRead]), readChars)) < 1) {
 			fprintf(stderr, "ERROR: Failed to complete DADA read on port %d (%ld / %ld), returning partial data.\n",
 					port, dataRead, nchars);
 			// Return -1 if we haven't read anything
@@ -133,7 +133,7 @@ int64_t _lofar_udp_io_read_DADA(lofar_udp_io_read_config *input, int8_t port, in
  *
  * @return     { description_of_the_return_value }
  */
-void _lofar_udp_io_read_cleanup_DADA(lofar_udp_io_read_config *input, int8_t port) {
+void _lofar_udp_io_read_cleanup_DADA(lofar_udp_io_read_config *const input, int8_t port) {
 #ifndef NODADA
 	if (input == NULL) {
 		return;
@@ -159,8 +159,6 @@ void _lofar_udp_io_read_cleanup_DADA(lofar_udp_io_read_config *input, int8_t por
 		input->multilog[port] = NULL; // multilog_close frees the ptr;
 	}
 #endif
-
-	return;
 }
 
 
@@ -178,7 +176,7 @@ void _lofar_udp_io_read_cleanup_DADA(lofar_udp_io_read_config *input, int8_t por
  * @return     int 0: ZSTD error, 1: File error, other: data read length
  */
 int64_t
-_lofar_udp_io_read_temp_DADA(void *outbuf, int64_t size, int64_t num, int dadaKey, int resetSeek) {
+_lofar_udp_io_read_temp_DADA(void *outbuf, int64_t size, int64_t num, key_t dadaKey, int8_t resetSeek) {
 #ifndef NODADA
 	ipcio_t tmpReader = IPCIO_INIT;
 	// Only use an active reader for now, I just don't understand how the passive reader works.
@@ -281,10 +279,10 @@ _lofar_udp_io_read_temp_DADA(void *outbuf, int64_t size, int64_t num, int dadaKe
  *
  * @return     { description_of_the_return_value }
  */
-int _lofar_udp_io_write_setup_DADA(lofar_udp_io_write_config *config, int8_t outp) {
+int _lofar_udp_io_write_setup_DADA(lofar_udp_io_write_config *const config, int8_t outp) {
 #ifndef NODADA
 
-	if (config->dadaWriter[outp].multilog == NULL && config->enableMultilog == 1) {
+	if (config->dadaWriter[outp].multilog == NULL) {
 		config->dadaWriter[outp].multilog = multilog_open(config->dadaConfig.programName, config->dadaConfig.syslog);
 
 		if (config->dadaWriter[outp].multilog == NULL) {
@@ -386,10 +384,10 @@ int _lofar_udp_io_write_setup_DADA_ringbuffer(int32_t dadaKey, uint64_t nbufs, i
  *
  * @return     { description_of_the_return_value }
  */
-int64_t _lofar_udp_io_write_DADA(ipcio_t *ringbuffer, const int8_t *src, int64_t nchars, int header) {
+int64_t _lofar_udp_io_write_DADA(ipcio_t *const ringbuffer, const int8_t *src, int64_t nchars, int8_t ipcbuf) {
 #ifndef NODADA
 
-	if (!header) {
+	if (!ipcbuf) {
 		if (ipcio_open(ringbuffer, 'W') < 0) {
 			return -1;
 		}
@@ -403,13 +401,13 @@ int64_t _lofar_udp_io_write_DADA(ipcio_t *ringbuffer, const int8_t *src, int64_t
 		return writtenBytes;
 	} else {
 		ipcbuf_t *buffer = (ipcbuf_t *) ringbuffer;
-		if (ipcbuf_lock_write(ringbuffer) < 0) {
+		if (ipcbuf_lock_write(buffer) < 0) {
 			return -1;
 		}
 		int64_t written = 0;
 		while (nchars) {
 			uint64_t headerSize = ipcbuf_get_bufsz(buffer);
-			int8_t *workingBuffer = ipcbuf_get_next_write(buffer);
+			int8_t *workingBuffer = (int8_t *) ipcbuf_get_next_write(buffer);
 			int64_t toWrite = nchars > headerSize ? headerSize : nchars;
 
 			if (memcpy(workingBuffer, &(src[written]), toWrite) != workingBuffer) {
@@ -422,7 +420,7 @@ int64_t _lofar_udp_io_write_DADA(ipcio_t *ringbuffer, const int8_t *src, int64_t
 			}
 		}
 
-		if (ipcbuf_unlock_write(ringbuffer) < 0) {
+		if (ipcbuf_unlock_write(buffer) < 0) {
 			return -1;
 		}
 		return written;
@@ -488,7 +486,7 @@ return writtenChars;
  *
  * @return     { description_of_the_return_value }
  */
-void _lofar_udp_io_write_cleanup_DADA(lofar_udp_io_write_config *config, int8_t outp, int fullClean) {
+void _lofar_udp_io_write_cleanup_DADA(lofar_udp_io_write_config *const config, int8_t outp, int8_t fullClean) {
 #ifndef NODADA
 	if (config == NULL) {
 		return;
@@ -537,32 +535,35 @@ void _lofar_udp_io_write_cleanup_DADA(lofar_udp_io_write_config *config, int8_t 
 
 void _lofar_udp_io_cleanup_DADA_loop(ipcbuf_t *buff, float *timeoutPtr) {
 #ifndef NODADA
-	const int sampleEveryNMilli = 5;
+	const int32_t sampleEveryNMilli = 5;
 
 	float timeout = *timeoutPtr;
 	float totalSleep = 0.001f * sampleEveryNMilli;
-	long previousBuffer = ipcbuf_get_read_count(buff), iters = 0;
+	long iters = 0;
+	uint64_t previousBuffer = ipcbuf_get_read_count(buff);
 
 	while (totalSleep < timeout) {
 		if (ipcbuf_get_reader_conn(buff) != 0) {
 			break;
 		}
 
-		if (iters % 1000 == 0) {
+		// Notify the user every second
+		if (iters % (1000 / sampleEveryNMilli) == 0) {
+			// If the reader is stuck on the last block, just exit early.
+			if (iters != 0 && previousBuffer == ipcbuf_get_read_count(buff) && (ipcbuf_get_write_count(buff) - previousBuffer) < 2) {
+				printf("DADA reader(s) appears to have stalled at the end of the observation, cleaning up early.\n");
+				(*timeoutPtr) = 0.0f;
+				break;
+			}
+
 			previousBuffer = ipcbuf_get_read_count(buff);
-			printf("Waiting on DADA writer readers to exit (%.2f / %.2fs before timing out).\n", totalSleep, timeout);
+			printf("Waiting on DADA readers to exit (%.2f / %.2fs before timing out).\n", totalSleep, timeout);
+
 		}
 
 		usleep(1000 * sampleEveryNMilli);
 		totalSleep += 0.001f * sampleEveryNMilli;
 		iters += 1;
-
-		// If the reader is stuck on the last block, just exit early.
-		if (previousBuffer == (long) ipcbuf_get_read_count(buff) && (ipcbuf_get_write_count(buff) - previousBuffer) < 2) {
-			printf("DADA reader(s) appears to have stalled at the end of the observation, cleaning up early.\n");
-			(*timeoutPtr) = 0.0f;
-			break;
-		}
 	}
 #else
 	// If PSRDADA was disabled at compile time, error

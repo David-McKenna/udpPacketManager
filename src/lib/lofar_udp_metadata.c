@@ -197,12 +197,13 @@ int _lofar_udp_metadata_update_BASE(const lofar_udp_reader *reader, lofar_udp_me
 	return 0;
 }
 
-int _lofar_udp_metadata_write_buffer(const lofar_udp_reader *reader, lofar_udp_metadata *metadata, char *headerBuffer, size_t headerBufferSize, int newObs) {
+int64_t _lofar_udp_metadata_write_buffer(const lofar_udp_reader *reader, lofar_udp_metadata *const metadata, int8_t *headerBuffer, int64_t headerBufferSize, int8_t newObs) {
 	return _lofar_udp_metadata_write_buffer_force(reader, metadata, headerBuffer, headerBufferSize, newObs, 0);
 }
 
 // 0: no work performed, >1: success + length, -1: failure
-int _lofar_udp_metadata_write_buffer_force(const lofar_udp_reader *reader, lofar_udp_metadata *metadata, char *headerBuffer, size_t headerBufferSize, int newObs, int force) {
+int64_t
+_lofar_udp_metadata_write_buffer_force(const lofar_udp_reader *reader, lofar_udp_metadata *const metadata, int8_t *headerBuffer, int64_t headerBufferSize, int8_t newObs, int8_t force) {
 	if (metadata == NULL || metadata->type == NO_META) {
 		return 0;
 	}
@@ -255,15 +256,15 @@ int _lofar_udp_metadata_write_buffer_force(const lofar_udp_reader *reader, lofar
 
 }
 
-int
-lofar_udp_metadata_write_file(const lofar_udp_reader *reader, lofar_udp_io_write_config *outConfig, int outp, lofar_udp_metadata *metadata, char *headerBuffer,
-                              size_t headerBufferSize, int newObs) {
+int64_t
+lofar_udp_metadata_write_file(const lofar_udp_reader *reader, lofar_udp_io_write_config *const outConfig, int8_t outp, lofar_udp_metadata *const metadata, int8_t *headerBuffer,
+                              int64_t headerBufferSize, int8_t newObs) {
 	return _lofar_udp_metadata_write_file_force(reader, outConfig, outp, metadata, headerBuffer, headerBufferSize, newObs, 0);
 }
 
-int _lofar_udp_metadata_write_file_force(const lofar_udp_reader *reader, lofar_udp_io_write_config *outConfig, int outp, lofar_udp_metadata *metadata,
-                                         char *headerBuffer, size_t headerBufferSize, int newObs, int force) {
-	int returnVal = _lofar_udp_metadata_write_buffer_force(reader, metadata, headerBuffer, headerBufferSize, newObs, force);
+int64_t _lofar_udp_metadata_write_file_force(const lofar_udp_reader *reader, lofar_udp_io_write_config *const outConfig, int8_t outp, lofar_udp_metadata *const metadata,
+                                             int8_t *const headerBuffer, int64_t headerBufferSize, int8_t newObs, int8_t force) {
+	int64_t returnVal = _lofar_udp_metadata_write_buffer_force(reader, metadata, headerBuffer, headerBufferSize, newObs, force);
 
 	if (returnVal > 0) {
 		return lofar_udp_io_write_metadata(outConfig, outp, metadata, headerBuffer, headerBufferSize);
@@ -355,13 +356,13 @@ int _lofar_udp_metadata_parse_input_file(lofar_udp_metadata *metadata, const cha
 	}
 
 
-	int beamctlData[9] = {
+	int32_t beamctlData[9] = {
 		-1,         // Last RCU mode
-		INT_MAX,    // Minimum subband
+		INT16_MAX,    // Minimum subband
 		0,          // Sum of subbands
 		-1,         // Maximum subband
 		0,          // Count of subbands
-		INT_MAX,    // Minimum beamlet
+		INT16_MAX,    // Minimum beamlet
 		0,          // Sum of beamlets
 		-1,         // Maximum beamlet
 		0           // Count of beamlets
@@ -407,10 +408,10 @@ int _lofar_udp_metadata_parse_input_file(lofar_udp_metadata *metadata, const cha
 	}
 
 	// Update the metadata struct to describe the input commands
-	metadata->upm_lowerbeam = beamctlData[5];
-	metadata->nsubband = beamctlData[8];
-	metadata->upm_upperbeam = beamctlData[7];
-	metadata->upm_rcuclock = _lofar_udp_metadata_get_clockmode(beamctlData[0]);
+	metadata->upm_lowerbeam = (int16_t) beamctlData[5];
+	metadata->nsubband = (int16_t) beamctlData[8];
+	metadata->upm_upperbeam = (int16_t) beamctlData[7];
+	metadata->upm_rcuclock = _lofar_udp_metadata_get_clockmode((int16_t) beamctlData[0]);
 
 	// Remaining few setup bits
 	if (strncpy(metadata->upm_version, UPM_VERSION, META_STR_LEN) != metadata->upm_version) {
@@ -425,7 +426,7 @@ int _lofar_udp_metadata_parse_input_file(lofar_udp_metadata *metadata, const cha
 	return 0;
 }
 
-int _lofar_udp_metadata_parse_normal_file(lofar_udp_metadata *metadata, FILE *input, int *beamctlData) {
+int _lofar_udp_metadata_parse_normal_file(lofar_udp_metadata *const metadata, FILE *const input, int32_t *const beamctlData) {
 
 	char *inputLine = NULL, *strPtr = NULL;
 	size_t buffLen = 0;
@@ -496,7 +497,7 @@ int _lofar_udp_metadata_parse_normal_file(lofar_udp_metadata *metadata, FILE *in
 }
 
 
-__attribute__((unused)) int _lofar_udp_metadata_parse_yaml_file(lofar_udp_metadata *metadata, FILE *input, int *beamctlData) {
+__attribute__((unused)) int _lofar_udp_metadata_parse_yaml_file(lofar_udp_metadata *const metadata, FILE *const input, int32_t *const beamctlData) {
 	fprintf(stderr, "WARNING: YAML files not currently supported, will attempt to fallback to plain text parser.\n");
 
 	return _lofar_udp_metadata_parse_normal_file(metadata, input, beamctlData);
@@ -521,8 +522,8 @@ int _lofar_udp_metadata_parse_reader(lofar_udp_metadata *metadata, const lofar_u
 		return 0;
 	} else {
 
-		int beamletsPerPort;
-		int clockAlias = reader->meta->clockBit ? 200 : 160; // 1 -> 200Mhz, 0 -> 160MHz, verify, sample data doesn't change the bit...
+		int16_t beamletsPerPort;
+		int16_t clockAlias = reader->meta->clockBit ? 200 : 160; // 1 -> 200Mhz, 0 -> 160MHz, verify, sample data doesn't change the bit...
 		if (clockAlias != metadata->upm_rcuclock) {
 			fprintf(stderr, "WARNING: Clock bit mismatch (metadata suggests the %d clock, raw data suggests the %d clock\n", metadata->upm_rcuclock,
 			        reader->meta->clockBit);
@@ -547,7 +548,7 @@ int _lofar_udp_metadata_parse_reader(lofar_udp_metadata *metadata, const lofar_u
 			        metadata->lowerBeamlet, metadata->upperBeamlet, metadata->upperBeamlet - metadata->lowerBeamlet, reader->meta->totalProcBeamlets);
 		}
 
-		int subbandData[3] = { INT_MAX, 0, -1 };
+		int32_t subbandData[3] = { INT16_MAX, 0, -1 };
 		// Parse the new sub-set of beamlets
 		for (int beamlet = metadata->lowerBeamlet; beamlet < metadata->upperBeamlet; beamlet++) {
 			// Edge case: undefined subband is used as a beamlet
@@ -611,7 +612,7 @@ int _lofar_udp_metadata_parse_reader(lofar_udp_metadata *metadata, const lofar_u
 	return 0;
 }
 
-int _lofar_udp_metadata_parse_beamctl(lofar_udp_metadata *metadata, const char *inputLine, int *rcuMode) {
+int _lofar_udp_metadata_parse_beamctl(lofar_udp_metadata *const metadata, const char *inputLine, int32_t *const beamData) {
 	char *strCopy = calloc(strlen(inputLine) + 1, sizeof(char));
 	if (strCopy == NULL) {
 		fprintf(stderr, "ERROR: Failed to allocate buffer for intermediate string copy, exiting.\n");
@@ -640,7 +641,7 @@ int _lofar_udp_metadata_parse_beamctl(lofar_udp_metadata *metadata, const char *
 		VERBOSE(printf("Starting beamctl loop for token %s\n", inputPtr));
 		// Number of RCUs
 		if ((workingPtr = strstr(inputPtr, "--rcus=")) != NULL) {
-			metadata->nrcu = _lofar_udp_metadata_count_csv(workingPtr + strlen("--rcus="));
+			metadata->nrcu = (int16_t) _lofar_udp_metadata_count_csv(workingPtr + strlen("--rcus="));
 
 			VERBOSE(printf("Nrcu: %d\n", metadata->nrcu));
 			if (metadata->nrcu == -1) {
@@ -648,22 +649,20 @@ int _lofar_udp_metadata_parse_beamctl(lofar_udp_metadata *metadata, const char *
 				return -1;
 			}
 
-
 		// RCU configuration
 		} else if ((workingPtr = strstr(inputPtr, "--band=")) != NULL) {
-			if (_lofar_udp_metadata_parse_rcumode(metadata, workingPtr, rcuMode) < 0) {
+			if (_lofar_udp_metadata_parse_rcumode(metadata, workingPtr, beamData) < 0) {
 				free(strCopy);
 				return -1;
 			}
-			VERBOSE(printf("Band: %d\n", rcuMode[0]));
+			VERBOSE(printf("Band: %d\n", beamData[0]));
 
-		} else if ((workingPtr = strstr(inputPtr, "--rcumode="))) {
-			if (_lofar_udp_metadata_parse_rcumode(metadata, workingPtr, rcuMode) < 0) {
+		} else if ((workingPtr = strstr(inputPtr, "--rcumode=")) != NULL) {
+			if (_lofar_udp_metadata_parse_rcumode(metadata, workingPtr, beamData) < 0) {
 				free(strCopy);
 				return -1;
 			}
-			VERBOSE(printf("Rcumode: %d\n", rcuMode[0]));
-
+			VERBOSE(printf("Rcumode: %d\n", beamData[0]));
 
 		// Pointing information
 		} else if ((workingPtr = strstr(inputPtr, "--digdir=")) != NULL) {
@@ -693,7 +692,7 @@ int _lofar_udp_metadata_parse_beamctl(lofar_udp_metadata *metadata, const char *
 	}
 	workingPtr = strCopy;
 	VERBOSE(printf("Sanity check states: \n%s\n%s\n\n", workingPtr, inputLine));
-	if (_lofar_udp_metadata_parse_subbands(metadata, workingPtr, rcuMode) < 0) {
+	if (_lofar_udp_metadata_parse_subbands(metadata, workingPtr, beamData) < 0) {
 		FREE_NOT_NULL(strCopy);
 		return -1;
 	}
@@ -711,13 +710,13 @@ int _lofar_udp_metadata_parse_beamctl(lofar_udp_metadata *metadata, const char *
 	return 0;
 }
 
-int _lofar_udp_metadata_parse_rcumode(lofar_udp_metadata *metadata, const char *inputStr, int *beamctlData) {
-	int workingInt = -1;
-	if (sscanf(inputStr, "%*[^=]=%d", &(workingInt)) < 0) {
+int _lofar_udp_metadata_parse_rcumode(lofar_udp_metadata *const metadata, const char *inputStr, int32_t *const beamctlData) {
+	int16_t workingInt = -1;
+	if (sscanf(inputStr, "%*[^=]=%hd", &(workingInt)) < 0) {
 		return -1;
 	}
 
-	int lastClock = metadata->upm_rcuclock;
+	int16_t lastClock = metadata->upm_rcuclock;
 	metadata->upm_rcuclock = _lofar_udp_metadata_get_clockmode(workingInt);
 	metadata->upm_rcumode = _lofar_udp_metadata_get_rcumode(workingInt);
 
@@ -726,7 +725,7 @@ int _lofar_udp_metadata_parse_rcumode(lofar_udp_metadata *metadata, const char *
 		return -1;
 	}
 
-	beamctlData[0] = metadata->upm_rcumode;
+	beamctlData[0] = (int32_t) metadata->upm_rcumode;
 
 	if (lastClock > 100 && lastClock != metadata->upm_rcuclock) {
 		fprintf(stderr, "ERROR: 160/200MHz clock mixing detected (previously %d, now %d), this is not currently supported. Exiting.\n", lastClock, metadata->upm_rcuclock);
@@ -743,7 +742,7 @@ int _lofar_udp_metadata_parse_rcumode(lofar_udp_metadata *metadata, const char *
 
 int _lofar_udp_metadata_parse_pointing(lofar_udp_metadata *metadata, const char inputStr[], int digi) {
 	double lon, lon_work, lat, lat_work, ra_s, dec_s;
-	int ra[2], dec[2];
+	int16_t ra[2], dec[2];
 	char basis[32];
 
 	// 2pi / 24h -> 0.26179938779 rad/hr
@@ -771,18 +770,18 @@ int _lofar_udp_metadata_parse_pointing(lofar_udp_metadata *metadata, const char 
 	// TODO: Do we need to sanity check these inputs?
 
 	// Radians -> hh:mm:ss.sss
-	ra[0] = lon_work / rad2HA;
+	ra[0] = (int16_t) (lon_work / rad2HA);
 	lon_work -= ra[0] * rad2HA;
-	ra[1] = lon_work / (rad2HA / 60);
+	ra[1] = (int16_t) (lon_work / (rad2HA / 60));
 	lon_work -= ra[1] * (rad2HA / 60);
-	ra_s = lon_work / (rad2HA / 60 / 60);
+	ra_s = (lon_work / (rad2HA / 60 / 60));
 
 	// Radians -> dd:mm:ss.sss
-	dec[0] = lat_work / rad2Deg;
+	dec[0] = (int16_t) (lat_work / rad2Deg);
 	lat_work -= dec[0] * rad2Deg;
-	dec[1] = lat_work / (rad2Deg / 60);
+	dec[1] = (int16_t) (lat_work / (rad2Deg / 60));
 	lat_work -= dec[1] * (rad2Deg / 60);
-	dec_s = lat_work / (rad2Deg / 60 / 60);
+	dec_s = (lat_work / (rad2Deg / 60 / 60));
 
 	// Save the radian values to the struct
 	// Swap string destinations based on the digi flag
@@ -828,7 +827,7 @@ int _lofar_udp_metadata_parse_pointing(lofar_udp_metadata *metadata, const char 
 	return 0;
 }
 
-int _lofar_udp_metadata_parse_subbands(lofar_udp_metadata *metadata, const char *inputLine, int *results) {
+int _lofar_udp_metadata_parse_subbands(lofar_udp_metadata *const metadata, const char *inputLine, int32_t *const results) {
 
 	if (metadata == NULL || inputLine == NULL || results == NULL) {
 		fprintf(stderr, "ERROR %s: Input is unallocated (%p, %p, %p), exiting.\n", __func__, metadata, inputLine, results);
@@ -845,7 +844,7 @@ int _lofar_udp_metadata_parse_subbands(lofar_udp_metadata *metadata, const char 
 	// Mode 1/2/3/4 -- 0 offset, subband (0-511), 0.19 MHz bandwidth, 0 - 100MHz
 	// Mode 5 -- 512 offset, subband (512 - 1023), 0.19 MHz bandwidth, 100 - 200MHz
 	// Mode 6/7 -- 1024 offset, subband (1024 - 1535), 0.19 / 0.16 MHz bandwidth, 160 - 240MHz and 200 - 300MHz
-	int subbandOffset;
+	int16_t subbandOffset;
 	switch (results[0]) {
 
 		case 1:
@@ -871,8 +870,8 @@ int _lofar_udp_metadata_parse_subbands(lofar_udp_metadata *metadata, const char 
 			return -1;
 	}
 
-	int subbands[MAX_NUM_PORTS * UDPMAXBEAM] = { 0 };
-	int beamlets[MAX_NUM_PORTS * UDPMAXBEAM] = { 0 };
+	int16_t subbands[MAX_NUM_PORTS * UDPMAXBEAM] = { 0 };
+	int16_t beamlets[MAX_NUM_PORTS * UDPMAXBEAM] = { 0 };
 	ARR_INIT(subbands, MAX_NUM_PORTS * UDPMAXBEAM, -1);
 	ARR_INIT(beamlets, MAX_NUM_PORTS * UDPMAXBEAM, -1);
 
@@ -888,7 +887,7 @@ int _lofar_udp_metadata_parse_subbands(lofar_udp_metadata *metadata, const char 
 		return -1;
 	}
 
-	int subbandCount = 0, beamletCount = 0;
+	int16_t subbandCount = 0, beamletCount = 0;
 	do {
 		VERBOSE(printf("Entering subband/beamlet parse loop for token %s\n", inputPtr));
 		if ((workingPtr = strstr(inputPtr, "--subbands=")) != NULL) {
@@ -924,7 +923,7 @@ int _lofar_udp_metadata_parse_subbands(lofar_udp_metadata *metadata, const char 
 	// This is why I raise an error when mixing mode 6 (160MHz clock) and anything else (all on the 200MHz clock)
 	for (int i = 0; i < metadata->upm_rawbeamlets; i++) {
 		if (beamlets[i] != -1) {
-			metadata->subbands[beamlets[i]] = subbandOffset + subbands[i];
+			metadata->subbands[beamlets[i]] = (int16_t) (subbandOffset + subbands[i]);
 		}
 	}
 
@@ -952,7 +951,7 @@ int _lofar_udp_metadata_count_csv(const char *inputStr) {
 	return _lofar_udp_metadata_parse_csv(inputStr, NULL, NULL, 0);
 }
 
-int _lofar_udp_metadata_parse_csv(const char *inputStr, int *values, int *data, int offset) {
+int16_t _lofar_udp_metadata_parse_csv(const char *inputStr, int16_t *const values, int32_t *const data, int16_t offset) {
 	if (inputStr == NULL) {
 		fprintf(stderr, "ERROR %s: Input is unallocated, exiting.\n", __func__);
 		return -1;
@@ -974,8 +973,9 @@ int _lofar_udp_metadata_parse_csv(const char *inputStr, int *values, int *data, 
 
 	VERBOSE(printf("Parse: %s\n", inputStr));
 
-	int counter = 0, lower = -1, upper = -1;
-	int minimum = INT_MAX, maximum = -1, sum = 0;
+	int32_t sum = 0;
+	int16_t counter = 0, lower = -1, upper = -1;
+	int16_t minimum = INT16_MAX, maximum = -1;
 
 	char *tokenPtr;
 	char token[2] = ",";
@@ -1003,7 +1003,7 @@ int _lofar_udp_metadata_parse_csv(const char *inputStr, int *values, int *data, 
 		if (strstr(workingPtr, ":") != NULL) {
 			VERBOSE(printf(": detected\n"));
 			// Extremely unlikely we can't parse a value, but double check to be sure
-			if (sscanf(workingPtr, "%d:%d", &lower, &upper) == EOF) {
+			if (sscanf(workingPtr, "%hd:%hd", &lower, &upper) == EOF) {
 				fprintf(stderr, "Things went wrong\n");
 				FREE_NOT_NULL(strCpy);
 				return -1;
@@ -1015,7 +1015,7 @@ int _lofar_udp_metadata_parse_csv(const char *inputStr, int *values, int *data, 
 			sum += ((upper * (upper + 1) / 2) - ((lower - 1) * (lower) / 2));
 
 			// LOFAR is inclusive of values on a range, so +1
-			for (int i = lower; i < upper + 1; i++) {
+			for (int16_t i = lower; i < upper + 1; i++) {
 				if (values != NULL) {
 					values[counter] = i;
 				}
@@ -1023,7 +1023,7 @@ int _lofar_udp_metadata_parse_csv(const char *inputStr, int *values, int *data, 
 			}
 
 		} else {
-			sscanf(workingPtr, "%d", &lower);
+			sscanf(workingPtr, "%hd", &lower);
 
 			// Extremely unlikely we can't parse a value, but double check to be sure
 			if (lower == EOF) {
@@ -1068,7 +1068,7 @@ int _lofar_udp_metadata_parse_csv(const char *inputStr, int *values, int *data, 
 	return counter;
 }
 
-int _lofar_udp_metadata_get_clockmode(int input) {
+int16_t _lofar_udp_metadata_get_clockmode(int16_t input) {
 	switch (input) {
 		// RCU modes
 		case 1:
@@ -1095,14 +1095,14 @@ int _lofar_udp_metadata_get_clockmode(int input) {
 	}
 }
 
-int _lofar_udp_metadata_get_rcumode(int input) {
+int8_t _lofar_udp_metadata_get_rcumode(int16_t input) {
 	if (input < 1) {
 		fprintf(stderr, "ERROR: Invalid input RCU mode %d, exiting.\n", input);
 		return -1;
 	}
 
 	if (input < 8) {
-		return input;
+		return (int8_t) input;
 	}
 
 	switch (input) {
@@ -1142,7 +1142,7 @@ metadata_t lofar_udp_metadata_string_to_meta(const char input[]) {
 	return NO_META;
 }
 
-int _lofar_udp_metadata_get_beamlets(int bitmode) {
+int16_t _lofar_udp_metadata_get_beamlets(int8_t bitmode) {
 	switch(bitmode) {
 		case 4:
 			return 244;
@@ -1159,7 +1159,7 @@ int _lofar_udp_metadata_get_beamlets(int bitmode) {
 	}
 }
 
-int _lofar_udp_metadata_update_frequencies(lofar_udp_metadata *metadata, int *subbandData) {
+int _lofar_udp_metadata_update_frequencies(lofar_udp_metadata *const metadata, int32_t *const subbandData) {
 	// Update the metadata frequency / channel parameters
 
 	if (metadata == NULL || subbandData == NULL) {
@@ -1192,6 +1192,10 @@ int _lofar_udp_metadata_update_frequencies(lofar_udp_metadata *metadata, int *su
 }
 
 int _lofar_udp_metadata_processing_mode_metadata(lofar_udp_metadata *metadata) {
+
+	if (metadata == NULL) {
+		return -1;
+	}
 
 	switch (metadata->upm_procmode) {
 		// Frequency order same as beamlet order
@@ -1653,7 +1657,9 @@ int _lofar_udp_metadata_handle_external_factors(lofar_udp_metadata *metadata, co
  * @return     0: Success, 1: Failure
  */
 int _lofar_udp_metadata_get_station_name(int stationID, char *stationCode) {
-
+	if (stationCode == NULL) {
+		return -1;
+	}
 	switch (stationID) {
 		// Core Stations
 		case 1 ... 7:
@@ -1773,7 +1779,7 @@ int _lofar_udp_metadata_get_station_name(int stationID, char *stationCode) {
 			return 1;
 	}
 
-	return 0;
+	return !(strnlen(stationCode, 6) == 5);
 }
 
 
@@ -1810,6 +1816,6 @@ int _doubleNotSet(double input, int exception) {
 	return input == -1.0;
 }
 
-#include "./metadata/lofar_udp_metadata_GUPPI.c"
-#include "./metadata/lofar_udp_metadata_DADA.c"
-#include "./metadata/lofar_udp_metadata_SIGPROC.c"
+#include "./metadata/lofar_udp_metadata_GUPPI.c" // NOLINT(bugprone-suspicious-include)
+#include "./metadata/lofar_udp_metadata_DADA.c" // NOLINT(bugprone-suspicious-include)
+#include "./metadata/lofar_udp_metadata_SIGPROC.c" // NOLINT(bugprone-suspicious-include)

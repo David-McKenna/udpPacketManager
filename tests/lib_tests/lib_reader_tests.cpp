@@ -15,7 +15,7 @@
 
 
 
-lofar_udp_config* config_setup(int32_t sampleMeta = 0, int32_t testNumber = 0, int32_t testPorts = 4) {
+lofar_udp_config* config_setup(int32_t sampleMeta = 0, int32_t testNumber = 0, int32_t testPorts = 4, int32_t packetsReadMax = 32, calibrate_t calibration = NO_CALIBRATION) {
 	lofar_udp_config *config = lofar_udp_config_alloc();
 	EXPECT_NE(nullptr, config);
 	assert(numPorts <= MAX_NUM_PORTS);
@@ -28,7 +28,7 @@ lofar_udp_config* config_setup(int32_t sampleMeta = 0, int32_t testNumber = 0, i
 		memcpy(config->inputLocations[port], workingString.c_str(), workingString.length());
 	}
 
-	config->readerType = std::regex_match(inputLocations[testNumber], std::regex("zst")) ? ZSTDCOMPRESSED : NORMAL;
+	config->readerType = strstr(config->inputLocations[0], ".zst") ? ZSTDCOMPRESSED : NORMAL;
 
 
 	//int lofar_udp_reader_config_check(lofar_udp_config *config)
@@ -36,12 +36,12 @@ lofar_udp_config* config_setup(int32_t sampleMeta = 0, int32_t testNumber = 0, i
 	config->ompThreads = 10;
 
 	config->packetsPerIteration = 16;
-	config->packetsReadMax = 32;
+	config->packetsReadMax = packetsReadMax;
 
 	config->beamletLimits[0] = -1;
 	config->beamletLimits[1] = -1;
 
-	config->calibrateData = NO_CALIBRATION;
+	config->calibrateData = calibration;
 	config->processingMode = 0;
 	config->startingPacket = -1;
 
@@ -67,7 +67,7 @@ lofar_udp_reader* reader_setup(int32_t processingMode) {
 
 
 TEST(LibReaderTests, SetupReader) {
-	lofar_udp_config *config = config_setup();
+	lofar_udp_config *config = config_setup(0, 1, 4, 32);
 	int32_t tmpVal;
 
 
@@ -418,8 +418,37 @@ TEST(LibReaderTests, PreprocessingReader) {
 
 
 TEST(LibReaderTests, ProcessingData) {
-	lofar_udp_reader *reader = reader_setup(150);
+	//lofar_udp_reader *reader = reader_setup(150);
 
+	{
+		SCOPED_TRACE("The big one");
+		std::vector<int32_t> flaggedTests = {0, 5, 6};
+		for (int32_t currMode : processingModes) {
+			for (calibrate_t cal : std::vector<calibrate_t>{NO_CALIBRATION, GENERATE_JONES, APPLY_CALIBRATION}) {
+				for (int32_t testNum = 0; testNum < numTests; testNum++) {
+					lofar_udp_config *config = config_setup(1, testNum, 4, INT32_MAX, cal);
+					//std::cout << config->inputLocations[0] << std::endl;
+					config->processingMode = currMode;
+					lofar_udp_reader *reader = lofar_udp_reader_setup(config);
+
+					if (std::find(flaggedTests.begin(), flaggedTests.end(), testNum) != flaggedTests.end()) {
+						EXPECT_EQ(reader, nullptr);
+						continue;
+					} else {
+						ASSERT_NE(reader, nullptr);
+					}
+					int returnv;
+					while ((returnv = lofar_udp_reader_step(reader)) < 1) {
+						std::cout << std::to_string(returnv) << std::endl;
+						std::cout << std::to_string(reader->meta->lastPacket) << std::endl;
+					}
+
+					lofar_udp_reader_cleanup(reader);
+					lofar_udp_config_cleanup(config);
+				}
+			}
+		}
+	}
 	//int lofar_udp_reader_calibration(lofar_udp_reader *reader)
 
 	//int lofar_udp_reader_step_timed(lofar_udp_reader *reader, double timing[2])
@@ -430,7 +459,7 @@ TEST(LibReaderTests, ProcessingData) {
 
 	//void lofar_udp_reader_cleanup(lofar_udp_reader *reader)
 
-	lofar_udp_reader_cleanup(reader);
+	//lofar_udp_reader_cleanup(reader);
 };
 
 

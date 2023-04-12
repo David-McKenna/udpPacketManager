@@ -11,8 +11,8 @@
 #include <vector>
 
 const int32_t numPorts = 4;
-const int32_t numTests = 9;
 const std::vector<std::string> inputLocations {
+	"",
 	"referenceFiles/testCase1/udp_1613portnum.ucc1.2022-06-29T01:30:00.000",
 	"referenceFiles/testCase2/udp_1613portnum.ucc1.2022-06-29T01:30:00.000.zst",
 	"referenceFiles/testCase3/udp_1613portnum.ucc1.2022-06-29T01:30:00.000",
@@ -23,8 +23,8 @@ const std::vector<std::string> inputLocations {
 	"referenceFiles/testCase8/udp_1613portnum.ucc1.2022-06-29T01:30:00.000",
 	"referenceFiles/testCase9/udp_1613portnum.ucc1.2022-06-29T01:30:00.000",
 };
+const int32_t numTests = inputLocations.size();
 
-const int32_t numMeta = 4;
 const std::vector<std::string> metadataLocation {
 	"", // 0
 	"referenceFiles/metadata_3.h", // 1
@@ -37,6 +37,8 @@ const std::vector<std::string> metadataLocation {
 	"referenceFiles/metadata_no_sbb.h", // 8
 	"referenceFiles/metadata_no_conf_data.h.yml", // 9
 };
+const int32_t numMeta = metadataLocation.size();
+
 
 const std::vector<int32_t> processingModes {
 	(int32_t) TEST_INVALID_MODE,

@@ -145,7 +145,7 @@ int main(int argc, char *argv[]) {
 				break;
 
 			case 'u':
-				config->numPorts = strtoi(optarg, &endPtr);
+				config->numPorts = internal_strtoi(optarg, &endPtr);
 				if (checkOpt(inputOpt, optarg, endPtr)) { flagged = 1; }
 				break;
 
@@ -159,7 +159,7 @@ int main(int argc, char *argv[]) {
 				break;
 
 			case 'S':
-				splitEvery = strtoi(optarg, &endPtr);
+				splitEvery = internal_strtoi(optarg, &endPtr);
 				if (checkOpt(inputOpt, optarg, endPtr)) { flagged = 1; }
 				break;
 
@@ -168,7 +168,7 @@ int main(int argc, char *argv[]) {
 				break;
 
 			case 'p':
-				config->processingMode = strtoi(optarg, &endPtr);
+				config->processingMode = internal_strtoi(optarg, &endPtr);
 				if (checkOpt(inputOpt, optarg, endPtr)) { flagged = 1; }
 				break;
 
@@ -205,7 +205,7 @@ int main(int argc, char *argv[]) {
 				break;
 
 			case 'T':
-				config->ompThreads = strtoi(optarg, &endPtr);
+				config->ompThreads = internal_strtoi(optarg, &endPtr);
 				if (checkOpt(inputOpt, optarg, endPtr)) { flagged = 1; }
 				break;
 

@@ -240,6 +240,8 @@ TEST(LibMetadataTests, HelperFunctions) {
 	{
 
 		// int lofar_udp_metadata_processing_mode_metadata(lofar_udp_metadata *metadata);
+		SCOPED_TRACE("lofar_udp_metadata_processing_mode_metadata");
+		EXPECT_EQ(-1, _lofar_udp_metadata_processing_mode_metadata(nullptr));
 	}
 
 	lofar_udp_metadata_cleanup(metadata);
@@ -312,7 +314,11 @@ TEST(LibMetadataTests, InternalParsers) {
 
 		lofar_udp_metadata *meta = lofar_udp_metadata_alloc();
 		// int lofar_udp_metadata_parse_subbands(lofar_udp_metadata *metadata, const char *inputLine, int *results);
-		SCOPED_TRACE("_lofar_udp_metadata_parse_subbands");
+
+		{
+			SCOPED_TRACE("_lofar_udp_metadata_parse_subbands");
+			EXPECT_EQ(-1, _lofar_udp_metadata_parse_subbands(nullptr, nullptr, nullptr));
+		}
 
 		// switch (results[0])  subbandOffset = 0, 512, 1024 mode dependant
 
@@ -402,7 +408,7 @@ TEST(LibMetadataTests, StructHandlers) {
 		metadata->type = NO_META;
 		EXPECT_EQ(-1, lofar_udp_metadata_setup(metadata, reader, config));
 		metadata->type = DADA;
-		config->metadataLocation[0] == '\0'; // continues
+		//config->metadataLocation[0] == '\0'; // continues
 		EXPECT_EQ(-1, lofar_udp_metadata_setup(metadata, nullptr, nullptr)); // reader-> nullptr continues, config -> nullptr -> -1
 		EXPECT_EQ(0, lofar_udp_metadata_setup(metadata, reader, config));
 
@@ -754,8 +760,8 @@ TEST(LibMetadataTests, InternalBufferBuilders) {
 		guppi_hdr *hdr = guppi_hdr_alloc();
 		std::string testBuffer(DEF_HDR_LEN, '\0');
 		(testBuffer.data())[0] = 'a';
-		EXPECT_EQ(-1, _lofar_udp_metadata_write_GUPPI(hdr, testBuffer.data(), (ASCII_HDR_MEMBS - 1) * 80));
-		EXPECT_EQ(2720, _lofar_udp_metadata_write_GUPPI(hdr, testBuffer.data(), DEF_HDR_LEN));
+		EXPECT_EQ(-1, _lofar_udp_metadata_write_GUPPI(hdr, (int8_t *) testBuffer.data(), (ASCII_HDR_MEMBS - 1) * 80));
+		EXPECT_EQ(2720, _lofar_udp_metadata_write_GUPPI(hdr, (int8_t *) testBuffer.data(), DEF_HDR_LEN));
 		EXPECT_EQ(5001145786552019502l, hasher(testBuffer));
 
 		free(hdr);
@@ -874,7 +880,7 @@ TEST(LibMetadataTests, InternalBufferBuilders) {
 		memcpy(expectedOutput + 2 * sizeof(int32_t) + strnlen(testKey, META_STR_LEN), testVal, strlen(testVal) * sizeof(char));
 		outputLength += 2 * sizeof(int32_t) + strnlen(testKey, META_STR_LEN);
 
-		EXPECT_EQ(outputLength, _lofar_udp_metadata_write_SIGPROC(hdr, headerBuffer, DEF_HDR_LEN));
+		EXPECT_EQ(outputLength, _lofar_udp_metadata_write_SIGPROC(hdr, (int8_t*) headerBuffer, DEF_HDR_LEN));
 
 		EXPECT_EQ(0, strncmp(headerBuffer, expectedOutput, outputLength));
 		free(hdr);
@@ -905,7 +911,7 @@ TEST(LibMetadataTests, InternalBufferBuilders) {
 		snprintf(hdr_raw.rawdatafile, META_STR_LEN, "no_input");
 
 		ARR_INIT(headerBuffer, DEF_HDR_LEN, 0);
-		EXPECT_EQ(395, _lofar_udp_metadata_write_SIGPROC(&hdr_raw, headerBuffer, DEF_HDR_LEN));
+		EXPECT_EQ(395, _lofar_udp_metadata_write_SIGPROC(&hdr_raw, (int8_t*) headerBuffer, DEF_HDR_LEN));
 		EXPECT_EQ(7406572685367788247l, hasher(headerBuffer));
 
 		// SigProc helpers
@@ -1007,16 +1013,16 @@ TEST(LibMetadataTests, InternalBufferBuilders) {
 
 		// int lofar_udp_metadata_write_DADA(const lofar_udp_metadata *hdr, char * const headerBuffer, size_t headerLength)
 		lofar_udp_metadata *hdr = lofar_udp_metadata_alloc();
-		EXPECT_EQ(-1, _lofar_udp_metadata_write_DADA(hdr, headerBuffer, 1));
-		EXPECT_EQ(-1, _lofar_udp_metadata_write_DADA(hdr, headerBuffer, DEF_HDR_LEN));
+		EXPECT_EQ(-1, _lofar_udp_metadata_write_DADA(hdr, (int8_t*) headerBuffer, 1));
+		EXPECT_EQ(-1, _lofar_udp_metadata_write_DADA(hdr, (int8_t*) headerBuffer, DEF_HDR_LEN));
 		snprintf(hdr->obs_utc_start, META_STR_LEN, "2023-03-03T03:03:03");
-		EXPECT_EQ(468, _lofar_udp_metadata_write_DADA(hdr, headerBuffer, DEF_HDR_LEN));
+		EXPECT_EQ(468, _lofar_udp_metadata_write_DADA(hdr, (int8_t*) headerBuffer, DEF_HDR_LEN));
 		printf("%s\n", headerBuffer);
 		EXPECT_EQ(5286411601707105073UL, hasher(headerBuffer));
 		hdr->upm_num_inputs = 4;
 		hdr->output_file_number = 1;
 		hdr->upm_num_outputs = 4;
-		EXPECT_EQ(547, _lofar_udp_metadata_write_DADA(hdr, headerBuffer, DEF_HDR_LEN));
+		EXPECT_EQ(547, _lofar_udp_metadata_write_DADA(hdr, (int8_t*) headerBuffer, DEF_HDR_LEN));
 		printf("%s\n", headerBuffer);
 		EXPECT_EQ(9863917093308632906UL, hasher(headerBuffer));
 	}

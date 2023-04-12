@@ -14,7 +14,13 @@ int _lofar_udp_metadata_update_DADA(lofar_udp_metadata *metadata, int newObs) {
  *
  * @return     { description_of_the_return_value }
  */
-int _lofar_udp_metadata_write_DADA(const lofar_udp_metadata *hdr, char * const headerBuffer, size_t headerLength) {
+int64_t _lofar_udp_metadata_write_DADA(const lofar_udp_metadata *hdr, int8_t *const headerBuffer, int64_t headerLength) {
+	if (headerBuffer == NULL || hdr == NULL) {
+		fprintf(stderr, "ERROR: Null buffer provided to %s, exiting.\n", __func__);
+	}
+
+	headerLength /= sizeof(char) / sizeof(int8_t);
+
 	const int fileoutp = hdr->output_file_number % hdr->upm_num_outputs;
 	char keyfmt[16];
 	int returnVal = 0;

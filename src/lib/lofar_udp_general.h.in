@@ -210,8 +210,8 @@ typedef struct __attribute__((__packed__)) lofar_source_bytes {
 #ifndef LOFAR_UDP_TICKTOCK_MACRO
 #define LOFAR_UDP_TICKTOCK_MACRO
 
-#define CLICK(clock) clock_gettime(CLOCK_MONOTONIC_RAW, &clock);
-#define TICKTOCK(tick, tock) ((double) (tock.tv_nsec - tick.tv_nsec) / 1000000000.0) + (tock.tv_sec - tick.tv_sec)
+#define CLICK(clock) clock_gettime(CLOCK_MONOTONIC_RAW, &(clock));
+#define TICKTOCK(tick, tock) (((double) ((tock).tv_nsec - (tick).tv_nsec) / 1000000000.0) + ((tock).tv_sec - (tick).tv_sec))
 
 #endif // End of LOFAR_UDP_TICKTOCK_MACRO
 
@@ -220,13 +220,13 @@ typedef struct __attribute__((__packed__)) lofar_source_bytes {
 #define LOFAR_UDP_INIT_MACRO
 
 #define ARR_INIT(arr, entries, val) \
-	for (uint64_t ARRIDX = 0; ARRIDX < entries; ARRIDX++) { \
-		arr[ARRIDX] = val;\
+	for (uint64_t ARRIDX = 0; ARRIDX < (entries); ARRIDX++) { \
+		(arr)[ARRIDX] = val; \
 	}
 
 #define STR_INIT(arr, entries) \
-	for (uint64_t ARRIDX = 0; ARRIDX < entries; ARRIDX++) { \
-		arr[ARRIDX][0] = '\0';\
+	for (uint64_t ARRIDX = 0; ARRIDX < (entries); ARRIDX++) { \
+		(arr)[ARRIDX][0] = '\0'; \
 	}
 #endif // End of LOFAR_UDP_INIT_MACRO
 
@@ -244,14 +244,15 @@ typedef struct __attribute__((__packed__)) lofar_source_bytes {
 #include <string.h>
 #include <stdlib.h>
 #include <signal.h>
+#include <limits.h>
 
 // Allocation check
-#define CHECK_ALLOC(alloced, returnVal, cleanup) if (alloced == NULL) { fprintf(stderr, "ERROR %s%d: Failed to allocate " #alloced", returning.\n", __FILE__, __LINE__); return returnVal; cleanup;}
+#define CHECK_ALLOC(alloced, returnVal, cleanup) if ((alloced) == NULL) { fprintf(stderr, "ERROR %s%d: Failed to allocate " #alloced", returning.\n", __FILE__, __LINE__); return returnVal; cleanup;}
 #define CHECK_ALLOC_NOCLEAN(alloced, returnVal) CHECK_ALLOC(alloced, returnVal, ;)
 
 #define STRUCT_COPY_INIT(structtype, variable, defaultstruct) \
-    _Static_assert(sizeof(structtype) == sizeof(defaultstruct)); \
-	*variable = defaultstruct;
+    _Static_assert(sizeof(structtype) == sizeof(defaultstruct), "Struct size mismatch"); \
+	*(variable) = defaultstruct;
 	/*
 	 * 	if (memcpy(variable, &defaultstruct, sizeof(structtype)) != variable) {              \
         fprintf(stderr, "ERROR: Failed to initialise " #variable", returning.\n");    \
@@ -262,18 +263,19 @@ typedef struct __attribute__((__packed__)) lofar_source_bytes {
 	 */
 
 #define DEFAULT_STRUCT_ALLOC(structtype, variable, defaultstruct, cleanup, returnVal) \
-	_Static_assert(sizeof(structtype) == sizeof(defaultstruct));                                                                             \
-	structtype *variable = calloc(1, sizeof(structtype)); \
+	_Static_assert(sizeof(structtype) == sizeof(defaultstruct), "Struct size mismatch");                                                                             \
+	structtype *(variable) = calloc(1, sizeof(structtype)); \
 	CHECK_ALLOC(variable, returnVal, cleanup);                            \
 	STRUCT_COPY_INIT(structtype, variable, defaultstruct);
 
 
 // Free if non-null macro
-#define FREE_NOT_NULL(x) if (x != NULL) { free(x); x = NULL; }
+#define FREE_NOT_NULL(x) if ((x) != NULL) { free((x)); (x) = NULL; }
 
 // Silence warnings about parameters not used in certain constexpr paths
 // https://stackoverflow.com/a/1486931
 #define UNUSED(expr) do { (void)(expr); } while (0);
+#define UNUSED_RETURN(expr) ((void)(expr))
 
 // Wrapper for printing errors with debug information as needed
 /*
@@ -290,6 +292,7 @@ extern "C" {
 
 void lofar_udp_signal_handler(int signalnum);
 int lofar_udp_prepare_signal_handler();
+int32_t internal_strtoi(char *str, char **endPtr);
 
 // Allow C++ imports too
 #ifdef __cplusplus

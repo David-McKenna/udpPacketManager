@@ -33,10 +33,11 @@ extern "C" {
 metadata_t lofar_udp_metadata_parse_type_output(const char optargc[]);
 metadata_t lofar_udp_metadata_string_to_meta(const char input[]);
 
+
 int lofar_udp_metadata_setup(lofar_udp_metadata *metadata, const lofar_udp_reader *reader, const metadata_config *config);
 int lofar_udp_metadata_update(const lofar_udp_reader *reader, lofar_udp_metadata *metadata, int newObs);
-int lofar_udp_metadata_write_file(const lofar_udp_reader *reader, lofar_udp_io_write_config *outConfig, int outp, lofar_udp_metadata *metadata, char *headerBuffer,
-                              size_t headerBufferSize, int newObs);
+int64_t lofar_udp_metadata_write_file(const lofar_udp_reader *reader, lofar_udp_io_write_config *const outConfig, int8_t outp, lofar_udp_metadata *const metadata, int8_t *headerBuffer, // NOLINT(readability-avoid-const-params-in-decls)
+                                      int64_t headerBufferSize, int8_t newObs);
 void lofar_udp_metadata_cleanup(lofar_udp_metadata *metadata);
 
 // Internal representations
@@ -54,36 +55,39 @@ int _lofar_udp_metadata_update_GUPPI(lofar_udp_metadata *metadata, int newObs);
 int _lofar_udp_metadata_update_SIGPROC(lofar_udp_metadata *metadata, int newObs);
 int _lofar_udp_metadata_update_HDF5(lofar_udp_metadata *metadata, int newObs);
 
-int _lofar_udp_metadata_write_buffer(const lofar_udp_reader *reader, lofar_udp_metadata *metadata, char *headerBuffer, size_t headerBufferSize, int newObs);
-int _lofar_udp_metadata_write_buffer_force(const lofar_udp_reader *reader, lofar_udp_metadata *metadata, char *headerBuffer, size_t headerBufferSize, int newObs, int force);
-int _lofar_udp_metadata_write_file_force(const lofar_udp_reader *reader, lofar_udp_io_write_config *outConfig, int outp, lofar_udp_metadata *metadata,
-                                         char *headerBuffer, size_t headerBufferSize, int newObs, int force);
-int _lofar_udp_metadata_write_DADA(const lofar_udp_metadata *hdr, char * const headerBuffer, size_t headerLength);
-int _lofar_udp_metadata_write_GUPPI(const guppi_hdr *hdr, char * const headerBuffer, size_t headerLength);
-int _lofar_udp_metadata_write_SIGPROC(const sigproc_hdr *hdr, char * const headerBuffer, size_t headerLength);
+#pragma clang diagnostic push
+#pragma ide diagnostic ignored "readability-avoid-const-params-in-decls"
+int64_t _lofar_udp_metadata_write_buffer(const lofar_udp_reader *reader, lofar_udp_metadata *const metadata, int8_t *headerBuffer, int64_t headerBufferSize, int8_t newObs);
+int64_t
+_lofar_udp_metadata_write_buffer_force(const lofar_udp_reader *reader, lofar_udp_metadata *const metadata, int8_t *headerBuffer, int64_t headerBufferSize, int8_t newObs, int8_t force);
+int64_t _lofar_udp_metadata_write_file_force(const lofar_udp_reader *reader, lofar_udp_io_write_config *const outConfig, int8_t outp, lofar_udp_metadata *const metadata,
+                                             int8_t *const headerBuffer, int64_t headerBufferSize, int8_t newObs, int8_t force);
+int64_t _lofar_udp_metadata_write_DADA(const lofar_udp_metadata *hdr, int8_t *const headerBuffer, int64_t headerLength);
+int64_t _lofar_udp_metadata_write_GUPPI(const guppi_hdr *hdr, int8_t *const headerBuffer, int64_t headerLength);
+int64_t _lofar_udp_metadata_write_SIGPROC(const sigproc_hdr *hdr, int8_t *const headerBuffer, int64_t headerLength);
 int _lofar_udp_metadata_write_HDF5(const sigproc_hdr *hdr, char * const headerBuffer, size_t headerLength);
 
 
 // Internal functions
 int _lofar_udp_metadata_parse_input_file(lofar_udp_metadata *metadata, const char inputFile[]);
-int _lofar_udp_metadata_parse_normal_file(lofar_udp_metadata *metadata, FILE *input, int *beamctlData);
-int _lofar_udp_metadata_parse_yaml_file(lofar_udp_metadata *metadata, FILE *input, int *beamctlData);
+int _lofar_udp_metadata_parse_normal_file(lofar_udp_metadata *const metadata, FILE *const input, int32_t *const beamctlData);
+int _lofar_udp_metadata_parse_yaml_file(lofar_udp_metadata *const metadata, FILE *const input, int32_t *const beamctlData);
 int _lofar_udp_metadata_parse_reader(lofar_udp_metadata *metadata, const lofar_udp_reader *reader);
-int _lofar_udp_metadata_parse_subbands(lofar_udp_metadata *metadata, const char *inputLine, int *results);
+int _lofar_udp_metadata_parse_subbands(lofar_udp_metadata *const metadata, const char *inputLine, int32_t *const results);
 int _lofar_udp_metadata_parse_pointing(lofar_udp_metadata *metadata, const char inputStr[], int digi);
-int _lofar_udp_metadata_parse_rcumode(lofar_udp_metadata *metadata, const char *inputStr, int *beamctlData);
-int _lofar_udp_metadata_parse_csv(const char *inputStr, int *values, int *data, int offset);
+int _lofar_udp_metadata_parse_rcumode(lofar_udp_metadata *const metadata, const char *inputStr, int32_t *const beamctlData);
+int16_t _lofar_udp_metadata_parse_csv(const char *inputStr, int16_t *const values, int32_t *const data, int16_t offset);
 int _lofar_udp_metadata_count_csv(const char *inputStr);
 int _lofar_udp_metadata_get_tsv(const char *inputStr, const char *keyword, char *result);
-int _lofar_udp_metadata_parse_beamctl(lofar_udp_metadata *metadata, const char *inputLine, int *rcuMode);
-int _lofar_udp_metadata_get_clockmode(int input);
-int _lofar_udp_metadata_get_rcumode(int input);
-int _lofar_udp_metadata_get_beamlets(int bitmode);
+int _lofar_udp_metadata_parse_beamctl(lofar_udp_metadata *const metadata, const char *inputLine, int32_t *const beamData);
+int16_t _lofar_udp_metadata_get_clockmode(int16_t input);
+int8_t _lofar_udp_metadata_get_rcumode(int16_t input);
+int16_t _lofar_udp_metadata_get_beamlets(int8_t bitmode);
 int _lofar_udp_metadata_processing_mode_metadata(lofar_udp_metadata *metadata);
-int _lofar_udp_metadata_update_frequencies(lofar_udp_metadata *metadata, int *subbandData);
+int _lofar_udp_metadata_update_frequencies(lofar_udp_metadata *const metadata, int32_t *const subbandData);
 int _lofar_udp_metadata_handle_external_factors(lofar_udp_metadata *metadata, const metadata_config *config);
 int _lofar_udp_metdata_setup_BASE(lofar_udp_metadata *metadata);
-
+#pragma clang diagnostic pop // "readability-avoid-const-params-in-decls"
 
 // Internal variable checks
 int _isEmpty(const char *string);

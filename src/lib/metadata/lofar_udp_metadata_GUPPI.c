@@ -89,7 +89,13 @@ int _lofar_udp_metadata_update_GUPPI(lofar_udp_metadata *metadata, int newObs) {
  * @param      fileRef  The file reference
  * @param      header   The ASCII header struct
  */
-int _lofar_udp_metadata_write_GUPPI(const guppi_hdr *hdr, char * const headerBuffer, size_t headerLength) {
+int64_t _lofar_udp_metadata_write_GUPPI(const guppi_hdr *hdr, int8_t *const headerBuffer, int64_t headerLength) {
+	if (headerBuffer == NULL || hdr == NULL) {
+		fprintf(stderr, "ERROR: Null buffer provided to %s, exiting.\n", __func__);
+	}
+
+	headerLength /= sizeof(char) / sizeof(int8_t);
+
 	// 35 * 80 + (1x \0) byte entries -> need headerLength to be larger than this or we'll have a bad time.
 	if (headerLength <= (ASCII_HDR_MEMBS * 80 + 1)) {
 		fprintf(stderr, "ERROR: Passed header buffer is too small (%ld vs minimum of %d), exiting.\n", headerLength, (ASCII_HDR_MEMBS * 80 + 1));
@@ -101,8 +107,7 @@ int _lofar_udp_metadata_write_GUPPI(const guppi_hdr *hdr, char * const headerBuf
 		headerBuffer[0] = '\0';
 	}
 
-	int returnVal = 0;
-	char *workingBuffer = headerBuffer;
+	char *workingBuffer = (void*) headerBuffer;
 	workingBuffer = _writeStr_GUPPI(workingBuffer, "SRC_NAME", hdr->src_name);
 	workingBuffer = _writeStr_GUPPI(workingBuffer, "RA_STR", hdr->ra_str);
 	workingBuffer = _writeStr_GUPPI(workingBuffer, "DEC_STR", hdr->dec_str);
@@ -152,14 +157,14 @@ int _lofar_udp_metadata_write_GUPPI(const guppi_hdr *hdr, char * const headerBuf
 
 	// All headers are terminated with "END" followed by 77 spaces.
 	const char end[4] = "END";
-	int parsedChars = snprintf(workingBuffer, headerLength - (workingBuffer - headerBuffer), "%-80s", end);
+	int parsedChars = snprintf(workingBuffer, headerLength - (workingBuffer - (char*) headerBuffer), "%-80s", end);
 
 	if (parsedChars != 80) {
 		fprintf(stderr, "ERROR: Failed to append end to GUPPI header (parsed %d chars), exiting.\n", parsedChars);
 		return -1;
 	}
 
-	return strnlen(headerBuffer, headerLength);
+	return strnlen((char*) headerBuffer, headerLength);
 }
 
 

@@ -47,14 +47,14 @@ typedef struct lofar_udp_io_read_config {
 	reader_t readerType;
 	int64_t readBufSize[MAX_NUM_PORTS];
 	int32_t portPacketLength[MAX_NUM_PORTS];
-	int32_t numInputs;
+	int8_t numInputs;
 
 	// Inputs post-formatting
 	char inputLocations[MAX_NUM_PORTS][DEF_STR_LEN + 1];
 	key_t inputDadaKeys[MAX_NUM_PORTS];
 	int32_t basePort;
-	int32_t offsetPortCount;
-	int32_t stepSizePort;
+	int16_t offsetPortCount;
+	int16_t stepSizePort;
 
 	// Main reading objects
 	FILE *fileRef[MAX_NUM_PORTS];
@@ -68,7 +68,7 @@ typedef struct lofar_udp_io_read_config {
 
 	// PSRDADA requirements
 	multilog_t *multilog[MAX_NUM_PORTS];
-	long dadaPageSize[MAX_NUM_PORTS];
+	int64_t dadaPageSize[MAX_NUM_PORTS];
 
 } lofar_udp_io_read_config;
 extern const lofar_udp_io_read_config lofar_udp_io_read_config_default;
@@ -81,25 +81,25 @@ typedef struct lofar_udp_obs_meta {
 	int64_t inputDataOffset[MAX_NUM_PORTS]; // Account for data shifts
 
 	// Checks for data quality (reset on steps)
-	int32_t inputDataReady;
-	int32_t outputDataReady;
+	int8_t inputDataReady;
+	int8_t outputDataReady;
 
 
 	// Track the packets, logging the beamlet counts and their metadata
-	int32_t portRawBeamlets[MAX_NUM_PORTS];
-	int32_t portRawCumulativeBeamlets[MAX_NUM_PORTS];
-	int32_t totalRawBeamlets;
+	int16_t portRawBeamlets[MAX_NUM_PORTS];
+	int16_t portRawCumulativeBeamlets[MAX_NUM_PORTS];
+	int16_t totalRawBeamlets;
 
 	// Tracking beamlets with respect to the processing strategy
-	int32_t baseBeamlets[MAX_NUM_PORTS];
-	int32_t upperBeamlets[MAX_NUM_PORTS];
-	int32_t portCumulativeBeamlets[MAX_NUM_PORTS];
-	int32_t totalProcBeamlets;
+	int16_t baseBeamlets[MAX_NUM_PORTS];
+	int16_t upperBeamlets[MAX_NUM_PORTS];
+	int16_t portCumulativeBeamlets[MAX_NUM_PORTS];
+	int16_t totalProcBeamlets;
 
 	// Input characteristics
-	int32_t inputBitMode;
-	int32_t portPacketLength[MAX_NUM_PORTS];
-	int32_t clockBit;
+	int8_t inputBitMode;
+	int16_t portPacketLength[MAX_NUM_PORTS];
+	int8_t clockBit;
 
 	// Calibration data
 	calibrate_t calibrateData;
@@ -108,18 +108,18 @@ typedef struct lofar_udp_obs_meta {
 
 
 	// Track the output metadata
-	int32_t numOutputs;
-	int32_t outputBitMode;
+	int8_t numOutputs;
+	int8_t outputBitMode;
 	int32_t packetOutputLength[MAX_OUTPUT_DIMS];
 
 
 	// Track the number of ports to process and the packet loss on each
-	int32_t numPorts;
+	int8_t numPorts;
 	int64_t portLastDroppedPackets[MAX_NUM_PORTS];
 	int64_t portTotalDroppedPackets[MAX_NUM_PORTS];
 
-	// Configuration: replay last packet or copy a 0 packed file, set the processing mode and it's related processing function
-	int32_t replayDroppedPackets;
+	// Configuration: replay last packet or copy a 0 packed file, set the processing mode, and it's related processing function
+	int8_t replayDroppedPackets;
 	processMode_t processingMode;
 
 	// Overall runtime information
@@ -202,9 +202,9 @@ typedef struct lofar_udp_config {
 	//
 	// These can all be set by using the io_read_parse_optarg function
 	int32_t basePort;
-	int32_t offsetPortCount;
-	int32_t stepSizePort;
-	int32_t numPorts;
+	int16_t offsetPortCount;
+	int16_t stepSizePort;
+	int8_t numPorts;
 
 	// Processing mode, see the documentation
 	int32_t processingMode;
@@ -220,12 +220,12 @@ typedef struct lofar_udp_config {
 
 	// Configure whether to path with 0's (0) or replay last packet (1) when we
 	// encounter a dropped/missed packet
-	int32_t replayDroppedPackets;
+	int8_t replayDroppedPackets;
 
 	// Lower / Upper limits of beamlets to process [0, numPorts * (beamlets per bitmode) + 1]
 	// This input is exclusive on the upper limit, not inclusive like LOFAR inputs
 	// E.g., to access beamlets 3 - 9, specify { 3, 10 }
-	int32_t beamletLimits[2];
+	int16_t beamletLimits[2];
 
 	// Enable / disable dreamBeam polarmetric corrections
 	calibrate_t calibrateData;
@@ -249,17 +249,16 @@ typedef struct lofar_udp_io_write_config {
 	// Writer configuration, these must be set prior to calling write_setup
 	reader_t readerType;
 	lofar_udp_metadata *metadata;
-	lofar_udp_obs_meta const *fallbackMetadata;
 	int64_t writeBufSize[MAX_OUTPUT_DIMS];
-	int32_t progressWithExisting;
-	int32_t numOutputs;
+	int8_t progressWithExisting;
+	int8_t numOutputs;
 
 	// Outputs pre- and post-formatting
 	char outputFormat[DEF_STR_LEN + 1];
 	char outputLocations[MAX_OUTPUT_DIMS][DEF_STR_LEN + 1];
 	key_t outputDadaKeys[MAX_OUTPUT_DIMS];
 	int32_t baseVal;
-	int32_t stepSize;
+	int16_t stepSize;
 	int64_t firstPacket;
 
 	// Main writer objects
@@ -272,23 +271,22 @@ typedef struct lofar_udp_io_write_config {
 		dada_hdu_t *hdu;
 		multilog_t *multilog;
 	} dadaWriter[MAX_OUTPUT_DIMS];
-	
 	struct {
-		int32_t initialised;
-		int32_t metadataInitialised;
+		int8_t initialised;
+		int8_t metadataInitialised;
 		hid_t file;
 		hid_t dtype;
 		size_t elementSize;
+		struct {
+			hid_t dset;
+			hsize_t dims[2];
+		} hdf5DSetWriter[MAX_OUTPUT_DIMS];
 	} hdf5Writer;
-	struct {
-		hid_t dset;
-		hsize_t dims[2];
-	} hdf5DSetWriter[MAX_OUTPUT_DIMS];
 
 
 	struct {
 		int32_t compressionLevel;
-
+		int8_t enableSeek;
 	} zstdConfig;
 	struct {
 		uint64_t nbufs;
@@ -302,9 +300,6 @@ typedef struct lofar_udp_io_write_config {
 
 	// ZSTD requirements
 	ZSTD_CCtx_params *cparams;
-
-	// PSRDADA requirements
-	int32_t enableMultilog;
 
 	// Channel count modified
 	int32_t externalChannelisation;

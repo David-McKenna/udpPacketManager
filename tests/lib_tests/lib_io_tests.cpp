@@ -32,7 +32,6 @@ TEST(LibIoTests, SetupUseCleanup) {
 					readConfig->numInputs = testNumInputs;
 					writeConfig->dadaConfig.nbufs = psrdadaBufs;
 					writeConfig->dadaConfig.num_readers = 1;
-					writeConfig->enableMultilog = 1;
 					writeConfig->progressWithExisting = 1;
 
 					std::cout << "Starting tests for " << std::to_string(type) << std::endl;
@@ -103,7 +102,7 @@ TEST(LibIoTests, SetupUseCleanup) {
 
 						if (type == DADA_ACTIVE) {
 							close(syncPipe[1]);
-							UNUSED(read(syncPipe[0], &syncPipe[1], sizeof(int)));
+							UNUSED_RETURN(read(syncPipe[0], &syncPipe[1], sizeof(int)));
 							close(syncPipe[0]);
 						}
 
@@ -158,7 +157,7 @@ TEST(LibIoTests, SetupUseCleanup) {
 					}
 
 					if (type == DADA_ACTIVE) {
-						UNUSED(write(syncPipe[1], &syncPipe[0], sizeof(int)));
+						UNUSED_RETURN(write(syncPipe[1], &syncPipe[0], sizeof(int)));
 						close(syncPipe[1]);
 					}
 

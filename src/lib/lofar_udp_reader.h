@@ -22,7 +22,7 @@
 
 
 // For posix_spawnp
-extern char **environ;
+extern char **environ; // NOLINT(readability-redundant-declaration)
 
 
 // Function Prototypes

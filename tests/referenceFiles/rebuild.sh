@@ -15,18 +15,20 @@ baseFiles=( udp*000 )
 secondFile=${baseFiles[1]}
 packetLen=7824
 
+# Extract the first N packets and append them to a set file
 function headPacket () {
 
 	file="${1}"
 	numPack="${2}"
 	packLen="${3:-$packetLen}"
 
-	numBytes=$((numPack * packLen + 1)) # Offset by 1 for tail -c +<n>
+	numBytes=$((numPack * packLen))
 	touch "${file}_out"
 	head -c ${numBytes} "${file}" >> "${file}_out"
 
 }
 
+# Extract the data from a file after N packets and append them to a set file
 function dropPacket () {
 
 	file="${1}"

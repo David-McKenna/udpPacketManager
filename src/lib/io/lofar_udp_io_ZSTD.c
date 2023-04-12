@@ -13,7 +13,7 @@
  * @return     { description_of_the_return_value }
  */
 int
-_lofar_udp_io_read_setup_ZSTD(lofar_udp_io_read_config *input, const char *inputLocation, int8_t port) {
+_lofar_udp_io_read_setup_ZSTD(lofar_udp_io_read_config *const input, const char *inputLocation, int8_t port) {
 	// Copy the file reference into input
 	// Leave in boilerplate return encase the function gets more complicated in future
 	int returnVal;
@@ -57,18 +57,34 @@ _lofar_udp_io_read_setup_ZSTD(lofar_udp_io_read_config *input, const char *input
 
 	// Setup the decompressed data buffer/struct
 	int64_t bufferSize = input->readBufSize[port];
+	if (bufferSize % ZSTD_DStreamOutSize()) {
+		bufferSize += _lofar_udp_io_read_ZSTD_fix_buffer_size(bufferSize, 1);
+	}
 	VERBOSE(printf("reader_setup: expending decompression buffer by %ld bytes\n",
-				   (int64_t) ZSTD_DStreamOutSize() - (bufferSize % (int64_t) ZSTD_DStreamOutSize())));
-	bufferSize += (int64_t) ZSTD_DStreamOutSize() - (bufferSize % (int64_t) ZSTD_DStreamOutSize());
-	input->readBufSize[port] = bufferSize;
+	               bufferSize - zstdAlignedSize));
+	//input->readBufSize[port] = bufferSize;
 	input->decompressionTracker[port].size = bufferSize;
 	input->decompressionTracker[port].pos = 0; // Initialisation for our step-by-step reader
 
-	if (input->readerType == ZSTDCOMPRESSED_INDIRECT && input->decompressionTracker[port].dst == NULL) {
+	if (input->readerType == ZSTDCOMPRESSED_INDIRECT) {
+		FREE_NOT_NULL(input->decompressionTracker[port].dst);
+		//fprintf(stderr, "WARNING: ZSTDCOMPRESSED_INDIRECT is enabled but a buffer wasn't provided, allocating %ld bytes for you.\n", bufferSize);
 		input->decompressionTracker[port].dst = calloc(bufferSize, sizeof(int8_t));
 	}
 
 	return 0;
+}
+
+int64_t _lofar_udp_io_read_ZSTD_fix_buffer_size(int64_t bufferSize, int8_t deltaOnly) {
+	int64_t zstdAlignedSize = ZSTD_DStreamOutSize();
+	int64_t newBufferSize = (zstdAlignedSize - (bufferSize % zstdAlignedSize)) % zstdAlignedSize + zstdAlignedSize;
+	// Extreme edge case: add an extra frame of data encase we need a small partial read at the end of a frame.
+	// Only possible for very small packetsPerIteration, but it's still possible.
+	if (!deltaOnly) {
+		return newBufferSize;
+	}
+
+	return newBufferSize - bufferSize;
 }
 
 
@@ -80,7 +96,7 @@ _lofar_udp_io_read_setup_ZSTD(lofar_udp_io_read_config *input, const char *input
  *
  * @return     { description_of_the_return_value }
  */
-void _lofar_udp_io_read_cleanup_ZSTD(lofar_udp_io_read_config *input, int8_t port) {
+void _lofar_udp_io_read_cleanup_ZSTD(lofar_udp_io_read_config *const input, int8_t port) {
 	if (input == NULL) {
 		return;
 	}
@@ -115,8 +131,8 @@ void _lofar_udp_io_read_cleanup_ZSTD(lofar_udp_io_read_config *input, int8_t por
  *
  * @return     int 0: ZSTD error, 1: File error, other: data read length
  */
-int64_t _lofar_udp_io_read_temp_ZSTD(void *outbuf, int64_t size, int8_t num, const char inputFile[],
-                                     int resetSeek) {
+int64_t _lofar_udp_io_read_temp_ZSTD(void *outbuf, int64_t size, int64_t num, const char inputFile[],
+                                     int8_t resetSeek) {
 	VERBOSE(printf("%s: %s, %ld\n", __func__, inputFile, strlen(inputFile)));
 	FILE *inputFilePtr = fopen(inputFile, "rb");
 	if (inputFilePtr == NULL) {
@@ -197,7 +213,7 @@ int64_t _lofar_udp_io_read_temp_ZSTD(void *outbuf, int64_t size, int8_t num, con
  *
  * @return     { description_of_the_return_value }
  */
-int64_t _lofar_udp_io_read_ZSTD(lofar_udp_io_read_config *input, int8_t port, int8_t *targetArray, int64_t nchars) {
+int64_t _lofar_udp_io_read_ZSTD(lofar_udp_io_read_config *const input, int8_t port, int8_t *targetArray, int64_t nchars) {
 	// Compressed file: Perform streaming decompression on a zstandard compressed file
 	VERBOSE(printf("reader_nchars: Entering read request (compressed): %d, %ld\n", port, nchars));
 
@@ -299,6 +315,9 @@ int64_t _lofar_udp_io_read_ZSTD(lofar_udp_io_read_config *input, int8_t port, in
 		input->zstdLastRead[port] = nchars;
 	}
 
+	if (dataRead > nchars) {
+		dataRead = nchars;
+	}
 
 	return dataRead;
 }
@@ -319,7 +338,7 @@ int64_t _lofar_udp_io_read_ZSTD(lofar_udp_io_read_config *input, int8_t port, in
  *
  * @return     { description_of_the_return_value }
  */
-int _lofar_udp_io_write_setup_ZSTD(lofar_udp_io_write_config *config, int8_t outp, int32_t iter) {
+int _lofar_udp_io_write_setup_ZSTD(lofar_udp_io_write_config *const config, int8_t outp, int32_t iter) {
 	if (_lofar_udp_io_write_setup_FILE(config, outp, iter) < 0) {
 		return -1;
 	}
@@ -396,7 +415,7 @@ int _lofar_udp_io_write_setup_ZSTD(lofar_udp_io_write_config *config, int8_t out
  * @return     { description_of_the_return_value }
  */
 int64_t
-_lofar_udp_io_write_ZSTD(lofar_udp_io_write_config *config, int8_t outp, const int8_t *src, int64_t nchars) {
+_lofar_udp_io_write_ZSTD(lofar_udp_io_write_config *const config, int8_t outp, const int8_t *src, int64_t nchars) {
 
 	ZSTD_inBuffer input = { src, nchars, 0 };
 	ZSTD_outBuffer output = { config->zstdWriter[outp].compressionBuffer.dst, config->zstdWriter[outp].compressionBuffer.size, 0 };
@@ -427,7 +446,7 @@ _lofar_udp_io_write_ZSTD(lofar_udp_io_write_config *config, int8_t outp, const i
  *
  * @return     { description_of_the_return_value }
  */
-void _lofar_udp_io_write_cleanup_ZSTD(lofar_udp_io_write_config *config, int8_t outp, int fullClean) {
+void _lofar_udp_io_write_cleanup_ZSTD(lofar_udp_io_write_config *const config, int8_t outp, int8_t fullClean) {
 	if (config == NULL) {
 		return;
 	}

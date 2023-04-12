@@ -9,7 +9,7 @@ if (((outGroupVar) = H5Gopen(inputHDF, groupName, 0)) < 0) {    \
 };
 
 #define VAR_ARR_SIZE(arrayName) \
-	sizeof(arrayName) / sizeof((arrayName)[0])
+	(sizeof((arrayName)) / sizeof((arrayName)[0]))
 
 #define _H5_SET_ATTRS(groupId, toSetAttrs, funcName, closeFunc)  \
 numAttrs = VAR_ARR_SIZE(toSetAttrs);                        \
@@ -26,16 +26,16 @@ if (funcName(groupId, toSetAttrs, numAttrs) < 0) {   \
 	_H5_SET_ATTRS(groupId, toSetAttrs, funcName, H5Dclose)
 
 #define H5_ERR_CHECK(variable, statement) \
-if ((variable = statement) < 0) {         \
+if (((variable) = (statement)) < 0) {         \
 	fprintf(stderr, "HDF5 Error encountered (%s:%d): ", __FILE__, __LINE__); \
 	H5Eprint(variable, stderr);           \
 };
 
 #define H5_ERR_CHECK_RETURN(variable, statement, msg, returnCode) \
-if ((variable = statement) < 0) {         \
+if (((variable) = (statement)) < 0) {         \
 	fprintf(stderr, "HDF5 Error encountered %s (%s:%d): ", msg, __FILE__, __LINE__); \
-	H5Eprint(variable, stderr);                                      \
-	return returnCode;                                                                  \
+	H5Eprint((variable), stderr);                                      \
+	return (returnCode);                                                                  \
 };
 
 // Metadata function
@@ -59,13 +59,13 @@ typedef struct strKeyStrVal {
 
 typedef struct strKeyStPtrVal {
 	char key[shortStrLen];
-	char *val;
+	const char *val;
 } strKeyStrPtrVal;
 
 typedef struct strKeyStrArrVal {
 	char key[shortStrLen];
 	uint32_t num;
-	char **val;
+	char **const val;
 } strKeyStrArrVal;
 
 typedef struct strKeyLongVal {
@@ -76,7 +76,7 @@ typedef struct strKeyLongVal {
 typedef struct strKeyLongArrVal {
 	char key[shortStrLen];
 	uint32_t num;
-	long *val;
+	long *const val;
 } strKeyLongArrVal;
 
 typedef struct strKeyDoubleVal {
@@ -87,7 +87,7 @@ typedef struct strKeyDoubleVal {
 typedef struct strKeyDoubleArrVal {
 	char key[shortStrLen];
 	uint32_t num;
-	double *val;
+	double *const val;
 } strKeyDoubleArrVal;
 
 typedef struct strKeyBoolVal {
@@ -98,7 +98,7 @@ typedef struct strKeyBoolVal {
 __attribute__((unused)) typedef struct strKeyBoolArrVal {
 	char key[shortStrLen];
 	uint32_t num;
-	bool_t *val;
+	bool_t *const val;
 } strKeyBoolArrVal;
 
 
@@ -111,7 +111,7 @@ __attribute__((unused)) typedef struct strKeyBoolArrVal {
  *
  * @return     { description_of_the_return_value }
  */
-__attribute__((unused)) int _lofar_udp_io_read_setup_HDF5(__attribute__((unused)) lofar_udp_io_read_config *input, __attribute__((unused)) const char *inputLocation,
+__attribute__((unused)) int _lofar_udp_io_read_setup_HDF5(__attribute__((unused)) lofar_udp_io_read_config *const input, __attribute__((unused)) const char *inputLocation,
                                                           __attribute__((unused)) int8_t port) {
 	return -1;
 }
@@ -127,7 +127,7 @@ __attribute__((unused)) int _lofar_udp_io_read_setup_HDF5(__attribute__((unused)
  *
  * @return     { description_of_the_return_value }
  */
-__attribute__((unused)) int64_t _lofar_udp_io_read_HDF5(__attribute__((unused)) lofar_udp_io_read_config *input, __attribute__((unused)) int8_t port, __attribute__((unused)) int8_t *targetArray, __attribute__((unused)) int64_t nchars) {
+__attribute__((unused)) int64_t _lofar_udp_io_read_HDF5(__attribute__((unused)) lofar_udp_io_read_config *const input, __attribute__((unused)) int8_t port, __attribute__((unused)) int8_t *targetArray, __attribute__((unused)) int64_t nchars) {
 	return -1;
 }
 
@@ -139,8 +139,8 @@ __attribute__((unused)) int64_t _lofar_udp_io_read_HDF5(__attribute__((unused)) 
  *
  * @return     { description_of_the_return_value }
  */
-__attribute__((unused)) void _lofar_udp_io_read_cleanup_HDF5(__attribute__((unused)) lofar_udp_io_read_config *input, __attribute__((unused)) int8_t port) {
-	return;
+__attribute__((unused)) void _lofar_udp_io_read_cleanup_HDF5(__attribute__((unused)) lofar_udp_io_read_config *const input, __attribute__((unused)) int8_t port) {
+	return; // NOLINT(readability-redundant-control-flow)
 }
 
 
@@ -173,7 +173,7 @@ _lofar_udp_io_read_temp_HDF5(__attribute__((unused)) void *outbuf, __attribute__
  *
  * @return     { description_of_the_return_value }
  */
-int _lofar_udp_io_write_setup_HDF5(lofar_udp_io_write_config *config, __attribute__((unused)) int8_t outp, int32_t iter) {
+int _lofar_udp_io_write_setup_HDF5(lofar_udp_io_write_config *const config, int8_t outp, int32_t iter) {
 
 	// Documentation referenced
 	//
@@ -516,7 +516,7 @@ int hdf5SetupBoolAttrs(hid_t group, const strKeyBoolVal attrs[], size_t numEntri
 	return 0;
 }
 
-int64_t _lofar_udp_io_write_metadata_HDF5(lofar_udp_io_write_config *config, lofar_udp_metadata *metadata) {
+int64_t _lofar_udp_io_write_metadata_HDF5(lofar_udp_io_write_config *const config, const lofar_udp_metadata *metadata) {
 	hid_t group;
 	hsize_t dims[2] = { 1 };
 	hid_t space;
@@ -1065,15 +1065,15 @@ int64_t _lofar_udp_io_write_metadata_HDF5(lofar_udp_io_write_config *config, lof
 		VERBOSE(printf("Loop\n"));
 		for (int i = 0; i < MAX_OUTPUT_DIMS; i++) {
 			if (metadata->upm_rel_outputs[i]) {
-				config->hdf5DSetWriter[outputs].dims[0] = 0;
-				config->hdf5DSetWriter[outputs].dims[1] = metadata->nchan;
-				H5_ERR_CHECK(dataspace, H5Screate_simple(rank, config->hdf5DSetWriter->dims, maxdims));
+				config->hdf5Writer.hdf5DSetWriter[outputs].dims[0] = 0;
+				config->hdf5Writer.hdf5DSetWriter[outputs].dims[1] = metadata->nchan;
+				H5_ERR_CHECK(dataspace, H5Screate_simple(rank, config->hdf5Writer.hdf5DSetWriter->dims, maxdims));
 
 				if (snprintf(dsetName, DEF_STR_LEN - 1, "/SUB_ARRAY_POINTING_000/BEAM_000/STOKES_%d", i) < 1) {
 					fprintf(stderr, "ERROR: Failed to print dataset name for dset %d, exiting.\n", i);
 					return -1;
 				}
-				H5_ERR_CHECK(config->hdf5DSetWriter[outputs].dset, H5Dcreate(config->hdf5Writer.file, dsetName, config->hdf5Writer.dtype, dataspace, H5P_DEFAULT, prop, H5P_DEFAULT));
+				H5_ERR_CHECK(config->hdf5Writer.hdf5DSetWriter[outputs].dset, H5Dcreate(config->hdf5Writer.file, dsetName, config->hdf5Writer.dtype, dataspace, H5P_DEFAULT, prop, H5P_DEFAULT));
 				H5_ERR_CHECK(status, H5Sclose(dataspace));
 
 				if (strncpy(componentStr, metadata->upm_outputfmt[outputs], 15) != componentStr) {
@@ -1088,19 +1088,19 @@ int64_t _lofar_udp_io_write_metadata_HDF5(lofar_udp_io_write_config *config, lof
 				const strKeyStrVal dsetStrAttrs[] = {
 					{ "GROUPTYPE", "bfData" },
 				};
-				H5D_SET_ATTRS(config->hdf5DSetWriter[outputs].dset, dsetStrAttrs, hdf5SetupStrAttrs);
+				H5D_SET_ATTRS(config->hdf5Writer.hdf5DSetWriter[outputs].dset, dsetStrAttrs, hdf5SetupStrAttrs);
 
 				const strKeyStrPtrVal dsetStrPtrAttrs[] = {
 					{ "DATATYPE", dtype },
 					{ "STOKES_COMPONENT", component },
 				};
-				H5D_SET_ATTRS(config->hdf5DSetWriter[outputs].dset, dsetStrPtrAttrs, hdf5SetupStrPtrAttrs);
+				H5D_SET_ATTRS(config->hdf5Writer.hdf5DSetWriter[outputs].dset, dsetStrPtrAttrs, hdf5SetupStrPtrAttrs);
 
 				const strKeyLongVal dsetLongAttrs[] = {
 					{ "NOF_SAMPLES", 0 },
 					{ "NOF_SUBBANDS", metadata->nchan },
 				};
-				H5D_SET_ATTRS(config->hdf5DSetWriter[outputs].dset, dsetLongAttrs, hdf5SetupLongAttrs);
+				H5D_SET_ATTRS(config->hdf5Writer.hdf5DSetWriter[outputs].dset, dsetLongAttrs, hdf5SetupLongAttrs);
 
 				outputs++;
 			}
@@ -1133,7 +1133,7 @@ int64_t _lofar_udp_io_write_metadata_HDF5(lofar_udp_io_write_config *config, lof
 		HDF_OPEN_GROUP(group, config->hdf5Writer.file, "/SUB_ARRAY_POINTING_000");
 
 		const strKeyLongVal sap0LongAttrs[] = {
-			{ "NOF_SAMPLES", config->hdf5DSetWriter[0].dims[1] },
+			{ "NOF_SAMPLES", config->hdf5Writer.hdf5DSetWriter[0].dims[1] },
 		};
 		H5G_SET_ATTRS(group, sap0LongAttrs, hdf5SetupLongAttrs);
 
@@ -1154,25 +1154,25 @@ int64_t _lofar_udp_io_write_metadata_HDF5(lofar_udp_io_write_config *config, lof
  *
  * @return     { description_of_the_return_value }
  */
-int64_t _lofar_udp_io_write_HDF5(lofar_udp_io_write_config *config, int8_t outp, const int8_t *src, int64_t nchars) {
+int64_t _lofar_udp_io_write_HDF5(lofar_udp_io_write_config *const config, int8_t outp, const int8_t *src, int64_t nchars) {
 	hsize_t offsets[2];
-	offsets[0] = config->hdf5DSetWriter[outp].dims[0];
+	offsets[0] = config->hdf5Writer.hdf5DSetWriter[outp].dims[0];
 	offsets[1] = 0;
 
-	VERBOSE(printf("%ld, %lld, %ld\n", nchars, config->hdf5DSetWriter[outp].dims[1], config->hdf5Writer.elementSize));
-	hsize_t extension[2] = { nchars / config->hdf5DSetWriter[outp].dims[1] / config->hdf5Writer.elementSize,
-						        config->hdf5DSetWriter[outp].dims[1] };
-	VERBOSE(printf("Preparing to extend HDF5 dataset %d by %lld samples (%ld bytes / %lld chans).\n", outp, extension[0], nchars, config->hdf5DSetWriter[outp].dims[1]));
-	config->hdf5DSetWriter[outp].dims[0] += extension[0];
+	VERBOSE(printf("%ld, %lld, %ld\n", nchars, config->hdf5Writer.hdf5DSetWriter[outp].dims[1], config->hdf5Writer.elementSize));
+	hsize_t extension[2] = { nchars / config->hdf5Writer.hdf5DSetWriter[outp].dims[1] / config->hdf5Writer.elementSize,
+						        config->hdf5Writer.hdf5DSetWriter[outp].dims[1] };
+	VERBOSE(printf("Preparing to extend HDF5 dataset %d by %lld samples (%ld bytes / %lld chans).\n", outp, extension[0], nchars, config->hdf5Writer.hdf5DSetWriter[outp].dims[1]));
+	config->hdf5Writer.hdf5DSetWriter[outp].dims[0] += extension[0];
 
-	VERBOSE(printf("Getting extension for (%lld, %lld)\n", config->hdf5DSetWriter[outp].dims[0], config->hdf5DSetWriter[outp].dims[1]));
+	VERBOSE(printf("Getting extension for (%lld, %lld)\n", config->hdf5Writer.hdf5DSetWriter[outp].dims[0], config->hdf5Writer.hdf5DSetWriter[outp].dims[1]));
 	hid_t status;
-	H5_ERR_CHECK(status, H5Dset_extent(config->hdf5DSetWriter[outp].dset, config->hdf5DSetWriter[outp].dims));
+	H5_ERR_CHECK(status, H5Dset_extent(config->hdf5Writer.hdf5DSetWriter[outp].dset, config->hdf5Writer.hdf5DSetWriter[outp].dims));
 
 
 	VERBOSE(printf("Getting space\n"));
 	hid_t filespace;
-	H5_ERR_CHECK(filespace, H5Dget_space(config->hdf5DSetWriter[outp].dset));
+	H5_ERR_CHECK(filespace, H5Dget_space(config->hdf5Writer.hdf5DSetWriter[outp].dset));
 	VERBOSE(printf("Getting hyperslab\n"));
 	H5_ERR_CHECK(status, H5Sselect_hyperslab(filespace, H5S_SELECT_SET, offsets, NULL, extension, NULL));
 	VERBOSE(printf("Getting memspace\n"));
@@ -1180,7 +1180,7 @@ int64_t _lofar_udp_io_write_HDF5(lofar_udp_io_write_config *config, int8_t outp,
 	H5_ERR_CHECK(memspace, H5Screate_simple(2, extension, NULL));
 
 	VERBOSE(printf("Writing..\n"));
-	if ((status = H5Dwrite(config->hdf5DSetWriter[outp].dset, config->hdf5Writer.dtype, memspace, filespace, H5P_DEFAULT, src)) < 0) {
+	if ((status = H5Dwrite(config->hdf5Writer.hdf5DSetWriter[outp].dset, config->hdf5Writer.dtype, memspace, filespace, H5P_DEFAULT, src)) < 0) {
 		H5Eprint(status, stderr);
 		fprintf(stderr, "ERROR: Failed to write %ld chars to HDF5 dataset %d, exiting.\n", nchars, outp);
 		return -1;
@@ -1201,18 +1201,18 @@ int64_t _lofar_udp_io_write_HDF5(lofar_udp_io_write_config *config, int8_t outp,
  *
  * @return     { description_of_the_return_value }
  */
-void _lofar_udp_io_write_cleanup_HDF5(lofar_udp_io_write_config *config, int8_t outp, int fullClean) {
+void _lofar_udp_io_write_cleanup_HDF5(lofar_udp_io_write_config *config, int8_t outp, int8_t fullClean) {
 	if (config == NULL || config->hdf5Writer.file == -1) {
 		return;
 	}
 
 	if (!fullClean) {
-		H5Dclose(config->hdf5DSetWriter[outp].dset);
-		config->hdf5DSetWriter[outp].dset = -1;
+		H5Dclose(config->hdf5Writer.hdf5DSetWriter[outp].dset);
+		config->hdf5Writer.hdf5DSetWriter[outp].dset = -1;
 	} else {
 		for (int out = 0; out < config->numOutputs; out++) {
-			H5Dclose(config->hdf5DSetWriter[out].dset);
-			config->hdf5DSetWriter[out].dset = -1;
+			H5Dclose(config->hdf5Writer.hdf5DSetWriter[out].dset);
+			config->hdf5Writer.hdf5DSetWriter[out].dset = -1;
 		}
 		H5Fclose(config->hdf5Writer.file);
 		H5Tclose(config->hdf5Writer.dtype);

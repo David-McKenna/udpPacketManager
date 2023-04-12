@@ -28,7 +28,7 @@ int64_t lofar_udp_time_get_packet_from_isot(const char *inputTime, uint8_t clock
 	if ((lastParsedChar != NULL) && (lastParsedChar[0] == '\0')) {
 		unixEpoch = timegm(&unixTm);
 		if (unixEpoch != -1) {
-			return lofar_udp_time_beamformed_packno(unixEpoch, 0, clock200MHz);
+			return lofar_udp_time_beamformed_packno((int32_t) unixEpoch, 0, clock200MHz); // 2036 bug long -> int narrowed
 		}
 	}
 

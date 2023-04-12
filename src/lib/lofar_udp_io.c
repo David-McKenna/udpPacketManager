@@ -96,7 +96,7 @@ int lofar_udp_io_write_setup(lofar_udp_io_write_config *config, int32_t iter) {
 }
 
 
-int _lofar_udp_io_read_setup_internal_lib_helper(lofar_udp_io_read_config *input, const lofar_udp_config *config, const lofar_udp_obs_meta *meta,
+int _lofar_udp_io_read_setup_internal_lib_helper(lofar_udp_io_read_config *const input, const lofar_udp_config *config, const lofar_udp_obs_meta *meta,
                                                  int8_t port) {
 
 	if (input == NULL || config == NULL || meta == NULL) {
@@ -180,7 +180,6 @@ int lofar_udp_io_write_setup_helper(lofar_udp_io_write_config *config, const lof
 	}
 
 	config->firstPacket = meta->lastPacket;
-	config->fallbackMetadata = meta;
 
 	return lofar_udp_io_write_setup(config, iter);
 }
@@ -196,7 +195,7 @@ int lofar_udp_io_write_setup_helper(lofar_udp_io_write_config *config, const lof
  *
  * @return     { description_of_the_return_value }
  */
-void lofar_udp_io_read_cleanup(lofar_udp_io_read_config *input, const int8_t port) {
+void lofar_udp_io_read_cleanup(lofar_udp_io_read_config *input, int8_t port) {
 	if (input == NULL) {
 		return;
 	}
@@ -232,7 +231,7 @@ void lofar_udp_io_read_cleanup(lofar_udp_io_read_config *input, const int8_t por
  *
  * @return     { description_of_the_return_value }
  */
-void lofar_udp_io_write_cleanup(lofar_udp_io_write_config *config, const int8_t outp, const int fullClean) {
+void lofar_udp_io_write_cleanup(lofar_udp_io_write_config *config, int8_t outp, int8_t fullClean) {
 	if (config == NULL) {
 		return;
 	}
@@ -270,7 +269,7 @@ void lofar_udp_io_write_cleanup(lofar_udp_io_write_config *config, const int8_t 
  *
  * @return     { description_of_the_return_value }
  */
-reader_t lofar_udp_io_parse_type_optarg(const char optargc[], char *fileFormat, int *baseVal, int *stepSize, int *offsetVal) {
+reader_t lofar_udp_io_parse_type_optarg(const char optargc[], char *fileFormat, int32_t *baseVal, int16_t *stepSize, int16_t *offsetVal) {
 	if (optargc == NULL || fileFormat == NULL || baseVal == NULL || stepSize == NULL || offsetVal == NULL) {
 		fprintf(stderr, "ERROR %s: Passed null ptr (optargc: %p, fileFormat: %p, baseVal: %p, stepSize: %p, offsetVal: %p), exiting.\n", __func__, optargc, fileFormat, baseVal, stepSize, offsetVal);
 		return NO_ACTION;
@@ -284,7 +283,7 @@ reader_t lofar_udp_io_parse_type_optarg(const char optargc[], char *fileFormat, 
 
 	VERBOSE(printf("a: %s: %d, %d, %d\n", __func__, *baseVal, *stepSize, *offsetVal));
 	if (optargc[4] == ':') {
-		sscanf(optargc, "%*[^:]:%[^,],%d,%d,%d", fileFormat, baseVal, stepSize, offsetVal);
+		sscanf(optargc, "%*[^:]:%[^,],%d,%hd,%hd", fileFormat, baseVal, stepSize, offsetVal);
 		VERBOSE(printf("b: %s: %d, %d, %d\n", __func__, *baseVal, *stepSize, *offsetVal));
 
 
@@ -312,7 +311,7 @@ reader_t lofar_udp_io_parse_type_optarg(const char optargc[], char *fileFormat, 
 		} else {
 			reader = NORMAL;
 		}
-		sscanf(optargc, "%[^,],%d,%d", fileFormat, baseVal, offsetVal);
+		sscanf(optargc, "%[^,],%d,%hd", fileFormat, baseVal, offsetVal);
 		VERBOSE(printf("c: %s: %d, %d, %d\n", __func__, *baseVal, *stepSize, *offsetVal));
 
 	}
@@ -340,7 +339,7 @@ reader_t lofar_udp_io_parse_type_optarg(const char optargc[], char *fileFormat, 
  *
  * @return     { description_of_the_return_value }
  */
-int lofar_udp_io_parse_format(char *dest, const char format[], int8_t port, int iter, int idx, long pack) {
+int lofar_udp_io_parse_format(char *dest, const char format[], int32_t port, int iter, int idx, long pack) {
 	if (dest == NULL || format == NULL) {
 		fprintf(stderr, "ERROR: Passed null input, (dest: %p, format: %p), exiting.\n", dest, format);
 		return -1;
@@ -459,7 +458,7 @@ int lofar_udp_io_read_parse_optarg(lofar_udp_config *config, const char optargc[
 		case ZSTDCOMPRESSED_INDIRECT:
 		case HDF5:
 			for (int i = 0; i < (MAX_NUM_PORTS - config->offsetPortCount); i++) {
-				int8_t port = (config->basePort + config->offsetPortCount * config->stepSizePort) + i * config->stepSizePort;
+				int32_t port = (config->basePort + config->offsetPortCount * config->stepSizePort) + i * config->stepSizePort;
 
 				if (lofar_udp_io_parse_format(config->inputLocations[i], fileFormat, port, -1, i, -1) < 0) {
 					return -1;
@@ -471,10 +470,14 @@ int lofar_udp_io_read_parse_optarg(lofar_udp_config *config, const char optargc[
 
 		case DADA_ACTIVE:
 			// Swap values, default value is in the fileFormat for ringbuffers
-			config->stepSizePort = config->basePort;
+			if (config->basePort > INT16_MIN && config->basePort < INT16_MAX) {
+				fprintf(stderr, "ERROR: Failed to parse PSRDADA keys correctly, exiting.\n");
+				return -1;
+			}
+			config->stepSizePort = (int16_t) config->basePort;
 
 			// Parse the base value from the input
-			config->basePort = strtoimax(fileFormat, &endPtr, 10);
+			config->basePort = internal_strtoi(fileFormat, &endPtr);
 			if (!(fileFormat != endPtr && *(endPtr) == '\0')) {
 				fprintf(stderr,"ERROR: Failed to parse base port number (%s), exiting.\n", fileFormat);
 				return -1;
@@ -523,7 +526,7 @@ int lofar_udp_io_write_parse_optarg(lofar_udp_io_write_config *config, const cha
 		return -1;
 	}
 
-	int dummyInt = 0;
+	int16_t dummyInt = 0;
 	config->readerType = lofar_udp_io_parse_type_optarg(optargc, config->outputFormat, &(config->baseVal),
 	                                                    &(config->stepSize), &(dummyInt));
 
@@ -544,8 +547,12 @@ int lofar_udp_io_write_parse_optarg(lofar_udp_io_write_config *config, const cha
 
 		case DADA_ACTIVE:
 			// Swap values, default value is in the output format for ringbuffers
-			config->stepSize = config->baseVal;
-			config->baseVal = strtoimax(config->outputFormat, &endPtr, 10);
+			if (config->baseVal > INT16_MIN && config->baseVal < INT16_MAX) {
+				fprintf(stderr, "ERROR: Failed to parse PSRDADA keys correctly, exiting.\n");
+				return -1;
+			}
+			config->stepSize = (int16_t) config->baseVal;
+			config->baseVal = internal_strtoi(config->outputFormat, &endPtr);
 			if (!(config->outputFormat != endPtr && *(endPtr) == '\0')) {
 				fprintf(stderr, "ERROR: Failed to parse base ringbuffer number (%s), exiting.\n", config->outputFormat);
 				return -1;
@@ -592,11 +599,16 @@ int lofar_udp_io_write_parse_optarg(lofar_udp_io_write_config *config, const cha
 //
 // @return     long: bytes read */
 //
-int64_t lofar_udp_io_read(lofar_udp_io_read_config *input, int8_t port, int8_t *targetArray, int64_t nchars) {
+int64_t lofar_udp_io_read(lofar_udp_io_read_config *const input, int8_t port, int8_t *targetArray, int64_t nchars) {
 
 	// Sanity check input
 	if (nchars < 0) {
 		fprintf(stderr, "ERROR: Requested negative read size %ld on port %d, exiting.\n", nchars, port);
+		return -1;
+	}
+
+	if (nchars > input->readBufSize[port]) {
+		fprintf(stderr, "ERROR: Request read of %ld is larger than buffer size %ld, exiting.\n", nchars, input->readBufSize[port]);
 		return -1;
 	}
 
@@ -646,7 +658,7 @@ int64_t lofar_udp_io_read(lofar_udp_io_read_config *input, int8_t port, int8_t *
  *
  * @return     { description_of_the_return_value }
  */
-int64_t lofar_udp_io_write(lofar_udp_io_write_config *config, int8_t outp, const int8_t *src, int64_t nchars) {
+int64_t lofar_udp_io_write(lofar_udp_io_write_config *const config, int8_t outp, const int8_t *src, int64_t nchars) {
 	// Sanity check input
 	if (nchars < 0) {
 		fprintf(stderr, "ERROR: Requested negative write size %ld on output %d, exiting.\n", nchars, outp);
@@ -656,7 +668,7 @@ int64_t lofar_udp_io_write(lofar_udp_io_write_config *config, int8_t outp, const
 		fprintf(stderr, "ERROR: Target was nulled at some point, cannot write new data, exiting.\n");
 		return -1;
 	}
-	if (outp < 0 || outp > MAX_NUM_PORTS) {
+	if (outp < 0 || outp >= MAX_NUM_PORTS) {
 		fprintf(stderr, "ERROR: Invalid port index (%d)\n, exiting.", outp);
 		return -1;
 	}
@@ -685,7 +697,7 @@ int64_t lofar_udp_io_write(lofar_udp_io_write_config *config, int8_t outp, const
 }
 
 
-int64_t lofar_udp_io_write_metadata(lofar_udp_io_write_config *outConfig, int8_t outp, const lofar_udp_metadata *metadata, const int8_t *headerBuffer, int64_t headerLength) {
+int64_t lofar_udp_io_write_metadata(lofar_udp_io_write_config *const outConfig, int8_t outp, const lofar_udp_metadata *metadata, const int8_t *headerBuffer, int64_t headerLength) {
 	if (outConfig == NULL || metadata == NULL) {
 		fprintf(stderr, "ERROR %s: Invalid struct (outConfig: %p, metadata: %p), exiting.\n", __func__, outConfig, metadata);
 		return -1;
@@ -700,7 +712,7 @@ int64_t lofar_udp_io_write_metadata(lofar_udp_io_write_config *outConfig, int8_t
 		return -1;
 	}
 
-	ssize_t trueHeaderLen = strnlen(headerBuffer, headerLength);
+	ssize_t trueHeaderLen = (ssize_t) strnlen((const char *) headerBuffer, headerLength);
 
 	switch (outConfig->readerType) {
 		// Normal file writes
@@ -738,14 +750,14 @@ int64_t lofar_udp_io_write_metadata(lofar_udp_io_write_config *outConfig, int8_t
 /// @return     { description_of_the_return_value }
 ///
 int64_t
-lofar_udp_io_read_temp(const lofar_udp_config *config, int8_t port, int8_t *outbuf, size_t size, int64_t num,
-                       int resetSeek) {
+lofar_udp_io_read_temp(const lofar_udp_config *config, int8_t port, int8_t *outbuf, int64_t size, int64_t num,
+                       int8_t resetSeek) {
 	if (config == NULL || outbuf == NULL) {
 		fprintf(stderr, "ERROR: Pass a null buffer (config: %p, outbuf: %p), exiting.\n", config, outbuf);
 		return -1;
 	}
 
-	if (port < 0 || port > MAX_NUM_PORTS) {
+	if (port < 0 || port >= MAX_NUM_PORTS) {
 		fprintf(stderr, "ERROR: Invalid port index (%d)\n, exiting.", port);
 		return -1;
 	}
@@ -824,7 +836,7 @@ long _fd_file_size(int fd) {
 	return stat_s.st_size;
 }
 
-#include "./io/lofar_udp_io_FILE.c"
-#include "./io/lofar_udp_io_ZSTD.c"
-#include "./io/lofar_udp_io_DADA.c"
-#include "./io/lofar_udp_io_HDF5.c"
+#include "./io/lofar_udp_io_FILE.c" // NOLINT(bugprone-suspicious-include)
+#include "./io/lofar_udp_io_ZSTD.c" // NOLINT(bugprone-suspicious-include)
+#include "./io/lofar_udp_io_DADA.c" // NOLINT(bugprone-suspicious-include)
+#include "./io/lofar_udp_io_HDF5.c" // NOLINT(bugprone-suspicious-include)

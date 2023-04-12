@@ -318,7 +318,7 @@ int main(int argc, char *argv[]) {
 				break;
 
 			case 'u':
-				config->numPorts = strtoi(optarg, &endPtr);
+				config->numPorts = internal_strtoi(optarg, &endPtr);
 				if (checkOpt(inputOpt, optarg, endPtr)) { flagged = 1; }
 				break;
 
@@ -336,7 +336,7 @@ int main(int argc, char *argv[]) {
 				break;
 
 			case 'S':
-				splitEvery = strtoi(optarg, &endPtr);
+				splitEvery = internal_strtoi(optarg, &endPtr);
 				if (checkOpt(inputOpt, optarg, endPtr)) { flagged = 1; }
 				break;
 
@@ -361,12 +361,12 @@ int main(int argc, char *argv[]) {
 				break;
 
 			case 'c':
-				channelisation = strtoi(optarg, &endPtr);
+				channelisation = internal_strtoi(optarg, &endPtr);
 				if (checkOpt(inputOpt, optarg, endPtr)) { flagged = 1; }
 				break;
 
 			case 'd':
-				downsampling = strtoi(optarg, &endPtr);
+				downsampling = internal_strtoi(optarg, &endPtr);
 				if (checkOpt(inputOpt, optarg, endPtr)) { flagged = 1; }
 				break;
 
@@ -391,7 +391,7 @@ int main(int argc, char *argv[]) {
 				break;
 
 			case 'T':
-				config->ompThreads = strtoi(optarg, &endPtr);
+				config->ompThreads = internal_strtoi(optarg, &endPtr);
 				if (checkOpt(inputOpt, optarg, endPtr)) { flagged = 1; }
 				break;
 

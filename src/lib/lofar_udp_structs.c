@@ -1,7 +1,7 @@
 #include "lofar_udp_structs.h"
 
 // Merge in the metadata structs
-#include "lofar_udp_structs_metadata.c"
+#include "lofar_udp_structs_metadata.c" // NOLINT(bugprone-suspicious-include)
 
 // Reader struct default
 const lofar_udp_io_read_config lofar_udp_io_read_config_default = {
@@ -35,7 +35,6 @@ const lofar_udp_io_write_config lofar_udp_io_write_config_default = {
 	// Control options
 	.readerType = NO_ACTION,
 	.metadata = NULL,
-	.fallbackMetadata = NULL,
 	.writeBufSize = { -1 }, // NEEDS FULL RUNTIME INITIALISATION
 	.progressWithExisting = 0,
 	.numOutputs = 0,
@@ -52,8 +51,9 @@ const lofar_udp_io_write_config lofar_udp_io_write_config_default = {
 	.outputFiles = { NULL, },
 	.zstdWriter = { { NULL } },
 	.dadaWriter = { { NULL } },
-	.hdf5Writer = { 0, },
-	.hdf5DSetWriter = { { 0, { 0, 0 }}},
+	.hdf5Writer = { 0,
+		.hdf5DSetWriter = { 0, { 0, 0 }}
+	},
 
 
 
@@ -74,7 +74,6 @@ const lofar_udp_io_write_config lofar_udp_io_write_config_default = {
 
 	// Misc options
 	.cparams = NULL, // ZSTD configuration
-	.enableMultilog = 1,
 	.externalChannelisation = 1,
 
 };
