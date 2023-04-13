@@ -125,6 +125,7 @@ typedef enum {
 // Output metadata formats
 typedef enum {
 	NO_META = -1,
+	DEFAULT_META = 0,
 	GUPPI = 1,
 	DADA = 2,
 	SIGPROC = 4,
@@ -137,6 +138,9 @@ typedef enum {
 	GENERATE_JONES = 0,
 	APPLY_CALIBRATION = 1
 } calibrate_t;
+
+// Jones matrix size for calibration
+#define JONESMATSIZE 8
 
 // I/O array sizes
 #define MAX_NUM_PORTS 4

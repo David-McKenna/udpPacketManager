@@ -83,7 +83,6 @@ const lofar_udp_io_write_config lofar_udp_io_write_config_default = {
 // the lofar_udp_config and overwrites the value in here.
 const lofar_udp_calibration lofar_udp_calibration_default = {
 	.calibrationStepsGenerated = 0,
-	.calibrationFifo = "/tmp/udp_calibation_pipe",
 	.calibrationDuration = 3600.0f,
 };
 

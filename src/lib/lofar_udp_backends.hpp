@@ -1,9 +1,6 @@
 #ifndef LOFAR_UDP_BACKENDS_HPP
 #define LOFAR_UDP_BACKENDS_HPP
 
-// Jones matrix size for calibration
-#define JONESMATSIZE 8
-
 // We extensively use OpenMP, include it
 #include <omp.h>
 
@@ -198,7 +195,7 @@ void inline udp_copyNoHdr(int64_t iLoop, int8_t *inputPortData, O **outputData, 
 
 
 // Copy Split Pols: Take the data across all ports, merge them, then split based on the X/Y real/imaginary state.
-template<typename I, typename O, const int32_t calibrateData>
+template<typename I, typename O, const int8_t calibrateData>
 void inline
 udp_copySplitPols(int64_t iLoop, int8_t *inputPortData, O **outputData, int64_t lastInputPacketOffset, int64_t packetOutputLength,
 				  int32_t timeStepSize, int32_t upperBeamlet, int32_t cumulativeBeamlets, int32_t baseBeamlet, float *jonesMatrix) {
@@ -243,7 +240,7 @@ udp_copySplitPols(int64_t iLoop, int8_t *inputPortData, O **outputData, int64_t 
 
 
 // Channel Major: Change from being packet major (16 time samples, N beamlets) to channel major (M time samples, N beamlets).
-template<typename I, typename O, const int32_t calibrateData>
+template<typename I, typename O, const int8_t calibrateData>
 void inline
 udp_channelMajor(int64_t iLoop, int8_t *inputPortData, O **outputData, int64_t lastInputPacketOffset, int64_t packetOutputLength,
 				 int32_t timeStepSize, int32_t totalBeamlets, int32_t upperBeamlet, int32_t cumulativeBeamlets, int32_t baseBeamlet,
@@ -287,7 +284,7 @@ udp_channelMajor(int64_t iLoop, int8_t *inputPortData, O **outputData, int64_t l
 }
 
 // Channel Major, Split Pols: Change from packet major to beamlet major (described previously), then split data across X/Y real/imaginary state.
-template<typename I, typename O, const int32_t calibrateData>
+template<typename I, typename O, const int8_t calibrateData>
 void inline udp_channelMajorSplitPols(int64_t iLoop, int8_t *inputPortData, O **outputData, int64_t lastInputPacketOffset,
 									  int64_t packetOutputLength, int32_t timeStepSize, int32_t totalBeamlets, int32_t upperBeamlet,
 									  int32_t cumulativeBeamlets, int32_t baseBeamlet, float *jonesMatrix) {
@@ -330,7 +327,7 @@ void inline udp_channelMajorSplitPols(int64_t iLoop, int8_t *inputPortData, O **
 }
 
 // Reversed Channel Major: Change from being packet major (16 time samples, N beamlets) to channel major (M time samples, N beamlets), with the beamlet other reversed.
-template<typename I, typename O, const int32_t calibrateData>
+template<typename I, typename O, const int8_t calibrateData>
 void inline udp_reversedChannelMajor(int64_t iLoop, int8_t *inputPortData, O **outputData, int64_t lastInputPacketOffset,
 									 int64_t packetOutputLength, int32_t timeStepSize, int32_t totalBeamlets, int32_t upperBeamlet,
 									 int32_t cumulativeBeamlets, int32_t baseBeamlet, float *jonesMatrix) {
@@ -374,7 +371,7 @@ void inline udp_reversedChannelMajor(int64_t iLoop, int8_t *inputPortData, O **o
 }
 
 // Reversed Channel Major, Split Pols: Change from packet major to beamlet major (described previously), then split data across X/Y real/imaginary state, with the beamlet order reversed.
-template<typename I, typename O, const int32_t calibrateData>
+template<typename I, typename O, const int8_t calibrateData>
 void inline
 udp_reversedChannelMajorSplitPols(int64_t iLoop, int8_t *inputPortData, O **outputData, int64_t lastInputPacketOffset,
 								  int64_t packetOutputLength, int32_t timeStepSize, int32_t totalBeamlets, int32_t upperBeamlet,
@@ -419,7 +416,7 @@ udp_reversedChannelMajorSplitPols(int64_t iLoop, int8_t *inputPortData, O **outp
 }
 
 // Time Major: Change from packet major to time major (N time samples from a beamlet, followed by the next beamlet, etc.)
-template<typename I, typename O, const int32_t calibrateData>
+template<typename I, typename O, const int8_t calibrateData>
 void inline udp_timeMajor(int64_t iLoop, int8_t *inputPortData, O **outputData, int64_t lastInputPacketOffset, int32_t timeStepSize,
 						  int32_t upperBeamlet, int32_t cumulativeBeamlets, int64_t packetsPerIteration, int32_t baseBeamlet,
 						  float *jonesMatrix) {
@@ -463,7 +460,7 @@ void inline udp_timeMajor(int64_t iLoop, int8_t *inputPortData, O **outputData, 
 }
 
 // Time Major, Split Pols: Change from packet major to time major (as described before), then split data across X/Y real/imaginary state.
-template<typename I, typename O, const int32_t calibrateData>
+template<typename I, typename O, const int8_t calibrateData>
 void inline
 udp_timeMajorSplitPols(int64_t iLoop, int8_t *inputPortData, O **outputData, int64_t lastInputPacketOffset, int32_t timeStepSize,
 					   int32_t upperBeamlet, int32_t cumulativeBeamlets, int64_t packetsPerIteration, int32_t baseBeamlet,
@@ -509,7 +506,7 @@ udp_timeMajorSplitPols(int64_t iLoop, int8_t *inputPortData, O **outputData, int
 
 // Time Major, Dual Pols: Change from packet major to time major (as described before), then split data across X/Y.
 // This output matches the input format required by FFTW
-template<typename I, typename O, const int32_t calibrateData>
+template<typename I, typename O, const int8_t calibrateData>
 void inline
 udp_timeMajorDualPols(int64_t iLoop, int8_t *inputPortData, O **outputData, int64_t lastInputPacketOffset, int32_t timeStepSize,
 					  int32_t upperBeamlet, int32_t cumulativeBeamlets, int64_t packetsPerIteration, int32_t baseBeamlet,
@@ -554,7 +551,7 @@ udp_timeMajorDualPols(int64_t iLoop, int8_t *inputPortData, O **outputData, int6
 }
 
 // Stokes Parameter output, in a given order (varies wildly based on input parameters)
-template<typename I, typename O, StokesFuncType stokesFunc, const int32_t order, const int32_t calibrateData>
+template<typename I, typename O, StokesFuncType stokesFunc, const int32_t order, const int8_t calibrateData>
 void inline
 udp_stokes(int64_t iLoop, int8_t *inputPortData, O **outputData, int64_t lastInputPacketOffset, int64_t packetOutputLength,
 		   int32_t timeStepSize, int32_t totalBeamlets, int32_t upperBeamlet, int32_t cumulativeBeamlets, int64_t packetsPerIteration,
@@ -620,7 +617,7 @@ udp_stokes(int64_t iLoop, int8_t *inputPortData, O **outputData, int64_t lastInp
 }
 
 // Stokes Parameter output, in a given order (varies wildly based on input parameters), downsampled by a factor up to 16
-template<typename I, typename O, StokesFuncType stokesFunc, const int32_t order, const int32_t factor, const int32_t calibrateData>
+template<typename I, typename O, StokesFuncType stokesFunc, const int32_t order, const int32_t factor, const int8_t calibrateData>
 void inline udp_stokesDecimation(int64_t iLoop, int8_t *inputPortData, O **outputData, int64_t lastInputPacketOffset,
 								 int64_t packetOutputLength, int32_t timeStepSize, int32_t totalBeamlets, int32_t upperBeamlet,
 								 int32_t cumulativeBeamlets, int64_t packetsPerIteration, int32_t baseBeamlet,
@@ -694,7 +691,7 @@ void inline udp_stokesDecimation(int64_t iLoop, int8_t *inputPortData, O **outpu
 }
 
 // All Stokes Parameters output, in a given order (varies wildly based on input parameters)
-template<typename I, typename O, const int32_t order, const int32_t calibrateData>
+template<typename I, typename O, const int32_t order, const int8_t calibrateData>
 void inline
 udp_fullStokes(int64_t iLoop, int8_t *inputPortData, O **outputData, int64_t lastInputPacketOffset, int64_t packetOutputLength,
 			   int32_t timeStepSize, int32_t totalBeamlets, int32_t upperBeamlet, int32_t cumulativeBeamlets, int64_t packetsPerIteration,
@@ -775,7 +772,7 @@ udp_fullStokes(int64_t iLoop, int8_t *inputPortData, O **outputData, int64_t las
 }
 
 // All Stokes Parameters output, in a given order (varies wildly based on input parameters), downsampled by a factor up to 16
-template<typename I, typename O, const int32_t order, const int32_t factor, const int32_t calibrateData>
+template<typename I, typename O, const int32_t order, const int32_t factor, const int8_t calibrateData>
 void inline udp_fullStokesDecimation(int64_t iLoop, int8_t *inputPortData, O **outputData, int64_t lastInputPacketOffset,
 									 int64_t packetOutputLength, int32_t timeStepSize, int32_t totalBeamlets, int32_t upperBeamlet,
 									 int32_t cumulativeBeamlets, int64_t packetsPerIteration, int32_t baseBeamlet,
@@ -901,7 +898,7 @@ void inline udp_fullStokesDecimation(int64_t iLoop, int8_t *inputPortData, O **o
 }
 
 // Stokes I/Q Parameter output, in a given order (varies wildly based on input parameters)
-template<typename I, typename O, const int32_t order, const int32_t calibrateData>
+template<typename I, typename O, const int32_t order, const int8_t calibrateData>
 void inline
 udp_usefulStokes(int64_t iLoop, int8_t *inputPortData, O **outputData, int64_t lastInputPacketOffset, int64_t packetOutputLength,
 				 int32_t timeStepSize, int32_t totalBeamlets, int32_t upperBeamlet, int32_t cumulativeBeamlets,
@@ -975,7 +972,7 @@ udp_usefulStokes(int64_t iLoop, int8_t *inputPortData, O **outputData, int64_t l
 }
 
 // Stokes I/Q Parameter output, in a given order (varies wildly based on input parameters), with downsampling by a factor up to 16
-template<typename I, typename O, const int32_t order, const int32_t factor, const int32_t calibrateData>
+template<typename I, typename O, const int32_t order, const int32_t factor, const int8_t calibrateData>
 void inline udp_usefulStokesDecimation(int64_t iLoop, int8_t *inputPortData, O **outputData, int64_t lastInputPacketOffset,
 									   int64_t packetOutputLength, int32_t timeStepSize, int32_t totalBeamlets, int32_t upperBeamlet,
 									   int32_t cumulativeBeamlets, int64_t packetsPerIteration, int32_t baseBeamlet,
@@ -1173,10 +1170,15 @@ int32_t lofar_udp_raw_loop(lofar_udp_obs_meta *meta) {
 		if constexpr (calibrateData) {
 			VERBOSE(printf("Beamlets %d: %d, %d\n", port, baseBeamlet, upperBeamlet););
 			jonesMatrix = (float *) calloc((upperBeamlet - baseBeamlet) * JONESMATSIZE, sizeof(float));
-			for (int32_t i = 0; i < (upperBeamlet - baseBeamlet); i++) {
-				for (int32_t j = 0; j < JONESMATSIZE; j++) {
-					jonesMatrix[i * JONESMATSIZE + j] = meta->jonesMatrices[meta->calibrationStep][
+			if (jonesMatrix == NULL) {
+				fprintf(stderr, "ERROR: Failed to allocate %ld bytes for Jones Matrix caching, attempting to fall back to normal operations.\n", (upperBeamlet - baseBeamlet) * JONESMATSIZE * sizeof(float));
+				jonesMatrix = &(meta->jonesMatrices[meta->calibrationStep][cumulativeBeamlets]);
+			} else {
+				for (int32_t i = 0; i < (upperBeamlet - baseBeamlet); i++) {
+					for (int32_t j = 0; j < JONESMATSIZE; j++) {
+						jonesMatrix[i * JONESMATSIZE + j] = meta->jonesMatrices[meta->calibrationStep][
 							(cumulativeBeamlets + i) * JONESMATSIZE + j];
+					}
 				}
 			}
 		}
@@ -1306,8 +1308,14 @@ int32_t lofar_udp_raw_loop(lofar_udp_obs_meta *meta) {
 				// Ensure we don't attempt to access unallocated memory
 				if (iLoop != packetsPerIteration - 1) {
 					// Speedup: add 16 to the sequence, check if accurate. Doesn't work at rollover.
-					if (*((uint32_t *) &(inputPortData[inputPacketOffset + 12])) ==
-						(*((uint32_t *) &(inputPortData[lastInputPacketOffset - 4]))) + 16) {
+					int32_t nextSequence;
+					if constexpr (state == 0) {
+						nextSequence = (*((uint32_t *) &(inputPortData[lastInputPacketOffset + CEP_HDR_SEQ_OFFSET]))) + 16;
+					} else {
+						nextSequence = (*((uint32_t *) &(inputPortData[lastInputPacketOffset - (UDPHDRLEN - CEP_HDR_SEQ_OFFSET)]))) + 16;
+					}
+
+					if (*((uint32_t *) &(inputPortData[inputPacketOffset + 12])) == nextSequence) {
 						currentPortPacket += 1;
 					} else {
 						currentPortPacket = lofar_udp_time_get_packet_number(&(inputPortData[inputPacketOffset]));

@@ -199,7 +199,7 @@ _lofar_udp_io_read_temp_DADA(void *outbuf, int64_t size, int64_t num, key_t dada
 		return -1;
 	}
 
-	if (ipcbuf_get_bufsz(&(tmpReader.buf)) > (size * num)) {
+	if ((int64_t) ipcbuf_get_bufsz(&(tmpReader.buf)) > (size * num)) {
 		fprintf(stderr, "ERROR: DADA temperary reads must be shorter than a single block, exiting.\n");
 		return -1;
 	}
@@ -406,7 +406,7 @@ int64_t _lofar_udp_io_write_DADA(ipcio_t *const ringbuffer, const int8_t *src, i
 		}
 		int64_t written = 0;
 		while (nchars) {
-			uint64_t headerSize = ipcbuf_get_bufsz(buffer);
+			int64_t headerSize = (int64_t) ipcbuf_get_bufsz(buffer);
 			int8_t *workingBuffer = (int8_t *) ipcbuf_get_next_write(buffer);
 			int64_t toWrite = nchars > headerSize ? headerSize : nchars;
 

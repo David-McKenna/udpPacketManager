@@ -126,6 +126,8 @@ void lofar_udp_parse_extract_header_metadata(int port, lofar_udp_obs_meta *meta,
 	// Update the number of raw beamlets now that we have used the previous values to determine offsets
 	meta->totalRawBeamlets += meta->portRawBeamlets[port];
 
+	// Get the clock bit
+	meta->clockBit = source->clockBit;
 
 	// Check the bitmode on the port
 	switch ((int32_t) source->bitMode) {
@@ -162,7 +164,7 @@ void lofar_udp_parse_extract_header_metadata(int port, lofar_udp_obs_meta *meta,
 int _lofar_udp_parse_headers(lofar_udp_obs_meta *meta, const int8_t header[4][16], const int16_t beamletLimits[2]) {
 
 	float bitMul;
-	int8_t cacheBitMode = 0;
+	int8_t cacheBitMode = 0, cacheClockBit = 0;
 	int16_t beamsDelta = beamletLimits[1] - beamletLimits[0];
 	meta->totalRawBeamlets = 0;
 	meta->totalProcBeamlets = 0;
@@ -184,10 +186,16 @@ int _lofar_udp_parse_headers(lofar_udp_obs_meta *meta, const int8_t header[4][16
 		// Fairly certain the RSPs fall over if you try to do multiple bit modes anyway.
 		if (port == 0) {
 			cacheBitMode = meta->inputBitMode;
+			cacheClockBit = meta->clockBit;
 		} else if (cacheBitMode != meta->inputBitMode) {
 			fprintf(stderr,
 			        "Multiple input bit sizes detected; please parse these ports separately (port 0: %d, port %d: %d). Exiting.\n",
 			        cacheBitMode, port, meta->inputBitMode);
+			return -1;
+		} else if (cacheClockBit != meta->clockBit) {
+			fprintf(stderr,
+			        "Multiple input clock modes detected; please parse these ports separately (port 0: %d, port %d: %d). Exiting.\n",
+			        cacheClockBit, port, meta->clockBit);
 			return -1;
 		}
 
@@ -789,18 +797,7 @@ int _lofar_udp_reader_config_check(lofar_udp_config *config) {
 		fprintf(stderr,
 				"ERROR: Calibration was enabled, but the config->calibrationConfiguration struct was not initialised, exiting.\n");
 		return -1;
-	} else if (config->calibrateData > NO_CALIBRATION && config->calibrationConfiguration != NULL) {
-		if (strcmp(config->calibrationConfiguration->calibrationFifo, "") == 0) {
-			fprintf(stderr, "ERROR: Failed to provide valid path to calibration FIFO, exiting.\n");
-			return -1;
-		}
 	}
-
-	/*
-	if (config->calibrationConfiguration == 0 && config->calibrationConfiguration != NULL)  {
-		fprintf(stderr, "WARNING: Calibration was disabled, but you allocated a calibration configuration.\n");
-	}
-	*/
 
 	if (config->processingMode < 0) {
 		fprintf(stderr, "ERROR: Invalid processing mode %d, exiting.\n", config->processingMode);
@@ -1084,7 +1081,11 @@ lofar_udp_reader *lofar_udp_reader_setup(lofar_udp_config *config) {
 
 	}
 
-	// TODO: Copy values to calibration struct as needed.
+	if (config->metadata_config.metadataType == NO_META && strnlen(config->metadata_config.metadataLocation, DEF_STR_LEN)) {
+		fprintf(stderr, "WARNING: Metadata location is defed as %s, but metadata type is NO_META, changing metadata to DEFAULT_META.\n", config->metadata_config.metadataLocation);
+		config->metadata_config.metadataType = DEFAULT_META;
+	}
+
 	if (config->metadata_config.metadataType != NO_META) {
 		VERBOSE(printf("Priming metadata type %d from %s\n", config->metadata_config.metadataType, config->metadata_config.metadataLocation));
 
@@ -1097,15 +1098,6 @@ lofar_udp_reader *lofar_udp_reader_setup(lofar_udp_config *config) {
 
 		reader->metadata->type = config->metadata_config.metadataType;
 		if (lofar_udp_metadata_setup(reader->metadata, reader, &(config->metadata_config)) < 0) {
-			lofar_udp_reader_cleanup(reader);
-			return NULL;
-		}
-	}
-
-	if (config->calibrateData > NO_CALIBRATION) {
-		reader->calibration = calloc(1, sizeof(lofar_udp_calibration));
-		if (memcpy(reader->calibration, config->calibrationConfiguration, sizeof(lofar_udp_calibration)) != reader->calibration) {
-			fprintf(stderr, "ERROR: Failed to copy calibration to reader struct, exiting.\n");
 			lofar_udp_reader_cleanup(reader);
 			return NULL;
 		}
@@ -1158,230 +1150,21 @@ lofar_udp_reader *lofar_udp_reader_setup(lofar_udp_config *config) {
 		return NULL;
 	}
 
+	if (config->calibrateData > NO_CALIBRATION) {
+		reader->calibration = calloc(1, sizeof(lofar_udp_calibration));
+		if (memcpy(reader->calibration, config->calibrationConfiguration, sizeof(lofar_udp_calibration)) != reader->calibration) {
+			fprintf(stderr, "ERROR: Failed to copy calibration to reader struct, exiting.\n");
+			lofar_udp_reader_cleanup(reader);
+			return NULL;
+		}
+		if (_lofar_udp_reader_calibration_generate_data(reader) > 0) {
+			lofar_udp_reader_cleanup(reader);
+			return NULL;
+		}
+	}
+
 	reader->meta->inputDataReady = 1;
 	return reader;
-}
-
-
-
-/**
- * @brief      Generate the inverted Jones matrix to calibrate the observed data
- *
- * @param      reader  The lofar_udp_reader
- *
- * @return     int: 0: Success, -1: Failure
- */
-int _lofar_udp_reader_calibration_generate_data(lofar_udp_reader *reader) {
-	FILE *fifo;
-	int numBeamlets, numTimesamples, returnVal;
-	// Ensure we are meant to be calibrating data
-	if (reader->meta->calibrateData == NO_CALIBRATION) {
-		fprintf(stderr, "ERROR: Requested calibration while calibration is disabled. Exiting.\n");
-		return -1;
-	}
-
-	char* const jonesGenerator = "dreamBeamJonesGenerator.py";
-
-	if (access(jonesGenerator, X_OK) != 0) {
-		fprintf(stderr, "ERROR %s: Unable to find executable %s on path, exiting.\n", __func__, jonesGenerator);
-		return -1;
-	}
-
-	if (!reader->meta->clockBit) {
-		fprintf(stderr, "ERROR: Mode 6 is currently not supported for calibration, exiting.\n");
-		return -1;
-	}
-
-	// For security, add a few random ASCII characters to the end of the suggested name
-	const int numRandomChars = 4;
-	size_t fifoNameSize = strnlen(reader->calibration->calibrationFifo, DEF_STR_LEN) + numRandomChars;
-	char *fifoName = calloc(fifoNameSize + 1, sizeof(char));
-	char randomChars[numRandomChars];
-
-	for (int i = 0; i < numRandomChars; i++) {
-		// Offset to base of letters in ASCII (65) In the range of letters +(0  - 25), + 0.5 chance of +32 to switch between lower and upper case
-		randomChars[i] = (char) (65 + (rand() % 26) + (rand() % 2 * 32)); // NOLINT
-	}
-	returnVal = snprintf(fifoName, fifoNameSize, "%s_%4s", reader->calibration->calibrationFifo, randomChars);
-
-	if (returnVal < 0) {
-		fprintf(stderr, "ERROR: Failed to modify FIFO name (%s, %s, %d). Exiting.\n",
-				reader->calibration->calibrationFifo, randomChars, errno);
-	}
-	// Make a FIFO pipe to communicate with dreamBeam
-	VERBOSE(printf("Making fifo\n"));
-	if (access(fifoName, F_OK) != -1) {
-		if (remove(fifoName) != 0) {
-			fprintf(stderr, "ERROR: Unable to cleanup old file on calibration FIFO path (%d). Exiting.\n", errno);
-			return -1;
-		}
-	}
-
-	returnVal = mkfifo(fifoName, 0664);
-	if (returnVal < 0) {
-		fprintf(stderr, "ERROR: Unable to create FIFO pipe at %s (%d). Exiting.\n", fifoName, errno);
-		return -1;
-	}
-
-	// Call dreamBeam to generate calibration
-	// dreamBeamJonesGenerator.py --stn STNID --sub ANT,SBL:SBU --time TIME --dur DUR --int INT --pnt P0,P1,BASIS --pipe /tmp/pipe
-	const int shortStr = 31, longStr = 511, longestStr = 2 * DEF_STR_LEN - 1;
-	char stationID[shortStr + 1], mjdTime[shortStr + 1], duration[shortStr + 1], integration[shortStr + 1], pointing[longStr + 1];
-
-
-	_lofar_udp_metadata_get_station_name(reader->meta->stationID, &(stationID[0]));
-	snprintf(mjdTime, shortStr,  "%lf", lofar_udp_time_get_packet_time_mjd(reader->meta->inputData[0]));
-	snprintf(duration, shortStr, "%30.10f", reader->calibration->calibrationDuration);
-	snprintf(integration, shortStr, "%15.10f", (float) (reader->packetsPerIteration * UDPNTIMESLICE) *
-									(float) (clock200MHzSampleTime * reader->meta->clockBit +
-									         clock160MHzSampleTime * (1 - reader->meta->clockBit)));
-	snprintf(pointing, longStr, "%f,%f,%s", reader->metadata->ra_rad,
-			reader->metadata->dec_rad, reader->metadata->coord_basis);
-
-	char calibrationSubbands[longestStr + 1];
-	snprintf(calibrationSubbands, longestStr, "%d", reader->metadata->subbands[reader->metadata->lowerBeamlet]);
-
-	int strOffset = 0;
-	for (int sbb = reader->metadata->lowerBeamlet + 1; sbb < reader->metadata->upperBeamlet; sbb++) {
-		int sub = reader->metadata->subbands[sbb];
-		// TOOD: Better memory safety
-		strOffset += snprintf(&(calibrationSubbands[strOffset]), longestStr - strOffset, ",%d", sub);
-	}
-
-
-	VERBOSE(printf("Calling dreamBeam: %s %s %s %s %s %s %s\n", stationID, mjdTime,
-				   calibrationSubbands, duration, integration, pointing, fifoName));
-
-	char * const argv[] = { jonesGenerator, "--stn", stationID, "--time", mjdTime,
-					 "--sub", calibrationSubbands,
-					 "--dur", duration, "--int", integration, "--pnt", pointing,
-					 "--pipe", fifoName,
-					 NULL };
-
-	pid_t pid;
-	printf("Generating Jones matrices via %s...\n", jonesGenerator);
-	returnVal = posix_spawnp(&pid, jonesGenerator, NULL, NULL, argv, environ);
-
-	VERBOSE(printf("Fork\n"););
-	if (returnVal == 0) {
-		VERBOSE(printf("%s has been launched.\n", jonesGenerator));
-	} else if (returnVal < 0) {
-		fprintf(stderr, "ERROR: Unable to create child process to call %s. Exiting.\n", jonesGenerator);
-		return -1;
-	}
-
-	VERBOSE(printf("OpeningFifo\n"));
-	fifo = fopen(fifoName, "rb");
-
-	returnVal = (int) waitpid(pid, &returnVal, WNOHANG);
-	// Check if dreamBeam exited early
-	if (returnVal < 0) {
-		return -1;
-	}
-
-	// Get the number of time steps and frequency channels
-	returnVal = fscanf(fifo, "%d,%d\n", &numTimesamples, &numBeamlets);
-	if (returnVal == -1) {
-		fprintf(stderr, "ERROR: Failed to parse number of beamlets and time samples from %s. Exiting.\n", jonesGenerator);
-		return -1;
-	}
-
-
-	VERBOSE(printf("beamlets\n"));
-	// Ensure the calibration strategy matches the number of subbands we are processing
-	if (numBeamlets != reader->meta->totalProcBeamlets) {
-		fprintf(stderr, "ERROR: Calibration strategy returned %d beamlets, but we are setup to handle %d. Exiting. \n",
-				numBeamlets, reader->meta->totalProcBeamlets);
-		return -1;
-	}
-
-	VERBOSE(printf("%d, %d\n", numTimesamples, numBeamlets));
-	// Check if we already allocated storage for the calibration data, re-use already alloc'd data where possible
-	if (reader->meta->jonesMatrices == NULL) {
-		// Allocate numTimesamples * numBeamlets * (4 matrix elements) * (2 complex values per element)
-		reader->meta->jonesMatrices = calloc(numTimesamples, sizeof(float *));
-		for (int timeIdx = 0; timeIdx < numTimesamples; timeIdx += 1) {
-			reader->meta->jonesMatrices[timeIdx] = calloc(numBeamlets * 8, sizeof(float));
-		}
-		// If we returned more time samples than last time, reallocate the array
-	} else if (numTimesamples > reader->calibration->calibrationStepsGenerated) {
-		// Free the old data
-		for (int timeIdx = 0; timeIdx < reader->calibration->calibrationStepsGenerated; timeIdx += 1) {
-			FREE_NOT_NULL(reader->meta->jonesMatrices[timeIdx]);
-		}
-		FREE_NOT_NULL(reader->meta->jonesMatrices);
-
-		// Reallocate the data
-		reader->meta->jonesMatrices = calloc(numTimesamples, sizeof(float *));
-		for (int timeIdx = 0; timeIdx < numTimesamples; timeIdx += 1) {
-			reader->meta->jonesMatrices[timeIdx] = calloc(numBeamlets * 8, sizeof(float));
-		}
-		// If less time samples, free the remaining steps and re-use the array
-	} else if (numTimesamples < reader->calibration->calibrationStepsGenerated) {
-		// Free the extra time steps
-		for (int timeIdx = reader->calibration->calibrationStepsGenerated; timeIdx < numTimesamples; timeIdx += 1) {
-			FREE_NOT_NULL(reader->meta->jonesMatrices[timeIdx]);
-		}
-	}
-
-	VERBOSE(printf("FIFO Parse\n"));
-	// Index into the jonesMatrices array
-	long baseOffset = 0;
-	for (int timeIdx = 0; timeIdx < numTimesamples; timeIdx += 1) {
-		baseOffset = 0;
-		for (int freqIdx = 0; freqIdx < numBeamlets - 1; freqIdx += 1) {
-			// parse the FIFO to get the data
-			returnVal = fscanf(fifo, "%f,%f,%f,%f,%f,%f,%f,%f,", &reader->meta->jonesMatrices[timeIdx][baseOffset], \
-                                                        &reader->meta->jonesMatrices[timeIdx][baseOffset + 1], \
-                                                        &reader->meta->jonesMatrices[timeIdx][baseOffset + 2], \
-                                                        &reader->meta->jonesMatrices[timeIdx][baseOffset + 3], \
-                                                        &reader->meta->jonesMatrices[timeIdx][baseOffset + 4], \
-                                                        &reader->meta->jonesMatrices[timeIdx][baseOffset + 5], \
-                                                        &reader->meta->jonesMatrices[timeIdx][baseOffset + 6], \
-                                                        &reader->meta->jonesMatrices[timeIdx][baseOffset + 7]);
-
-			if (returnVal < 0) {
-				fprintf(stderr, "ERROR: Unable to parse main pipe from %s (%d, %d). Exiting.\n", jonesGenerator, timeIdx,
-						freqIdx);
-			}
-
-			baseOffset += 8;
-		}
-
-		// Parse the final beamlet sample, confirm it ends with a | to signify the end of the time sample
-		returnVal = fscanf(fifo, "%f,%f,%f,%f,%f,%f,%f,%f|", &reader->meta->jonesMatrices[timeIdx][baseOffset], \
-                                                    &reader->meta->jonesMatrices[timeIdx][baseOffset + 1], \
-                                                    &reader->meta->jonesMatrices[timeIdx][baseOffset + 2], \
-                                                    &reader->meta->jonesMatrices[timeIdx][baseOffset + 3], \
-                                                    &reader->meta->jonesMatrices[timeIdx][baseOffset + 4], \
-                                                    &reader->meta->jonesMatrices[timeIdx][baseOffset + 5], \
-                                                    &reader->meta->jonesMatrices[timeIdx][baseOffset + 6], \
-                                                    &reader->meta->jonesMatrices[timeIdx][baseOffset + 7]);
-		if (returnVal < 0) {
-			fprintf(stderr, "ERROR: unable to parse final pipe from %s (%d). Exiting.\n", jonesGenerator, timeIdx);
-		}
-
-	}
-
-	VERBOSE(printf("%f, %f, %f, %f... %f, %f, %f, %f\n", reader->meta->jonesMatrices[0][0],
-				   reader->meta->jonesMatrices[0][1], reader->meta->jonesMatrices[0][2],
-				   reader->meta->jonesMatrices[0][3], reader->meta->jonesMatrices[0][baseOffset],
-				   reader->meta->jonesMatrices[0][baseOffset + 1], reader->meta->jonesMatrices[0][baseOffset + 2],
-				   reader->meta->jonesMatrices[0][baseOffset + 3]););
-
-	// Close and remove the pipe
-	fclose(fifo);
-	if (remove(fifoName) != 0) {
-		fprintf(stderr, "ERROR: Unable to remove calibration FIFO (%d). Exiting.\n", errno);
-		return -1;
-	}
-	FREE_NOT_NULL(fifoName);
-
-	// Update the calibration state
-	reader->meta->calibrationStep = -1; // We will bump this on the next usage so that it starts at 0
-	reader->calibration->calibrationStepsGenerated = numTimesamples;
-	VERBOSE(printf("%s: Exit calibration.\n", __func__););
-	return 0;
 }
 
 
@@ -1506,7 +1289,7 @@ int lofar_udp_reader_step_timed(lofar_udp_reader *reader, double timing[2]) {
 	if ((reader->meta->calibrateData > NO_CALIBRATION) &&
 		reader->meta->calibrationStep >= (reader->calibration->calibrationStepsGenerated - 1)) {
 		VERBOSE(printf("Calibration buffer has run out, generating new Jones matrices.\n"));
-		if ((readReturnVal = _lofar_udp_reader_calibration_generate_data(reader)) < 0) {
+		if ((readReturnVal = _lofar_udp_reader_calibration_generate_data(reader)) > 0) {
 			return readReturnVal;
 		}
 	}

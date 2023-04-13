@@ -13,4 +13,4 @@ add_dependencies(lib_tests_run linkTestData)
 target_link_libraries(lib_tests_run gtest_main lofudpman)
 
 add_test(NAME lib_tests COMMAND lib_tests_run)
-set_property(TEST lib_tests PROPERTY ENVIRONMENT_MODIFICATION "PATH=path_list_append:${CMAKE_CURRENT_SOURCE_DIR}/misc/")
+#set_property(TEST lib_tests PROPERTY ENVIRONMENT_MODIFICATION "PATH=path_list_append:${CMAKE_CURRENT_SOURCE_DIR}/../../src/misc/")

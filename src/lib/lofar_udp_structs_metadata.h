@@ -225,7 +225,7 @@ extern "C" {
 #endif
 
 lofar_udp_metadata* lofar_udp_metadata_alloc();
-sigproc_hdr* sigproc_hdr_alloc(int32_t fchannels);
+sigproc_hdr* sigproc_hdr_alloc(uint64_t fchannels);
 guppi_hdr* guppi_hdr_alloc();
 
 #ifdef __cplusplus

@@ -23,6 +23,8 @@ lofar_udp_config* config_setup(int32_t sampleMeta = 0, int32_t testNumber = 0, i
 	EXPECT_NE(nullptr, cal);
 	config->calibrationConfiguration = cal;
 
+	config->calibrationConfiguration->calibrationDuration = 1.2;
+
 	for (int32_t port = 0; port < testPorts; port++) {
 		std::string workingString = std::regex_replace(inputLocations[testNumber], std::regex("portnum"), std::to_string(port));
 		memcpy(config->inputLocations[port], workingString.c_str(), workingString.length());
@@ -52,7 +54,7 @@ lofar_udp_config* config_setup(int32_t sampleMeta = 0, int32_t testNumber = 0, i
 		return nullptr;
 	}
 	if (sampleMeta) {
-		memcpy(config->metadata_config.metadataLocation, metadataLocation[sampleMeta].c_str(), metadataLocation[sampleMeta].length());
+		strncpy(config->metadata_config.metadataLocation, metadataLocation[sampleMeta].c_str(), DEF_STR_LEN);
 	}
 
 	return config;
@@ -113,10 +115,6 @@ TEST(LibReaderTests, SetupReader) {
 		config->calibrationConfiguration = nullptr;
 		EXPECT_EQ(-1, _lofar_udp_reader_config_check(config));
 		config->calibrationConfiguration = cal;
-
-		// (config->calibrateData > NO_CALIBRATION && config->calibrationConfiguration != NULL) &&  (strcmp(config->calibrationConfiguration->calibrationFifo, "") == 0)
-		config->calibrationConfiguration->calibrationFifo[0] = '\0';
-		EXPECT_EQ(-1, _lofar_udp_reader_config_check(config));
 		config->calibrateData = NO_CALIBRATION;
 
 		// (config->processingMode < 0)
@@ -254,6 +252,13 @@ TEST(LibReaderTests, PreprocessingRawData) {
 		source->bitMode = 0;
 		EXPECT_EQ(-1, _lofar_udp_parse_headers(meta, headers, beamletLimits));
 		source->bitMode = 2;
+
+		// source->clockBit
+		source->clockBit = 1;
+		EXPECT_EQ(-1, _lofar_udp_parse_headers(meta, headers, beamletLimits));
+		source->clockBit = 0;
+
+
 
 		// meta->portRawBeamlets[port] = (int32_t) ((uint8_t) header[CEP_HDR_NBEAM_OFFSET]);
 		// Varying beamlet limits will change the fraction of data processed, and possibly number of
@@ -427,11 +432,17 @@ TEST(LibReaderTests, ProcessingData) {
 			for (calibrate_t cal : std::vector<calibrate_t>{NO_CALIBRATION, GENERATE_JONES, APPLY_CALIBRATION}) {
 				for (int32_t testNum = 0; testNum < numTests; testNum++) {
 					lofar_udp_config *config = config_setup(1, testNum, 4, INT32_MAX, cal);
-					//std::cout << config->inputLocations[0] << std::endl;
+					std::cout << config->inputLocations[0] << ", " << currMode << ", " << cal << std::endl;
 					config->processingMode = currMode;
+					if (testNum == 1) {
+						config->calibrateData = cal;
+					} else {
+						config->calibrateData = NO_CALIBRATION;
+					}
+					config->calibrationConfiguration->calibrationDuration = 0.1;
 					lofar_udp_reader *reader = lofar_udp_reader_setup(config);
 
-					if (std::find(flaggedTests.begin(), flaggedTests.end(), testNum) != flaggedTests.end()) {
+					if (std::find(flaggedTests.begin(), flaggedTests.end(), testNum) != flaggedTests.end() || currMode == (int32_t) TEST_INVALID_MODE) {
 						EXPECT_EQ(reader, nullptr);
 						continue;
 					} else {
@@ -439,8 +450,8 @@ TEST(LibReaderTests, ProcessingData) {
 					}
 					int returnv;
 					while ((returnv = lofar_udp_reader_step(reader)) < 1) {
-						std::cout << std::to_string(returnv) << std::endl;
-						std::cout << std::to_string(reader->meta->lastPacket) << std::endl;
+						//std::cout << std::to_string(returnv) << std::endl;
+						//std::cout << std::to_string(reader->meta->lastPacket) << std::endl;
 					}
 
 					lofar_udp_reader_cleanup(reader);

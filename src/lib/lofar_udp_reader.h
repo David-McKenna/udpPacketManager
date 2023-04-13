@@ -1,9 +1,9 @@
 #ifndef LOFAR_UDP_READER_H
 #define LOFAR_UDP_READER_H
 
+#include "lofar_udp_calibration.h"
 #include "lofar_udp_metadata.h"
 #include "lofar_udp_io.h"
-#include "lofar_udp_time.h"
 #include "lofar_udp_backends.hpp"
 
 
@@ -11,18 +11,8 @@
 #include <omp.h>
 #include <limits.h>
 #include <time.h>
+#include <fcntl.h>
 
-
-// Calibration extra requirements
-#include <sys/types.h>
-#include <sys/wait.h>
-#include <signal.h>
-#include <unistd.h>
-#include <spawn.h>
-
-
-// For posix_spawnp
-extern char **environ; // NOLINT(readability-redundant-declaration)
 
 
 // Function Prototypes

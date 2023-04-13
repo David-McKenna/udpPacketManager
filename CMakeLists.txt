@@ -236,6 +236,7 @@ configure_file(	"${CMAKE_CURRENT_SOURCE_DIR}/src/CLI/lofar_cli_meta.h.in"
 add_library(lofudpman STATIC
             src/lib/lofar_udp_general.c
             src/lib/lofar_udp_backends.cpp
+            src/lib/lofar_udp_calibration.c
             src/lib/lofar_udp_io.c
             src/lib/lofar_udp_reader.c
             src/lib/lofar_udp_structs.c

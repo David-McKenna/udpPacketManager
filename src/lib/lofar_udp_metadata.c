@@ -14,7 +14,7 @@ metadata_t lofar_udp_metadata_parse_type_output(const char optargc[]) {
 	if (strstr(optargc, "GUPPI") != NULL) {
 		return GUPPI;
 	} else if (strstr(optargc, "DADA") != NULL) {
-			return DADA;
+		return DADA;
 	} else if (strstr(optargc, ".fil") != NULL ||
 				strstr(optargc, "SIGPROC") != NULL) {
 		return SIGPROC;
@@ -45,13 +45,17 @@ int lofar_udp_metadata_setup(lofar_udp_metadata *metadata, const lofar_udp_reade
 
 	// Ensure we are meant to generate metadata
 	if (metadata->type == NO_META) {
-		fprintf(stderr, "ERROR %s: No metadata type specified, exiting.\n", __func__);
-		return -1;
+		if (!strnlen(config->metadataLocation, DEF_STR_LEN)) {
+			fprintf(stderr, "ERROR %s: No metadata type specified, exiting.\n", __func__);
+			return -1;
+		}
+		metadata->type = DEFAULT_META;
 	}
 
 	// Ensure we have a valid type of metadata
 	switch(metadata->type) {
 		//case NO_META:
+		case DEFAULT_META:
 		case GUPPI:
 		case SIGPROC:
 		case DADA:
@@ -109,6 +113,7 @@ int lofar_udp_metadata_setup(lofar_udp_metadata *metadata, const lofar_udp_reade
 			return _lofar_udp_metadata_setup_SIGPROC(metadata);
 
 		// The DADA header/HDF5 metadata are formed from the reference metadata struct
+		case DEFAULT_META:
 		case DADA:
 		case HDF5_META:
 			return 0;
@@ -204,7 +209,7 @@ int64_t _lofar_udp_metadata_write_buffer(const lofar_udp_reader *reader, lofar_u
 // 0: no work performed, >1: success + length, -1: failure
 int64_t
 _lofar_udp_metadata_write_buffer_force(const lofar_udp_reader *reader, lofar_udp_metadata *const metadata, int8_t *headerBuffer, int64_t headerBufferSize, int8_t newObs, int8_t force) {
-	if (metadata == NULL || metadata->type == NO_META) {
+	if (metadata == NULL || metadata->type <= DEFAULT_META) {
 		return 0;
 	}
 
@@ -288,7 +293,7 @@ void lofar_udp_metadata_cleanup(lofar_udp_metadata *meta) {
 
 int _lofar_udp_metdata_setup_BASE(lofar_udp_metadata *metadata) {
 
-	if (metadata->type != NO_META && metadata->type != HDF5_META) {
+	if (metadata->type > DEFAULT_META && metadata->type < HDF5_META) {
 		metadata->headerBuffer = calloc(DEF_HDR_LEN, sizeof(int8_t));
 		CHECK_ALLOC(metadata->headerBuffer, -1, ;);
 	}

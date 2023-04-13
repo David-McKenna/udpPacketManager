@@ -81,7 +81,7 @@ int64_t _lofar_udp_io_read_temp_FILE(void *outbuf, int64_t size, int64_t num, co
 		return -1;
 	}
 
-	size_t readlen = fread(outbuf, size, num, inputFilePtr);
+	int64_t readlen = fread(outbuf, size, num, inputFilePtr);
 
 	if (readlen != (size * num)) {
 		fprintf(stderr, "Unable to read %ld elements from file, exiting.\n", size * num);

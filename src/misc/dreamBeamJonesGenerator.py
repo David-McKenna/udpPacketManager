@@ -1,10 +1,12 @@
 #!/usr/bin/env python3
+
 import argparse
+import multiprocessing.shared_memory
 import lofarantpos.db
 import numpy as np
 import sys
-import tqdm
 import time as timeLib
+import tqdm
 from astropy.time import Time, TimeDelta
 from casacore.measures import measures
 from dreambeam.rime.scenarios import on_pointing_axis_tracking
@@ -28,7 +30,7 @@ def generateJones(subbands, antennaSet, stn, mdl, time, dur, inte, pnt, firstOut
         # Update results with the output for the specified subbands
         for subband in subbands:
             if subband[0] == ant:
-                results[subband[1]] = antJones[subband[2], :]
+                results[subband[1]] = antJones[np.newaxis, subband[2], :]
 
             # Initialise the output array and append the data in the required order
     jonesMatrix = np.empty((0, antJones.shape[1], 2, 2), dtype=antJones.dtype)
@@ -53,27 +55,6 @@ def generateJones(subbands, antennaSet, stn, mdl, time, dur, inte, pnt, firstOut
         return jointInvJones
 
 
-def pipeJones(pipeDest, silence, jointInvJones, antennaSet):
-    # Open the output FIFO in binary mode
-    # We will transfer all data as ASCII chars for easier decoding.
-    with open(pipeDest, 'wb') as pipeRef:
-        # Write out the number of time and frequency samples
-        pipeRef.write(f"{jointInvJones.shape[0]},{jointInvJones.shape[1]}\n".encode("ascii"))
-
-        # Write out the Jones matrices for each time sample
-        for timeIdx in range(jointInvJones.shape[0]):
-            jonesTimeSample = f"{','.join(jointInvJones[timeIdx, ...].ravel().astype(str))}|".encode("ascii")
-
-            pipeRef.write(jonesTimeSample)
-
-        # For debugging, optionally print out the results
-        if not silence:
-            for ant in reversed(antennaSet):
-                print(
-                    f"\n\ndreamBeam pipe: {ant} {','.join([','.join([str(sb) for sb in sub[1:]]) for sub in subbands if sub[0] == ant])}\n")
-                print(jonesTimeSample)
-
-
 # Default integration, 2^16 packets
 defaultInt = 2 ** 16 * (5.12 * 10 ** -6) * 16
 if __name__ == '__main__':
@@ -89,7 +70,8 @@ if __name__ == '__main__':
     parser.add_argument('--dur', dest='dur', default=10., type=float, help="Total duration of time to sample")
     parser.add_argument('--int', dest='inte', default=defaultInt, type=float, help="Integration time per step")
     parser.add_argument('--pnt', dest='pnt', required=True, help="Pointing of the source, eg '0.1,0.3,J2000")
-    parser.add_argument('--pipe', dest='pipe', default='/tmp/udp_pipe', help="Where to pipe the output data")
+    parser.add_argument('--shm_key', dest='shm_key', required = True, type = str, help="Key of the shared memory location")
+    parser.add_argument('--shm_size', dest='shm_size', required = True, type = int, help="Size of the buffer attached to the shared memory")
     parser.add_argument('--always-exact-position', dest='exact_pos', default=False, action='store_true',
                         help="When used, recalculate the exact RA/Dec in J2000 for sources in other coordinate systems at every time step.")
     parser.add_argument('--silent', dest='silent', default=True, action='store_false',
@@ -108,7 +90,6 @@ if __name__ == '__main__':
                 outPipe.write("-1,-1\n".encode("ascii"))
 
         exit(1)
-
     args.sub = list(map(int, args.sub.split(',')))
 
     # Determine if both HBA and LBAs are needed
@@ -140,6 +121,7 @@ if __name__ == '__main__':
 
     endParseTime = timeLib.perf_counter()
     print(f"dreamBeamJonesGenerator.py: Parsing completed in {endParseTime - initTime:.3f} seconds.")
+    print(f"dreamBeamJonesGenerator.py: Generating {int(args.dur / args.inte) + 1} Jones Matrices for {len(subbands)} subbands at MJD={args.time.mjd}")
 
     # If we aren't in J2000, find the Ra/Dec of the source at each step of the observation (slow, but accurate.)
     if args.pnt[2] != 'J2000':
@@ -206,7 +188,16 @@ if __name__ == '__main__':
     jonesGeneratorTime = timeLib.perf_counter()
     print(f"dreamBeamJonesGenerator.py: Jones Matrices generated and inverted in {jonesGeneratorTime - endParseTime:.3f} seconds.")
 
-    # Print out the Jones matrix in an easy to parse format to a specified pipe.
-    pipeJones(args.pipe, args.silent, jointInvJones, antennaSet)
-    jonesPipeTime = timeLib.perf_counter()
-    print(f"dreamBeamJonesGenerator.py: Jones Matrices piped in {jonesPipeTime - jonesGeneratorTime:.3f} seconds, closing.")
+
+    ref = multiprocessing.shared_memory.SharedMemory(name = args.shm_key, create = False)
+    assert(ref.size == args.shm_size)
+    data = np.frombuffer(ref.buf, dtype = np.float32, count = args.shm_size // jointInvJones.dtype.itemsize)
+    data[0] = jointInvJones.shape[0]
+    data[1] = jointInvJones.shape[1]
+    data[2:] = jointInvJones.ravel()
+    del data
+    ref.close()
+
+    copiedTime = timeLib.perf_counter()
+    print(f"dreamBeamJonesGenerator.py: Jones Matrices copied to {args.shm_key} shared memory in {copiedTime - jonesGeneratorTime:.3f} seconds.")
+    exit(0)

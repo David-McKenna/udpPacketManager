@@ -33,9 +33,6 @@ typedef struct lofar_udp_calibration {
 	// The current calibration step we are on and the amount that have been generated
 	int32_t calibrationStepsGenerated;
 
-	// Location to generate the FIFO pipe to communicate with dreamBeam
-	char calibrationFifo[DEF_STR_LEN + 1];
-
 	// Estimated duration of observation (used to determine number of steps to calibrate)
 	float calibrationDuration;
 
