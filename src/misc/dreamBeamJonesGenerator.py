@@ -10,6 +10,7 @@ import tqdm
 from astropy.time import Time, TimeDelta
 from casacore.measures import measures
 from dreambeam.rime.scenarios import on_pointing_axis_tracking
+from multiprocessing.resource_tracker import unregister
 
 
 def generateJones(subbands, antennaSet, stn, mdl, time, dur, inte, pnt, firstOutput=False):
@@ -198,6 +199,9 @@ if __name__ == '__main__':
     del data
     ref.close()
 
+    # THANKS FOR DOCUMENTING THIS! /s
+    unregister(ref._name, 'shared_memory')
+
+
     copiedTime = timeLib.perf_counter()
     print(f"dreamBeamJonesGenerator.py: Jones Matrices copied to {args.shm_key} shared memory in {copiedTime - jonesGeneratorTime:.3f} seconds.")
-    exit(0)
