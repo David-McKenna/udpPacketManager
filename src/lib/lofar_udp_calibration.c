@@ -61,7 +61,7 @@ int32_t _lofar_udp_calibration_find_script(const char jonesGeneratorName[], char
 int32_t _lofar_udp_calibration_shmData_setup(shmData *sharedData) {
 	sharedData->shmFd = shm_open(sharedData->shmName, O_CREAT | O_EXCL | O_RDWR, S_IRUSR | S_IWUSR);
 	if (sharedData->shmFd == -1) {
-		if (errno = EEXIST) {
+		if (errno == EEXIST) {
 			fprintf(stderr, "WARNING: Shared memory for calibration already existed at %s, closing and attempting to continue.\n", sharedData->shmName);
 
 			sharedData->shmFd = shm_open(sharedData->shmName, O_RDWR, S_IRUSR | S_IWUSR);
@@ -137,10 +137,10 @@ int32_t _lofar_udp_calibration_spawn_python_script(const lofar_udp_reader *reade
 	                        NULL };
 	printf("Generating %d Jones matrices (%s-8 bytes) via %s @ %s...\n", numTimesteps, shmSize, jonesGenerator, sharedData->shmName);
 
-	//VERBOSE(
-		{char * const *tmpPtr = argv; while(*tmpPtr != NULL) {
+	VERBOSE(
+		{char * const *tmpPtr = argv; while (*tmpPtr != NULL) {
 		printf("%s ", *tmpPtr); tmpPtr++;
-	}; printf("\n");};//);
+	}; printf("\n");});
 
 	pid_t pid;
 	int32_t returnVal = posix_spawnp(&pid, jonesGenerator, NULL, NULL, argv, environ);

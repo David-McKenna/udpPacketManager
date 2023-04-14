@@ -170,7 +170,6 @@ void inline calibrateDataFunc(O *Xr, O *Xi, O *Yr, O *Yi, const float *beamletJo
                             beamletJones[7], *((I *) &(inputPortData[tsInOffset + 2 * timeStepSize])));
 }
 
-#pragma clang diagnostic push
 
 // All of our processing modes
 // This is going to take a while
@@ -1053,7 +1052,6 @@ void inline udp_usefulStokesDecimation(int64_t iLoop, int8_t *inputPortData, O *
 		}
 	}
 }
-#pragma clang diagnostic pop //  -Wpass-failed=transform-warning
 
 
 
@@ -1077,7 +1075,7 @@ int32_t lofar_udp_raw_loop(lofar_udp_obs_meta *meta) {
 	int32_t packetLoss = 0;
 
 	// Get number of OpenMP Threads
-	int32_t nThreads = omp_get_num_threads();
+	const int32_t nThreads = omp_get_num_threads();
 
 	VERBOSE(const int32_t verbose = meta->VERBOSE);
 	// Calculate the true processing mode (4-bit -> +4000)
@@ -1133,7 +1131,7 @@ int32_t lofar_udp_raw_loop(lofar_udp_obs_meta *meta) {
 	const int8_t replayDroppedPackets = meta->replayDroppedPackets;
 
 	// For each port of data provided,
-#pragma omp parallel for default(shared) shared(byteWorkspace)
+#pragma omp parallel for default(none) shared(byteWorkspace, trueState, packetLoss, nThreads, meta, stderr, packetsPerIteration, replayDroppedPackets, bitmodeConversion)
 	for (int8_t port = 0; port < meta->numPorts; port++) {
 
 		VERBOSE(if (verbose) { printf("Port: %d on thread %d\n", port, omp_get_thread_num()); });
@@ -1174,11 +1172,9 @@ int32_t lofar_udp_raw_loop(lofar_udp_obs_meta *meta) {
 				fprintf(stderr, "ERROR: Failed to allocate %ld bytes for Jones Matrix caching, attempting to fall back to normal operations.\n", (upperBeamlet - baseBeamlet) * JONESMATSIZE * sizeof(float));
 				jonesMatrix = &(meta->jonesMatrices[meta->calibrationStep][cumulativeBeamlets]);
 			} else {
-				for (int32_t i = 0; i < (upperBeamlet - baseBeamlet); i++) {
-					for (int32_t j = 0; j < JONESMATSIZE; j++) {
-						jonesMatrix[i * JONESMATSIZE + j] = meta->jonesMatrices[meta->calibrationStep][
-							(cumulativeBeamlets + i) * JONESMATSIZE + j];
-					}
+				if (memcpy(jonesMatrix, &(meta->jonesMatrices[meta->calibrationStep][cumulativeBeamlets * JONESMATSIZE]), (upperBeamlet - baseBeamlet) * JONESMATSIZE) != jonesMatrix) {
+					fprintf(stderr, "ERROR: Failed to initialised Jones matrix for port %d, attempting to continue.\n", port);
+					jonesMatrix = &(meta->jonesMatrices[meta->calibrationStep][cumulativeBeamlets]);
 				}
 			}
 		}
@@ -1308,14 +1304,13 @@ int32_t lofar_udp_raw_loop(lofar_udp_obs_meta *meta) {
 				// Ensure we don't attempt to access unallocated memory
 				if (iLoop != packetsPerIteration - 1) {
 					// Speedup: add 16 to the sequence, check if accurate. Doesn't work at rollover.
-					int32_t nextSequence;
 					if constexpr (state == 0) {
-						nextSequence = (*((uint32_t *) &(inputPortData[lastInputPacketOffset + CEP_HDR_SEQ_OFFSET]))) + 16;
+						nextSequence = (*((uint32_t *) &(inputPortData[lastInputPacketOffset + CEP_HDR_SEQ_OFFSET]))) + UDPNTIMESLICE;
 					} else {
-						nextSequence = (*((uint32_t *) &(inputPortData[lastInputPacketOffset - (UDPHDRLEN - CEP_HDR_SEQ_OFFSET)]))) + 16;
+						nextSequence = (*((uint32_t *) &(inputPortData[lastInputPacketOffset - (UDPHDRLEN - CEP_HDR_SEQ_OFFSET)]))) + UDPNTIMESLICE;
 					}
 
-					if (*((uint32_t *) &(inputPortData[inputPacketOffset + 12])) == nextSequence) {
+					if (*((uint32_t *) &(inputPortData[inputPacketOffset + CEP_HDR_SEQ_OFFSET])) == nextSequence) {
 						currentPortPacket += 1;
 					} else {
 						currentPortPacket = lofar_udp_time_get_packet_number(&(inputPortData[inputPacketOffset]));
@@ -1326,7 +1321,7 @@ int32_t lofar_udp_raw_loop(lofar_udp_obs_meta *meta) {
 
 
 			// Use firstprivate to lock the variables into the task, while the main loop continues to update them
-#pragma omp task default(shared) firstprivate(iLoop, lastInputPacketOffset, inputPortData) shared(byteWorkspace, outputData)
+#pragma omp task default(shared) firstprivate(iLoop, lastInputPacketOffset, inputPortData, port) shared(outputData)
 			{
 
 				// Unpack 4-bit data into an array of int8_t, so it can be processed the same way we process 8-bit data
@@ -1335,7 +1330,7 @@ int32_t lofar_udp_raw_loop(lofar_udp_obs_meta *meta) {
 					inputPortData = byteWorkspace[omp_get_thread_num()];
 
 					// Determine the number of (byte-sized) samples to process
-					int32_t numSamples = portPacketLength - UDPHDRLEN;
+					const int32_t numSamples = portPacketLength - UDPHDRLEN;
 
 					// Use a LUT to extract the 4-bit signed ints from int8_t
 #ifdef __INTEL_COMPILER
@@ -1581,12 +1576,7 @@ int32_t lofar_udp_raw_loop(lofar_udp_obs_meta *meta) {
 			}
 		}
 
-		// Perform analysis of iteration, cleanup and wait for tasks to end.
-		if constexpr (calibrateData) {
-			VERBOSE(printf("Free'ing calibration Jones\n"););
-			free(jonesMatrix);
-		}
-
+		// Perform analysis of iteration
 		meta->portLastDroppedPackets[port] = currentPacketsDropped;
 		meta->portTotalDroppedPackets[port] += currentPacketsDropped;
 		VERBOSE(if (verbose) {
@@ -1600,6 +1590,14 @@ int32_t lofar_udp_raw_loop(lofar_udp_obs_meta *meta) {
 
 		// Wait until all tasks are finished before leaving the loop.
 		#pragma omp taskwait
+
+		// Cleanup if needed
+		if constexpr (calibrateData) {
+			if (jonesMatrix != &(meta->jonesMatrices[meta->calibrationStep][cumulativeBeamlets])) {
+				VERBOSE(printf("Free'ing calibration Jones\n"););
+				free(jonesMatrix);
+			}
+		}
 
 		VERBOSE(if (verbose) { printf("Port %d finished loop.\n", port); });
 
