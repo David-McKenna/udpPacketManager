@@ -867,7 +867,7 @@ lofar_udp_reader *lofar_udp_reader_setup(lofar_udp_config *config) {
 		return NULL;
 	}
 
-	if (lofar_udp_prepare_signal_handler() < 0) {
+	if (_lofar_udp_prepare_signal_handler() < 0) {
 		return NULL;
 	}
 

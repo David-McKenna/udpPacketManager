@@ -102,7 +102,7 @@ TEST(LibIoTests, SetupUseCleanup) {
 
 						if (type == DADA_ACTIVE) {
 							close(syncPipe[1]);
-							UNUSED_RETURN(read(syncPipe[0], &syncPipe[1], sizeof(int)));
+							read(syncPipe[0], &syncPipe[1], sizeof(int));
 							close(syncPipe[0]);
 						}
 
@@ -157,7 +157,7 @@ TEST(LibIoTests, SetupUseCleanup) {
 					}
 
 					if (type == DADA_ACTIVE) {
-						UNUSED_RETURN(write(syncPipe[1], &syncPipe[0], sizeof(int)));
+						write(syncPipe[1], &syncPipe[0], sizeof(int));
 						close(syncPipe[1]);
 					}
 

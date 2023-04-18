@@ -236,7 +236,7 @@ int main(int argc, char *argv[]) {
 	lofar_udp_calibration *cal = calloc(1, sizeof(struct lofar_udp_calibration));
 	lofar_udp_io_write_config *outConfig = lofar_udp_io_alloc_write();
 
-	char *headerBuffer = NULL;
+	int8_t *headerBuffer = NULL;
 
 	if (config == NULL || outConfig == NULL || cal == NULL) {
 		fprintf(stderr, "ERROR: Failed to allocate memory for configuration structs (something has gone very wrong...), exiting.\n");
@@ -349,7 +349,7 @@ int main(int argc, char *argv[]) {
 				break;
 
 			case 'b':
-				if (sscanf(optarg, "%d,%d", &(config->beamletLimits[0]), &(config->beamletLimits[1])) < 0) {
+				if (sscanf(optarg, "%hd,%hd", &(config->beamletLimits[0]), &(config->beamletLimits[1])) < 0) {
 					fprintf(stderr, "ERROR: Failed to scan input beamlets, exiting.\n");
 					CLICleanup(eventCount, dateStr, startingPackets, multiMaxPackets, eventSeconds, config, outConfig, intermediateX, intermediateY);
 					return 1;
@@ -959,7 +959,7 @@ int main(int argc, char *argv[]) {
 				               outputLength, packetsToWrite, out));
 				size_t outputWritten;
 				printf("Writing...\n");
-				if ((outputWritten = lofar_udp_io_write(outConfig, out, outputStokes[out],
+				if ((outputWritten = lofar_udp_io_write(outConfig, out, (int8_t *) outputStokes[out],
 				                                        outputLength)) != outputLength) {
 					fprintf(stderr, "ERROR: Failed to write data to output (%ld bytes/%ld bytes writen, errno %d: %s)), breaking.\n", outputWritten, outputLength,  errno, strerror(errno));
 					returnValMeta = (returnValMeta < 0 && returnValMeta > -5) ? returnValMeta : -5;

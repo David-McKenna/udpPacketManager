@@ -249,6 +249,7 @@ typedef struct __attribute__((__packed__)) lofar_source_bytes {
 #include <stdlib.h>
 #include <signal.h>
 #include <limits.h>
+#include <execinfo.h>
 
 // Allocation check
 #define CHECK_ALLOC(alloced, returnVal, cleanup) if ((alloced) == NULL) { fprintf(stderr, "ERROR %s%d: Failed to allocate " #alloced", returning.\n", __FILE__, __LINE__); return returnVal; cleanup;}
@@ -294,8 +295,8 @@ typedef struct __attribute__((__packed__)) lofar_source_bytes {
 extern "C" {
 #endif
 
-void lofar_udp_signal_handler(int signalnum);
-int lofar_udp_prepare_signal_handler();
+void _lofar_udp_signal_handler(int signalnum);
+int _lofar_udp_prepare_signal_handler();
 int32_t internal_strtoi(char *str, char **endPtr);
 
 // Allow C++ imports too

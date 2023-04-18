@@ -75,7 +75,9 @@ int64_t _lofar_udp_metadata_write_SIGPROC(const sigproc_hdr *hdr, int8_t *const 
 		fprintf(stderr, "WARNING: Buffer is short (<%ld chars), we may overflow this buffer. Continuing with caution...\n", estimatedLength);
 	}
 
-	int8_t *workingPtr = _writeKey_SIGPROC(headerBuffer, "HEADER_START");
+	char *workingPtr = (char *) headerBuffer;
+
+	workingPtr = _writeKey_SIGPROC(workingPtr, "HEADER_START");
 	workingPtr = _writeInt_SIGPROC(workingPtr, "telescope_id", hdr->telescope_id);
 	workingPtr = _writeInt_SIGPROC(workingPtr, "machine_id", hdr->machine_id);
 	workingPtr = _writeInt_SIGPROC(workingPtr, "data_type", hdr->data_type);
@@ -108,7 +110,7 @@ int64_t _lofar_udp_metadata_write_SIGPROC(const sigproc_hdr *hdr, int8_t *const 
 		return -1;
 	}
 
-	return workingPtr - headerBuffer;
+	return ((int8_t*) workingPtr + (sizeof(char) - sizeof(int8_t))) - headerBuffer;
 
 }
 

@@ -39,7 +39,7 @@ void helpMessages() {
 }
 
 void CLICleanup(int eventCount, char **dateStr, long *startingPackets, long *multiMaxPackets, float *eventSeconds,
-				lofar_udp_config *config, lofar_udp_io_write_config *outConfig, char *headerBuffer) {
+				lofar_udp_config *config, lofar_udp_io_write_config *outConfig, int8_t *headerBuffer) {
 
 	FREE_NOT_NULL(startingPackets);
 	FREE_NOT_NULL(multiMaxPackets);
@@ -83,7 +83,7 @@ int main(int argc, char *argv[]) {
 	lofar_udp_io_write_config *outConfig = lofar_udp_io_alloc_write();
 	(*outConfig) = lofar_udp_io_write_config_default;
 
-	char *headerBuffer = NULL;
+	int8_t *headerBuffer = NULL;
 
 	if (config == NULL || outConfig == NULL || cal == NULL) {
 		fprintf(stderr, "ERROR: Failed to allocate memory for configuration structs (something has gone very wrong...), exiting.\n");
@@ -173,7 +173,7 @@ int main(int argc, char *argv[]) {
 				break;
 
 			case 'b':
-				sscanf(optarg, "%d,%d", &(config->beamletLimits[0]), &(config->beamletLimits[1]));
+				sscanf(optarg, "%hd,%hd", &(config->beamletLimits[0]), &(config->beamletLimits[1]));
 				break;
 
 			case 'r':

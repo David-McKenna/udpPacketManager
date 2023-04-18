@@ -54,7 +54,7 @@ const std::vector<int32_t> processingModes {
 
 const int32_t invalidBitMode = 111;
 const std::vector<int32_t> bitModes { 4, 8, 16, invalidBitMode };
-const int32_t invalidCalibration = 33;
+const calibrate_t invalidCalibration = (calibrate_t) 33;
 const std::vector<calibrate_t> calibrationModes { NO_CALIBRATION, GENERATE_JONES, APPLY_CALIBRATION, (calibrate_t) invalidCalibration };
 
 

@@ -78,19 +78,7 @@ if __name__ == '__main__':
     parser.add_argument('--silent', dest='silent', default=True, action='store_false',
                         help="Don't silence all outputs.")
 
-    try:
-        args = parser.parse_args()
-
-    # If we failed while parsing, try to write out to the pipe before exiting.
-    except Exception as e:
-        print(e)
-        if "--pipe" in sys.argv:
-            pipeInput = sys.argv.index('--pipe')
-
-            with open(sys.argv[pipeInput + 1], 'wb') as outPipe:
-                outPipe.write("-1,-1\n".encode("ascii"))
-
-        exit(1)
+    args = parser.parse_args()
     args.sub = list(map(int, args.sub.split(',')))
 
     # Determine if both HBA and LBAs are needed
@@ -187,7 +175,7 @@ if __name__ == '__main__':
                                       args.inte.datetime, args.pnt, firstOutput=False)
 
     jonesGeneratorTime = timeLib.perf_counter()
-    print(f"dreamBeamJonesGenerator.py: Jones Matrices generated and inverted in {jonesGeneratorTime - endParseTime:.3f} seconds.")
+    print(f"dreamBeamJonesGenerator.py: {jointInvJones.shape[0]} Jones Matrices generated and inverted in {jonesGeneratorTime - endParseTime:.3f} seconds.")
 
 
     ref = multiprocessing.shared_memory.SharedMemory(name = args.shm_key, create = False)

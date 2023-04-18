@@ -14,7 +14,7 @@ const size_t timeBytesOffset = 8;
 const size_t seqBytesOffset = 12;
 const size_t hdrLen = 16;
 struct dummyHeader {
-	int8_t data[hdrLen] = {{0}};
+	int8_t data[hdrLen] = {0,};
 
 	void setTime(uint32_t time) {
 		*((uint32_t*) &(data[timeBytesOffset])) = time;

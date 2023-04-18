@@ -4,7 +4,7 @@ cmake_minimum_required(VERSION 3.14...3.19)
 # Create a release output by default
 set(default_build_type "Release")
 
-set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
@@ -29,6 +29,10 @@ project(udpPacketManager 	VERSION 0.7.0
 set(UPM_CLI_VERSION 0.7)
 
 message("Building udpPacketManager Version ${PROJECT_VERSION}\n\n")
+
+#set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS_DEBUG} -Rpass=loop-vectorize -Rpass-missed=loop-vectorize -Rpass-analysis=loop-vectorize")
+#set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS_DEBUG} -Rpass=loop-vectorize -Rpass-missed=loop-vectorize -Rpass-analysis=loop-vectorize")
+
 
 set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -W -Wall -g")
 set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -W -Wall -g")
@@ -98,26 +102,6 @@ add_library(libz STATIC IMPORTED)
 set_property(TARGET libz PROPERTY IMPORTED_LOCATION ${zlib_INSTALL_DIR}/src/internal_zlib/libz.a)
 add_dependencies(libz internal_zlib)
 message("")
-#find_package(HDF5 REQUIRED COMPONENTS C CXX)
-#set(HDF5_EXTERNALLY_CONFIGURED ON CACHE INTERNAL "")
-#set(BUILD_STATIC_LIBS ON CACHE INTERNAL "")
-#set(BUILD_SHARED_LIBS OFF CACHE INTERNAL "")
-#set(HDF5_EXTERNALLY_CONFIGURED ON CACHE INTERNAL "")
-#set(HDF5_INSTALL_NO_DEVELOPMENT ON CACHE INTERNAL "")
-#set(HDF5_BUILD_CPP_LIB ON CACHE INTERNAL "")
-#set(HDF5_ENABLE_THREADSAFE OFF CACHE INTERNAL "")
-#set(HDF5_BUILD_EXAMPLES OFF CACHE INTERNAL "")
-#set(HDF5_BUILD_TOOLS OFF CACHE INTERNAL "")
-#set(HDF5_BUILD_UTILS OFF CACHE INTERNAL "")
-#set(HDF5_BUILD_HL_LIB OFF CACHE INTERNAL "")
-#set(HDF5_BUILD_HL_TOOLS OFF CACHE INTERNAL "")
-#set(BUILD_TESTING OFF CACHE INTERNAL "")
-#FetchContent_Declare(HDF5
-#                     GIT_REPOSITORY https://github.com/HDFGroup/hdf5
-#                     GIT_TAG hdf5-1_12_2
-#                     )
-#FetchContent_MakeAvailable(HDF5)
-#set(HDF5_INCLUDE_DIRS "${HDF5_SRC_SOURCE_DIR};${HDF5_SRC_BINARY_DIR}")
 ExternalProject_Add(internal_hdf5
                     GIT_REPOSITORY https://github.com/HDFGroup/hdf5
                     GIT_TAG hdf5-1_12_2

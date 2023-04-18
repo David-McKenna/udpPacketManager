@@ -26,7 +26,7 @@ extern "C" {
 
 int32_t _lofar_udp_reader_calibration_generate_data(lofar_udp_reader *reader);
 
-int32_t _lofat_udp_calibration_sanity_checks(const lofar_udp_reader *reader);
+int32_t _lofar_udp_calibration_sanity_checks(const lofar_udp_reader *reader);
 int32_t _lofar_udp_calibration_find_script(const char jonesGeneratorName[], char outputJonesGenerator[DEF_STR_LEN]);
 int32_t _lofar_udp_calibration_shmData_setup(shmData *sharedData);
 int32_t _lofar_udp_calibration_spawn_python_script(const lofar_udp_reader *reader, char jonesGenerator[DEF_STR_LEN], int32_t numTimesteps, float integrationTime, shmData *sharedData);

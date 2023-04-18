@@ -181,7 +181,7 @@ TEST(LibReaderTests, PreprocessingRawData) {
 		MODIFY_AND_RESET(*((int32_t *) &(header[CEP_HDR_SEQ_OFFSET])), tmpVal, RSPMAXSEQ + 1, EXPECT_EQ(-1, _lofar_udp_reader_malformed_header_checks(header)););
 
 		// ((uint8_t) header[CEP_HDR_NBEAM_OFFSET] > UDPMAXBEAM)
-		MODIFY_AND_RESET(header[CEP_HDR_NBEAM_OFFSET], tmpVal, (uint8_t) UDPMAXBEAM + 1, EXPECT_EQ(-1, _lofar_udp_reader_malformed_header_checks(header)););
+		MODIFY_AND_RESET(*((uint8_t*) &header[CEP_HDR_NBEAM_OFFSET]), *((uint8_t*) &tmpVal), (uint8_t) UDPMAXBEAM + 1, EXPECT_EQ(-1, _lofar_udp_reader_malformed_header_checks(header)););
 
 		// ((uint8_t) header[CEP_HDR_NTIMESLICE_OFFSET] != UDPNTIMESLICE)
 		MODIFY_AND_RESET(header[CEP_HDR_NTIMESLICE_OFFSET], tmpVal, (uint8_t) UDPNTIMESLICE - 1,
@@ -421,6 +421,10 @@ TEST(LibReaderTests, PreprocessingReader) {
 
 };
 
+void blindReformer(int8_t *input, int32_t processingMode, int16_t beamlets, int16_t lowerBeamlet, int16_t upperBeamlet) {
+
+}
+
 
 TEST(LibReaderTests, ProcessingData) {
 	//lofar_udp_reader *reader = reader_setup(150);
@@ -435,11 +439,16 @@ TEST(LibReaderTests, ProcessingData) {
 					std::cout << config->inputLocations[0] << ", " << currMode << ", " << cal << std::endl;
 					config->processingMode = currMode;
 					if (testNum == 1) {
+						if (currMode == PACKET_NOHDR_COPY) {
+							config->calibrationConfiguration->calibrationDuration = 2 * config->packetsPerIteration * clock200MHzSampleTime * UDPNTIMESLICE;
+						} else {
+							config->calibrationConfiguration->calibrationDuration = 0.1;
+						}
 						config->calibrateData = cal;
 					} else {
 						config->calibrateData = NO_CALIBRATION;
 					}
-					config->calibrationConfiguration->calibrationDuration = 0.1;
+					//config->calibrateData = NO_CALIBRATION;
 					lofar_udp_reader *reader = lofar_udp_reader_setup(config);
 
 					if (std::find(flaggedTests.begin(), flaggedTests.end(), testNum) != flaggedTests.end() || currMode == (int32_t) TEST_INVALID_MODE) {
@@ -492,6 +501,7 @@ TEST(LibReaderTests, ProcessingModes) {
 		const int numIters = 32;
 		for (size_t time = 0; time < numIters; time++) {
 			float values[4] = { static_cast<float>(rand()), static_cast<float>(rand()), static_cast<float>(rand()), static_cast<float>(rand()) };
+			std::cout << std::to_string(values[0]) << ", " << std::to_string(values[1]) << ", " << std::to_string(values[2]) << ", " << std::to_string(values[3]) << ", " << std::endl;
 
 			for (size_t val = 0; val < 4; val++) {
 				if (time == numIters - 2) {
@@ -499,8 +509,8 @@ TEST(LibReaderTests, ProcessingModes) {
 				} else if (time == numIters - 1) {
 					values[val] = SHRT_MIN;
 				} else {
-					values[val] -= RAND_MAX / 2;
-					values[val] = (int16_t) (SHRT_MIN * (values[val] / (RAND_MAX / 2)));
+					values[val] -= (float) (RAND_MAX / 2);
+					values[val] = (float) (SHRT_MIN * (values[val] / (RAND_MAX / 2)));
 				}
 			}
 
@@ -508,17 +518,34 @@ TEST(LibReaderTests, ProcessingModes) {
 			//inline float stokesQ(float Xr, float Xi, float Yr, float Yi)
 			//inline float stokesU(float Xr, float Xi, float Yr, float Yi)
 			//inline float stokesV(float Xr, float Xi, float Yr, float Yi)
-			EXPECT_FLOAT_EQ(values[0] * values[0]
-			          + values[1] * values[1]
-			          + values[2] * values[2]
-			          + values[3] * values[3], stokesI(values[0], values[1], values[2], values[3]));
+			float stokesIVal = stokesI(values[0], values[1], values[2], values[3]);
+			float stokesQVal = stokesQ(values[0], values[1], values[2], values[3]);
+			float stokesUVal = stokesU(values[0], values[1], values[2], values[3]);
+			float stokesVVal = stokesV(values[0], values[1], values[2], values[3]);
+			if (time < numIters - 2) {
+				// Fractional checks due to fast-math errors
+				EXPECT_LT((values[0] * values[0]
+				           + values[1] * values[1]
+				           + values[2] * values[2]
+				           + values[3] * values[3] - stokesIVal) / stokesIVal, 1e-5);
 
-			EXPECT_FLOAT_EQ(values[0] * values[0] + values[1] * values[1]
-			          - (values[2] * values[2] + values[3] * values[3]),
-			          stokesQ(values[0], values[1], values[2], values[3]));
+				EXPECT_LT(((values[0] * values[0]) + (values[1] * values[1])
+				           - ((values[2] * values[2]) + (values[3] * values[3])) -
+				           stokesQVal) / stokesQVal, 1e-5);
 
-			EXPECT_FLOAT_EQ(2 * (values[0] * values[2] - values[1] * (-1 * values[3])), stokesU(values[0], values[1], values[2], values[3]));
-			EXPECT_FLOAT_EQ(-2 * (values[0] * (-1 * values[3]) + values[1] * values[2]), stokesV(values[0], values[1], values[2], values[3]));
+				EXPECT_LT((2 * (values[0] * values[2] - values[1] * (-1 * values[3])) - stokesUVal) / stokesUVal, 1e-5);
+				EXPECT_LT((-2 * (values[0] * (-1 * values[3]) + values[1] * values[2]) - stokesVVal) / stokesVVal, 1e-5);
+			} else {
+				EXPECT_FLOAT_EQ(values[0] * values[0]
+					                + values[1] * values[1]
+					                + values[2] * values[2]
+					                + values[3] * values[3], stokesIVal);
+				EXPECT_FLOAT_EQ(((values[0] * values[0]) + (values[1] * values[1]))
+				                  - ((values[2] * values[2]) + (values[3] * values[3])), stokesQVal);
+				EXPECT_FLOAT_EQ(2 * (values[0] * values[2] - values[1] * (-1 * values[3])), stokesUVal);
+				EXPECT_FLOAT_EQ(-2 * (values[0] * (-1 * values[3]) + values[1] * values[2]), stokesVVal);
+
+			}
 		}
 
 		// template<typename I, typename O> void inline calibrateDataFunc(O *Xr, O *Xi, O *Yr, O *Yi, const float *beamletJones, const int8_t *inputPortData, const long tsInOffset, const int timeStepSize)

@@ -1,9 +1,9 @@
 #include "lofar_udp_calibration.h"
 
-int32_t _lofat_udp_calibration_sanity_checks(const lofar_udp_reader *reader) {
+int32_t _lofar_udp_calibration_sanity_checks(const lofar_udp_reader *reader) {
 	// Ensure we are meant to be calibrating data
 	if (reader == NULL || reader->meta == NULL || reader->metadata == NULL) {
-		fprintf(stderr, "ERROR: Calibratino cannot proceed as we have been passed a nullptr, exiting.\n");
+		fprintf(stderr, "ERROR: Calibration cannot proceed as we have been passed a nullptr, exiting.\n");
 		return 1;
 	}
 
@@ -12,7 +12,7 @@ int32_t _lofat_udp_calibration_sanity_checks(const lofar_udp_reader *reader) {
 		return -1;
 	}
 
-	if (reader->metadata == NULL || reader->metadata->ra_rad == -1.0 || reader->metadata->dec_rad == -1.0) {
+	if (reader->metadata->ra_rad == -1.0 || reader->metadata->dec_rad == -1.0) {
 		fprintf(stderr, "ERROR %s: Metadata not initialised, cannot generate calibration data, exiting.\n", __func__);
 		return 1;
 	}
@@ -113,7 +113,7 @@ int32_t _lofar_udp_calibration_spawn_python_script(const lofar_udp_reader *reade
 
 	_lofar_udp_metadata_get_station_name(reader->meta->stationID, &(stationID[0]));
 	snprintf(mjdTime, shortStr,  "%.16lf", lofar_udp_time_get_packet_time_mjd(reader->meta->inputData[0]));
-	snprintf(duration, shortStr, "%.10f", reader->calibration->calibrationDuration);
+	snprintf(duration, shortStr, "%.10f", reader->calibration->calibrationDuration + 0.5 * integrationTime); // Work around float precision loss for small values
 	snprintf(shmKey, shortStr, "%s", sharedData->shmName); // Workaround the / beign escaped on every call
 	snprintf(shmSize, shortStr, "%ld", sharedData->shmSize);
 	snprintf(integration, shortStr, "%15.10f", integrationTime);
@@ -262,7 +262,7 @@ void _lofar_udp_calibration_shmData_cleanup(shmData *sharedData) {
 int32_t _lofar_udp_reader_calibration_generate_data(lofar_udp_reader *reader) {
 	int32_t returnVal;
 
-	if ((returnVal = _lofat_udp_calibration_sanity_checks(reader))) {
+	if ((returnVal = _lofar_udp_calibration_sanity_checks(reader))) {
 		return returnVal;
 	}
 
