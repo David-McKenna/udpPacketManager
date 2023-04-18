@@ -61,7 +61,7 @@ _lofar_udp_io_read_setup_ZSTD(lofar_udp_io_read_config *const input, const char 
 		bufferSize += _lofar_udp_io_read_ZSTD_fix_buffer_size(bufferSize, 1);
 	}
 	VERBOSE(printf("reader_setup: expending decompression buffer by %ld bytes\n",
-	               bufferSize - zstdAlignedSize));
+	               bufferSize - input->readBufSize[port]));
 	//input->readBufSize[port] = bufferSize;
 	input->decompressionTracker[port].size = bufferSize;
 	input->decompressionTracker[port].pos = 0; // Initialisation for our step-by-step reader
