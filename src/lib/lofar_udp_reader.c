@@ -1005,18 +1005,17 @@ lofar_udp_reader *lofar_udp_reader_setup(lofar_udp_config *config) {
 
 		// If we have a compressed reader, align the length with the ZSTD buffer sizes
 		size_t additionalBufferSize = _lofar_udp_io_read_ZSTD_fix_buffer_size(meta->portPacketLength[port] * meta->packetsPerIteration, 1);
-
-		meta->inputData[port] = calloc(meta->portPacketLength[port] * (meta->packetsPerIteration + 2) +
-									   additionalBufferSize * (config->readerType == ZSTDCOMPRESSED), sizeof(char));
+		size_t inputBufferSize = meta->portPacketLength[port] * (meta->packetsPerIteration + 2) +
+		                         additionalBufferSize * (config->readerType == ZSTDCOMPRESSED);
+		meta->inputData[port] = calloc(inputBufferSize, sizeof(int8_t));
 		// Offset the pointer to the end of the two iniital buffer packets
-		meta->inputData[port] += (meta->portPacketLength[port] * 2);
 		VERBOSE(if (meta->VERBOSE) {
-			printf("calloc at %p for %ld +(%d) bytes\n",
-				   meta->inputData[port] - (meta->portPacketLength[port] * 2),
-				   meta->portPacketLength[port] * (meta->packetsPerIteration + 2) +
-				   additionalBufferSize * (config->readerType == ZSTDCOMPRESSED) - meta->portPacketLength[port] * 2,
+			printf("calloc at %p for %ld +(%d ZSTD, %d packet) bytes\n",
+				   meta->inputData[port],
+				   inputBufferSize, additionalBufferSize,
 				   meta->portPacketLength[port] * 2);
 		});
+		meta->inputData[port] += (meta->portPacketLength[port] * 2);
 
 		// Initialise these arrays while we're looping
 		meta->inputDataOffset[port] = 0;
