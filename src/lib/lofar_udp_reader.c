@@ -1205,9 +1205,9 @@ int _lofar_udp_reader_internal_read_step(lofar_udp_reader *reader) {
 	//else if (checkReturnValue < 0) if(lofar_udp_realign_data(reader) < 0) return -1;
 
 	// Read in the required new data
-	long charsToRead = reader->meta->packetsPerIteration;
-#pragma omp parallel for shared(returnVal, reader, stderr) firstprivate(charsToRead)
+#pragma omp parallel for shared(returnVal, reader, stderr)
 	for (int8_t port = 0; port < reader->meta->numPorts; port++) {
+		long charsToRead = reader->meta->packetsPerIteration;
 		long charsRead, packetPerIter;
 
 		// Determine how much data is needed and read-in to the offset after any leftover packets
