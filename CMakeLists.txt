@@ -252,6 +252,7 @@ target_link_libraries(lofudpman PUBLIC libfftw3fomp libfftw3f)
 target_link_libraries(lofudpman PUBLIC libhdf5 libz libh5bshuf ${CMAKE_DL_LIBS}) # Some cases need libdl for HDF5
 target_link_libraries(lofudpman PUBLIC libpsrdada)
 target_link_libraries(lofudpman PUBLIC libzstd_static)
+target_link_libraries(lofudpman PUBLIC rt)
 #target_link_libraries(lofudpman PUBLIC yaml)
 
 # Set a few extra compiler options
