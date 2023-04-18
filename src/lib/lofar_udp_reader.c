@@ -1219,8 +1219,8 @@ int _lofar_udp_reader_internal_read_step(lofar_udp_reader *reader) {
 						  reader->meta->portPacketLength[port];
 		}
 		VERBOSE(if (reader->meta->VERBOSE) {
-			printf("Port %d: read %ld packets.\n", port, (reader->meta->packetsPerIteration -
-														  reader->meta->portLastDroppedPackets[port]));
+			printf("Port %d: read %ld packets (%ld bytes).\n", port, (reader->meta->packetsPerIteration -
+														  reader->meta->portLastDroppedPackets[port]), charsToRead);
 		});
 		charsRead = lofar_udp_io_read(reader->input, port,
 									  &(reader->meta->inputData[port][reader->meta->inputDataOffset[port]]),

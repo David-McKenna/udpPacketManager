@@ -60,7 +60,7 @@ _lofar_udp_io_read_setup_ZSTD(lofar_udp_io_read_config *const input, const char 
 	if (bufferSize % ZSTD_DStreamOutSize()) {
 		bufferSize += _lofar_udp_io_read_ZSTD_fix_buffer_size(bufferSize, 1);
 	}
-	VERBOSE(printf("reader_setup: expending decompression buffer by %ld bytes\n",
+	VERBOSE(printf("reader_setup: expanding decompression buffer by %ld bytes\n",
 	               bufferSize - input->readBufSize[port]));
 	//input->readBufSize[port] = bufferSize;
 	input->decompressionTracker[port].size = bufferSize;
