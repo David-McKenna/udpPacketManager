@@ -8,8 +8,7 @@
  */
 int _lofar_udp_reader_malformed_header_checks(const int8_t header[16]) {
 	lofar_source_bytes *source = (lofar_source_bytes *) &(header[CEP_HDR_SRC_OFFSET]);
-	VERBOSE(printf("Port %d\n", port);
-		        printf("RSP: %d\n", source->rsp);
+	VERBOSE(    printf("RSP: %d\n", source->rsp);
 		        printf("Padding0: %d\n", source->padding0);
 		        printf("ERRORBIT: %d\n", source->errorBit);
 		        printf("CLOCK: %d\n", source->clockBit);
