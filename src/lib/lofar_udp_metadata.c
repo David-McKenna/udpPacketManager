@@ -78,7 +78,7 @@ int lofar_udp_metadata_setup(lofar_udp_metadata *metadata, const lofar_udp_reade
 		if (_lofar_udp_metadata_parse_input_file(metadata, config->metadataLocation) < 0) {
 			return -1;
 		}
-	} else {
+	} else if (config != NULL && config->metadataType > DEFAULT_META){
 		fprintf(stderr, "WARNING %s: Insufficient information provided to determine input pointing and frequency information.\n", __func__);
 	}
 
@@ -517,10 +517,11 @@ int _lofar_udp_metadata_parse_reader(lofar_udp_metadata *metadata, const lofar_u
 
 	// Check the metadata state -- we need it to have been populated with beamctl data before we can do anything useful
 	if (metadata->upm_rcuclock == -1 || metadata->upm_upperbeam == -1 || metadata->upm_lowerbeam == -1) {
-		fprintf(stderr, "WARNING: Unable to update frequency information from reader. "
-				  "Either the rcuclock (%d),  lower (%d) or upper (%d) beam was undefined.\n",
-				  metadata->upm_rcuclock, metadata->upm_lowerbeam, metadata->upm_upperbeam);
-
+		if (metadata->type > DEFAULT_META) {
+			fprintf(stderr, "WARNING: Unable to update frequency information from reader. "
+			                "Either the rcuclock (%d),  lower (%d) or upper (%d) beam was undefined.\n",
+			        metadata->upm_rcuclock, metadata->upm_lowerbeam, metadata->upm_upperbeam);
+		}
 		if (metadata->upm_rcuclock == -1) {
 			metadata->upm_rcuclock = reader->meta->clockBit ? 200 : 160;
 		}
