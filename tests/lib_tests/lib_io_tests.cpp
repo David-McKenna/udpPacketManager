@@ -186,6 +186,26 @@ TEST(LibIoTests, SetupUseCleanup) {
 };
 
 
+#define ZSTDBUFLEN 131072
+TEST(LibIoTests, ZSTDBufferExpansion) {
+	//_lofar_udp_io_read_ZSTD_fix_buffer_size(size, deltaOnly)
+
+	{
+		SCOPED_TRACE("NormalCall");
+		EXPECT_EQ(ZSTDBUFLEN, _lofar_udp_io_read_ZSTD_fix_buffer_size(0, 0));
+		EXPECT_EQ(ZSTDBUFLEN * 2, _lofar_udp_io_read_ZSTD_fix_buffer_size(ZSTDBUFLEN + 1, 0));
+		EXPECT_EQ(ZSTDBUFLEN, _lofar_udp_io_read_ZSTD_fix_buffer_size(130000, 0));
+
+		EXPECT_EQ(ZSTDBUFLEN, _lofar_udp_io_read_ZSTD_fix_buffer_size(0, 1));
+		EXPECT_EQ(ZSTDBUFLEN - 1, _lofar_udp_io_read_ZSTD_fix_buffer_size(1, 1));
+		EXPECT_EQ(ZSTDBUFLEN - 1, _lofar_udp_io_read_ZSTD_fix_buffer_size(ZSTDBUFLEN + 1, 1));
+		EXPECT_EQ(ZSTDBUFLEN - 1, _lofar_udp_io_read_ZSTD_fix_buffer_size(ZSTDBUFLEN + 1, 1));
+		EXPECT_EQ(1, _lofar_udp_io_read_ZSTD_fix_buffer_size(ZSTDBUFLEN - 1, 1));
+	}
+};
+#undef ZSTDBUFLEN
+
+
 /*
 // Setup wrapper functions
 int lofar_udp_io_read_setup(lofar_udp_io_read_config *input, int port);
