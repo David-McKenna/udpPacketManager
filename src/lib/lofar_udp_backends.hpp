@@ -920,7 +920,11 @@ int32_t lofar_udp_raw_loop(lofar_udp_obs_meta *meta) {
 	const int8_t replayDroppedPackets = meta->replayDroppedPackets;
 
 	// For each port of data provided,
+#ifdef ALLOW_VERBOSE
+#pragma omp parallel for default(none) shared(byteWorkspace, trueState, packetLoss, nThreads, meta, stderr, packetsPerIteration, replayDroppedPackets, bitmodeConversion, verbose)
+#else
 #pragma omp parallel for default(none) shared(byteWorkspace, trueState, packetLoss, nThreads, meta, stderr, packetsPerIteration, replayDroppedPackets, bitmodeConversion)
+#endif
 	for (int8_t port = 0; port < meta->numPorts; port++) {
 
 		VERBOSE(if (verbose) { printf("Port: %d on thread %d\n", port, omp_get_thread_num()); });
