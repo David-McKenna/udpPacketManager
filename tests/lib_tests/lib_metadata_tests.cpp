@@ -3,6 +3,7 @@
 #include "lofar_udp_metadata.h"
 #include "lofar_udp_structs.h"
 #include "lofar_udp_reader.h"
+#include "lofar_udp_io.h"
 #include "lib_reference_files.hpp"
 
 TEST(LibMetadataTests, HelperFunctions) {
@@ -242,6 +243,7 @@ TEST(LibMetadataTests, HelperFunctions) {
 		// int lofar_udp_metadata_processing_mode_metadata(lofar_udp_metadata *metadata);
 		SCOPED_TRACE("lofar_udp_metadata_processing_mode_metadata");
 		EXPECT_EQ(-1, _lofar_udp_metadata_processing_mode_metadata(nullptr));
+		FAIL();
 	}
 
 	lofar_udp_metadata_cleanup(metadata);
@@ -296,9 +298,7 @@ TEST(LibMetadataTests, InternalParsers) {
 		// int lofar_udp_metadata_get_tsv(const char *inputStr, const char *keyword, char *result);
 		char testStr[3][META_STR_LEN] = { "TESTKEY", "TESTVAL", "" };
 		char testStrCombined[META_STR_LEN];
-		if (snprintf(testStrCombined, META_STR_LEN - 1, "%s\t%s", testStr[0], testStr[1]) < 0) {
-			FAIL();
-		}
+		snprintf(testStrCombined, META_STR_LEN - 1, "%s\t%s", testStr[0], testStr[1]);
 
 
 		EXPECT_EQ(0, _lofar_udp_metadata_get_tsv(testStrCombined, testStr[0], testStr[2]));
@@ -309,30 +309,35 @@ TEST(LibMetadataTests, InternalParsers) {
 	}
 
 	{
-		// int lofar_udp_metadata_parse_csv(const char *inputStr, int *values, int *data);
+
+		{
+			// int lofar_udp_metadata_parse_csv(const char *inputStr, int *values, int *data);
+			SCOPED_TRACE("_lofar_udp_metadata_parse_csv");
+			FAIL();
+		}
 
 
 		lofar_udp_metadata *meta = lofar_udp_metadata_alloc();
-		// int lofar_udp_metadata_parse_subbands(lofar_udp_metadata *metadata, const char *inputLine, int *results);
 
 		{
 			SCOPED_TRACE("_lofar_udp_metadata_parse_subbands");
 			EXPECT_EQ(-1, _lofar_udp_metadata_parse_subbands(nullptr, nullptr, nullptr));
+			FAIL();
+
+			// switch (results[0])  subbandOffset = 0, 512, 1024 mode dependant
+
+			// (results[0] < 1) -> -1 results[0] == rcuMode
+
+			// (inputPtr == NULL) -> 1 (no space in beamctl command)
+
+			// (subbandCount = lofar_udp_metadata_parse_csv(workingPtr + strlen("--subbands="), subbands, &(results[1])) -> -1
+
+			// ((beamletCount = lofar_udp_metadata_parse_csv(workingPtr + strlen("--beamlets="), beamlets, &(results[5]))) < 0) -> -1
+
+			// (subbandCount != beamletCount || subbandCount == 0) -> -1
+
+			// metadata->subbands[beamlets[i]] = subbandOffset + subbands[i]; -> verifiable
 		}
-
-		// switch (results[0])  subbandOffset = 0, 512, 1024 mode dependant
-
-		// (results[0] < 1) -> -1 results[0] == rcuMode
-
-		// (inputPtr == NULL) -> 1 (no space in beamctl command)
-
-		// (subbandCount = lofar_udp_metadata_parse_csv(workingPtr + strlen("--subbands="), subbands, &(results[1])) -> -1
-
-		// ((beamletCount = lofar_udp_metadata_parse_csv(workingPtr + strlen("--beamlets="), beamlets, &(results[5]))) < 0) -> -1
-
-		// (subbandCount != beamletCount || subbandCount == 0) -> -1
-
-		// metadata->subbands[beamlets[i]] = subbandOffset + subbands[i]; -> verifiable
 
 
 		SCOPED_TRACE("_lofar_udp_metadata_parse_pointing");
@@ -365,7 +370,11 @@ TEST(LibMetadataTests, InternalParsers) {
 
 
 
-		// int lofar_udp_metadata_parse_rcumode(lofar_udp_metadata *metadata, const char *inputStr, int *beamctlData);
+		{
+			SCOPED_TRACE("_lofar_udp_metadata_parse_rcumode");
+			// int lofar_udp_metadata_parse_rcumode(lofar_udp_metadata *metadata, const char *inputStr, int *beamctlData);
+			FAIL();
+		}
 
 
 		lofar_udp_metadata_cleanup(meta);
@@ -390,6 +399,7 @@ TEST(LibMetadataTests, ParserGlue) {
 		lofar_udp_reader *reader = lofar_udp_reader_alloc(meta);
 
 		EXPECT_EQ(-1, _lofar_udp_metadata_parse_reader(nullptr, nullptr));
+		FAIL();
 
 	}
 
@@ -651,8 +661,11 @@ TEST(LibMetadataTests, StructHandlers) {
 		EXPECT_EQ(refMjdStart, metadata->output.sigproc->tstart);
 
 	}
-	// int lofar_udp_metadata_update_HDF5(lofar_udp_metadata *metadata, int newObs);
-
+	{
+		SCOPED_TRACE("lofar_udp_metadata_update_HDF5");
+		// int lofar_udp_metadata_update_HDF5(lofar_udp_metadata *metadata, int newObs);
+		FAIL();
+	}
 	{
 		SCOPED_TRACE("lofar_udp_metadata_update");
 		// int lofar_udp_metadata_update(const lofar_udp_reader *reader, lofar_udp_metadata *metadata, int newObs);
@@ -1033,6 +1046,7 @@ TEST(LibMetadataTests, InternalBufferBuilders) {
 
 TEST(LibMetadataTests, MetadataWriters) {
 
+	// Buffer writers
 	// int lofar_udp_metadata_write_HDF5(const sigproc_hdr *hdr, char *headerBuffer, size_t headerLength);
 
 	// int lofar_udp_metadata_write_buffer(const lofar_udp_reader *reader, lofar_udp_metadata *metadata, char *headerBuffer, size_t headerBufferSize, int newObs);
@@ -1042,29 +1056,8 @@ TEST(LibMetadataTests, MetadataWriters) {
 	//                              size_t headerBufferSize, int newObs);
 	// int lofar_udp_metadata_write_file_force(const lofar_udp_reader *reader, lofar_udp_io_write_config *outConfig, int outp, lofar_udp_metadata *metadata,
 	//                                        char *headerBuffer, size_t headerBufferSize, int newObs, int force);
+
+	// File writer
+	// long lofar_udp_io_write_metadata(lofar_udp_io_write_config *outConfig, int outp, lofar_udp_metadata *metadata, char *headerBuffer, size_t headerLength);
+	FAIL();
 };
-
-
-/*
-
-// Main public functions
-
-
-// Internal representations
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-*/

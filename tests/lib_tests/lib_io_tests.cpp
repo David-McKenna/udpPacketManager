@@ -1,4 +1,5 @@
 #include "gtest/gtest.h"
+#include "gtest/gtest-spi.h"
 #include "lofar_udp_io.h"
 #include <cstdio>
 #include <iostream>
@@ -16,20 +17,28 @@ TEST(LibIoTests, SetupUseCleanup) {
 		int syncPipe[2];
 		for (float buffFact : std::vector<float>{0.5, 3.0}) {
 			for (int32_t ops: std::vector<int32_t>{ 1, 4, 2 * psrdadaBufs }) {
-				for (reader_t type: std::vector<reader_t>{ NORMAL, FIFO, ZSTDCOMPRESSED, ZSTDCOMPRESSED_INDIRECT, DADA_ACTIVE }) {
+				for (reader_t type: std::vector<reader_t>{ NORMAL, FIFO, ZSTDCOMPRESSED, ZSTDCOMPRESSED_INDIRECT, DADA_ACTIVE, HDF5 }) {
+					if (type == HDF5) {
+						//ADD_FAILURE();
+						continue;
+					}
 					int8_t *testBuffer = (int8_t *) calloc(testContents.length() + 1, sizeof(int8_t));
 
+					std::string fileName = "./my_file_[[idx]]";
+
 					for (int i = 0; i < testNumInputs; i++) {
-						std::string fileLoc = "./my_file_" + std::to_string(i);
+						std::string fileLoc = fileName.substr(0, 10) + std::to_string(i);
 						std::remove(fileLoc.c_str());
 
 					}
-					lofar_udp_io_write_config *writeConfig = lofar_udp_io_alloc_write();
+
 					lofar_udp_io_read_config *readConfig = lofar_udp_io_alloc_read();
-					writeConfig->readerType = type;
 					readConfig->readerType = type;
-					writeConfig->numOutputs = testNumInputs;
 					readConfig->numInputs = testNumInputs;
+
+					lofar_udp_io_write_config *writeConfig = lofar_udp_io_alloc_write();
+					writeConfig->readerType = type;
+					writeConfig->numOutputs = testNumInputs;
 					writeConfig->dadaConfig.nbufs = psrdadaBufs;
 					writeConfig->dadaConfig.num_readers = 1;
 					writeConfig->progressWithExisting = 1;
@@ -38,7 +47,6 @@ TEST(LibIoTests, SetupUseCleanup) {
 
 
 
-					std::string fileName = "./my_file_[[idx]]";
 					strncpy(writeConfig->outputFormat, fileName.c_str(), DEF_STR_LEN);
 
 					fileName = "./my_file_";
@@ -50,18 +58,17 @@ TEST(LibIoTests, SetupUseCleanup) {
 						ipcio_t tmp;
 						if (type == DADA_ACTIVE) {
 							if (!ipcio_connect(&tmp, readConfig->inputDadaKeys[i])) {
+								FREE_NOT_NULL(tmp.buf.shm_addr);
 								ipcio_destroy(&tmp);
-								usleep(5000);
 							}
 							if (!ipcio_connect(&tmp, readConfig->inputDadaKeys[i] + 1)) {
+								FREE_NOT_NULL(tmp.buf.shm_addr);
 								ipcio_destroy(&tmp);
-								usleep(5000);
 							}
 						}
 						writeConfig->writeBufSize[i] = buffFact * testContents.length();
 						readConfig->readBufSize[i] = testContents.length();
 					}
-
 
 					int pid;
 
@@ -80,6 +87,15 @@ TEST(LibIoTests, SetupUseCleanup) {
 						pid = 1;
 					}
 
+					if (pid != 0) {
+						if (type == DADA_ACTIVE || type == FIFO) {
+							//free(writeConfig);
+						}
+					} else {
+						//free(readConfig);
+					}
+
+					// Write test
 					if (pid == 0 || !(type == DADA_ACTIVE || type == FIFO)) {
 
 						int returnVal = 0;
@@ -92,7 +108,8 @@ TEST(LibIoTests, SetupUseCleanup) {
 
 						EXPECT_EQ(0, returnVal);
 
-						for (int j = 0; j < ops; j++) {
+						// Do an extra iteration for DADA to prevent the final buffer from freezing the reader
+						for (int j = 0; j < (ops + (type == DADA_ACTIVE)); j++) {
 							for (int i = 0; i < testNumInputs; i++) {
 								int64_t bytes = lofar_udp_io_write(writeConfig, (int8_t) i, (int8_t *) testContents.c_str(), testContents.length());
 								returnVal += !((int64_t) testContents.length() == bytes);
@@ -110,20 +127,21 @@ TEST(LibIoTests, SetupUseCleanup) {
 							lofar_udp_io_write_cleanup(writeConfig, i, 1);
 						}
 
+
 						if (pid == 0) {
 							std::cout << "Write exit: " << returnVal  << std::endl;
+							free(writeConfig);
 							exit(returnVal == 0 ? EXIT_SUCCESS : EXIT_FAILURE);
 						}
 
 					}
 
+					// Temp read test
+					// int64_t lofar_udp_io_read_temp(const lofar_udp_config *config, int8_t port, int8_t *outbuf, size_t size, int64_t num, int resetSeek)
+					lofar_udp_config *config = lofar_udp_config_alloc();
+					config->readerType = type;
 					for (int i = 0; i < testNumInputs; i++) {
-						if (type == FIFO) {
-							//usleep(5000);
-							while (access(readConfig->inputLocations[i], F_OK)) {
-								usleep(1000);
-							}
-						} else if (type == DADA_ACTIVE) {
+						if (type == DADA_ACTIVE) {
 							close(syncPipe[0]);
 							//usleep(5000);
 							ipcbuf_t tmpStruct;
@@ -131,8 +149,40 @@ TEST(LibIoTests, SetupUseCleanup) {
 								usleep(1000);
 							}
 							ipcbuf_disconnect(&tmpStruct);
-							std::cout << std::to_string(readConfig->inputDadaKeys[i] + 1);
+							std::cout << std::to_string(readConfig->inputDadaKeys[i] + 1) << std::endl;
+							config->inputDadaKeys[i] = readConfig->inputDadaKeys[i];
+						}
 
+						snprintf(config->inputLocations[i], DEF_STR_LEN, "%s", readConfig->inputLocations[i]);
+						int8_t *buffer = (int8_t*) calloc(testContents.length() + 1, sizeof(int8_t));
+
+						if (type == FIFO) {
+							// We cannot temp-read a FIFO
+							EXPECT_EQ(-1, lofar_udp_io_read_temp(config, i, buffer, sizeof(int8_t), testContents.length(), 1));
+						} else if (type == DADA_ACTIVE) {
+							// We can only read the current buffer of a DADA ringbuffer
+							int64_t limitedRead = buffFact < 1 ? writeConfig->writeBufSize[i] - 1 : testContents.length();
+							EXPECT_EQ(buffFact < 1 ? limitedRead : testContents.length(), lofar_udp_io_read_temp(config, i, buffer, sizeof(int8_t), testContents.length(), 1));
+							EXPECT_EQ(std::string((char*) buffer), testContents.substr(0, limitedRead));
+						} else {
+							EXPECT_EQ(testContents.length(), lofar_udp_io_read_temp(config, i, buffer, sizeof(int8_t), testContents.length(), 1));
+						}
+
+
+						free(buffer);
+					}
+
+					std::cout << "Temp reads complete" << std::endl;
+					lofar_udp_config_cleanup(config);
+
+					// Read test
+					for (int i = 0; i < testNumInputs; i++) {
+						// FIFO cannot be temp, wait for it to be available here
+						if (type == FIFO) {
+							//usleep(5000);
+							while (access(readConfig->inputLocations[i], F_OK)) {
+								usleep(1000);
+							}
 						}
 
 						// Be extremely verbose with DADA keys; in testing bits were randomly added to the upper ender of the key.
@@ -142,6 +192,7 @@ TEST(LibIoTests, SetupUseCleanup) {
 
 					}
 
+					// Write/Read comparison
 					for (int j = 0; j < ops; j++) {
 						for (int8_t i = 0; i < testNumInputs; i++) {
 							ARR_INIT(testBuffer, testContents.length(), '\0');
@@ -174,13 +225,12 @@ TEST(LibIoTests, SetupUseCleanup) {
 						std::remove(readConfig->inputLocations[i]);
 					}
 
+					free(writeConfig);
+					free(readConfig);
 					free(testBuffer);
 				}
 			}
 		}
-
-		// int64_t lofar_udp_io_read_temp(const lofar_udp_config *config, int8_t port, int8_t *outbuf, size_t size, int64_t num, int resetSeek)
-
 
 	}
 };
@@ -206,71 +256,29 @@ TEST(LibIoTests, ZSTDBufferExpansion) {
 #undef ZSTDBUFLEN
 
 
+TEST(LibIoTests, ConfigSetupHelper) {
+	//int lofar_udp_io_read_setup_helper(lofar_udp_io_read_config *input, const lofar_udp_config *config, const lofar_udp_obs_meta *meta,
+	//                                   int port);
+	//int lofar_udp_io_write_setup_helper(lofar_udp_io_write_config *config, const lofar_udp_obs_meta *meta, int iter);
+	FAIL();
+};
+
+TEST(LibIoTests, OptargParser) {
+	//int lofar_udp_io_read_parse_optarg(lofar_udp_config *config, const char optarg[]);
+	//int lofar_udp_io_write_parse_optarg(lofar_udp_io_write_config *config, const char optarg[]);
+	FAIL();
+};
+
 /*
-// Setup wrapper functions
-int lofar_udp_io_read_setup(lofar_udp_io_read_config *input, int port);
-int lofar_udp_io_write_setup(lofar_udp_io_write_config *config, int iter);
-int lofar_udp_io_read_setup_helper(lofar_udp_io_read_config *input, const lofar_udp_config *config, const lofar_udp_obs_meta *meta,
-                                   int port);
-int lofar_udp_io_write_setup_helper(lofar_udp_io_write_config *config, const lofar_udp_obs_meta *meta, int iter);
-
-// Operate wrapper functions
-long lofar_udp_io_read(lofar_udp_io_read_config *input, int port, int8_t *targetArray, const long nchars);
-long lofar_udp_io_write(lofar_udp_io_write_config *config, int outp, const int8_t *src, const long nchars);
-long lofar_udp_io_write_metadata(lofar_udp_io_write_config *outConfig, int outp, lofar_udp_metadata *metadata, char *headerBuffer, size_t headerLength);
-int
-lofar_udp_io_read_temp(const lofar_udp_config *config, int port, void *outbuf, size_t size, int num, int resetSeek);
-
-// Cleanup wrapper functions
-int lofar_udp_io_read_cleanup(lofar_udp_io_read_config *input, int port);
-int lofar_udp_io_write_cleanup(lofar_udp_io_write_config *config, int outp, int fullClean);
 
 // optarg Parse functions
-int lofar_udp_io_read_parse_optarg(lofar_udp_config *config, const char optarg[]);
-int lofar_udp_io_write_parse_optarg(lofar_udp_io_write_config *config, const char optarg[]);
 
-
-
-// Internal wrapped functions
-// Setup functions
-int lofar_udp_io_read_setup_FILE(lofar_udp_io_read_config *input, const char *inputLocation, int port);
-int
-lofar_udp_io_read_setup_ZSTD(lofar_udp_io_read_config *input, const char *inputLocation, const int port);
-int
-lofar_udp_io_read_setup_DADA(lofar_udp_io_read_config *input, const int dadaKey, const int port);
-// int lofar_udp_io_read_setup_HDF5(lofar_udp_io_read_config *input, const char *inputLocation, const int port);
-
-int lofar_udp_io_write_setup_FILE(lofar_udp_io_write_config *config, int outp, int iter);
-int lofar_udp_io_write_setup_ZSTD(lofar_udp_io_write_config *config, int outp, int iter);
-int lofar_udp_io_write_setup_DADA(lofar_udp_io_write_config *config, int outp);
-int lofar_udp_io_write_setup_HDF5(lofar_udp_io_write_config *config, __attribute__((unused)) int outp, int iter);
 
 
 // Operate functions
-long lofar_udp_io_read_FILE(lofar_udp_io_read_config *input, int port, char *targetArray, long nchars);
-long lofar_udp_io_read_ZSTD(lofar_udp_io_read_config *input, int port, char *targetArray, long nchars);
-long lofar_udp_io_read_DADA(lofar_udp_io_read_config *input, int port, char *targetArray, long nchars);
 // long lofar_udp_io_read_HDF5(lofar_udp_io_read_config *input, int port, char *targetArray, long nchars);
 
-long lofar_udp_io_write_FILE(lofar_udp_io_write_config *config, const int outp, const int8_t *src, const long nchars);
-long lofar_udp_io_write_ZSTD(lofar_udp_io_write_config *config, const int outp, const int8_t *src, const long nchars);
-long lofar_udp_io_write_DADA(ipcio_t *ringbuffer, const int outp, const int8_t *src, const long nchars);
 long lofar_udp_io_write_HDF5(lofar_udp_io_write_config *config, const int outp, const int8_t *src, const long nchars);
 long lofar_udp_io_write_metadata_HDF5(lofar_udp_io_write_config *config, lofar_udp_metadata *metadata);
 
-int lofar_udp_io_read_temp_FILE(void *outbuf, size_t size, int num, const char inputFile[], int resetSeek);
-int lofar_udp_io_read_temp_ZSTD(void *outbuf, size_t size, int num, const char inputFile[], int resetSeek);
-int lofar_udp_io_read_temp_DADA(void *outbuf, size_t size, int num, int dadaKey, int resetSeek);
-// int lofar_udp_io_read_temp_HDF5(void *outbuf, size_t size, int num, const char inputFile[], int resetSeek);
-
-// Cleanup functions
-int lofar_udp_io_read_cleanup_FILE(lofar_udp_io_read_config *input, int port);
-int lofar_udp_io_read_cleanup_ZSTD(lofar_udp_io_read_config *input, int port);
-int lofar_udp_io_read_cleanup_DADA(lofar_udp_io_read_config *input, int port);
-__attribute__((unused)) int lofar_udp_io_read_cleanup_HDF5(lofar_udp_io_read_config *input, int port);
-
-int lofar_udp_io_write_cleanup_FILE(lofar_udp_io_write_config *config, int outp);
-int lofar_udp_io_write_cleanup_ZSTD(lofar_udp_io_write_config *config, int outp, int fullClean);
-int lofar_udp_io_write_cleanup_DADA(lofar_udp_io_write_config *config, int outp, int fullClean);
-int lofar_udp_io_write_cleanup_HDF5(lofar_udp_io_write_config *config, int outp, int fullClean);
 */

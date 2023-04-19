@@ -144,7 +144,7 @@ void _lofar_udp_io_read_cleanup_DADA(lofar_udp_io_read_config *const input, int8
 			fprintf(stderr, "ERROR: Failed to close PSRDADA buffer %d on port %d.\n", input->inputDadaKeys[port], port);
 		}
 		*/
-
+		FREE_NOT_NULL(input->dadaReader[port]->data_block->buf_ptrs);
 		if (dada_hdu_disconnect(input->dadaReader[port]) < 0) {
 			fprintf(stderr, "ERROR: Failed to disconnect from PSRDADA buffer %d on port %d.\n", input->inputDadaKeys[port],
 					port);
@@ -178,8 +178,12 @@ void _lofar_udp_io_read_cleanup_DADA(lofar_udp_io_read_config *const input, int8
 int64_t
 _lofar_udp_io_read_temp_DADA(void *outbuf, int64_t size, int64_t num, key_t dadaKey, int8_t resetSeek) {
 #ifndef NODADA
-	ipcio_t tmpReader = IPCIO_INIT;
-	// Only use an active reader for now, I just don't understand how the passive reader works.
+	ipcio_t tmpReader;
+	if (memcpy(&tmpReader, &(IPCIO_INIT), sizeof(ipcbuf_t)) != &tmpReader) {
+		fprintf(stderr, "ERROR: Failed to initialise temp ringbuffer reader, exiting.\n");
+		return -1;
+	}
+	// Only use an active reader for now, I just can't make the passive reader implementationstable.
 	char readerChar = 'R';
 	if (dadaKey < 1) {
 		fprintf(stderr, "ERROR: Invalid PSRDADA ringbuffer key %d (%x), exiting.\n", dadaKey, dadaKey);
@@ -193,72 +197,46 @@ _lofar_udp_io_read_temp_DADA(void *outbuf, int64_t size, int64_t num, key_t dada
 		return -1;
 	}
 
-	if (ipcbuf_get_reader_conn(&(tmpReader.buf)) == 0) {
-		fprintf(stderr, "ERROR: Reader already active on ringbuffer %d (%x). Exiting.\n", dadaKey, dadaKey);
-		//readerChar = 'r';
+	if (ipcio_open(&tmpReader, readerChar) < 0) {
 		return -1;
 	}
 
-	if ((int64_t) ipcbuf_get_bufsz(&(tmpReader.buf)) > (size * num)) {
-		fprintf(stderr, "ERROR: DADA temperary reads must be shorter than a single block, exiting.\n");
+	int64_t numRead = ipcbuf_get_bufsz(&(tmpReader.buf)) - 1;
+	if (numRead < (size * num)) {
+		fprintf(stderr, "WARNING: DADA temporary reads must be shorter than a buffer, reducing read from %ld to %ld.\n", (size * num), numRead);
+		num = numRead / size;
+	}
+
+	if ((numRead = ipcio_read(&tmpReader, outbuf, num * size)) < 0) {
 		return -1;
 	}
 
-	// We can fopen()....
-	if (ipcio_open(&tmpReader, 'R') < 0) {
-		return -1;
-	}
-
-	// Passive reading needs at least 1 read before tell returns sane values
-	// Passive reader currently removed from implementation, as I can't
-	// figure out how it works for the life of me. Is it based on the writer?
-	// Is it based on the reader? Why does it get blocked by the reader, but
-	// updated by the writer?
-	if (readerChar == 'r') {
-		if (ipcio_read(&tmpReader, 0, 1) != 1) {
-			return -1;
-		}
-
-		if (ipcio_seek(&tmpReader, -1, SEEK_CUR) < 0) {
-			return -1;
-		}
-	}
-
-	// Fix offset if we are joining in the middle of a run
-	// TODO: read packet length form header rather than hard coding to 7824
-	if (ipcio_tell(&tmpReader) != 0) {
-		if (ipcio_seek(&tmpReader, 7824 - (int64_t) (ipcio_tell(&tmpReader) % 7824), SEEK_CUR) < 0) {
-			return -1;
-		}
-	}
-
-	// Then fread()...
-	size_t returnlen = ipcio_read(&tmpReader, outbuf, size * num);
-
-	// fseek() if requested....
-	if (resetSeek == 1) {
-		if (ipcio_seek(&tmpReader, -1 * (size * num), SEEK_CUR) < 0) {
-			return -1;
-		}
-	}
-
-	// Only the active reader needs an explicit close, passive reader will raise an error here
+	// Only the active reader needs an explicit seek + close, passive reader will raise an error here
 	if (readerChar == 'R') {
+		// fseek() if requested....
+		if (resetSeek == 1) {
+			if (ipcio_seek(&tmpReader, -1 * (size * num), SEEK_CUR) < 0) {
+				return -1;
+			}
+		}
 		if (ipcio_close(&tmpReader) < 0) {
 			return -1;
 		}
 	}
 
+
+	// PSRDADA memory leak...
+	FREE_NOT_NULL(tmpReader.buf_ptrs);
 	if (ipcio_disconnect(&tmpReader) < 0) {
 		return -1;
 	}
 
-	if (returnlen != size * num) {
+	if (numRead != size * num) {
 		fprintf(stderr, "Unable to read %ld elements from ringbuffer %d, exiting.\n", size * num, dadaKey);
 		return -1;
 	}
 
-	return returnlen;
+	return numRead;
 #else
 	fprintf(stderr, "ERROR: PSRDADA not enabled at compile time, exiting.\n");
 			return -1;
@@ -509,13 +487,10 @@ void _lofar_udp_io_write_cleanup_DADA(lofar_udp_io_write_config *const config, i
 		if (config->dadaWriter[outp].hdu->data_block != NULL) {
 			_lofar_udp_io_cleanup_DADA_loop((ipcbuf_t *) config->dadaWriter[outp].hdu->data_block, &(config->dadaConfig.cleanup_timeout));
 			FREE_NOT_NULL(config->dadaWriter[outp].hdu->data_block->buf_ptrs); // Work around a bug in PSRDADA: free ipcio->buf_pts prior to destroying the ringbuffer to remove a memory leak
-			ipcio_destroy(config->dadaWriter[outp].hdu->data_block);
 		}
 
 		if (config->dadaWriter[outp].hdu->header_block != NULL) {
 			_lofar_udp_io_cleanup_DADA_loop(config->dadaWriter[outp].hdu->header_block, &(config->dadaConfig.cleanup_timeout));
-			//FREE_NOT_NULL(config->dadaWriter[outp].hdu->header_block->buf_ptrs); // Work around a bug in PSRDADA: free ipcio->buf_pts prior to destroying the ringbuffer to remove a memory leak
-			ipcbuf_destroy(config->dadaWriter[outp].hdu->header_block);
 		}
 
 		if (config->dadaWriter[outp].multilog != NULL) {
@@ -523,9 +498,21 @@ void _lofar_udp_io_write_cleanup_DADA(lofar_udp_io_write_config *const config, i
 			config->dadaWriter[outp].multilog = NULL;
 		}
 
-		// Destroy the ringbuffer reference if not previously removed
-		FREE_NOT_NULL(config->dadaWriter[outp].hdu);
 	}
+
+	if (config->dadaWriter[outp].hdu->data_block) {
+		ipcio_destroy(config->dadaWriter[outp].hdu->data_block);
+	}
+	FREE_NOT_NULL(config->dadaWriter[outp].hdu->data_block);
+	if (config->dadaWriter[outp].hdu->header_block) {
+		ipcbuf_destroy(config->dadaWriter[outp].hdu->header_block);
+	}
+	FREE_NOT_NULL(config->dadaWriter[outp].hdu->header_block);
+	if (config->dadaWriter[outp].hdu) {
+		dada_hdu_destroy(config->dadaWriter[outp].hdu);
+		config->dadaWriter[outp].hdu = NULL;
+	}
+	FREE_NOT_NULL(config->dadaWriter[outp].hdu);
 
 #else
 	// If PSRDADA was disabled at compile time, error

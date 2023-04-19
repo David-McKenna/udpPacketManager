@@ -157,7 +157,7 @@ int64_t _lofar_udp_io_read_temp_ZSTD(void *outbuf, int64_t size, int64_t num, co
 
 	// Read in the compressed data
 	int64_t readlen = (int64_t) fread(inBuff, sizeof(int8_t), minRead, inputFilePtr);
-	if (readlen != (int64_t) minRead) {
+	if (readlen > minRead || readlen < 1) {
 		fprintf(stderr, "Unable to read in data from file; exiting.\n");
 		fclose(inputFilePtr);
 		ZSTD_freeDStream(dstreamTmp);
@@ -168,7 +168,7 @@ int64_t _lofar_udp_io_read_temp_ZSTD(void *outbuf, int64_t size, int64_t num, co
 
 	// Move the read head back to the start of the packer
 	if (resetSeek) {
-		if (fseek(inputFilePtr, -(int64_t) minRead, SEEK_CUR) != 0) {
+		if (fseek(inputFilePtr, -(int64_t) readlen * sizeof(int8_t), SEEK_CUR) != 0) {
 			fprintf(stderr, "Failed to reset seek head, exiting.\n");
 			fclose(inputFilePtr);
 			return -2;
@@ -196,7 +196,10 @@ int64_t _lofar_udp_io_read_temp_ZSTD(void *outbuf, int64_t size, int64_t num, co
 	if (readlen > (int64_t) size * num) { readlen = size * num; }
 
 	// Copy the output and cleanup
-	memcpy(outbuf, localOutBuff, size * num);
+	if (memcpy(outbuf, localOutBuff, size * num) != outbuf) {
+		fprintf(stderr, "ERROR: Failed to copy ZSTD temp read to output, exiting.\n");
+		return -1;
+	}
 	ZSTD_freeDStream(dstreamTmp);
 	FREE_NOT_NULL(inBuff);
 	FREE_NOT_NULL(localOutBuff);

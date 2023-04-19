@@ -769,6 +769,7 @@ lofar_udp_io_read_temp(const lofar_udp_config *config, int8_t port, int8_t *outb
 
 	switch (config->readerType) {
 		case FIFO:
+			// -Wimplicit-fallthrough
 			if (resetSeek) {
 				fprintf(stderr, "ERROR %s: Cannot perform a temporary read on a FIFO and reset the pointer location, exiting.\n", __func__);
 				return -1;
@@ -778,6 +779,7 @@ lofar_udp_io_read_temp(const lofar_udp_config *config, int8_t port, int8_t *outb
 
 
 		case ZSTDCOMPRESSED:
+		case ZSTDCOMPRESSED_INDIRECT:
 			return _lofar_udp_io_read_temp_ZSTD(outbuf, size, num, config->inputLocations[port], resetSeek);
 
 
@@ -788,7 +790,10 @@ lofar_udp_io_read_temp(const lofar_udp_config *config, int8_t port, int8_t *outb
 			fprintf(stderr, "ERROR: Reading from HDF5 files is not currently supported, exiting.\n");
 			return -1;
 
+		case NO_ACTION:
+			return 0;
 
+		case UNSET_READER:
 		default:
 			fprintf(stderr, "ERROR: Unknown reader type (%d), exiting.\n", config->readerType);
 			return -1;

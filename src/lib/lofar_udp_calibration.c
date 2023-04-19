@@ -108,13 +108,12 @@ int32_t _lofar_udp_calibration_shmData_setup(shmData *sharedData) {
 
 int32_t _lofar_udp_calibration_spawn_python_script(const lofar_udp_reader *reader, char jonesGenerator[DEF_STR_LEN], int32_t numTimesteps, float integrationTime, shmData *sharedData) {
 	const int32_t shortStr = 31, longStr = 511, longestStr = 2 * DEF_STR_LEN - 1;
-	char stationID[shortStr + 1], mjdTime[shortStr + 1], duration[shortStr + 1], shmKey[shortStr + 1], shmSize[shortStr + 1], integration[shortStr + 1], pointing[longStr + 1];
+	char stationID[shortStr + 1], mjdTime[shortStr + 1], duration[shortStr + 1], shmSize[shortStr + 1], integration[shortStr + 1], pointing[longStr + 1];
 
 
 	_lofar_udp_metadata_get_station_name(reader->meta->stationID, &(stationID[0]));
 	snprintf(mjdTime, shortStr,  "%.16lf", lofar_udp_time_get_packet_time_mjd(reader->meta->inputData[0]));
 	snprintf(duration, shortStr, "%.10f", reader->calibration->calibrationDuration + 0.5 * integrationTime); // Work around float precision loss for small values
-	snprintf(shmKey, shortStr, "%s", sharedData->shmName); // Workaround the / beign escaped on every call
 	snprintf(shmSize, shortStr, "%ld", sharedData->shmSize);
 	snprintf(integration, shortStr, "%15.10f", integrationTime);
 	snprintf(pointing, longStr, "%f,%f,%s", reader->metadata->ra_rad, reader->metadata->dec_rad, reader->metadata->coord_basis);
@@ -133,7 +132,7 @@ int32_t _lofar_udp_calibration_spawn_python_script(const lofar_udp_reader *reade
 	char * const argv[] = { jonesGenerator, "--stn", stationID, "--time", mjdTime,
 	                        "--sub", calibrationSubbands,
 	                        "--dur", duration, "--int", integration, "--pnt", pointing,
-	                        "--shm_key", shmKey, "--shm_size", shmSize,
+	                        "--shm_key", sharedData->shmName, "--shm_size", shmSize,
 	                        NULL };
 	printf("Generating %d Jones matrices (%s-8 bytes) via %s @ %s...\n", numTimesteps, shmSize, jonesGenerator, sharedData->shmName);
 

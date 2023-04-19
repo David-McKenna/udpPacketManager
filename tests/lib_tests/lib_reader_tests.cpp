@@ -310,7 +310,6 @@ TEST(LibReaderTests, PreprocessingReader) {
 	lofar_udp_reader *reader = reader_setup(150);
 
 	//int lofar_udp_skip_to_packet(lofar_udp_reader *reader)
-
 	//int lofar_udp_get_first_packet_alignment(lofar_udp_reader *reader)
 
 	{
@@ -417,14 +416,98 @@ TEST(LibReaderTests, PreprocessingReader) {
 
 
 	}
-	//int lofar_udp_file_reader_reuse(lofar_udp_reader *reader, const long startingPacket, const long packetsReadMax)
+
+	{
+		SCOPED_TRACE("lofar_udp_file_reader_reuse");
+		//int lofar_udp_file_reader_reuse(lofar_udp_reader *reader, const long startingPacket, const long packetsReadMax)
+		FAIL();
+	}
 
 };
 
-void blindReformer(int8_t *input, int32_t processingMode, int16_t beamlets, int16_t lowerBeamlet, int16_t upperBeamlet) {
+/*
+const std::vector<processMode_t> packMajor = {};
+const std::vector<processMode_t> timeMajor = {};
+const std::vector<processMode_t> beamMajor = {};
+const std::vector<processMode_t> stokes = {};
+template<typename I, typename O>
+void blindReformer(lofar_udp_reader *reader) {
+	std::vector<O*> outputs;
+	for (int16_t i = 0; i < reader->meta->numOutputs; i++) {
+		outputs.push_back(static_cast<O>(calloc(reader->meta->packetOutputLength[i] * reader->meta->packetsPerIteration, sizeof(int8_t))));
+	}
+
+	const int64_t headerOffset = UDPHDRLEN / sizeof(I);
+	for (int16_t port = 0; port < reader->meta->numPorts; port++) {
+		const int64_t packetLength = reader->meta->portPacketLength[port] / sizeof(I);
+
+		for (int64_t packet = 0; packet < reader->meta->packetsPerIteration; packet++) {
+			I *workingData = static_cast<I *>(reader->meta->inputData[port] + packetLength * packet);
+
+			int64_t inputOffset, outputOffset, inputStepSize, outputStepSize, outputPortStep;
+			int64_t reverseFrequency = 0;
+
+			if (std::find(packMajor.begin(), packMajor.end(), packMajor.size()) != packMajor.end()) {
+				const int64_t inputOffset = packet * packetLength + (reader->meta->processingMode == PACKET_NOHDR_COPY) * UDPHDRLEN / sizeof(I);
+				const int64_t outputOffset = packet * (packetLength - (reader->meta->processingMode == PACKET_NOHDR_COPY) * UDPHDRLEN / sizeof(I));
+				if (memcpy(outputs[port][outputOffset], workingData[inputOffset], packetLength * sizeof(I)) != outputs[port][outputOffset]) {
+					throw;
+				}
+				continue;
+
+			// Stokes Modes
+			} else if (std::find(stokes.begin(), stokes.end(), stokes.size()) != stokes.end()) {
+				int32_t factor = 1 << reader->meta->processingMode % 10;
+				for (int16_t beamIdx = reader->meta->baseBeamlets[0]; beamIdx < reader->meta->upperBeamlets[port]; beamIdx++) {
+					//int64_t beamletOffset = ;
+
+					for (int16_t timeIdx = 0; timeIdx < UDPNTIMESLICE; timeIdx++) {
+						//int64_t tsOffset = ;
+						//int64_t outputOffset = ;
+						float tmpXr, tmpXi, tmpYr, tmpYi;
+						if (reader->meta->calibrateData == APPLY_CALIBRATION) {
+							calibrateSample<I, O>(&tmpXr, &tmpXi, &tmpYr, &tmpYi, workingData, tsOffset);
+
+						} else {
+							tmpXr = workingData[tsOffset];
+							tmpXi = workingData[tsOffset + 1];
+							tmpYr = workingData[tsOffset + 2];
+							tmpYi = workingData[tsOffset + 3];
+						}
+
+						if ((timeIdx + 1) % factor == 0) {
+							outputs[][outputOffset] = ;
+						}
+					}
+				}
+
+				continue;
+
+			// Time-major modes
+			} else if (std::find(timeMajor.begin(), timeMajor.end(), timeMajor.size()) != timeMajor.end()) {
+
+
+			// Beam-major modes
+			} else if (std::find(beamMajor.begin(), beamMajor.end(), beamMajor.size()) != beamMajor.end()) {
+
+			} else {
+				std::cerr << "Unknown processing mode " << std::to_string(reader->meta->processingMode) << std::endl;
+				::testing::Test::HasFailure();
+			}
+
+			for (int16_t beamIdx = reader->meta->baseBeamlets[0]; beamIdx < reader->meta->upperBeamlets[port]; beamIdx++) {
+
+
+				for (int16_t timeIdx = 0; timeIdx < UDPNTIMESLICE; timeIdx++) {
+
+				}
+			}
+		}
+	}
+
 
 }
-
+*/
 
 TEST(LibReaderTests, ProcessingData) {
 	//lofar_udp_reader *reader = reader_setup(150);
@@ -461,6 +544,7 @@ TEST(LibReaderTests, ProcessingData) {
 					while ((returnv = lofar_udp_reader_step(reader)) < 1) {
 						//std::cout << std::to_string(returnv) << std::endl;
 						//std::cout << std::to_string(reader->meta->lastPacket) << std::endl;
+						FAIL();
 					}
 
 					lofar_udp_reader_cleanup(reader);
@@ -469,17 +553,32 @@ TEST(LibReaderTests, ProcessingData) {
 			}
 		}
 	}
-	//int lofar_udp_reader_calibration(lofar_udp_reader *reader)
 
-	//int lofar_udp_reader_step_timed(lofar_udp_reader *reader, double timing[2])
-	//int lofar_udp_reader_step(lofar_udp_reader *reader)
-	//int lofar_udp_reader_internal_read_step(lofar_udp_reader *reader)
+	{
+		SCOPED_TRACE("lofar_udp_reader_calibration");
+		//int lofar_udp_reader_calibration(lofar_udp_reader *reader)
+		FAIL();
+	}
 
-	//int lofar_udp_shift_remainder_packets(lofar_udp_reader *reader, const long shiftPackets[], const int handlePadding)
+	{
+		SCOPED_TRACE("lofar_udp_reader_step(_timed)");
+		//int lofar_udp_reader_step_timed(lofar_udp_reader *reader, double timing[2])
+		//int lofar_udp_reader_step(lofar_udp_reader *reader)
+		FAIL();
+	}
 
-	//void lofar_udp_reader_cleanup(lofar_udp_reader *reader)
+	{
+		SCOPED_TRACE("lofar_udp_reader_internal_read_step");
+		//int lofar_udp_reader_internal_read_step(lofar_udp_reader *reader)
+		FAIL();
+	}
 
-	//lofar_udp_reader_cleanup(reader);
+	{
+		SCOPED_TRACE("lofar_udp_shift_remainder_packets");
+		//int lofar_udp_shift_remainder_packets(lofar_udp_reader *reader, const long shiftPackets[], const int handlePadding)
+		FAIL();
+	}
+
 };
 
 
@@ -548,8 +647,12 @@ TEST(LibReaderTests, ProcessingModes) {
 			}
 		}
 
-		// template<typename I, typename O> void inline calibrateDataFunc(O *Xr, O *Xi, O *Yr, O *Yi, const float *beamletJones, const int8_t *inputPortData, const long tsInOffset, const int timeStepSize)
-		// inline float calibrateSample(float c_1, float c_2, float c_3, float c_4, float c_5, float c_6, float c_7, float c_8)
+		{
+			SCOPED_TRACE("apply_calibration");
+			// template<typename I, typename O> void inline calibrateDataFunc(O *Xr, O *Xi, O *Yr, O *Yi, const float *beamletJones, const int8_t *inputPortData, const long tsInOffset, const int timeStepSize)
+			// inline float calibrateSample(float c_1, float c_2, float c_3, float c_4, float c_5, float c_6, float c_7, float c_8)
+			FAIL();
+		}
 	}
 
 	{
@@ -558,6 +661,7 @@ TEST(LibReaderTests, ProcessingModes) {
 		// inline long frequency_major_index(long outputPacketOffset, int beamlet, int baseBeamlet, int cumulativeBeamlets, int offset)
 		// inline long reversed_frequency_major_index(long outputPacketOffset, int totalBeamlets, int beamlet, int baseBeamlet, int cumulativeBeamlets, int offset)
 		// inline long time_major_index(int beamlet, int baseBeamlet, int cumulativeBeamlets, long packetsPerIteration, long outputTimeIdx)
+		FAIL();
 	}
 
 	{
