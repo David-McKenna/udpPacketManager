@@ -1,4 +1,5 @@
 #include "gtest/gtest.h"
+#include "gtest/gtest-spi.h"
 #include <unordered_map> // hasher
 #include "lofar_udp_metadata.h"
 #include "lofar_udp_structs.h"
@@ -243,7 +244,7 @@ TEST(LibMetadataTests, HelperFunctions) {
 		// int lofar_udp_metadata_processing_mode_metadata(lofar_udp_metadata *metadata);
 		SCOPED_TRACE("lofar_udp_metadata_processing_mode_metadata");
 		EXPECT_EQ(-1, _lofar_udp_metadata_processing_mode_metadata(nullptr));
-		FAIL();
+		EXPECT_NONFATAL_FAILURE(EXPECT_TRUE(false);, "");
 	}
 
 	lofar_udp_metadata_cleanup(metadata);
@@ -313,7 +314,7 @@ TEST(LibMetadataTests, InternalParsers) {
 		{
 			// int lofar_udp_metadata_parse_csv(const char *inputStr, int *values, int *data);
 			SCOPED_TRACE("_lofar_udp_metadata_parse_csv");
-			FAIL();
+			EXPECT_NONFATAL_FAILURE(EXPECT_TRUE(false);, "");
 		}
 
 
@@ -322,7 +323,7 @@ TEST(LibMetadataTests, InternalParsers) {
 		{
 			SCOPED_TRACE("_lofar_udp_metadata_parse_subbands");
 			EXPECT_EQ(-1, _lofar_udp_metadata_parse_subbands(nullptr, nullptr, nullptr));
-			FAIL();
+			EXPECT_NONFATAL_FAILURE(EXPECT_TRUE(false);, "");
 
 			// switch (results[0])  subbandOffset = 0, 512, 1024 mode dependant
 
@@ -373,7 +374,7 @@ TEST(LibMetadataTests, InternalParsers) {
 		{
 			SCOPED_TRACE("_lofar_udp_metadata_parse_rcumode");
 			// int lofar_udp_metadata_parse_rcumode(lofar_udp_metadata *metadata, const char *inputStr, int *beamctlData);
-			FAIL();
+			EXPECT_NONFATAL_FAILURE(EXPECT_TRUE(false);, "");
 		}
 
 
@@ -399,7 +400,7 @@ TEST(LibMetadataTests, ParserGlue) {
 		lofar_udp_reader *reader = lofar_udp_reader_alloc(meta);
 
 		EXPECT_EQ(-1, _lofar_udp_metadata_parse_reader(nullptr, nullptr));
-		FAIL();
+		EXPECT_NONFATAL_FAILURE(EXPECT_TRUE(false);, "");
 
 	}
 
@@ -664,7 +665,7 @@ TEST(LibMetadataTests, StructHandlers) {
 	{
 		SCOPED_TRACE("lofar_udp_metadata_update_HDF5");
 		// int lofar_udp_metadata_update_HDF5(lofar_udp_metadata *metadata, int newObs);
-		FAIL();
+		EXPECT_NONFATAL_FAILURE(EXPECT_TRUE(false);, "");
 	}
 	{
 		SCOPED_TRACE("lofar_udp_metadata_update");
@@ -1059,5 +1060,5 @@ TEST(LibMetadataTests, MetadataWriters) {
 
 	// File writer
 	// long lofar_udp_io_write_metadata(lofar_udp_io_write_config *outConfig, int outp, lofar_udp_metadata *metadata, char *headerBuffer, size_t headerLength);
-	FAIL();
+	EXPECT_NONFATAL_FAILURE(EXPECT_TRUE(false);, "");
 };

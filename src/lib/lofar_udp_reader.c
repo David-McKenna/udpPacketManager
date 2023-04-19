@@ -792,7 +792,7 @@ int _lofar_udp_reader_config_check(lofar_udp_config *config) {
 		return -1;
 	}
 
-	if (config->calibrateData > NO_CALIBRATION && config->calibrationConfiguration == NULL) {
+	if (config->calibrateData > NO_CALIBRATION && config->calibrationDuration < 0.0f) {
 		fprintf(stderr,
 				"ERROR: Calibration was enabled, but the config->calibrationConfiguration struct was not initialised, exiting.\n");
 		return -1;
@@ -1150,11 +1150,7 @@ lofar_udp_reader *lofar_udp_reader_setup(lofar_udp_config *config) {
 
 	if (config->calibrateData > NO_CALIBRATION) {
 		reader->calibration = calloc(1, sizeof(lofar_udp_calibration));
-		if (memcpy(reader->calibration, config->calibrationConfiguration, sizeof(lofar_udp_calibration)) != reader->calibration) {
-			fprintf(stderr, "ERROR: Failed to copy calibration to reader struct, exiting.\n");
-			lofar_udp_reader_cleanup(reader);
-			return NULL;
-		}
+		reader->calibration->calibrationDuration = config->calibrationDuration;
 		if (_lofar_udp_reader_calibration_generate_data(reader) > 0) {
 			lofar_udp_reader_cleanup(reader);
 			return NULL;

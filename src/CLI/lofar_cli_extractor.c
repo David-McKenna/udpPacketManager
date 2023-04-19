@@ -55,7 +55,6 @@ void CLICleanup(int eventCount, char **dateStr, long *startingPackets, long *mul
 
 
 	if (config != NULL) {
-		FREE_NOT_NULL(config->calibrationConfiguration);
 		FREE_NOT_NULL(config);
 	}
 
@@ -76,18 +75,15 @@ int main(int argc, char *argv[]) {
 
 	lofar_udp_config *config = calloc(1, sizeof(lofar_udp_config));
 	(*config) = lofar_udp_config_default;
-	lofar_udp_calibration *cal = calloc(1, sizeof(struct lofar_udp_calibration));
-	(*cal) = lofar_udp_calibration_default;
-	config->calibrationConfiguration = cal;
 
 	lofar_udp_io_write_config *outConfig = lofar_udp_io_alloc_write();
 	(*outConfig) = lofar_udp_io_write_config_default;
 
 	int8_t *headerBuffer = NULL;
 
-	if (config == NULL || outConfig == NULL || cal == NULL) {
+	if (config == NULL || outConfig == NULL) {
 		fprintf(stderr, "ERROR: Failed to allocate memory for configuration structs (something has gone very wrong...), exiting.\n");
-		FREE_NOT_NULL(config); FREE_NOT_NULL(outConfig); FREE_NOT_NULL(cal);
+		FREE_NOT_NULL(config); FREE_NOT_NULL(outConfig);
 		return 1;
 	}
 

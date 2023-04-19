@@ -68,7 +68,7 @@ int64_t _lofar_udp_metadata_write_SIGPROC(const sigproc_hdr *hdr, int8_t *const 
 
 	headerLength /= sizeof(char) / sizeof(int8_t);
 
-	size_t estimatedLength = 380;
+	int64_t estimatedLength = 380;
 	estimatedLength += strlen(hdr->rawdatafile) + strlen(hdr->source_name);
 
 	if (headerLength < estimatedLength) {

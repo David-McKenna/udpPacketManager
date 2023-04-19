@@ -69,7 +69,6 @@ void CLICleanup(int eventCount, char **dateStr, long *startingPackets, long *mul
 
 
 	if (config != NULL) {
-		FREE_NOT_NULL(config->calibrationConfiguration);
 		FREE_NOT_NULL(config);
 	}
 
@@ -245,8 +244,6 @@ int main(int argc, char *argv[]) {
 	}
 
 	(*config) = lofar_udp_config_default;
-	(*cal) = lofar_udp_calibration_default;
-	config->calibrationConfiguration = cal;
 
 	(*outConfig) = lofar_udp_io_write_config_default;
 

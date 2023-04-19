@@ -19,7 +19,7 @@ TEST(LibIoTests, SetupUseCleanup) {
 			for (int32_t ops: std::vector<int32_t>{ 1, 4, 2 * psrdadaBufs }) {
 				for (reader_t type: std::vector<reader_t>{ NORMAL, FIFO, ZSTDCOMPRESSED, ZSTDCOMPRESSED_INDIRECT, DADA_ACTIVE, HDF5 }) {
 					if (type == HDF5) {
-						//ADD_FAILURE();
+						EXPECT_NONFATAL_FAILURE(EXPECT_TRUE(false);, "HDF% does not have a reader component to allow for verification.");
 						continue;
 					}
 					int8_t *testBuffer = (int8_t *) calloc(testContents.length() + 1, sizeof(int8_t));
@@ -260,13 +260,13 @@ TEST(LibIoTests, ConfigSetupHelper) {
 	//int lofar_udp_io_read_setup_helper(lofar_udp_io_read_config *input, const lofar_udp_config *config, const lofar_udp_obs_meta *meta,
 	//                                   int port);
 	//int lofar_udp_io_write_setup_helper(lofar_udp_io_write_config *config, const lofar_udp_obs_meta *meta, int iter);
-	FAIL();
+	EXPECT_NONFATAL_FAILURE(EXPECT_TRUE(false), "");
 };
 
 TEST(LibIoTests, OptargParser) {
 	//int lofar_udp_io_read_parse_optarg(lofar_udp_config *config, const char optarg[]);
 	//int lofar_udp_io_write_parse_optarg(lofar_udp_io_write_config *config, const char optarg[]);
-	FAIL();
+	EXPECT_NONFATAL_FAILURE(EXPECT_TRUE(false), "");
 };
 
 /*

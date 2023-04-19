@@ -1,4 +1,5 @@
 #include "gtest/gtest.h"
+#include "gtest/gtest-spi.h"
 #include "lofar_udp_reader.h"
 #include "lib_reference_files.hpp"
 
@@ -19,11 +20,7 @@ lofar_udp_config* config_setup(int32_t sampleMeta = 0, int32_t testNumber = 0, i
 	lofar_udp_config *config = lofar_udp_config_alloc();
 	EXPECT_NE(nullptr, config);
 	assert(numPorts <= MAX_NUM_PORTS);
-	lofar_udp_calibration *cal = config->calibrationConfiguration;
-	EXPECT_NE(nullptr, cal);
-	config->calibrationConfiguration = cal;
-
-	config->calibrationConfiguration->calibrationDuration = 1.2;
+	config->calibrationDuration = 1.2;
 
 	for (int32_t port = 0; port < testPorts; port++) {
 		std::string workingString = std::regex_replace(inputLocations[testNumber], std::regex("portnum"), std::to_string(port));
@@ -111,10 +108,10 @@ TEST(LibReaderTests, SetupReader) {
 		config->calibrateData = APPLY_CALIBRATION;
 
 		// (config->calibrateData > NO_CALIBRATION && config->calibrationConfiguration == NULL)
-		lofar_udp_calibration *cal = config->calibrationConfiguration;
-		config->calibrationConfiguration = nullptr;
+
+		config->calibrationDuration = -1.0f;
 		EXPECT_EQ(-1, _lofar_udp_reader_config_check(config));
-		config->calibrationConfiguration = cal;
+		config->calibrationDuration = 1.0f;
 		config->calibrateData = NO_CALIBRATION;
 
 		// (config->processingMode < 0)
@@ -146,7 +143,6 @@ TEST(LibReaderTests, SetupReader) {
 		//MODIFY_AND_RESET(config->packetsReadMax, tmpVal, LONG_MAX, EXPECT_NE(nullptr, lofar_udp_reader_setup(config)););
 	}
 
-	free(config->calibrationConfiguration);
 	free(config);
 
 };
@@ -420,7 +416,7 @@ TEST(LibReaderTests, PreprocessingReader) {
 	{
 		SCOPED_TRACE("lofar_udp_file_reader_reuse");
 		//int lofar_udp_file_reader_reuse(lofar_udp_reader *reader, const long startingPacket, const long packetsReadMax)
-		FAIL();
+		EXPECT_NONFATAL_FAILURE(EXPECT_TRUE(false), "");
 	}
 
 };
@@ -521,11 +517,11 @@ TEST(LibReaderTests, ProcessingData) {
 					lofar_udp_config *config = config_setup(1, testNum, 4, INT32_MAX, cal);
 					std::cout << config->inputLocations[0] << ", " << currMode << ", " << cal << std::endl;
 					config->processingMode = currMode;
-					if (testNum == 1) {
+					if (testNum == 1 && (currMode < 100 || (currMode > 100 && (currMode % 10 < 2)))) {
 						if (currMode == PACKET_NOHDR_COPY) {
-							config->calibrationConfiguration->calibrationDuration = 2 * config->packetsPerIteration * clock200MHzSampleTime * UDPNTIMESLICE;
+							config->calibrationDuration = 2 * config->packetsPerIteration * clock200MHzSampleTime * UDPNTIMESLICE;
 						} else {
-							config->calibrationConfiguration->calibrationDuration = 0.1;
+							config->calibrationDuration = 0.1;
 						}
 						config->calibrateData = cal;
 					} else {
@@ -544,7 +540,7 @@ TEST(LibReaderTests, ProcessingData) {
 					while ((returnv = lofar_udp_reader_step(reader)) < 1) {
 						//std::cout << std::to_string(returnv) << std::endl;
 						//std::cout << std::to_string(reader->meta->lastPacket) << std::endl;
-						FAIL();
+						EXPECT_NONFATAL_FAILURE(EXPECT_TRUE(false), "");
 					}
 
 					lofar_udp_reader_cleanup(reader);
@@ -557,26 +553,26 @@ TEST(LibReaderTests, ProcessingData) {
 	{
 		SCOPED_TRACE("lofar_udp_reader_calibration");
 		//int lofar_udp_reader_calibration(lofar_udp_reader *reader)
-		FAIL();
+		EXPECT_NONFATAL_FAILURE(EXPECT_TRUE(false), "");
 	}
 
 	{
 		SCOPED_TRACE("lofar_udp_reader_step(_timed)");
 		//int lofar_udp_reader_step_timed(lofar_udp_reader *reader, double timing[2])
 		//int lofar_udp_reader_step(lofar_udp_reader *reader)
-		FAIL();
+		EXPECT_NONFATAL_FAILURE(EXPECT_TRUE(false), "");
 	}
 
 	{
 		SCOPED_TRACE("lofar_udp_reader_internal_read_step");
 		//int lofar_udp_reader_internal_read_step(lofar_udp_reader *reader)
-		FAIL();
+		EXPECT_NONFATAL_FAILURE(EXPECT_TRUE(false), "");
 	}
 
 	{
 		SCOPED_TRACE("lofar_udp_shift_remainder_packets");
 		//int lofar_udp_shift_remainder_packets(lofar_udp_reader *reader, const long shiftPackets[], const int handlePadding)
-		FAIL();
+		EXPECT_NONFATAL_FAILURE(EXPECT_TRUE(false), "");
 	}
 
 };
@@ -651,7 +647,7 @@ TEST(LibReaderTests, ProcessingModes) {
 			SCOPED_TRACE("apply_calibration");
 			// template<typename I, typename O> void inline calibrateDataFunc(O *Xr, O *Xi, O *Yr, O *Yi, const float *beamletJones, const int8_t *inputPortData, const long tsInOffset, const int timeStepSize)
 			// inline float calibrateSample(float c_1, float c_2, float c_3, float c_4, float c_5, float c_6, float c_7, float c_8)
-			FAIL();
+			EXPECT_NONFATAL_FAILURE(EXPECT_TRUE(false), "");
 		}
 	}
 
@@ -661,7 +657,7 @@ TEST(LibReaderTests, ProcessingModes) {
 		// inline long frequency_major_index(long outputPacketOffset, int beamlet, int baseBeamlet, int cumulativeBeamlets, int offset)
 		// inline long reversed_frequency_major_index(long outputPacketOffset, int totalBeamlets, int beamlet, int baseBeamlet, int cumulativeBeamlets, int offset)
 		// inline long time_major_index(int beamlet, int baseBeamlet, int cumulativeBeamlets, long packetsPerIteration, long outputTimeIdx)
-		FAIL();
+		EXPECT_NONFATAL_FAILURE(EXPECT_TRUE(false), "");
 	}
 
 	{

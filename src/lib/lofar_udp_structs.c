@@ -102,7 +102,7 @@ const lofar_udp_config lofar_udp_config_default = {
 	.readerType = NO_ACTION,
 	.beamletLimits = { 0, 0 },
 	.calibrateData = NO_CALIBRATION,
-	.calibrationConfiguration = NULL,
+	.calibrationDuration = 3600.0f,
 	.ompThreads = OMP_THREADS,
 	.inputDadaKeys = { -1 }, // NEEDS FULL RUNTIME INITIALISATION
 
@@ -180,10 +180,6 @@ lofar_udp_config* lofar_udp_config_alloc() {
 	DEFAULT_STRUCT_ALLOC(lofar_udp_config, config, lofar_udp_config_default, ;, NULL);
 	STRUCT_COPY_INIT(metadata_config, &(config->metadata_config), metadata_config_default);
 
-	config->calibrationConfiguration = lofar_udp_calibration_alloc();
-	CHECK_ALLOC(config->calibrationConfiguration, NULL, free(config););
-
-
 	return config;
 }
 
@@ -210,6 +206,5 @@ lofar_udp_io_write_config* lofar_udp_io_alloc_write() {
 
 
 void lofar_udp_config_cleanup(lofar_udp_config *config) {
-	if (config != NULL) FREE_NOT_NULL(config->calibrationConfiguration);
 	FREE_NOT_NULL(config);
 }

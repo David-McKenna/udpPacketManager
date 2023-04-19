@@ -226,10 +226,7 @@ typedef struct lofar_udp_config {
 
 	// Enable / disable dreamBeam polarmetric corrections
 	calibrate_t calibrateData;
-
-	// Configure calibration parameters
-	// May be overwritten if metadata is provided.
-	lofar_udp_calibration *calibrationConfiguration;
+	float calibrationDuration;
 
 	// Number of OpenMP threads to use while processing data
 	// Minimum advised is 2 times the number of ports being processed, so typically 8.
