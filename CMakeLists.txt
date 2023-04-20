@@ -222,7 +222,7 @@ target_include_directories(lofudpman PUBLIC
 
 )
 # Include all of our dependency headers
-target_include_directories(lofudpman PUBLIC ${fftw3f_INSTALL_DIR}/include/)
+target_include_directories(lofudpman PUBLIC ${fftw3f_INSTALL_DIR}/src/internal_FFTW3F/api)
 target_include_directories(lofudpman PUBLIC ${hdf5_INSTALL_DIR}/src/internal_hdf5/src/ ${zlib_INSTALL_DIR}/src/internal_zlib/ ${bitshuffle_INSTALL_DIR}/src/internal_bitshuffle/src/)
 target_include_directories(lofudpman PUBLIC ${psrdada_INSTALL_DIR}/src/internal_PSRDADA/src/)
 target_include_directories(lofudpman PUBLIC ${zstd_SOURCE_DIR}/lib/)
@@ -275,20 +275,6 @@ install(TARGETS lofudpman lofar_udp_extractor lofar_stokes_extractor
 )
 install(FILES ${UDP_INCLUDE_FILES} DESTINATION include)
 install(FILES src/misc/dreamBeamJonesGenerator.py DESTINATION bin)
-
-
-# Wildcards not supported
-find_program(CLANG_SCAN_BUILD scan-build-14)
-if(CLANG_SCAN_BUILD)
-	add_custom_target(analyze
-	                  COMMAND ${CLANG_SCAN_BUILD} -o ${CMAKE_BINARY_DIR}/clang-analyzer make
-	                  WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
-	                  COMMENT "Running Clang Static Analyzer"
-	                  VERBATIM
-	                  )
-else()
-	message("Failed to find clang static analyzer.\n")
-endif()
 
 # Add the tests directory
 enable_testing()
