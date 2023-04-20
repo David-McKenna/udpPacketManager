@@ -1080,7 +1080,7 @@ lofar_udp_reader *lofar_udp_reader_setup(lofar_udp_config *config) {
 	}
 
 	if (config->metadata_config.metadataType == NO_META && strnlen(config->metadata_config.metadataLocation, DEF_STR_LEN)) {
-		fprintf(stderr, "WARNING: Metadata location is defed as %s, but metadata type is NO_META, changing metadata to DEFAULT_META.\n", config->metadata_config.metadataLocation);
+		fprintf(stderr, "WARNING: Metadata location is defined as %s, but metadata type is NO_META, changing metadata to DEFAULT_META.\n", config->metadata_config.metadataLocation);
 		config->metadata_config.metadataType = DEFAULT_META;
 	}
 

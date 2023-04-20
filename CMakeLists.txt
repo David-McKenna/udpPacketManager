@@ -121,7 +121,7 @@ ExternalProject_Add(internal_bitshuffle
                     GIT_REPOSITORY https://github.com/kiyo-masui/bitshuffle
                     GIT_TAG fdfcd404ac8dcb828857a90c559d36d8ac4c2968
                     CONFIGURE_COMMAND cp ${CMAKE_CURRENT_SOURCE_DIR}/src/misc/bitshuffleMakefile Makefile
-                    BUILD_COMMAND CMAKE_BASE_DIR=${CMAKE_CURRENT_BINARY_DIR} make link -j8
+                    BUILD_COMMAND CMAKE_BASE_DIR=${CMAKE_CURRENT_BINARY_DIR} make link -j4
                     BUILD_IN_SOURCE TRUE
                     INSTALL_COMMAND ""
                     UPDATE_COMMAND ""
