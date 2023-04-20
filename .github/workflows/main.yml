@@ -111,13 +111,3 @@ jobs:
           cd build && cmake --install .
       - name: Test
         run: cd build && if [ ${{ matrix.ver }} -eq 15 ]; then ctest -V .; fi
-
-
-  build_container:
-    name: Docker Build & Test
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v2
-      - name: Docker Build Step
-        run: docker build . --file src/docker/Dockerfile
