@@ -28,6 +28,7 @@ extern const double clockPacketRateDelta;
 #define __USE_XOPEN 1
 #include <time.h>
 
+#include "lofar_udp_general.h"
 #include "lofar_udp_structs.h"
 
 

@@ -2,7 +2,7 @@
 
 
 /**
- * @brief      A bridge between the C++ and C components of the codebase
+ * @brief      A bridge between the C++ and C components of the codebase, I really wish I could generate this with metaprogramming.
  *
  * @param      meta  The lofar_udp_obs_meta struct
  *
@@ -27,7 +27,7 @@ int32_t lofar_udp_cpp_loop_interface(lofar_udp_obs_meta *meta) {
 	// This is a string of 3 nested statements:
 	// 		Are we calibrating data?
 	// 		What is out input bit mode?
-	// 		What is our processing modes?
+	// 		What is our processing mode?
 	// The target template is then used to process the data.
 	// See docs/newProcessingMode.md for more details
 	switch (calibrateData) {

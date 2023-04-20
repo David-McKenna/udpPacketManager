@@ -19,17 +19,20 @@ RUN find $SOFT/udpPacketManager/ && touch $SOFT/$BUILD_COMMIT
 
 WORKDIR /home/soft
 
-
+ENV CC clang
+ENV CXX clang++
 # Build and install udpPacketManager/mockHeader, riptide, PSRSalsa, CDMT, IQRM, PSRDADA-python
 WORKDIR $SOFT/udpPacketManager
 RUN echo "Building udpPacketManager" && \
 	\
 	apt-get update && \
-	apt-get install -y autoconf clang-11 csh git libhdf5-dev libtool python3-pip wget && python3 -m pip install cmake && \
+	apt-get install -y autoconf clang clang++ csh git libhdf5-dev libomp-dev libtool python3-pip wget && \
+    python3 -m pip install cmake && \
 	find ./src && \
-	make calibration-prep && \
-	mkdir build && cd build && CC=clang-11 CXX=clang++-11 cmake .. && CC=clang-11 CXX=clang++-11 cmake --build . -- -j $BUILD_CORES && CC=clang-11 CXX=clang++-11 cmake --install . && \
-	rm -rf /var/lib/apt/lists/*
+	mkdir build && cd build && cmake .. && cmake --build . -- -j $BUILD_CORES && \
+	cmake --install . && \
+    ctest . && \
+    rm -rf /var/lib/apt/lists/*
 
 WORKDIR /home/user
 ENTRYPOINT /bin/bash

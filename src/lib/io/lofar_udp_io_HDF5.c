@@ -8,9 +8,6 @@ if (((outGroupVar) = H5Gopen(inputHDF, groupName, 0)) < 0) {    \
 	return -1;                                                  \
 };
 
-#define VAR_ARR_SIZE(arrayName) \
-	(sizeof((arrayName)) / sizeof((arrayName)[0]))
-
 #define _H5_SET_ATTRS(groupId, toSetAttrs, funcName, closeFunc)  \
 numAttrs = VAR_ARR_SIZE(toSetAttrs);                        \
 																								\

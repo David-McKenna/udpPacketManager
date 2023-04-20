@@ -768,13 +768,16 @@ lofar_udp_io_read_temp(const lofar_udp_config *config, int8_t port, int8_t *outb
 	}
 
 	switch (config->readerType) {
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wimplicit-fallthrough"
+#pragma GCC diagnostic push
 		case FIFO:
-			// -Wimplicit-fallthrough
 			if (resetSeek) {
 				fprintf(stderr, "ERROR %s: Cannot perform a temporary read on a FIFO and reset the pointer location, exiting.\n", __func__);
 				return -1;
 			}
 		case NORMAL:
+#pragma GCC diagnostic pop
 			return _lofar_udp_io_read_temp_FILE(outbuf, size, num, config->inputLocations[port], resetSeek);
 
 

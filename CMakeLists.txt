@@ -30,9 +30,6 @@ set(UPM_CLI_VERSION 0.7)
 
 message("Building udpPacketManager Version ${PROJECT_VERSION}\n\n")
 
-#set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS_DEBUG} -Rpass=loop-vectorize -Rpass-missed=loop-vectorize -Rpass-analysis=loop-vectorize")
-#set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS_DEBUG} -Rpass=loop-vectorize -Rpass-missed=loop-vectorize -Rpass-analysis=loop-vectorize")
-
 
 set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -W -Wall -g")
 set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -W -Wall -g")
@@ -47,32 +44,33 @@ find_package(OpenMP REQUIRED)
 
 execute_process(COMMAND bash -c "cat /proc/cpuinfo | uniq | grep -m 2 \"siblings\" | cut -d \":\" -f 2 | sort --numeric --unique | xargs echo"
                 OUTPUT_VARIABLE OMP_THREADS
-                )
+)
 if(OpenMP_C_LIB_NAMES MATCHES ".*(iomp).*" OR CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
 	message ("Intel-like OpenMP Detected.")
 	# Determine the optimal number of threads for this machine (when using Intel OpenMP Libraries)
 
 else()
-	message(WARNING "Other OpenMP implementation Detected (performance may be degraded, we highly recommend using the Intel OpenMP libraries)")
+	message(WARNING "Other OpenMP implementation Detected (performance may be degraded, we strongly recommend avoiding the GCC OpenMP library)\nSetup will continue in 5 seconds.")
 	set(OMP_THREADS 8)
+	#execute_process(COMMAND ${CMAKE_COMMAND} -E sleep 5)
 endif()
 message("")
 
-# Find the zstandard libraries on the system
+
+# Install zstandard
 message("Configuring Zstandard")
 include(FetchContent)
 set(ZSTD_BUILD_STATIC ON CACHE INTERNAL "")
 set(ZSTD_BUILD_SHARED OFF CACHE INTERNAL "")
 FetchContent_Declare(zstd
                      GIT_REPOSITORY https://github.com/facebook/zstd.git
-                     GIT_TAG v1.4.9
-                     )
+                     GIT_TAG v1.5.5
+)
 FetchContent_MakeAvailable(zstd)
 # MakeAvailable doesn't allow for libzstd_static to be used as a target
 # Related? https://github.com/facebook/zstd/issues/2377
 add_subdirectory(${zstd_SOURCE_DIR}/build/cmake/ ${zstd_BINARY_DIR} EXCLUDE_FROM_ALL)
-message("Hello ${zstd_SOURCE_DIR}/lib/")
-message("")
+
 
 #message("Configuring CSpice")
 #FetchContent_Declare(cspice
@@ -89,13 +87,12 @@ include(ExternalProject)
 ExternalProject_Add(internal_zlib
                     GIT_REPOSITORY https://github.com/madler/zlib
                     GIT_TAG v1.2.12
-                    PREFIX ${CMAKE_CURRENT_BINARY_DIR}/_deps/zlib
                     CONFIGURE_COMMAND ./configure --static --prefix=./
-                    BUILD_COMMAND "make" "test" "install" "-j8"
+                    BUILD_COMMAND make test install -j8
                     BUILD_IN_SOURCE TRUE # Keep source beside install prefix
                     INSTALL_COMMAND ""
                     UPDATE_COMMAND ""
-                    )
+)
 ExternalProject_Get_Property(internal_zlib INSTALL_DIR)
 set(zlib_INSTALL_DIR ${INSTALL_DIR})
 add_library(libz STATIC IMPORTED)
@@ -105,9 +102,8 @@ message("")
 ExternalProject_Add(internal_hdf5
                     GIT_REPOSITORY https://github.com/HDFGroup/hdf5
                     GIT_TAG hdf5-1_12_2
-                    PREFIX ${CMAKE_CURRENT_BINARY_DIR}/_deps/hdf5
                     CONFIGURE_COMMAND ./configure --disable-dependency-tracking --enable-optimization=high --disable-shared --disable-cxx --disable-hl --disable-hltools --disable-tools --enable-threadsafe --disable-fortran --enable-build-mode=production --with-zlib=${zlib_INSTALL_DIR}/src/internal_zlib/
-                    BUILD_COMMAND "make" "all" "-j8"
+                    BUILD_COMMAND make all -j8
                     BUILD_IN_SOURCE TRUE # Header gets moved to incorrect folder otherwise
                     INSTALL_COMMAND ""
                     UPDATE_COMMAND ""
@@ -124,14 +120,13 @@ message("Configuring HDF5 plugins")
 ExternalProject_Add(internal_bitshuffle
                     GIT_REPOSITORY https://github.com/kiyo-masui/bitshuffle
                     GIT_TAG fdfcd404ac8dcb828857a90c559d36d8ac4c2968
-                    PREFIX ${CMAKE_CURRENT_BINARY_DIR}/_deps/bitshuffle
-                    CONFIGURE_COMMAND cp ${CMAKE_CURRENT_SOURCE_DIR}/src/misc/bitshuffleMakefile ${CMAKE_CURRENT_BINARY_DIR}/_deps/bitshuffle/src/internal_bitshuffle/Makefile
+                    CONFIGURE_COMMAND cp ${CMAKE_CURRENT_SOURCE_DIR}/src/misc/bitshuffleMakefile Makefile
                     BUILD_COMMAND CMAKE_BASE_DIR=${CMAKE_CURRENT_BINARY_DIR} make link -j8
                     BUILD_IN_SOURCE TRUE
                     INSTALL_COMMAND ""
                     UPDATE_COMMAND ""
                     DEPENDS internal_hdf5 zstd internal_zlib
-                    )
+)
 ExternalProject_Get_Property(internal_bitshuffle INSTALL_DIR)
 set(bitshuffle_INSTALL_DIR ${INSTALL_DIR})
 add_library(libh5bshuf STATIC IMPORTED)
@@ -145,13 +140,12 @@ message ("Configuring PSRDADA")
 ExternalProject_Add(internal_PSRDADA
                     GIT_REPOSITORY https://git.code.sf.net/p/psrdada/code
                     GIT_TAG ba2b88
-                    PREFIX ${CMAKE_CURRENT_BINARY_DIR}/_deps/psrdada
-                    BINARY_DIR ${CMAKE_CURRENT_BINARY_DIR}/_deps/psrdada/src/internal_PSRDADA/src/
-                    CONFIGURE_COMMAND cd .. && ./bootstrap && ./configure  --with-cuda-dir=no && cd 3rdparty && make libtimers.la # libtimers fails to compile during normal step with older Make versions
-                    BUILD_COMMAND make libpsrdada.la dada_db dada_dbmeminfo dada_dbmetric dada_dbmonitor -j4
+                    BUILD_IN_SOURCE TRUE
+                    CONFIGURE_COMMAND ./bootstrap && ./configure --with-cuda-dir=no && cd 3rdparty && make libtimers.la # libtimers fails to compile during normal step with older Make versions
+                    BUILD_COMMAND cd src/ && make libpsrdada.la dada_db dada_dbmeminfo dada_dbmetric dada_dbmonitor -j4
                     INSTALL_COMMAND ""
                     UPDATE_COMMAND ""
-                    )
+)
 ExternalProject_Get_Property(internal_PSRDADA INSTALL_DIR)
 set(psrdada_INSTALL_DIR ${INSTALL_DIR})
 add_library(libpsrdada STATIC IMPORTED)
@@ -161,37 +155,25 @@ message("")
 
 
 # Configure FFTW3 (w/ floats + omp support, optional)
-
-## CMake config is outdated as of FFTW3 3.3.10, manually building to get AVX-512 support for REALTA
 message("Configuring FFTW3 (static, floats, OpenMP support enabled)")
-#set(ENABLE_FLOAT ON CACHE INTERNAL "")
-#set(ENABLE_OPENMP OFF CACHE INTERNAL "")
-#set(BUILD_SHARED_LIBS OFF CACHE INTERNAL "")
-#set(BUILD_TESTS OFF CACHE INTERNAL "")
-#
-#FetchContent_Declare(fftw3f
-#                     URL "https://www.fftw.org/fftw-3.3.10.tar.gz"
-#                     )
-#FetchContent_MakeAvailable(fftw3f)
+## CMake config is outdated as of FFTW3 3.3.10, manually building to get AVX-512 support for REALTA
 # I do not understand why, but the clean build process fails without the "echo $(pwd)" command.
 ExternalProject_ADD(internal_FFTW3F
                     URL "https://www.fftw.org/fftw-3.3.10.tar.gz"
                     URL_HASH "MD5=8ccbf6a5ea78a16dbc3e1306e234cc5c"
-                    PREFIX ${CMAKE_CURRENT_BINARY_DIR}/_deps/fftw3
-                    BINARY_DIR ${CMAKE_CURRENT_BINARY_DIR}/_deps/fftw3/src/internal_FFTW3F/
-                    INSTALL_DIR ${CMAKE_CURRENT_BINARY_DIR}/_deps/fftw3/src/internal_FFTW3F/build/
-                    CONFIGURE_COMMAND echo $(pwd) && mkdir -p ./build/ && ./configure --disable-dependency-tracking --enable-float --enable-openmp --enable-static --prefix ${CMAKE_CURRENT_BINARY_DIR}/_deps/fftw3/src/internal_FFTW3F/build/
-                    BUILD_COMMAND "make" "-j4" "&&" "make" "install" "-j4"
+                    CONFIGURE_COMMAND ./configure --disable-dependency-tracking --enable-float --enable-openmp --enable-static
+                    BUILD_COMMAND make -j4
+                    BUILD_IN_SOURCE TRUE
                     INSTALL_COMMAND ""
                     UPDATE_COMMAND ""
-                    )
+)
 ExternalProject_Get_Property(internal_FFTW3F install_dir)
 set(fftw3f_INSTALL_DIR ${install_dir})
 add_library(libfftw3fomp STATIC IMPORTED)
-set_property(TARGET libfftw3fomp PROPERTY IMPORTED_LOCATION ${fftw3f_INSTALL_DIR}/lib/libfftw3f_omp.a)
+set_property(TARGET libfftw3fomp PROPERTY IMPORTED_LOCATION ${fftw3f_INSTALL_DIR}/src/internal_FFTW3F/threads/.libs/libfftw3f_omp.a)
 add_dependencies(libfftw3fomp internal_FFTW3F)
 add_library(libfftw3f STATIC IMPORTED)
-set_property(TARGET libfftw3f PROPERTY IMPORTED_LOCATION ${fftw3f_INSTALL_DIR}/lib/libfftw3f.a)
+set_property(TARGET libfftw3f PROPERTY IMPORTED_LOCATION ${fftw3f_INSTALL_DIR}/src/internal_FFTW3F/.libs/libfftw3f.a)
 add_dependencies(libfftw3f internal_FFTW3F)
 message("")
 
@@ -233,9 +215,9 @@ add_dependencies(lofudpman libfftw3fomp libzstd_static libpsrdada libhdf5 libz l
 # Include all of our library headers
 target_include_directories(lofudpman PUBLIC
        ${CMAKE_CURRENT_SOURCE_DIR}/src/lib
-       ${CMAKE_CURRENT_BINARY_DIR}/src/lib
+       ${CMAKE_CURRENT_BINARY_DIR}/src/lib # Configured headers
        ${CMAKE_CURRENT_SOURCE_DIR}/src/CLI
-       ${CMAKE_CURRENT_BINARY_DIR}/src/CLI
+       ${CMAKE_CURRENT_BINARY_DIR}/src/CLI # Configured headers
        ${CMAKE_CURRENT_SOURCE_DIR}/src/metadata
 
 )
@@ -269,16 +251,6 @@ set_property(TARGET lofudpman PROPERTY LINK_WHAT_YOU_USE ON)
 
 # Link OpenMP
 target_link_libraries(lofudpman PUBLIC OpenMP::OpenMP_CXX OpenMP::OpenMP_C)
-
-
-#get_target_property(OLD_SUFFIX lofudpman SUFFIX)
-# Version the library suffix
-#get_target_property(LIBTYPE lofudpman TYPE)
-#if(LIBTYPE STREQUAL STATIC_LIBRARY)
-#	set_property(TARGET lofudpman PROPERTY SUFFIX ".a.${PROJECT_VERSION}")
-#elseif(LIBTYPE STREQUAL SHARED_LIBRARY)
-#	set_property(TARGET lofudpman PROPERTY SUFFIX ".so.${PROJECT_VERSION}")
-#endif()
 
 
 # Setup the CLIs
@@ -320,24 +292,5 @@ endif()
 
 # Add the tests directory
 enable_testing()
-set(TEST_ENV_PATH ${CMAKE_CURRENT_SOURCE_DIR}/misc/)
+set(TEST_ENV_PATH ${CMAKE_CURRENT_SOURCE_DIR}/tests/lib_tests/)
 add_subdirectory(tests)
-
-
-#include(CMakePackageConfigHelpers)
-#write_basic_package_version_file(
-#		lofudpmanConfig.cmake
-#		VERSION ${PACKAGE_VERSION}
-#		COMPATIBILITY SameMajorVersion
-#)
-#set(ConfigPackageLocation ${CMAKE_INSTALL_LIBDIR}/cmake/lofudpman)
-#install(EXPORT lofudpman
-#        FILE lofudpmanTargets.cmake
-#        NAMESPACE lofudpman::
-#        DESTINATION ${ConfigPackageLocation}
-#)
-#install(FILES
-#        lofudpmanConfig.cmake
-#        "${CMAKE_CURRENT_BINARY_DIR}/lofudpmanConfigVersion.cmake"
-#        DESTINATION ${ConfigPackageLocation}
-#)

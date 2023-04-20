@@ -24,8 +24,6 @@ int lofar_udp_io_read_parse_optarg(lofar_udp_config *config, const char optarg[]
 int lofar_udp_io_write_parse_optarg(lofar_udp_io_write_config *config, const char optarg[]);
 
 
-#pragma clang diagnostic push
-#pragma ide diagnostic ignored "readability-avoid-const-params-in-decls"
 // Setup wrapper functions
 int _lofar_udp_io_read_setup_internal_lib_helper(lofar_udp_io_read_config *const input, const lofar_udp_config *config, const lofar_udp_obs_meta *meta,
                                                  int8_t port);
@@ -93,7 +91,6 @@ void _lofar_udp_io_write_cleanup_FILE(lofar_udp_io_write_config *const config, i
 void _lofar_udp_io_write_cleanup_ZSTD(lofar_udp_io_write_config *const config, int8_t outp, int8_t fullClean);
 void _lofar_udp_io_write_cleanup_DADA(lofar_udp_io_write_config *const config, int8_t outp, int8_t fullClean);
 void _lofar_udp_io_write_cleanup_HDF5(lofar_udp_io_write_config *config, int8_t outp, int8_t fullClean);
-#pragma clang diagnostic pop
 
 // Other functions
 void _swapCharPtr(char **a, char **b);

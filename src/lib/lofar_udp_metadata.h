@@ -55,8 +55,6 @@ int _lofar_udp_metadata_update_GUPPI(lofar_udp_metadata *metadata, int newObs);
 int _lofar_udp_metadata_update_SIGPROC(lofar_udp_metadata *metadata, int newObs);
 int _lofar_udp_metadata_update_HDF5(lofar_udp_metadata *metadata, int newObs);
 
-#pragma clang diagnostic push
-#pragma ide diagnostic ignored "readability-avoid-const-params-in-decls"
 int64_t _lofar_udp_metadata_write_buffer(const lofar_udp_reader *reader, lofar_udp_metadata *const metadata, int8_t *headerBuffer, int64_t headerBufferSize, int8_t newObs);
 int64_t
 _lofar_udp_metadata_write_buffer_force(const lofar_udp_reader *reader, lofar_udp_metadata *const metadata, int8_t *headerBuffer, int64_t headerBufferSize, int8_t newObs, int8_t force);
@@ -87,7 +85,6 @@ int _lofar_udp_metadata_processing_mode_metadata(lofar_udp_metadata *metadata);
 int _lofar_udp_metadata_update_frequencies(lofar_udp_metadata *const metadata, int32_t *const subbandData);
 int _lofar_udp_metadata_handle_external_factors(lofar_udp_metadata *metadata, const metadata_config *config);
 int _lofar_udp_metdata_setup_BASE(lofar_udp_metadata *metadata);
-#pragma clang diagnostic pop // "readability-avoid-const-params-in-decls"
 
 // Internal variable checks
 int _isEmpty(const char *string);

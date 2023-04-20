@@ -273,6 +273,9 @@ typedef struct __attribute__((__packed__)) lofar_source_bytes {
 	CHECK_ALLOC(variable, returnVal, cleanup);                            \
 	STRUCT_COPY_INIT(structtype, variable, defaultstruct);
 
+// Check variable array length
+#define VAR_ARR_SIZE(arrayName) \
+	(sizeof((arrayName)) / sizeof((arrayName)[0]))
 
 // Free if non-null macro
 #define FREE_NOT_NULL(x) if ((x) != NULL) { free((x)); (x) = NULL; }

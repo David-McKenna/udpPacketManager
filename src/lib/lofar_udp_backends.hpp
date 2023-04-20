@@ -872,13 +872,6 @@ int32_t lofar_udp_raw_loop(lofar_udp_obs_meta *meta) {
 
 	// Setup decimation factor, 4-bit workspaces if needed
 	// Silence compiler warnings as this variable is only needed for some processing modes
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wunused-variable"
-#pragma GCC diagnostic ignored "-Wunused-but-set-variable"
-#pragma GCC diagnostic push
-#pragma GCC diagnostic push
-#pragma GCC diagnostic push
-#pragma GCC diagnostic push
 	constexpr int32_t decimation = 1 << (state % 10);
 
 	int8_t **byteWorkspace = nullptr;
@@ -906,8 +899,6 @@ int32_t lofar_udp_raw_loop(lofar_udp_obs_meta *meta) {
 			byteWorkspace[i] = byteWorkspace[0] + i * calSampleSize;
 		}
 	}
-#pragma GCC diagnostic pop
-#pragma GCC diagnostic pop
 
 
 	// Setup working variables
@@ -941,13 +932,6 @@ int32_t lofar_udp_raw_loop(lofar_udp_obs_meta *meta) {
 		int8_t *inputPortData = meta->inputData[port];
 		O **outputData = (O **) meta->outputData;
 
-		// Silence compiler warnings as this variable is only needed for some processing modes
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wunused-variable"
-#pragma GCC diagnostic ignored "-Wunused-but-set-variable"
-#pragma GCC diagnostic push
-#pragma GCC diagnostic push
-
 		// Select beamlet parameters
 		const int32_t baseBeamlet = meta->baseBeamlets[port];
 		const int32_t upperBeamlet = meta->upperBeamlets[port];
@@ -977,9 +961,6 @@ int32_t lofar_udp_raw_loop(lofar_udp_obs_meta *meta) {
 		const int32_t portPacketLength = meta->portPacketLength[port];
 		const int32_t packetOutputLength = meta->packetOutputLength[0];
 		const int32_t timeStepSize = sizeof(I) / sizeof(int8_t);
-#pragma GCC diagnostic pop
-#pragma GCC diagnostic pop
-
 		lastInputPacketOffset = (-2 + meta->replayDroppedPackets) *
 								portPacketLength;    // We request at least 2 packets are malloc'd before the array head pointer, so no SEGFAULTs here
 		// -2 * PPL = 0s -1 * PPL = last processed packet -- used for calculating offset in dropped case if
@@ -1128,17 +1109,10 @@ int32_t lofar_udp_raw_loop(lofar_udp_obs_meta *meta) {
 					const int32_t numSamples = portPacketLength - UDPHDRLEN;
 
 					// Use a LUT to extract the 4-bit signed ints from int8_t
-#ifdef __INTEL_COMPILER
-#pragma unroll(976)
-#else
-#pragma GCC unroll 976
-#endif
+#pragma unroll(122) // 244 beams packed into 122 bytes, could be unrolled by another factor of 4 * 16, but it would just cause executable bloat
 					for (int32_t idx = 0; idx < numSamples; idx++) {
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wchar-subscripts"
 						const int8_t *result = bitmodeConversion[(uint8_t) meta->inputData[port][
 								lastInputPacketOffset + idx]];
-#pragma GCC diagnostic pop
 						inputPortData[idx * 2] = result[0];
 						inputPortData[idx * 2 + 1] = result[1];
 					}

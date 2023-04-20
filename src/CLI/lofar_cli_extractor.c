@@ -211,7 +211,6 @@ int main(int argc, char *argv[]) {
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wimplicit-fallthrough"
 #pragma GCC diagnostic push
-
 				// Handle edge/error cases
 			case '?':
 				if ((optopt == 'i') || (optopt == 'o') || (optopt == 'm') || (optopt == 'u') || (optopt == 't') ||
@@ -224,9 +223,7 @@ int main(int argc, char *argv[]) {
 
 			case 'h':
 			default:
-
 #pragma GCC diagnostic pop
-
 				helpMessages();
 				CLICleanup(eventCount, dateStr, startingPackets, multiMaxPackets, eventSeconds, config, outConfig, headerBuffer);
 				return 1;
