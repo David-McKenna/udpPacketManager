@@ -2,17 +2,122 @@ on:
   push:
     branches:
       - main
-  pull_request:
-
 
 jobs:
-  build_container:
-    runs-on: ubuntu-latest
-    name: Docker Build & Test
+
+  prepare_env:
+    name: Setup Ubuntu 22.04
+    runs-on: ubuntu-22.04
     steps:
-      # To use this repository's private action,
-      # you must check out the repository
+      - name: Checkout
+        uses: actions/checkout@v2
+      - name: Prep Environment
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y csh git python3 python3-pip
+          python3 -m pip install --upgrade pip
+          python3 -m pip install cmake
+
+  prepare_env_old:
+    name: Setup Ubuntu 18.04
+    runs-on: ubuntu-18.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+      - name: Prep Environment
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y csh git python3 python3-pip
+          python3 -m pip install --upgrade pip
+          python3 -m pip install cmake
+
+  build_gcc_old:
+    needs: prepare_env_old
+    name: Build & Test GCC
+    runs-on: ubuntu-18.04
+    strategy:
+      matrix:
+        ver: [4.8, 5, 6, 7, 8]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+      - name: Prep Environment
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gcc-${{ matrix.ver }} g++-${{ matrix.ver }}
+      - name: Build
+        env:
+          CC: gcc-${{ matrix.ver }}
+          CXX: g++-${{ matrix.ver }}
+        run: bash build.sh
+
+  build_and_test_gcc:
+    needs: prepare_env
+    name: Build & Test GCC
+    runs-on: ubuntu-22.04
+    strategy:
+      matrix:
+        ver: [9, 10, 11, 12]
+    steps:
+      - name: Prep Environment
+        run: |
+          sudo apt-get install -y gcc-${{ matrix.ver }} g++-${{ matrix.ver }}
+      - name: Build
+        env:
+          CC: gcc-${{ matrix.ver }}
+          CXX: g++-${{ matrix.ver }}
+        run: bash build.sh
+      - name: Install # Needed so that dreamBeamJonesGenerator is on the path
+        run: |
+          cd build && cmake --install .
+      - name: Test
+        run: cd build && if [ ${{ matrix.ver }} -eq 12 ]; then ctest -V .; fi
+
+  build_clang_old:
+    needs: prepare_env_old
+    name: Build & Test clang
+    runs-on: ubuntu-18.04
+    strategy:
+      matrix:
+        ver: [3.9, 4, 5, 6, 7, 8, 9]
+      steps:
+      - name: Prep Environment
+        run: |
+          sudo apt-get install -y clang-${{ matrix.ver }} clang++-${{ matrix.ver }} libomp5 libomp-dev
+      - name: Build
+        env:
+          CC: clang-${{ matrix.ver }}
+          CXX: clang++-${{ matrix.ver }}
+        run: bash build.sh
+
+  build_and_test_clang:
+    needs: prepare_env
+    name: Build & Test clang
+    runs-on: ubuntu-22.04
+    strategy:
+      matrix:
+        ver: [11, 12, 13, 14, 15]
+    steps:
+      - name: Prep Environment
+        run: |
+          sudo apt-get install -y clang-${{ matrix.ver }} clang++-${{ matrix.ver }} libomp5 libomp-dev
+      - name: Build
+        env:
+          CC: clang-${{ matrix.ver }}
+          CXX: clang++-${{ matrix.ver }}
+        run: bash build.sh
+      - name: Install # Needed so that dreamBeamJonesGenerator is on the path
+        run: |
+          cd build && cmake --install .
+      - name: Test
+        run: cd build && if [ ${{ matrix.ver }} -eq 15 ]; then ctest -V .; fi
+
+
+  build_container:
+    name: Docker Build & Test
+    runs-on: ubuntu-latest
+    steps:
       - name: Checkout
         uses: actions/checkout@v2
       - name: Docker Build Step
-        run: docker build . --file src/docker/Dockerfile_github
+        run: docker build . --file src/docker/Dockerfile
