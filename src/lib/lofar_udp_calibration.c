@@ -59,6 +59,15 @@ int32_t _lofar_udp_calibration_find_script(const char jonesGeneratorName[], char
 }
 
 int32_t _lofar_udp_calibration_shmData_setup(shmData *sharedData) {
+	srand(time(0));
+	const int32_t shmNameLen = strnlen(sharedData->shmName, VAR_ARR_SIZE(sharedData->shmName)) + 1;
+	sharedData->shmName[shmNameLen - 1] = '_';
+	const int32_t shmNameLimit = VAR_ARR_SIZE(sharedData->shmName) - 1;
+	for (int32_t i =  shmNameLen; i < shmNameLimit; i++) {
+		sharedData->shmName[i + 1] = '\0';
+		sharedData->shmName[i] = (uint8_t) ('a' + rand() % 26 + ('A' - 'a') * (rand() % 2));
+	}
+
 	sharedData->shmFd = shm_open(sharedData->shmName, O_CREAT | O_EXCL | O_RDWR, S_IRUSR | S_IWUSR);
 	if (sharedData->shmFd == -1) {
 		if (errno == EEXIST) {
