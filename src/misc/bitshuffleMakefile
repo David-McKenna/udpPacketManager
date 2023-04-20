@@ -1,4 +1,4 @@
-
+# A makefile to compile a static library for the bitshuffle code base, as it only offers compillation through a wheel install
 CMAKE_BASE_DIR ?= ../../../
 
 CFLAGS += -O3 -ffast-math -std=c99 -static -fno-strict-aliasing -fPIC -DZSTD_SUPPORT

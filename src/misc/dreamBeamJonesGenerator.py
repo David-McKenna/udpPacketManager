@@ -4,7 +4,6 @@ import argparse
 import multiprocessing.shared_memory
 import lofarantpos.db
 import numpy as np
-import sys
 import time as timeLib
 import tqdm
 from astropy.time import Time, TimeDelta
@@ -15,10 +14,12 @@ from multiprocessing.resource_tracker import unregister
 
 def generateJones(subbands, antennaSet, stn, mdl, time, dur, inte, pnt, firstOutput=False):
     results = {}
+    # Check which antenna we need to generate Jones matrices for
     for ant in ['LBA', 'HBA']:
         if ant not in antennaSet:
             continue
 
+        # Get the pointing for the antenna set if needed
         if isinstance(pnt, dict):
             pntLocal = pnt[ant]
         else:
@@ -33,23 +34,26 @@ def generateJones(subbands, antennaSet, stn, mdl, time, dur, inte, pnt, firstOut
             if subband[0] == ant:
                 results[subband[1]] = antJones[np.newaxis, subband[2], :]
 
-            # Initialise the output array and append the data in the required order
+    # Initialise the output array and append the data in the required order
     jonesMatrix = np.empty((0, antJones.shape[1], 2, 2), dtype=antJones.dtype)
     for subband in subbands:
         jonesMatrix = np.append(jonesMatrix, results[subband[1]], axis=0)
 
     # Swap the time and frequency axis
     jonesMatrix = jonesMatrix.transpose((1, 0, 2, 3))
-    # Invert the matrix so it can be applied to the visibility data
+
+    # Invert the matrix so it can be applied to the correlated data
     invJonesMatrix = np.linalg.inv(jonesMatrix)
 
     # Split out the real and imaginary components into the last axis rather than being accessible by .real and .imag
+    # This allows us to pipe a constant steam of data without worrying about numpy layouts
     jointInvJones = np.zeros([jonesMatrix.shape[0], jonesMatrix.shape[1], 2, 4], dtype=np.float32)
     jointInvJones[:, :, :, ::2] = invJonesMatrix[...].real
     jointInvJones[:, :, :, 1::2] = invJonesMatrix[...].imag
 
-    # If we only want a single sample,just retrun the first value this works around the behaviour where
-    # dreamBeam has a minimum output of 2 time samples.
+    # If we only want a single sample,just return the first value.
+    # This works around the behaviour where dreamBeam has a minimum output of 2 time samples
+    #  (unless we fudge the duration to be less than the integration)
     if firstOutput:
         return jointInvJones[0]
     else:
@@ -63,7 +67,7 @@ if __name__ == '__main__':
     # dreamBeamJonesGenerator.py --stn STNID --sub ANT,SBL:SBU --time TIME --dur DUR --int INT --pnt P0,P1,BASIS --pipe /tmp/pipe
     parser = argparse.ArgumentParser()
     parser.add_argument('--stn', dest='stn', required=True, help="Observing station code eg. IE613, SE607, etc.")
-    parser.add_argument('--sub', dest='sub', required=True, help="Observing antenna set and subbands. Add 512 to access mode 7 subbands from the HBAs. Comma separated values, on ranges the upper limit is included to match bamctl logic. eg. 'ANT,SUBLWR:SUBUPR,SUB,SUB,SUB LBA,12:488,499,500,510 HBA,12:128 HBA,540:590")
+    parser.add_argument('--sub', dest='sub', required=True, help="Observing antenna set and subbands. Add 512 to access mode 7 subbands from the HBAs. Comma separated values, on ranges the upper limit is included to match bamctl logic. eg. 'SUBLWR:SUBUPR,SUB,SUB,SUB',  LBA: '12:488,499,500,510', HBA: '12:128 HBA,540:590'")
     # Need more models as inputs...
     parser.add_argument('--mdl', dest='mdl', default="Hamaker-default", help="Antenna simulation model",
                         choices={"Hamaker-default", "Hamaker"})
@@ -79,14 +83,10 @@ if __name__ == '__main__':
                         help="Don't silence all outputs.")
 
     args = parser.parse_args()
+    # Split up the input subband string
     args.sub = list(map(int, args.sub.split(',')))
 
-    # Determine if both HBA and LBAs are needed
-    antennaSet = []
-    if min(args.sub) > -1 and min(args.sub) < 512:
-        antennaSet.append("LBA")
-    if max(args.sub) > 512 and max(args.sub) < (1024 + 512):
-        antennaSet.append("HBA")
+
 
     # Split the pointing into it's components
     args.pnt = args.pnt.split(',')
@@ -98,14 +98,17 @@ if __name__ == '__main__':
     args.dur = TimeDelta(args.dur, format='sec')
     args.inte = TimeDelta(args.inte, format='sec')
 
-    # Determine all the subbands we need to extract data for
+    # Determine all the subbands, and antenna, we need to extract data for
     subbands = []
     beamlet = 0
+    antennaSet = set()
     for sub in args.sub:
         if sub < 512:
             subbands.append(("LBA", sub, beamlet))
+            antennaSet.add('LBA')
         else:
             subbands.append(("HBA", sub - 512, beamlet))
+            antennaSet.add('HBA')
         beamlet += 1
 
     endParseTime = timeLib.perf_counter()
@@ -120,7 +123,6 @@ if __name__ == '__main__':
         dm = measures()
         # Generate a LOFAR station location object
         db = lofarantpos.db.LofarAntennaDatabase()
-
         obsLoc = {}
         for ant in antennaSet:
             obsLoc[ant] = db.phase_centres[f'{args.stn}{ant}']
@@ -135,7 +137,7 @@ if __name__ == '__main__':
         obsTime = args.time - args.inte / 2
         numSamples = int(np.ceil(args.dur / args.inte).value)
 
-        # For each time sample, calculate the time and determine a J2000 coordinate for the source, which can then be used to determine the Jones matri
+        # For each time sample, calculate the time and determine a J2000 coordinate for the source, which can then be used to determine the Jones matrices
         if args.exact_pos:
            for i in tqdm.trange(numSamples):
                 obsTime = obsTime + args.inte
@@ -157,6 +159,7 @@ if __name__ == '__main__':
                     jointInvJones[i, ...] = generateJones(subbands, antennaSet, args.stn, args.mdl, obsTime.datetime,
                                                           args.dur.datetime, args.inte.datetime, args.pnt, firstOutput=True)
         else:
+            # Otherwise, just use the pointing at the midpoint of the observation
             obsTime += args.dur / 2
             time = dm.epoch('utc', f'{obsTime.mjd}d')
             dm.do_frame(time)
@@ -178,16 +181,20 @@ if __name__ == '__main__':
     print(f"dreamBeamJonesGenerator.py: {jointInvJones.shape[0]} Jones Matrices generated and inverted in {jonesGeneratorTime - endParseTime:.3f} seconds.")
 
 
+    # Move the data into the provided shared memory array
     ref = multiprocessing.shared_memory.SharedMemory(name = args.shm_key, create = False)
     assert(ref.size == args.shm_size)
     data = np.frombuffer(ref.buf, dtype = np.float32, count = args.shm_size // jointInvJones.dtype.itemsize)
     data[0] = jointInvJones.shape[0]
     data[1] = jointInvJones.shape[1]
     data[2:] = jointInvJones.ravel()
+    # Remove hanging references
     del data
     ref.close()
 
+    # By default, python will destroy any shared memory it has touched on exit
     # THANKS FOR DOCUMENTING THIS! /s
+    # https://github.com/python/cpython/issues/82300
     unregister(ref._name, 'shared_memory')
 
 

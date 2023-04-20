@@ -27,6 +27,7 @@ RUN echo "Building udpPacketManager" && \
 	\
 	apt-get update && \
 	apt-get install -y autoconf clang-15 clang++-15 csh git libomp5-15 libomp-15-dev libtool python3-pip wget && \
+    python3 -m pip install --upgrade pip && \
     python3 -m pip install cmake && \
 	find ./src && \
 	mkdir build && cd build && cmake .. && cmake --build . -- -j $BUILD_CORES && \
