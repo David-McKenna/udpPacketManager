@@ -3,19 +3,16 @@
 // Time steps per second in each clock mode
 extern const double clock200MHzSteps;
 extern const double clock160MHzSteps;
-
+extern const double clockStepsDelta;
 
 // Beam samples per second in each clock mode
 extern const double clock200MHzSampleTime;
 extern const double clock160MHzSampleTime;
+extern const double clockSampleTimeDelta;
 
 // Packets per second in each clock mode
 extern const double clock200MHzPacketRate;
 extern const double clock160MHzPacketRate;
-
-// Difference of values; useful for non-branching calculations
-extern const double clockStepsDelta;
-extern const double clockSampleTimeDelta;
 extern const double clockPacketRateDelta;
 
 #endif // End of LOFAR_SAMPLING_CONSTS
@@ -39,36 +36,40 @@ extern "C" {
 #endif
 
 int64_t lofar_udp_time_get_packet_from_isot(const char *inputTime, uint8_t clock200MHz);
-int64_t lofar_udp_time_get_packets_from_seconds(double seconds, uint32_t clock200MHz);
-void lofar_udp_time_get_current_isot(const lofar_udp_reader *reader, char *stringBuff, int strlen);
+int64_t lofar_udp_time_get_packets_from_seconds(const double seconds, uint8_t clock200MHz);
+void lofar_udp_time_get_current_isot(const lofar_udp_reader *reader, char *stringBuff,int64_t strlen);
 void lofar_udp_time_get_daq(const lofar_udp_reader *reader, char *stringBuff, int strlen);
 double lofar_udp_time_get_packet_time(const int8_t *inputData);
 double lofar_udp_time_get_packet_time_mjd(const int8_t *inputData);
+
 static inline int64_t lofar_udp_time_beamformed_packno(int32_t timestamp, int32_t sequence, uint8_t clock200MHz);
 static inline int64_t lofar_udp_time_get_packet_number(const int8_t *inputData);
 static inline int32_t lofar_udp_time_get_next_packet_sequence(const int8_t *inputData);
 
-// Taken from Olaf Wucknitz VLBI recorder, with modifications for arbitrary
-// input data
-//
-// @param[in]  timestamp    The timestamp
-// @param[in]  sequence     The sequence
-// @param[in]  clock200MHz  The clock 200 m hz
-//
-// @return     { description_of_the_return_value }
-//
-static inline int64_t lofar_udp_time_beamformed_packno(int32_t timestamp, int32_t sequence, uint8_t clock200MHz) {
-	//
-	//      ((timestamp \                      // Unix Epoch time reference
-	//          * 1000000l \                   // 1e6 To convert next line from MHz to Hz
-	//          * (160 + 40 * clock200MHz) \   // Clock Rate, samples per second
-	//          + 512) \                       // Offset halfway into the time sample (1024 samples per PFB output)
-	//                                         // This could be swapped for a (sequence + 0.5), but would introduce FP uncertainty
-	//                                         // Since the 200MHz samples/s is not an integer, this value isn't always rounded down
-	//       ) / 1024                          // Collapse down to 1 PFB output
-	//                                         // We now have the sample number that starts on the given second with sequence 0
-	//       + sequence)                       // Offset to the true sequence
-	//    / 16                                 // Divide by the number of samples per packet to get a packet number
+/**
+ * @brief 	Adapted from Olaf Wucknitz VLBI recorder, with modifications for arbitrary
+ * 				input data
+ *
+ * @param[in]  timestamp    The timestamp
+ * @param[in]  sequence     The sequence
+ * @param[in]  clock200MHz  The clock 200 m hz
+ *
+ * @return     int64_t packet number for the given clockmode
+*/
+static inline int64_t lofar_udp_time_beamformed_packno(const int32_t timestamp, const int32_t sequence, const uint8_t clock200MHz) {
+	/*
+	 *      ((timestamp \                      // Unix Epoch time reference
+	 *          * 1000000l \                   // 1e6 To convert next line from MHz to Hz
+	 *          * (160 + 40 * clock200MHz) \   // Clock Rate, samples per second
+	 *                                         //   Formatted like this to avoid a branch given this is on several hot loops
+	 *          + 512) \                       // Offset halfway into the time sample (1024 samples per PFB output)
+	 *                                         //   This could be swapped for a (sequence + 0.5), but would introduce FP uncertainty
+	 *                                         //   Since the 200MHz samples/s is not an integer, this value isn't always rounded down
+	 *       ) / 1024                          // Collapse down to 1 PFB output
+	 *                                         //    We now have the sample number that starts on the given second with sequence 0
+	 *       + sequence)                       // Offset to the true sequence
+	 *    / 16                                 // Divide by the number of samples per packet to get a packet number
+	*/
 
 	return ((timestamp * 1000000l * (160 + 40 * clock200MHz) + 512) / 1024 + sequence) / 16;
 }
@@ -78,9 +79,9 @@ static inline int64_t lofar_udp_time_beamformed_packno(int32_t timestamp, int32_
  * @brief      Get the packet number corresponding to the data of an input
  *             packet
  *
- * @param      inputData  The input data pointer
+ * @param[in]      inputData  The input data pointer
  *
- * @return     The packet number
+ * @return     int64_t packet number for the given clockmode
  */
 static inline int64_t lofar_udp_time_get_packet_number(const int8_t *inputData) {
 	return lofar_udp_time_beamformed_packno(*((int32_t *) &(inputData[CEP_HDR_TIME_OFFSET])),
@@ -95,7 +96,7 @@ static inline int64_t lofar_udp_time_get_packet_number(const int8_t *inputData) 
  *             next true sequence value due to the 200MHz clock's fractional
  *             sequence cap)
  *
- * @param      inputData  The input data pointer
+ * @param[in]      inputData  The input data pointer
  *
  * @return     The suggested sequence value
  */
