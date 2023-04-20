@@ -1091,7 +1091,7 @@ int16_t _lofar_udp_metadata_get_clockmode(int16_t input) {
 			return 200;
 
 		case 6:
-		case 160:
+		case 170:
 			return 160;
 
 
@@ -1123,7 +1123,7 @@ int8_t _lofar_udp_metadata_get_rcumode(int16_t input) {
 		case 210:
 			return 7;
 
-		case 160:
+		case 170:
 			return 6;
 
 

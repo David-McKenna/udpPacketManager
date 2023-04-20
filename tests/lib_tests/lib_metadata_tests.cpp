@@ -256,7 +256,7 @@ TEST(LibMetadataTests, InternalParsers) {
 		// int lofar_udp_metadata_get_clockmode(int input);
 		for (auto [clock, modes] : std::map<int, std::vector<int>>{
 			{200, {1, 2, 3, 4, 5, 7, 10, 30, 110, 210}},
-			{160, {6, 160}},
+			{160, {6, 170}},
 			{-1, {99}},
 		}) {
 			for (int mode : modes) {
@@ -273,7 +273,7 @@ TEST(LibMetadataTests, InternalParsers) {
 			{3, {3, 10}},
 			{4, {4, 30}},
 			{5, {5, 110}},
-			{6, {6, 160}},
+			{6, {6, 170}},
 			{7, {7, 210}},
 		}) {
 			for (int mode: modes) {
