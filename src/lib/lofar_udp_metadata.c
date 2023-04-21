@@ -2,7 +2,7 @@
 
 /**
  * @brief 			Provide a guess at the intended output metadata based on a filename
- * @param optargc 	Input filename
+ * @param[in] optargc 	Input filename
  * @return 			metadata_t: Best guess at type
  */
 metadata_t lofar_udp_metadata_parse_type_output(const char optargc[]) {
@@ -29,13 +29,15 @@ metadata_t lofar_udp_metadata_parse_type_output(const char optargc[]) {
 }
 
 /**
- * @brief
- * @param metadata
- * @param reader
- * @param config
+ * @brief Setup a metadata struct based on the current reader and metadata configurations
+ *
+ * @param metadata		Output metadata struct
+ * @param[in] reader	Input reader struct
+ * @param[in] config	Input configuration struct
+ *
  * @return
  */
-int lofar_udp_metadata_setup(lofar_udp_metadata *metadata, const lofar_udp_reader *reader, const metadata_config *config) {
+int32_t lofar_udp_metadata_setup(lofar_udp_metadata *const metadata, const lofar_udp_reader *reader, const metadata_config *config) {
 
 	// Sanity check the metadata and reader structs
 	if (metadata == NULL) {
@@ -126,7 +128,16 @@ int lofar_udp_metadata_setup(lofar_udp_metadata *metadata, const lofar_udp_reade
 	}
 }
 
-int lofar_udp_metadata_update(const lofar_udp_reader *reader, lofar_udp_metadata *metadata, int newObs) {
+/**
+ * @brief Update the metadata struct based on the current reader state
+ *
+ * @param[in] reader	Input reader struct
+ * @param metadata		Output struct
+ * @param[in] newObs	Handle update for a new observation / output
+ *
+ * @return
+ */
+int32_t lofar_udp_metadata_update(const lofar_udp_reader *reader, lofar_udp_metadata *const metadata, const int8_t newObs) {
 	if (reader == NULL) {
 		fprintf(stderr, "ERROR %s: Input reader is null, exiting.\n", __func__);
 		return -1;
@@ -151,7 +162,7 @@ int lofar_udp_metadata_update(const lofar_udp_reader *reader, lofar_udp_metadata
 			}
 			return 0;
 
-		// DADA/HDF5 is the base case, just return
+		// DADA/HDF5 is the base case we ran previously, just return
 		case DADA:
 		case HDF5_META:
 			return 0;
@@ -168,10 +179,20 @@ int lofar_udp_metadata_update(const lofar_udp_reader *reader, lofar_udp_metadata
 			return -1;
 	}
 
+	__builtin_unreachable();
 
 }
 
-int _lofar_udp_metadata_update_BASE(const lofar_udp_reader *reader, lofar_udp_metadata *metadata, int newObs) {
+/**
+ * @brief Update the metadata struct based on the current reader configuration
+ *
+ * @param[in] reader 	The input reader
+ * @param metadata 		The output struct
+ * @param[in] newObs 	Handle update for a new observation / output
+ *
+ * @return
+ */
+int32_t _lofar_udp_metadata_update_BASE(const lofar_udp_reader *reader, lofar_udp_metadata *const metadata, int8_t newObs) {
 
 	if (reader == NULL || metadata == NULL) {
 		fprintf(stderr, "ERROR %s: Input struct is null (reader: %p, metadata: %p), exiting.\n", __func__, reader, metadata);
@@ -182,19 +203,19 @@ int _lofar_udp_metadata_update_BASE(const lofar_udp_reader *reader, lofar_udp_me
 	// But since we use this struct as the base, we'll need to update the bulk of the contents on every iteration.
 
 	if (newObs) {
-		lofar_udp_time_get_current_isot(reader, metadata->obs_utc_start, sizeof(metadata->obs_utc_start) / sizeof(metadata->obs_utc_start[0]));
+		lofar_udp_time_get_current_isot(reader, metadata->obs_utc_start, VAR_ARR_SIZE(metadata->obs_utc_start));
 		metadata->obs_mjd_start = lofar_udp_time_get_packet_time_mjd(reader->meta->inputData[0]);
 		metadata->upm_processed_packets = 0;
 		metadata->upm_dropped_packets = 0;
 	}
 
-	lofar_udp_time_get_daq(reader, metadata->upm_daq, sizeof(metadata->upm_daq) / sizeof(metadata->upm_daq[0]));
+	lofar_udp_time_get_daq(reader, metadata->upm_daq, VAR_ARR_SIZE(metadata->upm_daq));
 	metadata->upm_pack_per_iter = reader->meta->packetsPerIteration;
 	metadata->upm_blocksize = metadata->upm_pack_per_iter * reader->meta->packetOutputLength[0];
 	metadata->upm_processed_packets += metadata->upm_pack_per_iter * metadata->upm_num_inputs;
 
 	metadata->upm_last_dropped_packets = 0;
-	for (int port = 0; port < metadata->upm_num_inputs; port++) {
+	for (int8_t port = 0; port < metadata->upm_num_inputs; port++) {
 		metadata->upm_last_dropped_packets += reader->meta->portLastDroppedPackets[port];
 	}
 	metadata->upm_dropped_packets += metadata->upm_last_dropped_packets;
@@ -206,9 +227,21 @@ int64_t _lofar_udp_metadata_write_buffer(const lofar_udp_reader *reader, lofar_u
 	return _lofar_udp_metadata_write_buffer_force(reader, metadata, headerBuffer, headerBufferSize, newObs, 0);
 }
 
+/**
+ * @brief Update and write the configured metadata output to the given header buffer
+ *
+ * @param[in] reader			The input reader
+ * @param metadata				The struct to be updated
+ * @param headerBuffer			The output buffer
+ * @param[in] headerBufferSize	The output buffer length
+ * @param[in] newObs 			Handle update for a new observation / output
+ * @param[in] force				Force a write (for metadata that's normally only at the start of a file)
+ *
+ * @return 0: no work performed, >1: success, represents output length, -1: failure
+ */
 // 0: no work performed, >1: success + length, -1: failure
 int64_t
-_lofar_udp_metadata_write_buffer_force(const lofar_udp_reader *reader, lofar_udp_metadata *const metadata, int8_t *headerBuffer, int64_t headerBufferSize, int8_t newObs, int8_t force) {
+_lofar_udp_metadata_write_buffer_force(const lofar_udp_reader *reader, lofar_udp_metadata *const metadata, int8_t *const headerBuffer, const int64_t headerBufferSize, const int8_t newObs, const int8_t force) {
 	if (metadata == NULL || metadata->type <= DEFAULT_META) {
 		return 0;
 	}
@@ -259,16 +292,44 @@ _lofar_udp_metadata_write_buffer_force(const lofar_udp_reader *reader, lofar_udp
 			return -1;
 	}
 
+	__builtin_unreachable();
 }
 
+/**
+ * @brief Perform a normal header write, to an intermediate buffer than then an output file
+ *
+ * @param[in] reader			The input reader
+ * @param outConfig				The output wrtier struct
+ * @param outp					The index of the output writer
+ * @param metadata				The struct to be updated
+ * @param headerBuffer			The output buffer
+ * @param[in] headerBufferSize	The output buffer length
+ * @param[in] newObs 			Handle update for a new observation / output
+ *
+ * @return < 0: failure, > 0: success, output length
+ */
 int64_t
-lofar_udp_metadata_write_file(const lofar_udp_reader *reader, lofar_udp_io_write_config *const outConfig, int8_t outp, lofar_udp_metadata *const metadata, int8_t *headerBuffer,
-                              int64_t headerBufferSize, int8_t newObs) {
+lofar_udp_metadata_write_file(const lofar_udp_reader *reader, lofar_udp_io_write_config *const outConfig, const int8_t outp, lofar_udp_metadata *const metadata, int8_t *const headerBuffer,
+                              const int64_t headerBufferSize, const int8_t newObs) {
 	return _lofar_udp_metadata_write_file_force(reader, outConfig, outp, metadata, headerBuffer, headerBufferSize, newObs, 0);
 }
 
-int64_t _lofar_udp_metadata_write_file_force(const lofar_udp_reader *reader, lofar_udp_io_write_config *const outConfig, int8_t outp, lofar_udp_metadata *const metadata,
-                                             int8_t *const headerBuffer, int64_t headerBufferSize, int8_t newObs, int8_t force) {
+/**
+ * @brief Perform a (optionally) forced header write, to an intermediate buffer than then an output file
+ *
+ * @param[in] reader			The input reader
+ * @param outConfig				The output wrtier struct
+ * @param outp					The index of the output writer
+ * @param metadata				The struct to be updated
+ * @param headerBuffer			The output buffer
+ * @param[in] headerBufferSize	The output buffer length
+ * @param[in] newObs 			Handle update for a new observation / output
+ * @param[in] force				Foce the write to happen, regardless of metadata type's conventions
+ *
+ * @return
+ */
+int64_t _lofar_udp_metadata_write_file_force(const lofar_udp_reader *reader, lofar_udp_io_write_config *const outConfig, const int8_t outp, lofar_udp_metadata *const metadata,
+                                             int8_t *const headerBuffer, const int64_t headerBufferSize, const int8_t newObs, const int8_t force) {
 	int64_t returnVal = _lofar_udp_metadata_write_buffer_force(reader, metadata, headerBuffer, headerBufferSize, newObs, force);
 
 	if (returnVal > 0) {
@@ -278,6 +339,11 @@ int64_t _lofar_udp_metadata_write_file_force(const lofar_udp_reader *reader, lof
 	return returnVal;
 }
 
+/**
+ * @brief Cleanup a metadata struct
+ *
+ * @param meta	The struct to cleanup
+ */
 void lofar_udp_metadata_cleanup(lofar_udp_metadata *meta) {
 	if (meta != NULL) {
 		if (meta->output.sigproc != NULL) {
@@ -290,8 +356,14 @@ void lofar_udp_metadata_cleanup(lofar_udp_metadata *meta) {
 	FREE_NOT_NULL(meta);
 }
 
-
-int _lofar_udp_metdata_setup_BASE(lofar_udp_metadata *metadata) {
+/**
+ * @brief Perform basic initialisation of parameters of a metadata struct
+ *
+ * @param metadata	Struct to be initialised
+ *
+ * @return 0: success, <0: failure
+ */
+int32_t _lofar_udp_metdata_setup_BASE(lofar_udp_metadata *const metadata) {
 
 	if (metadata->type > DEFAULT_META && metadata->type < HDF5_META) {
 		metadata->headerBuffer = calloc(DEF_HDR_LEN, sizeof(int8_t));
@@ -343,7 +415,15 @@ int _lofar_udp_metdata_setup_BASE(lofar_udp_metadata *metadata) {
 	return 0;
 }
 
-int _lofar_udp_metadata_parse_input_file(lofar_udp_metadata *metadata, const char inputFile[]) {
+/**
+ * @brief Parse an input metadata file containing beamctl commands and TSVs and configure the struct
+ *
+ * @param metadata	The struct to configure
+ * @param inputFile	The input file
+ *
+ * @return 0: success, <0: failure
+ */
+int32_t _lofar_udp_metadata_parse_input_file(lofar_udp_metadata *const metadata, const char inputFile[]) {
 	if (inputFile == NULL || !strnlen(inputFile, DEF_STR_LEN)) {
 		fprintf(stderr, "ERROR %s: Input file pointer is null, exiting.\n", __func__);
 		return -1;
@@ -361,7 +441,7 @@ int _lofar_udp_metadata_parse_input_file(lofar_udp_metadata *metadata, const cha
 	}
 
 
-	int32_t beamctlData[9] = {
+	int32_t beamctlData[9] = { // int32_t due to summation elements, rest are well-contained by int16_t
 		-1,         // Last RCU mode
 		INT16_MAX,    // Minimum subband
 		0,          // Sum of subbands
@@ -431,7 +511,16 @@ int _lofar_udp_metadata_parse_input_file(lofar_udp_metadata *metadata, const cha
 	return 0;
 }
 
-int _lofar_udp_metadata_parse_normal_file(lofar_udp_metadata *const metadata, FILE *const input, int32_t *const beamctlData) {
+/**
+ * @brief Parse an input file that contains beamctl commands and TSVs
+ *
+ * @param metadata 		The struct to configure
+ * @param input 		The input file
+ * @param beamctlData 	Limits on beam data from previously parsed files
+ *
+ * @return 0: success, <0: failure
+ */
+int32_t _lofar_udp_metadata_parse_normal_file(lofar_udp_metadata *const metadata, FILE *const input, int32_t *const beamctlData) {
 
 	char *inputLine = NULL, *strPtr = NULL;
 	size_t buffLen = 0;
@@ -491,8 +580,10 @@ int _lofar_udp_metadata_parse_normal_file(lofar_udp_metadata *const metadata, FI
 		} */
 
 
-		VERBOSE(printf("Beamctl data state: %d, %d, %d, %d, %d, %d\n", beamctlData[0], beamctlData[1], beamctlData[2], beamctlData[3], beamctlData[4], beamctlData[5]);
-			        VERBOSE(printf("Getting next line.\n")));
+		VERBOSE(
+			printf("Beamctl data state: %d, %d, %d, %d, %d, %d\n", beamctlData[0], beamctlData[1], beamctlData[2], beamctlData[3], beamctlData[4], beamctlData[5]);
+			        VERBOSE(printf("Getting next line.\n"))
+		);
 
 	}
 	// Free the getline buffer if it still exists (during testing this was raised as a non-free'd pointer)
@@ -502,13 +593,21 @@ int _lofar_udp_metadata_parse_normal_file(lofar_udp_metadata *const metadata, FI
 }
 
 
-__attribute__((unused)) int _lofar_udp_metadata_parse_yaml_file(lofar_udp_metadata *const metadata, FILE *const input, int32_t *const beamctlData) {
+__attribute__((unused)) int32_t _lofar_udp_metadata_parse_yaml_file(lofar_udp_metadata *const metadata, FILE *const input, int32_t *const beamctlData) {
 	fprintf(stderr, "WARNING: YAML files not currently supported, will attempt to fallback to plain text parser.\n");
 
 	return _lofar_udp_metadata_parse_normal_file(metadata, input, beamctlData);
 }
 
-int _lofar_udp_metadata_parse_reader(lofar_udp_metadata *metadata, const lofar_udp_reader *reader) {
+/**
+ * @brief Parse data from the sreader struct and update the metadata accordingly
+ *
+ * @param metadata 		Stuct to update
+ * @param[in] reader	Reader to parse
+ *
+ * @return 0: success, <0: failure
+ */
+int32_t _lofar_udp_metadata_parse_reader(lofar_udp_metadata *const metadata, const lofar_udp_reader *reader) {
 	// Sanity check the inputs
 	if (metadata == NULL || reader == NULL) {
 		fprintf(stderr, "ERROR: Input metadata/reader struct was null, exiting.\n");
@@ -539,8 +638,10 @@ int _lofar_udp_metadata_parse_reader(lofar_udp_metadata *metadata, const lofar_u
 			return -1;
 		}
 
-		VERBOSE(printf("%d, %d, %d, %d, %d\n", reader->input->numInputs, (reader->input->offsetPortCount), (beamletsPerPort), reader->meta->baseBeamlets[0],
-		               reader->meta->upperBeamlets[reader->meta->numPorts - 1]));
+		VERBOSE(
+			printf("%d, %d, %d, %d, %d\n", reader->input->numInputs, (reader->input->offsetPortCount), (beamletsPerPort), reader->meta->baseBeamlets[0],
+		               reader->meta->upperBeamlets[reader->meta->numPorts - 1])
+	    );
 		metadata->lowerBeamlet = (reader->input->offsetPortCount * beamletsPerPort) + reader->meta->baseBeamlets[0];
 		// Upper beamlet is exclusive in UPM, not inclusive like LOFAR inputs
 		metadata->upperBeamlet =
@@ -556,7 +657,7 @@ int _lofar_udp_metadata_parse_reader(lofar_udp_metadata *metadata, const lofar_u
 
 		int32_t subbandData[3] = { INT16_MAX, 0, -1 };
 		// Parse the new sub-set of beamlets
-		for (int beamlet = metadata->lowerBeamlet; beamlet < metadata->upperBeamlet; beamlet++) {
+		for (int8_t beamlet = metadata->lowerBeamlet; beamlet < metadata->upperBeamlet; beamlet++) {
 			// Edge case: undefined subband is used as a beamlet
 			VERBOSE(printf("Beamlet %d: Subband %d\n", beamlet, metadata->subbands[beamlet]));
 			if (metadata->subbands[beamlet] != -1) {
@@ -603,11 +704,11 @@ int _lofar_udp_metadata_parse_reader(lofar_udp_metadata *metadata, const lofar_u
 		metadata->upm_num_outputs = reader->meta->numOutputs;
 
 
-		lofar_udp_time_get_current_isot(reader, metadata->obs_utc_start, sizeof(metadata->obs_utc_start) / sizeof(metadata->obs_utc_start[0]));
+		lofar_udp_time_get_current_isot(reader, metadata->obs_utc_start, VAR_ARR_SIZE(metadata->obs_utc_start));
 		metadata->obs_mjd_start = lofar_udp_time_get_packet_time_mjd(reader->meta->inputData[0]);
-		lofar_udp_time_get_daq(reader, metadata->upm_daq, sizeof(metadata->upm_daq) / sizeof(metadata->upm_daq[0]));
+		lofar_udp_time_get_daq(reader, metadata->upm_daq, VAR_ARR_SIZE(metadata->upm_daq));
 
-		for (int port = 0; port < metadata->upm_num_inputs; port++) {
+		for (int8_t port = 0; port < metadata->upm_num_inputs; port++) {
 			if (strncpy(metadata->rawfile[port], reader->input->inputLocations[port], META_STR_LEN) != metadata->rawfile[port]) {
 				fprintf(stderr, "ERROR: Failed to copy raw filename %d to metadata struct, exiting.\n", port);
 				return -1;
@@ -618,7 +719,16 @@ int _lofar_udp_metadata_parse_reader(lofar_udp_metadata *metadata, const lofar_u
 	return 0;
 }
 
-int _lofar_udp_metadata_parse_beamctl(lofar_udp_metadata *const metadata, const char *inputLine, int32_t *const beamData) {
+/**
+ * @brief Parse a beamctl command to extract clock, beamlet and frequency information about the observation
+ *
+ * @param metadata		Struct to update
+ * @param[in] inputLine	Beamctl line to parse
+ * @param beamData		Beamlet information output
+ *
+ * @return
+ */
+int32_t _lofar_udp_metadata_parse_beamctl(lofar_udp_metadata *const metadata, const char *inputLine, int32_t *const beamData) {
 	char *strCopy = calloc(strlen(inputLine) + 1, sizeof(char));
 	if (strCopy == NULL) {
 		fprintf(stderr, "ERROR: Failed to allocate buffer for intermediate string copy, exiting.\n");
@@ -630,9 +740,7 @@ int _lofar_udp_metadata_parse_beamctl(lofar_udp_metadata *const metadata, const 
 		return -1;
 	}
 
-	char *workingPtr;
-
-	char *tokenPtr;
+	char *workingPtr, *tokenPtr;
 	char token[2] = " ";
 	char *inputPtr = strtok_r(strCopy, token, &tokenPtr);
 
@@ -716,7 +824,16 @@ int _lofar_udp_metadata_parse_beamctl(lofar_udp_metadata *const metadata, const 
 	return 0;
 }
 
-int _lofar_udp_metadata_parse_rcumode(lofar_udp_metadata *const metadata, const char *inputStr, int32_t *const beamctlData) {
+/**
+ * @brief Convert a rcumode/beand to clock and frequency information
+ *
+ * @param metadata 		Struct to update
+ * @param inputStr 		A string containing an observation mode/band
+ * @param beamctlData 	Beamlet information output
+ *
+ * @return 0: success, <0: failure
+ */
+int32_t _lofar_udp_metadata_parse_rcumode(lofar_udp_metadata *const metadata, const char *inputStr, int32_t *const beamctlData) {
 	int16_t workingInt = -1;
 	if (sscanf(inputStr, "%*[^=]=%hd", &(workingInt)) < 0) {
 		return -1;
@@ -746,7 +863,16 @@ int _lofar_udp_metadata_parse_rcumode(lofar_udp_metadata *const metadata, const 
 	return 0;
 }
 
-int _lofar_udp_metadata_parse_pointing(lofar_udp_metadata *metadata, const char inputStr[], int digi) {
+/**
+ * @brief Parse a pointing string and update the metadata struct
+ *
+ * @param metadata 	The struct to update
+ * @param inputStr 	The input pointing string <double>,<double>,<basis>
+ * @param[in] digi	Whether we are parsing a digidir, or anadir
+ *
+ * @return 0: success, <0: failure
+ */
+int32_t _lofar_udp_metadata_parse_pointing(lofar_udp_metadata *const metadata, const char inputStr[], const int8_t digi) {
 	double lon, lon_work, lat, lat_work, ra_s, dec_s;
 	int16_t ra[2], dec[2];
 	char basis[32];
@@ -816,9 +942,9 @@ int _lofar_udp_metadata_parse_pointing(lofar_udp_metadata *metadata, const char 
 	}
 
 	// Verify or set the basis
-	if (strlen(metadata->coord_basis) > 0) {
+	if (strnlen(metadata->coord_basis, META_STR_LEN) > 0) {
 		VERBOSE(printf("Basis already set, comparing...\n"));
-		if (strcmp(basis, metadata->coord_basis) != 0) {
+		if (strncmp(basis, metadata->coord_basis, 32) != 0) {
 			fprintf(stderr, "ERROR: Coordinate basis mismatch while parsing directions (digdir=%d), parsed %s vs struct %s, exiting.\n", digi, basis, metadata->coord_basis);
 			return -4;
 		}
@@ -833,8 +959,16 @@ int _lofar_udp_metadata_parse_pointing(lofar_udp_metadata *metadata, const char 
 	return 0;
 }
 
-int _lofar_udp_metadata_parse_subbands(lofar_udp_metadata *const metadata, const char *inputLine, int32_t *const results) {
-
+/**
+ * @brief Parse a subband string and update the metadata struct
+ *
+ * @param metadata		Struct to update
+ * @param[in] inputLine Subband string to parse
+ * @param results		Output metadata struct
+ *
+ * @return
+ */
+int32_t _lofar_udp_metadata_parse_subbands(lofar_udp_metadata *const metadata, const char *inputLine, int32_t *const results) {
 	if (metadata == NULL || inputLine == NULL || results == NULL) {
 		fprintf(stderr, "ERROR %s: Input is unallocated (%p, %p, %p), exiting.\n", __func__, metadata, inputLine, results);
 		return -1;
@@ -936,14 +1070,23 @@ int _lofar_udp_metadata_parse_subbands(lofar_udp_metadata *const metadata, const
 	return 0;
 }
 
-int _lofar_udp_metadata_get_tsv(const char *inputStr, const char *keyword, char *result) {
+/**
+ * @brief Parse an input line to extract a result for a given key
+ *
+ * @param[in] inputStr 	Stirng to parse
+ * @param[in] keyword 	Input keyword
+ * @param result	Output results
+ *
+ * @return
+ */
+int32_t _lofar_udp_metadata_get_tsv(const char *inputStr, const char *keyword, char *const result) {
 	char key[META_STR_LEN + 1];
 	if (sscanf(inputStr, "%64s\t%s", key, result) != 2) {
 		fprintf(stderr, "ERROR: Failed to get value for input '%s' keyword (parsed key/val of %s / %s), exiting.\n", keyword, key, result);
 		return -1;
 	}
 
-	if (strcmp(key, keyword) != 0) {
+	if (strncmp(key, keyword, META_STR_LEN * 2) != 0) {
 		fprintf(stderr, "ERROR: Keyword %s does not match parsed key %s, exiting.\n", keyword, key);
 		return -2;
 	}
@@ -953,11 +1096,28 @@ int _lofar_udp_metadata_get_tsv(const char *inputStr, const char *keyword, char 
 	return 0;
 }
 
-int _lofar_udp_metadata_count_csv(const char *inputStr) {
+/**
+ * @brief Count the number of CSV values in a given string
+ *
+ * @param[in] inputStr	Input string to parse
+ *
+ * @return < 1: Failure, > 1: number of elements
+ */
+int32_t _lofar_udp_metadata_count_csv(const char *inputStr) {
 	return _lofar_udp_metadata_parse_csv(inputStr, NULL, NULL, 0);
 }
 
-int16_t _lofar_udp_metadata_parse_csv(const char *inputStr, int16_t *const values, int32_t *const data, int16_t offset) {
+/**
+ * @brief Parse a string to extract and count the amount of CSV elements (ints expected)
+ *
+ * @param[in] inputStr	String to parse
+ * @param values 		Stores raw extract values
+ * @param data 			Stores counts, minima and maxima of the values parsed
+ * @param[in] offset	Apply an offset to every value encountered (summed with value)
+ *
+ * @return < 1: failure, > 1 number of elements counted
+ */
+int16_t _lofar_udp_metadata_parse_csv(const char *inputStr, int16_t *const values, int32_t *const data, const int16_t offset) {
 	if (inputStr == NULL) {
 		fprintf(stderr, "ERROR %s: Input is unallocated, exiting.\n", __func__);
 		return -1;
@@ -1074,7 +1234,14 @@ int16_t _lofar_udp_metadata_parse_csv(const char *inputStr, int16_t *const value
 	return counter;
 }
 
-int16_t _lofar_udp_metadata_get_clockmode(int16_t input) {
+/**
+ * @brief Convert a band/rcumode t the corresponding clock in MHz
+ *
+ * @param input	Lower Band value/RCU mode
+ *
+ * @return 160: 160MHz clock, 200: 200MHz clock, -1: failure
+ */
+int16_t _lofar_udp_metadata_get_clockmode(const int16_t input) {
 	switch (input) {
 		// RCU modes
 		case 1:
@@ -1101,7 +1268,14 @@ int16_t _lofar_udp_metadata_get_clockmode(int16_t input) {
 	}
 }
 
-int8_t _lofar_udp_metadata_get_rcumode(int16_t input) {
+/**
+ * @brief Convert an input into an RCU mode (from band or rcu mode)
+ *
+ * @param input	Input lower band/RCU mode
+ *
+ * @return 2 - 7: success, <0: failure
+ */
+int8_t _lofar_udp_metadata_get_rcumode(const int16_t input) {
 	if (input < 1) {
 		fprintf(stderr, "ERROR: Invalid input RCU mode %d, exiting.\n", input);
 		return -1;
@@ -1133,6 +1307,13 @@ int8_t _lofar_udp_metadata_get_rcumode(int16_t input) {
 	}
 }
 
+/**
+ * @brief Convert a string to a metadata enum
+ *
+ * @param input	Input string
+ *
+ * @return metadata_t
+ */
 metadata_t lofar_udp_metadata_string_to_meta(const char input[]) {
 	if (strstr(input, "GUPPI") != NULL)  {
 		return GUPPI;
@@ -1148,7 +1329,14 @@ metadata_t lofar_udp_metadata_string_to_meta(const char input[]) {
 	return NO_META;
 }
 
-int16_t _lofar_udp_metadata_get_beamlets(int8_t bitmode) {
+/**
+ * @brief Return the maximum number of beamlets per port for a given bitmode
+ *
+ * @param bitmode	The input bitmode
+ *
+ * @return > 0: success, <0: failure
+ */
+int16_t _lofar_udp_metadata_get_beamlets(const int8_t bitmode) {
 	switch(bitmode) {
 		case 4:
 			return 244;
@@ -1165,9 +1353,16 @@ int16_t _lofar_udp_metadata_get_beamlets(int8_t bitmode) {
 	}
 }
 
-int _lofar_udp_metadata_update_frequencies(lofar_udp_metadata *const metadata, int32_t *const subbandData) {
+/**
+ * @brief Given a parsed beamlet/subband array, update the metadata struct
+ *
+ * @param metadata 		Struct to configure
+ * @param subbandData 	Parsed subband data
+ *
+ * @return 0: success, <0: failure
+ */
+int32_t _lofar_udp_metadata_update_frequencies(lofar_udp_metadata *const metadata, const int32_t *subbandData) {
 	// Update the metadata frequency / channel parameters
-
 	if (metadata == NULL || subbandData == NULL) {
 		fprintf(stderr, "ERROR %s: Passed null metadata struct (%p) / subband data (%p), exiting.\n", __func__, metadata, subbandData);
 		return -1;
@@ -1197,7 +1392,14 @@ int _lofar_udp_metadata_update_frequencies(lofar_udp_metadata *const metadata, i
 	return 0;
 }
 
-int _lofar_udp_metadata_processing_mode_metadata(lofar_udp_metadata *metadata) {
+/**
+ * @brief	Update metadata information based on the set processing mode
+ *
+ * @param metadata	Struct to update
+ *
+ * @return 0: success, <0: failure
+ */
+int32_t _lofar_udp_metadata_processing_mode_metadata(lofar_udp_metadata *const metadata) {
 
 	if (metadata == NULL) {
 		return -1;
@@ -1235,7 +1437,7 @@ int _lofar_udp_metadata_processing_mode_metadata(lofar_udp_metadata *metadata) {
 			return -1;
 	}
 
-	if (metadata->upm_bandflip) {
+	if (metadata->upm_bandflip && metadata->fbottom > metadata->ftop) {
 		double tmp = metadata->ftop;
 		metadata->ftop = metadata->fbottom;
 		metadata->fbottom = tmp;
@@ -1250,7 +1452,7 @@ int _lofar_udp_metadata_processing_mode_metadata(lofar_udp_metadata *metadata) {
 	metadata->tsamp_raw = samplingTime;
 
 
-	for (int i = 0; i < MAX_OUTPUT_DIMS; i++) {
+	for (int8_t i = 0; i < MAX_OUTPUT_DIMS; i++) {
 		if (strncpy(metadata->upm_outputfmt[i], "", META_STR_LEN) != metadata->upm_outputfmt[i]) {
 			fprintf(stderr, "ERROR: Failed to reset upm_outputfmt_comment field %d, exiting.\n", i);
 			return -1;
@@ -1462,7 +1664,7 @@ int _lofar_udp_metadata_processing_mode_metadata(lofar_udp_metadata *metadata) {
 		case STOKES_U_REV ... STOKES_U_DS16_REV:
 		case STOKES_V_REV ... STOKES_V_DS16_REV:
 			metadata->upm_rel_outputs[0] = 1;
-			for (int i = 1; i < MAX_OUTPUT_DIMS; i++) {
+			for (int8_t i = 1; i < MAX_OUTPUT_DIMS; i++) {
 				metadata->upm_rel_outputs[i] = 0;
 			}
 			break;
@@ -1475,7 +1677,7 @@ int _lofar_udp_metadata_processing_mode_metadata(lofar_udp_metadata *metadata) {
 		// Stokes IQUV
 		case STOKES_IQUV ... STOKES_IQUV_DS16:
 		case STOKES_IQUV_REV ... STOKES_IQUV_DS16_REV:
-			for (int i = 0; i < MAX_OUTPUT_DIMS; i++) {
+			for (int8_t i = 0; i < MAX_OUTPUT_DIMS; i++) {
 				metadata->upm_rel_outputs[i] = 1;
 			}
 			break;
@@ -1483,7 +1685,7 @@ int _lofar_udp_metadata_processing_mode_metadata(lofar_udp_metadata *metadata) {
 		// Split by antenna polarisation, but not real/complex
 		case TIME_MAJOR_ANT_POL:
 		case TIME_MAJOR_ANT_POL_FLOAT:
-			for (int i = 0; i < MAX_OUTPUT_DIMS; i++) {
+			for (int8_t i = 0; i < MAX_OUTPUT_DIMS; i++) {
 				if (i < 2) {
 					metadata->upm_rel_outputs[i] = 1;
 				} else {
@@ -1495,7 +1697,7 @@ int _lofar_udp_metadata_processing_mode_metadata(lofar_udp_metadata *metadata) {
 		// Stokes IV
 		case STOKES_IV ... STOKES_IV_DS16:
 		case STOKES_IV_REV ... STOKES_IV_DS16_REV:
-			for (int i = 0; i < MAX_OUTPUT_DIMS; i++) {
+			for (int8_t i = 0; i < MAX_OUTPUT_DIMS; i++) {
 				if (i == 0 || i == 3) {
 					metadata->upm_rel_outputs[i] = 1;
 				} else {
@@ -1593,8 +1795,15 @@ int _lofar_udp_metadata_processing_mode_metadata(lofar_udp_metadata *metadata) {
 	return 0;
 }
 
-
-int _lofar_udp_metadata_handle_external_factors(lofar_udp_metadata *metadata, const metadata_config *config) {
+/**
+ * @brief Apply the external channelisation and downsampling factors to the metadata struct
+ *
+ * @param metadata	Struct to update
+ * @param[in] config	Config to parse
+ *
+ * @return
+ */
+int32_t _lofar_udp_metadata_handle_external_factors(lofar_udp_metadata *const metadata, const metadata_config *config) {
 	if (metadata == NULL || config == NULL) {
 		fprintf(stderr, "ERROR %s: Passed parameter was null (metadata: %p, config %p), exiting.\n", __func__, metadata, config);
 		return -1;
@@ -1662,7 +1871,7 @@ int _lofar_udp_metadata_handle_external_factors(lofar_udp_metadata *metadata, co
  *
  * @return     0: Success, 1: Failure
  */
-int _lofar_udp_metadata_get_station_name(int stationID, char *stationCode) {
+int32_t _lofar_udp_metadata_get_station_name(const int stationID, char *const stationCode) {
 	if (stationCode == NULL) {
 		return -1;
 	}

@@ -34,8 +34,8 @@ metadata_t lofar_udp_metadata_parse_type_output(const char optargc[]);
 metadata_t lofar_udp_metadata_string_to_meta(const char input[]);
 
 
-int lofar_udp_metadata_setup(lofar_udp_metadata *metadata, const lofar_udp_reader *reader, const metadata_config *config);
-int lofar_udp_metadata_update(const lofar_udp_reader *reader, lofar_udp_metadata *metadata, int newObs);
+int32_t lofar_udp_metadata_setup(lofar_udp_metadata *metadata, const lofar_udp_reader *reader, const metadata_config *config);
+int32_t lofar_udp_metadata_update(const lofar_udp_reader *reader, lofar_udp_metadata *metadata, int8_t newObs);
 int64_t lofar_udp_metadata_write_file(const lofar_udp_reader *reader, lofar_udp_io_write_config *const outConfig, int8_t outp, lofar_udp_metadata *const metadata, int8_t *headerBuffer, // NOLINT(readability-avoid-const-params-in-decls)
                                       int64_t headerBufferSize, int8_t newObs);
 void lofar_udp_metadata_cleanup(lofar_udp_metadata *metadata);
@@ -43,13 +43,13 @@ void lofar_udp_metadata_cleanup(lofar_udp_metadata *metadata);
 // Internal representations
 
 // Useful elsewhere
-int _lofar_udp_metadata_get_station_name(int stationID, char *stationCode);
+int32_t _lofar_udp_metadata_get_station_name(int stationID, char *stationCode);
 
 //int lofar_udp_metadata_setup_DADA(lofar_udp_metadata *metadata); // Main setup call populates the DADA struct
 int _lofar_udp_metadata_setup_GUPPI(lofar_udp_metadata *metadata);
 int _lofar_udp_metadata_setup_SIGPROC(lofar_udp_metadata *metadata);
 
-int _lofar_udp_metadata_update_BASE(const lofar_udp_reader *reader, lofar_udp_metadata *metadata, int newObs);
+int32_t _lofar_udp_metadata_update_BASE(const lofar_udp_reader *reader, lofar_udp_metadata *metadata, int8_t newObs);
 int _lofar_udp_metadata_update_DADA(lofar_udp_metadata *metadata, int newObs);
 int _lofar_udp_metadata_update_GUPPI(lofar_udp_metadata *metadata, int newObs);
 int _lofar_udp_metadata_update_SIGPROC(lofar_udp_metadata *metadata, int newObs);
@@ -67,24 +67,24 @@ int _lofar_udp_metadata_write_HDF5(const sigproc_hdr *hdr, char * const headerBu
 
 
 // Internal functions
-int _lofar_udp_metadata_parse_input_file(lofar_udp_metadata *metadata, const char inputFile[]);
-int _lofar_udp_metadata_parse_normal_file(lofar_udp_metadata *const metadata, FILE *const input, int32_t *const beamctlData);
-int _lofar_udp_metadata_parse_yaml_file(lofar_udp_metadata *const metadata, FILE *const input, int32_t *const beamctlData);
-int _lofar_udp_metadata_parse_reader(lofar_udp_metadata *metadata, const lofar_udp_reader *reader);
-int _lofar_udp_metadata_parse_subbands(lofar_udp_metadata *const metadata, const char *inputLine, int32_t *const results);
-int _lofar_udp_metadata_parse_pointing(lofar_udp_metadata *metadata, const char inputStr[], int digi);
-int _lofar_udp_metadata_parse_rcumode(lofar_udp_metadata *const metadata, const char *inputStr, int32_t *const beamctlData);
+int32_t _lofar_udp_metadata_parse_input_file(lofar_udp_metadata *metadata, const char inputFile[]);
+int32_t _lofar_udp_metadata_parse_normal_file(lofar_udp_metadata *const metadata, FILE *const input, int32_t *const beamctlData);
+int32_t _lofar_udp_metadata_parse_yaml_file(lofar_udp_metadata *const metadata, FILE *const input, int32_t *const beamctlData);
+int32_t _lofar_udp_metadata_parse_reader(lofar_udp_metadata *metadata, const lofar_udp_reader *reader);
+int32_t _lofar_udp_metadata_parse_subbands(lofar_udp_metadata *const metadata, const char *inputLine, int32_t *const results);
+int32_t _lofar_udp_metadata_parse_pointing(lofar_udp_metadata *metadata, const char inputStr[], int8_t digi);
+int32_t _lofar_udp_metadata_parse_rcumode(lofar_udp_metadata *const metadata, const char *inputStr, int32_t *const beamctlData);
 int16_t _lofar_udp_metadata_parse_csv(const char *inputStr, int16_t *const values, int32_t *const data, int16_t offset);
-int _lofar_udp_metadata_count_csv(const char *inputStr);
-int _lofar_udp_metadata_get_tsv(const char *inputStr, const char *keyword, char *result);
-int _lofar_udp_metadata_parse_beamctl(lofar_udp_metadata *const metadata, const char *inputLine, int32_t *const beamData);
+int32_t _lofar_udp_metadata_count_csv(const char *inputStr);
+int32_t _lofar_udp_metadata_get_tsv(const char *inputStr, const char *keyword, char *result);
+int32_t _lofar_udp_metadata_parse_beamctl(lofar_udp_metadata *const metadata, const char *inputLine, int32_t *const beamData);
 int16_t _lofar_udp_metadata_get_clockmode(int16_t input);
 int8_t _lofar_udp_metadata_get_rcumode(int16_t input);
 int16_t _lofar_udp_metadata_get_beamlets(int8_t bitmode);
-int _lofar_udp_metadata_processing_mode_metadata(lofar_udp_metadata *metadata);
-int _lofar_udp_metadata_update_frequencies(lofar_udp_metadata *const metadata, int32_t *const subbandData);
-int _lofar_udp_metadata_handle_external_factors(lofar_udp_metadata *metadata, const metadata_config *config);
-int _lofar_udp_metdata_setup_BASE(lofar_udp_metadata *metadata);
+int32_t _lofar_udp_metadata_processing_mode_metadata(lofar_udp_metadata *metadata);
+int32_t _lofar_udp_metadata_update_frequencies(lofar_udp_metadata *const metadata, const int32_t *subbandData);
+int32_t _lofar_udp_metadata_handle_external_factors(lofar_udp_metadata *metadata, const metadata_config *config);
+int32_t _lofar_udp_metdata_setup_BASE(lofar_udp_metadata *metadata);
 
 // Internal variable checks
 int _isEmpty(const char *string);
