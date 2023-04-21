@@ -181,15 +181,18 @@ lofar_udp_metadata* lofar_udp_metadata_alloc() {
 }
 
 /**
- * @brief Free a standard metadata struct
+ * @brief Cleanup a metadata struct
+ *
+ * @param meta	The struct to cleanup
  */
-void lofar_udp_metadata_cleanup(lofar_udp_metadata* hdr) {
-	if (hdr) {
-		FREE_NOT_NULL(hdr->headerBuffer);
-		FREE_NOT_NULL(hdr->output.sigproc);
-		FREE_NOT_NULL(hdr->output.guppi);
+void lofar_udp_metadata_cleanup(lofar_udp_metadata *meta) {
+	if (meta != NULL) {
+		if (meta->output.sigproc != NULL) {
+			sigproc_hdr_cleanup(meta->output.sigproc);
+		}
+		FREE_NOT_NULL(meta->output.guppi);
 	}
-	FREE_NOT_NULL(hdr);
+	FREE_NOT_NULL(meta);
 }
 
 /**

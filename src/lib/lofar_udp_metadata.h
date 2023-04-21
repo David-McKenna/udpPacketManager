@@ -38,7 +38,6 @@ int32_t lofar_udp_metadata_setup(lofar_udp_metadata *metadata, const lofar_udp_r
 int32_t lofar_udp_metadata_update(const lofar_udp_reader *reader, lofar_udp_metadata *metadata, int8_t newObs);
 int64_t lofar_udp_metadata_write_file(const lofar_udp_reader *reader, lofar_udp_io_write_config *const outConfig, int8_t outp, lofar_udp_metadata *const metadata, int8_t *headerBuffer, // NOLINT(readability-avoid-const-params-in-decls)
                                       int64_t headerBufferSize, int8_t newObs);
-void lofar_udp_metadata_cleanup(lofar_udp_metadata *metadata);
 
 // Internal representations
 

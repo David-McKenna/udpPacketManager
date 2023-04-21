@@ -204,7 +204,7 @@ TEST(LibReaderTests, PreprocessingRawData) {
 	//int lofar_udp_parse_headers(lofar_udp_obs_meta *meta, const int8_t header[MAX_NUM_PORTS][UDPHDRLEN], const int16_t beamletLimits[2])
 	//void _lofar_udp_parse_header_extract_metadata(int port, lofar_udp_obs_meta *meta, const int8_t header[UDPHDRLEN], const int16_t beamletLimits[2])
 	{
-		SCOPED_TRACE("_lofar_udp_parse_headers");
+		SCOPED_TRACE("_lofar_udp_parse_header_buffers");
 
 		lofar_udp_config *config = config_setup();
 		config->packetsReadMax = -1;
@@ -227,31 +227,31 @@ TEST(LibReaderTests, PreprocessingRawData) {
 
 		int16_t beamletLimits[2] = {0, 0};
 		meta->numPorts = MAX_NUM_PORTS;
-		EXPECT_EQ(0, _lofar_udp_parse_headers(meta, headers, beamletLimits));
+		EXPECT_EQ(0, _lofar_udp_parse_header_buffers(meta, headers, beamletLimits));
 
 		*((uint8_t *) &(headers[0][CEP_HDR_NBEAM_OFFSET])) -= 122;
-		EXPECT_EQ(0, _lofar_udp_parse_headers(meta, headers, beamletLimits));
+		EXPECT_EQ(0, _lofar_udp_parse_header_buffers(meta, headers, beamletLimits));
 		*((uint8_t *) &(headers[0][CEP_HDR_NBEAM_OFFSET])) += 122;
 
 		headers[0][CEP_HDR_RSP_VER_OFFSET] -= 1;
-		EXPECT_EQ(-1, _lofar_udp_parse_headers(meta, headers, beamletLimits));
+		EXPECT_EQ(-1, _lofar_udp_parse_header_buffers(meta, headers, beamletLimits));
 		headers[0][CEP_HDR_RSP_VER_OFFSET] += 1;
 
 		*((int16_t *) &(headers[1][CEP_HDR_STN_ID_OFFSET])) -= 64;
-		EXPECT_EQ(0, _lofar_udp_parse_headers(meta, headers, beamletLimits));
+		EXPECT_EQ(0, _lofar_udp_parse_header_buffers(meta, headers, beamletLimits));
 		*((int16_t *) &(headers[1][CEP_HDR_STN_ID_OFFSET])) += 64;
 		source = (lofar_source_bytes *) &(headers[0][CEP_HDR_SRC_OFFSET]);
 
 		// source->bitMode
 		source->bitMode = 1;
-		EXPECT_EQ(-1, _lofar_udp_parse_headers(meta, headers, beamletLimits));
+		EXPECT_EQ(-1, _lofar_udp_parse_header_buffers(meta, headers, beamletLimits));
 		source->bitMode = 0;
-		EXPECT_EQ(-1, _lofar_udp_parse_headers(meta, headers, beamletLimits));
+		EXPECT_EQ(-1, _lofar_udp_parse_header_buffers(meta, headers, beamletLimits));
 		source->bitMode = 2;
 
 		// source->clockBit
 		source->clockBit = 1;
-		EXPECT_EQ(-1, _lofar_udp_parse_headers(meta, headers, beamletLimits));
+		EXPECT_EQ(-1, _lofar_udp_parse_header_buffers(meta, headers, beamletLimits));
 		source->clockBit = 0;
 
 
@@ -260,21 +260,21 @@ TEST(LibReaderTests, PreprocessingRawData) {
 		// Varying beamlet limits will change the fraction of data processed, and possibly number of
 		//  ports processed in total
 		beamletLimits[0] = 1; beamletLimits[1] = 733;
-		EXPECT_EQ(0, _lofar_udp_parse_headers(meta, headers, beamletLimits));
+		EXPECT_EQ(0, _lofar_udp_parse_header_buffers(meta, headers, beamletLimits));
 		EXPECT_EQ(MAX_NUM_PORTS * UDPMAXBEAM, meta->totalRawBeamlets);
 		FREE_NOT_NULL(meta);
 		meta = _lofar_udp_configure_obs_meta(config);
 		ASSERT_NE(nullptr, meta);
 
 		beamletLimits[0] = 1; beamletLimits[1] = 246;
-		EXPECT_EQ(0, _lofar_udp_parse_headers(meta, headers, beamletLimits));
+		EXPECT_EQ(0, _lofar_udp_parse_header_buffers(meta, headers, beamletLimits));
 		EXPECT_EQ(2 * UDPMAXBEAM, meta->totalRawBeamlets);
 		EXPECT_EQ(beamletLimits[1] - beamletLimits[0], meta->totalProcBeamlets);
 		EXPECT_EQ(beamletLimits[0], meta->baseBeamlets[0]);
 		EXPECT_EQ(UDPMAXBEAM, meta->upperBeamlets[0]);
 
 		beamletLimits[0] = 6; beamletLimits[1] = 245;
-		EXPECT_EQ(0, _lofar_udp_parse_headers(meta, headers, beamletLimits));
+		EXPECT_EQ(0, _lofar_udp_parse_header_buffers(meta, headers, beamletLimits));
 		EXPECT_EQ(2 * UDPMAXBEAM, meta->totalRawBeamlets);
 		EXPECT_EQ(beamletLimits[1] - beamletLimits[0], meta->totalProcBeamlets);
 		EXPECT_EQ(beamletLimits[0], meta->baseBeamlets[0]);
@@ -283,14 +283,14 @@ TEST(LibReaderTests, PreprocessingRawData) {
 		EXPECT_EQ(1, meta->upperBeamlets[1]);
 
 		beamletLimits[0] = 1; beamletLimits[1] = 244;
-		EXPECT_EQ(0, _lofar_udp_parse_headers(meta, headers, beamletLimits));
+		EXPECT_EQ(0, _lofar_udp_parse_header_buffers(meta, headers, beamletLimits));
 		EXPECT_EQ(UDPMAXBEAM, meta->totalRawBeamlets);
 		EXPECT_EQ(beamletLimits[1] - beamletLimits[0], meta->totalProcBeamlets);
 		EXPECT_EQ(beamletLimits[0], meta->baseBeamlets[0]);
 		EXPECT_EQ(UDPMAXBEAM, meta->upperBeamlets[0]);
 
 		beamletLimits[0] = 1; beamletLimits[1] = 4;
-		EXPECT_EQ(0, _lofar_udp_parse_headers(meta, headers, beamletLimits));
+		EXPECT_EQ(0, _lofar_udp_parse_header_buffers(meta, headers, beamletLimits));
 		EXPECT_EQ(UDPMAXBEAM, meta->totalRawBeamlets);
 		EXPECT_EQ(beamletLimits[1] - beamletLimits[0], meta->totalProcBeamlets);
 		EXPECT_EQ(beamletLimits[0], meta->baseBeamlets[0]);

@@ -340,23 +340,6 @@ int64_t _lofar_udp_metadata_write_file_force(const lofar_udp_reader *reader, lof
 }
 
 /**
- * @brief Cleanup a metadata struct
- *
- * @param meta	The struct to cleanup
- */
-void lofar_udp_metadata_cleanup(lofar_udp_metadata *meta) {
-	if (meta != NULL) {
-		if (meta->output.sigproc != NULL) {
-			FREE_NOT_NULL(meta->output.sigproc->fchannel);
-		}
-
-		FREE_NOT_NULL(meta->output.sigproc);
-		FREE_NOT_NULL(meta->output.guppi);
-	}
-	FREE_NOT_NULL(meta);
-}
-
-/**
  * @brief Perform basic initialisation of parameters of a metadata struct
  *
  * @param metadata	Struct to be initialised
@@ -657,7 +640,7 @@ int32_t _lofar_udp_metadata_parse_reader(lofar_udp_metadata *const metadata, con
 
 		int32_t subbandData[3] = { INT16_MAX, 0, -1 };
 		// Parse the new sub-set of beamlets
-		for (int8_t beamlet = metadata->lowerBeamlet; beamlet < metadata->upperBeamlet; beamlet++) {
+		for (int16_t beamlet = metadata->lowerBeamlet; beamlet < metadata->upperBeamlet; beamlet++) {
 			// Edge case: undefined subband is used as a beamlet
 			VERBOSE(printf("Beamlet %d: Subband %d\n", beamlet, metadata->subbands[beamlet]));
 			if (metadata->subbands[beamlet] != -1) {
