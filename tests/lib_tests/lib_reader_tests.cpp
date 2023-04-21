@@ -202,15 +202,15 @@ TEST(LibReaderTests, PreprocessingRawData) {
 	}
 
 	//int lofar_udp_parse_headers(lofar_udp_obs_meta *meta, const int8_t header[MAX_NUM_PORTS][UDPHDRLEN], const int16_t beamletLimits[2])
-	//void lofar_udp_parse_extract_header_metadata(int port, lofar_udp_obs_meta *meta, const int8_t header[UDPHDRLEN], const int16_t beamletLimits[2])
+	//void _lofar_udp_parse_header_extract_metadata(int port, lofar_udp_obs_meta *meta, const int8_t header[UDPHDRLEN], const int16_t beamletLimits[2])
 	{
 		SCOPED_TRACE("_lofar_udp_parse_headers");
 
-		lofar_udp_obs_meta *meta = _lofar_udp_obs_meta_alloc();
 		lofar_udp_config *config = config_setup();
 		config->packetsReadMax = -1;
-		_lofar_udp_configure_obs_meta(config, meta);
-		EXPECT_EQ(LONG_MAX, meta->packetsReadMax);
+		lofar_udp_obs_meta *meta = _lofar_udp_configure_obs_meta(config);
+		ASSERT_NE(nullptr, meta);
+		EXPECT_EQ(-1, meta->packetsReadMax);
 
 
 
@@ -262,7 +262,9 @@ TEST(LibReaderTests, PreprocessingRawData) {
 		beamletLimits[0] = 1; beamletLimits[1] = 733;
 		EXPECT_EQ(0, _lofar_udp_parse_headers(meta, headers, beamletLimits));
 		EXPECT_EQ(MAX_NUM_PORTS * UDPMAXBEAM, meta->totalRawBeamlets);
-		_lofar_udp_configure_obs_meta(config, meta);
+		FREE_NOT_NULL(meta);
+		meta = _lofar_udp_configure_obs_meta(config);
+		ASSERT_NE(nullptr, meta);
 
 		beamletLimits[0] = 1; beamletLimits[1] = 246;
 		EXPECT_EQ(0, _lofar_udp_parse_headers(meta, headers, beamletLimits));
@@ -305,7 +307,7 @@ TEST(LibReaderTests, PreprocessingRawData) {
 TEST(LibReaderTests, PreprocessingReader) {
 	lofar_udp_reader *reader = reader_setup(150);
 
-	//int lofar_udp_skip_to_packet(lofar_udp_reader *reader)
+	//int _lofar_udp_skip_to_packet(lofar_udp_reader *reader)
 	//int lofar_udp_get_first_packet_alignment(lofar_udp_reader *reader)
 
 	{

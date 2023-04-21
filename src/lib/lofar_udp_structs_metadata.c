@@ -197,7 +197,7 @@ void lofar_udp_metadata_cleanup(lofar_udp_metadata* hdr) {
  *
  * @return Allocated and initialised struct, or NULL
  */
-sigproc_hdr* sigproc_hdr_alloc(int32_t fchannels) {
+sigproc_hdr* sigproc_hdr_alloc(const int32_t fchannels) {
 	DEFAULT_STRUCT_ALLOC(sigproc_hdr, hdr, sigproc_hdr_default, ;, NULL);
 
 	if (fchannels) {

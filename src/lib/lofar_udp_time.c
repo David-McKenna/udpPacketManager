@@ -115,7 +115,7 @@ double lofar_udp_time_get_packet_time_mjd(const int8_t *inputData) {
  * @param[out]     stringBuff	The output time string buffer
  * @param[in]      strlen		The output string buffer length
  */
-void lofar_udp_time_get_daq(const lofar_udp_reader *reader, char *stringBuff, int strlen) {
+void lofar_udp_time_get_daq(const lofar_udp_reader *reader, char *stringBuff, const int32_t strlen) {
 	// Get the current time information
 	const double startTime = lofar_udp_time_get_packet_time(reader->meta->inputData[0]);
 	const time_t startTimeUnix = (unsigned int) startTime;
