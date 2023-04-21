@@ -4,28 +4,28 @@
 
 
 TEST(LibStructsTests, NormalAllocTests) {
-	// lofar_udp_obs_meta *lofar_udp_obs_meta_alloc()
+	// lofar_udp_obs_meta *_lofar_udp_obs_meta_alloc()
 	SCOPED_TRACE("lofar_udp_setup_allocs");
 
-	lofar_udp_obs_meta *meta = lofar_udp_obs_meta_alloc();
+	lofar_udp_obs_meta *meta = _lofar_udp_obs_meta_alloc();
 	EXPECT_NE(nullptr, meta);
 
-	//lofar_udp_reader* lofar_udp_reader_alloc(lofar_udp_obs_meta *meta)
-	//lofar_udp_io_read_config* lofar_udp_io_alloc_read()
-	lofar_udp_reader* reader = lofar_udp_reader_alloc(meta);
+	//lofar_udp_reader* _lofar_udp_reader_alloc(lofar_udp_obs_meta *meta)
+	//lofar_udp_io_read_config* lofar_udp_io_read_alloc()
+	lofar_udp_reader* reader = _lofar_udp_reader_alloc(meta);
 	EXPECT_NE(nullptr, reader);
 	free(meta);
 	free(reader->input);
 	free(reader);
 
 	//lofar_udp_config* lofar_udp_config_alloc()
-	//lofar_udp_calibration* lofar_udp_calibration_alloc()
+	//lofar_udp_calibration* _lofar_udp_calibration_alloc()
 	lofar_udp_config *config = lofar_udp_config_alloc();
 	EXPECT_NE(nullptr, config);
 	lofar_udp_config_cleanup(config);
 
-	//lofar_udp_io_write_config* lofar_udp_io_alloc_write()
-	lofar_udp_io_write_config *output = lofar_udp_io_alloc_write();
+	//lofar_udp_io_write_config* lofar_udp_io_write_alloc()
+	lofar_udp_io_write_config *output = lofar_udp_io_write_alloc();
 	EXPECT_NE(nullptr, output);
 	free(output);
 }

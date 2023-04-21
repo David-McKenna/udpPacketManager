@@ -4,15 +4,18 @@
 #include "lofar_udp_structs_metadata.h"
 
 // Input includes
-// Unlock advanced ZSTD features
+// Unlock advanced/experimental ZSTD features
 #define ZSTD_STATIC_LINKING_ONLY 1
 
+#include <stdio.h>
 #include <zstd.h>
 #include <hdf5.h>
 
 #ifdef NODADA
-#define key_t int32_t
-#endif
+// key_t include
+#define  _XOPEN_SOURCE
+#include <sys/types.h>
+#endif // End of NODADA
 
 // PSRDADA include may not be available
 #ifndef DADA_INCLUDES
@@ -27,8 +30,7 @@
 #endif // End of DADA_INCLUDES
 
 
-#include <stdio.h>
-
+// Calibration configuration, mostly superseded, fold into config/reader?
 typedef struct lofar_udp_calibration {
 	// The current calibration step we are on and the amount that have been generated
 	int32_t calibrationStepsGenerated;
@@ -312,14 +314,15 @@ extern "C" {
 // External
 lofar_udp_config *lofar_udp_config_alloc();
 void lofar_udp_config_cleanup(lofar_udp_config *config);
+metadata_config* lofar_udp_metadata_config_alloc();
+lofar_udp_io_read_config *lofar_udp_io_read_alloc();
+lofar_udp_io_write_config *lofar_udp_io_write_alloc();
 
 // Internal
-metadata_config* lofar_udp_metadata_config_alloc();
-lofar_udp_calibration *lofar_udp_calibration_alloc();
-lofar_udp_obs_meta *lofar_udp_obs_meta_alloc();
-lofar_udp_reader *lofar_udp_reader_alloc(lofar_udp_obs_meta *meta); // Reminder that reader is always built AFTER meta parsing
-lofar_udp_io_read_config *lofar_udp_io_alloc_read();
-lofar_udp_io_write_config *lofar_udp_io_alloc_write();
+lofar_udp_calibration *_lofar_udp_calibration_alloc();
+lofar_udp_obs_meta *_lofar_udp_obs_meta_alloc();
+lofar_udp_reader *_lofar_udp_reader_alloc(lofar_udp_obs_meta *meta); // Reminder that reader is always built AFTER meta parsing
+
 
 
 #ifdef __cplusplus

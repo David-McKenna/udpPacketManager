@@ -871,7 +871,7 @@ lofar_udp_reader *lofar_udp_reader_setup(lofar_udp_config *config) {
 	}
 
 	// Setup the metadata struct
-	lofar_udp_obs_meta *meta = lofar_udp_obs_meta_alloc();
+	lofar_udp_obs_meta *meta = _lofar_udp_obs_meta_alloc();
 	CHECK_ALLOC_NOCLEAN(meta, NULL);
 	_lofar_udp_configure_obs_meta(config, meta);
 
@@ -1054,7 +1054,7 @@ lofar_udp_reader *lofar_udp_reader_setup(lofar_udp_config *config) {
 
 
 	// Allocate the structs and initialise them
-	lofar_udp_reader *reader = lofar_udp_reader_alloc(meta);
+	lofar_udp_reader *reader = _lofar_udp_reader_alloc(meta);
 
 	// Initialise the reader struct from config
 	reader->input->readerType = config->readerType;

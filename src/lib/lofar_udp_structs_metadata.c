@@ -166,6 +166,11 @@ const sigproc_hdr sigproc_hdr_default = {
 	.period = -1.0
 };
 
+/**
+ * @brief Allocate a standard metadata struct and perform all initialisation needed.
+ *
+ * @return Allocated and initialised struct, or NULL
+ */
 lofar_udp_metadata* lofar_udp_metadata_alloc() {
 	DEFAULT_STRUCT_ALLOC(lofar_udp_metadata, meta, lofar_udp_metadata_default, ;, NULL);
 	ARR_INIT(meta->subbands, MAX_NUM_PORTS * UDPMAXBEAM, -1);
@@ -174,7 +179,25 @@ lofar_udp_metadata* lofar_udp_metadata_alloc() {
 
 	return meta;
 }
-sigproc_hdr* sigproc_hdr_alloc(uint64_t fchannels) {
+
+/**
+ * @brief Free a standard metadata struct
+ */
+void lofar_udp_metadata_cleanup(lofar_udp_metadata* hdr) {
+	if (hdr) {
+		FREE_NOT_NULL(hdr->headerBuffer);
+		FREE_NOT_NULL(hdr->output.sigproc);
+		FREE_NOT_NULL(hdr->output.guppi);
+	}
+	FREE_NOT_NULL(hdr);
+}
+
+/**
+ * @brief Allocate a Sigproc metadata struct and perform all initialisation needed.
+ *
+ * @return Allocated and initialised struct, or NULL
+ */
+sigproc_hdr* sigproc_hdr_alloc(int32_t fchannels) {
 	DEFAULT_STRUCT_ALLOC(sigproc_hdr, hdr, sigproc_hdr_default, ;, NULL);
 
 	if (fchannels) {
@@ -186,6 +209,22 @@ sigproc_hdr* sigproc_hdr_alloc(uint64_t fchannels) {
 
 	return hdr;
 }
+
+/**
+ * @brief Free a Sigproc metadata struct pointer
+ */
+void sigproc_hdr_cleanup(sigproc_hdr *hdr) {
+	if (hdr) {
+		FREE_NOT_NULL(hdr->fchannel);
+	}
+	FREE_NOT_NULL(hdr);
+}
+
+/**
+ * @brief Allocate a GUPPI metadata struct and perform all initialisation needed.
+ *
+ * @return Allocated and initialised struct, or NULL
+ */
 guppi_hdr* guppi_hdr_alloc() {
 	DEFAULT_STRUCT_ALLOC(guppi_hdr, hdr, guppi_hdr_default, ;, NULL);
 

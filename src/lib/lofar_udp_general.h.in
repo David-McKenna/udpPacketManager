@@ -110,6 +110,15 @@ typedef enum {
 	STOKES_IV_DS16_REV = 264,
 } processMode_t;
 
+// Internal references to output data's rough ordering
+typedef enum dataOrder {
+	UNKNOWN = 0,
+	TIME_MAJOR = 1,
+	FREQUENCY_MAJOR = 2,
+	PACKET_MAJOR = 4
+} dataOrder;
+
+
 // Reader / writer enums
 typedef enum {
 	NO_ACTION = -1,

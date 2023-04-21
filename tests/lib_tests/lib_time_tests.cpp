@@ -238,7 +238,7 @@ TEST(LibTimeTests, DerivedFromReader) {
 		dummyHeader header;
 		header.setClock(1);
 		lofar_udp_obs_meta *meta = (lofar_udp_obs_meta *) calloc(1, sizeof(lofar_udp_obs_meta));
-		lofar_udp_reader *reader = lofar_udp_reader_alloc(meta);
+		lofar_udp_reader *reader = _lofar_udp_reader_alloc(meta);
 		reader->meta->inputData[0] = &(header.data[0]);
 
 		const size_t outputStrLen = 64;

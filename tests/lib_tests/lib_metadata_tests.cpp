@@ -396,8 +396,8 @@ TEST(LibMetadataTests, ParserGlue) {
 	{
 		SCOPED_TRACE("lofar_udp_metadata_parse_reader");
 		lofar_udp_metadata *metadata = lofar_udp_metadata_alloc();
-		lofar_udp_obs_meta *meta = lofar_udp_obs_meta_alloc();
-		lofar_udp_reader *reader = lofar_udp_reader_alloc(meta);
+		lofar_udp_obs_meta *meta = _lofar_udp_obs_meta_alloc();
+		lofar_udp_reader *reader = _lofar_udp_reader_alloc(meta);
 
 		EXPECT_EQ(-1, _lofar_udp_metadata_parse_reader(nullptr, nullptr));
 		EXPECT_NONFATAL_FAILURE(EXPECT_TRUE(false);, "");
@@ -408,8 +408,8 @@ TEST(LibMetadataTests, ParserGlue) {
 
 TEST(LibMetadataTests, StructHandlers) {
 	lofar_udp_metadata *metadata = lofar_udp_metadata_alloc();
-	lofar_udp_obs_meta *meta = lofar_udp_obs_meta_alloc();
-	lofar_udp_reader *reader = lofar_udp_reader_alloc(meta);
+	lofar_udp_obs_meta *meta = _lofar_udp_obs_meta_alloc();
+	lofar_udp_reader *reader = _lofar_udp_reader_alloc(meta);
 	metadata_config *config = lofar_udp_metadata_config_alloc();
 	{
 		SCOPED_TRACE("lofar_udp_metadata_setup");
@@ -575,8 +575,8 @@ TEST(LibMetadataTests, StructHandlers) {
 		SCOPED_TRACE("_lofar_udp_metadata_update_BASE");
 		// int lofar_udp_metadata_update_BASE(const lofar_udp_reader *reader, lofar_udp_metadata *metadata, int newObs);
 		lofar_udp_reader_cleanup(reader);
-		meta = lofar_udp_obs_meta_alloc();
-		reader = lofar_udp_reader_alloc(meta);
+		meta = _lofar_udp_obs_meta_alloc();
+		reader = _lofar_udp_reader_alloc(meta);
 		lofar_udp_metadata_cleanup(metadata);
 		metadata = lofar_udp_metadata_alloc();
 		reader->meta->inputData[0] = packetHeader;

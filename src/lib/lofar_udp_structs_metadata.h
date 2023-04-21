@@ -3,17 +3,11 @@
 
 #include "lofar_udp_general.h"
 
-typedef enum dataOrder {
-	UNKNOWN = 0,
-	TIME_MAJOR = 1,
-	FREQUENCY_MAJOR = 2,
-	PACKET_MAJOR = 4
-} dataOrder;
-
-// Define a struct of variables for an ASCII header
+// Define a struct of variables for an GUPPI ASCII header
 //
-// We likely don't need half as many keys as provided here, see
+// We likely don't need half as many keys as provided here, see either
 // https://github.com/UCBerkeleySETI/rawspec/blob/master/rawspec_rawutils.c#L155
+// https://safe.nrao.edu/wiki/pub/Main/JoeBrandt/guppi_status_shmem.pdf
 //
 // char values are 68(+\0) in length as each entry is 80 chars, each key is up to 8
 // chars long, and parsing requires '= ' between the key and value. Two bytes
@@ -68,7 +62,7 @@ extern const guppi_hdr guppi_hdr_default;
 // http://sigproc.sourceforge.net/sigproc.pdf
 //
 // Notable features:
-//  - ra=dec values are double, where the digits describe the deg/minute/seconds, following ddmmss.sss
+//  - ra-dec values are doubles, where the digits describe the deg/minute/seconds, following ddmmss.sss
 //  - fchannel array support is included in the headed, but not likely to get implemented as nobody supports it
 typedef struct sigproc_hdr {
 	// Observatory information
@@ -115,8 +109,10 @@ extern const sigproc_hdr sigproc_hdr_default;
 // http://dspsr.sourceforge.net/manuals/dspsr/dada.shtml
 // + our own extras, the spec can be expanded as needed, extra variables are ignored.
 //
-// The DADA header format is the standard output format, similar to that of the ASCII format but with different keywords and slightly sorter line lengths.
+// The DADA header format is the standard output format, similar to that of the ASCII format but with different keywords and slightly shorter line lengths.
 // 64 + \0
+//
+// We will use this struct to derive all other header formats
 typedef struct lofar_udp_metadata {
 
 	metadata_t type;
@@ -127,7 +123,7 @@ typedef struct lofar_udp_metadata {
 
 	char instrument[META_STR_LEN + 1]; // Standard
 	char telescope[META_STR_LEN + 1]; // Lib
-	int32_t telescope_rsp_id;
+	int32_t telescope_rsp_id; ;// Lib
 	char receiver[META_STR_LEN + 1]; // Lib
 	char observer[META_STR_LEN + 1]; // External
 	char hostname[META_STR_LEN + 1]; // Lib
@@ -225,8 +221,11 @@ extern "C" {
 #endif
 
 lofar_udp_metadata* lofar_udp_metadata_alloc();
-sigproc_hdr* sigproc_hdr_alloc(uint64_t fchannels);
+sigproc_hdr* sigproc_hdr_alloc(int32_t fchannels);
 guppi_hdr* guppi_hdr_alloc();
+
+void lofar_udp_metadata_cleanup(lofar_udp_metadata* hdr);
+void sigproc_hdr_cleanup(sigproc_hdr *hdr);
 
 #ifdef __cplusplus
 }

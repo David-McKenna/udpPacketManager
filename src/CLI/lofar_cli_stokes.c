@@ -233,7 +233,7 @@ int main(int argc, char *argv[]) {
 
 	lofar_udp_config *config = calloc(1, sizeof(lofar_udp_config));
 	lofar_udp_calibration *cal = calloc(1, sizeof(struct lofar_udp_calibration));
-	lofar_udp_io_write_config *outConfig = lofar_udp_io_alloc_write();
+	lofar_udp_io_write_config *outConfig = lofar_udp_io_write_alloc();
 
 	int8_t *headerBuffer = NULL;
 

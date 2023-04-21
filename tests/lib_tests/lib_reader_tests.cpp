@@ -206,7 +206,7 @@ TEST(LibReaderTests, PreprocessingRawData) {
 	{
 		SCOPED_TRACE("_lofar_udp_parse_headers");
 
-		lofar_udp_obs_meta *meta = lofar_udp_obs_meta_alloc();
+		lofar_udp_obs_meta *meta = _lofar_udp_obs_meta_alloc();
 		lofar_udp_config *config = config_setup();
 		config->packetsReadMax = -1;
 		_lofar_udp_configure_obs_meta(config, meta);
@@ -311,7 +311,7 @@ TEST(LibReaderTests, PreprocessingReader) {
 	{
 		//int lofar_udp_setup_processing(lofar_udp_obs_meta *meta)
 		SCOPED_TRACE("_lofar_udp_setup_processing");
-		lofar_udp_obs_meta *meta = lofar_udp_obs_meta_alloc();
+		lofar_udp_obs_meta *meta = _lofar_udp_obs_meta_alloc();
 		meta->numPorts = numPorts;
 
 		meta->processingMode = UNSET_MODE;
@@ -668,7 +668,7 @@ TEST(LibReaderTests, ProcessingModes) {
 		// const calibrate_t calibrateData = meta->calibrateData;
 		// const int inputBitMode = meta->inputBitMode;
 		//const int processingMode = meta->processingMode;
-		lofar_udp_obs_meta *meta = lofar_udp_obs_meta_alloc();
+		lofar_udp_obs_meta *meta = _lofar_udp_obs_meta_alloc();
 		// Never enter main processing loop
 		meta->numPorts = 0;
 

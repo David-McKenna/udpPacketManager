@@ -32,7 +32,7 @@ RUN echo "Building udpPacketManager" && \
 	find ./src && \
 	mkdir build && cd build && cmake .. && cmake --build . -- -j $BUILD_CORES && \
 	cmake --install . && \
-    ctest . && \
+    ctest . -V && \
     rm -rf /var/lib/apt/lists/*
 
 WORKDIR /home/user

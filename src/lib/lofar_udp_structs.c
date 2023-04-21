@@ -141,7 +141,7 @@ const metadata_config metadata_config_default = {
 };
 
 
-lofar_udp_obs_meta *lofar_udp_obs_meta_alloc() {
+lofar_udp_obs_meta *_lofar_udp_obs_meta_alloc() {
 	DEFAULT_STRUCT_ALLOC(lofar_udp_obs_meta, meta, lofar_udp_obs_meta_default, ;, NULL);
 
 	return meta;
@@ -152,19 +152,19 @@ lofar_udp_obs_meta *lofar_udp_obs_meta_alloc() {
  *
  * @return ptr: success, NULL: failure
  */
-lofar_udp_reader* lofar_udp_reader_alloc(lofar_udp_obs_meta *meta) {
+lofar_udp_reader* _lofar_udp_reader_alloc(lofar_udp_obs_meta *meta) {
 	CHECK_ALLOC_NOCLEAN(meta, NULL);
 	DEFAULT_STRUCT_ALLOC(lofar_udp_reader, reader, lofar_udp_reader_default, ;, NULL);
 	reader->meta = meta;
 
-	lofar_udp_io_read_config *input = lofar_udp_io_alloc_read();
+	lofar_udp_io_read_config *input = lofar_udp_io_read_alloc();
 	CHECK_ALLOC(input, NULL, free(reader););
 	reader->input = input;
 
 	return reader;
 }
 
-lofar_udp_calibration* lofar_udp_calibration_alloc() {
+lofar_udp_calibration* _lofar_udp_calibration_alloc() {
 	DEFAULT_STRUCT_ALLOC(lofar_udp_calibration, calibration, lofar_udp_calibration_default, ;, NULL);
 
 	return calibration;
@@ -183,7 +183,7 @@ lofar_udp_config* lofar_udp_config_alloc() {
 	return config;
 }
 
-lofar_udp_io_read_config* lofar_udp_io_alloc_read() {
+lofar_udp_io_read_config* lofar_udp_io_read_alloc() {
 	DEFAULT_STRUCT_ALLOC(lofar_udp_io_read_config, input, lofar_udp_io_read_config_default, ;, NULL);
 
 	ARR_INIT(input->readBufSize, MAX_NUM_PORTS, -1);
@@ -195,7 +195,7 @@ lofar_udp_io_read_config* lofar_udp_io_alloc_read() {
 	return input;
 }
 
-lofar_udp_io_write_config* lofar_udp_io_alloc_write() {
+lofar_udp_io_write_config* lofar_udp_io_write_alloc() {
 	DEFAULT_STRUCT_ALLOC(lofar_udp_io_write_config, output, lofar_udp_io_write_config_default, ;, NULL);
 
 	ARR_INIT(output->writeBufSize, MAX_OUTPUT_DIMS, -1);

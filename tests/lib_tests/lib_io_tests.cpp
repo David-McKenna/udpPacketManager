@@ -32,11 +32,11 @@ TEST(LibIoTests, SetupUseCleanup) {
 
 					}
 
-					lofar_udp_io_read_config *readConfig = lofar_udp_io_alloc_read();
+					lofar_udp_io_read_config *readConfig = lofar_udp_io_read_alloc();
 					readConfig->readerType = type;
 					readConfig->numInputs = testNumInputs;
 
-					lofar_udp_io_write_config *writeConfig = lofar_udp_io_alloc_write();
+					lofar_udp_io_write_config *writeConfig = lofar_udp_io_write_alloc();
 					writeConfig->readerType = type;
 					writeConfig->numOutputs = testNumInputs;
 					writeConfig->dadaConfig.nbufs = psrdadaBufs;

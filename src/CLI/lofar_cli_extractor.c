@@ -76,7 +76,7 @@ int main(int argc, char *argv[]) {
 	lofar_udp_config *config = calloc(1, sizeof(lofar_udp_config));
 	(*config) = lofar_udp_config_default;
 
-	lofar_udp_io_write_config *outConfig = lofar_udp_io_alloc_write();
+	lofar_udp_io_write_config *outConfig = lofar_udp_io_write_alloc();
 	(*outConfig) = lofar_udp_io_write_config_default;
 
 	int8_t *headerBuffer = NULL;
