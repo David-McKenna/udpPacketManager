@@ -274,7 +274,7 @@ install(TARGETS lofudpman lofar_udp_extractor lofar_stokes_extractor
 		RUNTIME DESTINATION bin
 )
 install(FILES ${UDP_INCLUDE_FILES} DESTINATION include)
-install(FILES src/misc/dreamBeamJonesGenerator.py DESTINATION bin)
+install(PROGRAMS src/misc/dreamBeamJonesGenerator.py DESTINATION bin)
 
 # Add the tests directory
 enable_testing()

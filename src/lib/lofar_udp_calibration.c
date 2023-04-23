@@ -49,7 +49,7 @@ int32_t _lofar_udp_calibration_find_script(const char jonesGeneratorName[], char
 	}
 
 	if (!currPtr) {
-		fprintf(stderr, "ERROR %s: Unable to find executable %s on path.\n", __func__, outputJonesGenerator);
+		fprintf(stderr, "ERROR %s: Unable to find executable %s on path.\n", __func__, jonesGeneratorName);
 		fprintf(stderr, "Current PATH variable: %s\n", pathPath);
 		fprintf(stderr, "Exiting.\n");
 		return 1;
