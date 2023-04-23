@@ -1044,6 +1044,10 @@ int32_t _lofar_udp_reader_config_check(const lofar_udp_config *config) {
  * @param      config  The configuration
  */
 void _lofar_udp_reader_config_patch(lofar_udp_config *config) {
+	if (config->packetsReadMax < 1) {
+		config->packetsReadMax = LONG_MAX;
+	}
+
 	if (config->packetsReadMax < config->packetsPerIteration) {
 		fprintf(stderr, "WARNING: Maximum time is less that initial iteration size, reducing packets per iteration to %ld.\n", config->packetsReadMax);
 		config->packetsReadMax = config->packetsPerIteration;
@@ -1055,15 +1059,10 @@ void _lofar_udp_reader_config_patch(lofar_udp_config *config) {
 		config->ompThreads = OMP_THREADS;
 	}
 
-	if (config->packetsReadMax < 1) {
-		config->packetsReadMax = LONG_MAX;
-	}
-
 	if (config->metadata_config.metadataType == NO_META && strnlen(config->metadata_config.metadataLocation, DEF_STR_LEN)) {
 		fprintf(stderr, "WARNING: Metadata location is defined as %s, but metadata type is NO_META, changing metadata to DEFAULT_META.\n", config->metadata_config.metadataLocation);
 		config->metadata_config.metadataType = DEFAULT_META;
 	}
-
 }
 
 /**

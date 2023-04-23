@@ -35,7 +35,7 @@ metadata_t lofar_udp_metadata_parse_type_output(const char optargc[]) {
  * @param[in] reader	Input reader struct
  * @param[in] config	Input configuration struct
  *
- * @return
+ * @return 0: success, <0: failure
  */
 int32_t lofar_udp_metadata_setup(lofar_udp_metadata *const metadata, const lofar_udp_reader *reader, const metadata_config *config) {
 
@@ -48,9 +48,10 @@ int32_t lofar_udp_metadata_setup(lofar_udp_metadata *const metadata, const lofar
 	// Ensure we are meant to generate metadata
 	if (metadata->type == NO_META) {
 		if (!strnlen(config->metadataLocation, DEF_STR_LEN)) {
-			fprintf(stderr, "ERROR %s: No metadata type specified, exiting.\n", __func__);
-			return -1;
+			fprintf(stderr, "WARNING %s: No metadata type or location specified, exiting.\n", __func__);
+			return 0;
 		}
+		// So there was a metadata input? Change type to basic parsing
 		metadata->type = DEFAULT_META;
 	}
 

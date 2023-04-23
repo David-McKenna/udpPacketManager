@@ -417,9 +417,13 @@ TEST(LibMetadataTests, StructHandlers) {
 
 		EXPECT_EQ(-1, lofar_udp_metadata_setup(nullptr, reader, config));
 		metadata->type = NO_META;
+		EXPECT_EQ(0, lofar_udp_metadata_setup(metadata, reader, config));
+		snprintf(config->metadataLocation, 32, "hello");
 		EXPECT_EQ(-1, lofar_udp_metadata_setup(metadata, reader, config));
+		EXPECT_EQ(DEFAULT_META, metadata->type);
+
 		metadata->type = DADA;
-		//config->metadataLocation[0] == '\0'; // continues
+		config->metadataLocation[0] = '\0'; // continues
 		EXPECT_EQ(-1, lofar_udp_metadata_setup(metadata, nullptr, nullptr)); // reader-> nullptr continues, config -> nullptr -> -1
 		EXPECT_EQ(0, lofar_udp_metadata_setup(metadata, reader, config));
 

@@ -181,7 +181,7 @@ TEST(LibTimeTests, DerivedFromPackets) {
 		const int32_t baseTime = 1600000000;
 		const size_t numSeconds = 34; // Should see 200MHz rollover every 32 seconds of packets
 		int32_t sequence = 0;
-		int8_t increment = 0;
+		//int8_t increment = 0;
 
 		header160M.setTime(baseTime);
 		header200M.setTime(baseTime);

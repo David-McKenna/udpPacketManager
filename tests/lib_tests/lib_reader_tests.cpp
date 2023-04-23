@@ -123,24 +123,41 @@ TEST(LibReaderTests, SetupReader) {
 		// (config->packetsReadMax < 1)
 		MODIFY_AND_RESET(config->packetsReadMax, tmpVal, 0, EXPECT_EQ(-1, _lofar_udp_reader_config_check(config)););
 
-		// (config->packetsReadMax < config->packetsPerIteration) -> config->packetsReadMax = config->packetsPerIteration
-		MODIFY_AND_RESET(config->packetsReadMax, tmpVal, 1, _lofar_udp_reader_config_check(config); EXPECT_EQ(config->packetsPerIteration, config->packetsReadMax););
-
-		// ((2 * config->ompThreads) < config->numPorts) && (config->ompThreads < 1) -> config->ompThreads = OMP_THREADS
-		MODIFY_AND_RESET(config->ompThreads, tmpVal, -1, \
-            _lofar_udp_reader_config_check(config); \
-            EXPECT_EQ(OMP_THREADS, config->ompThreads);
-		);
-		MODIFY_AND_RESET(config->ompThreads, tmpVal, 1, EXPECT_EQ(0, _lofar_udp_reader_config_check(config)););
+		// ((2 * config->ompThreads) < config->numPorts)
+		MODIFY_AND_RESET(config->ompThreads, tmpVal, 1, _lofar_udp_reader_config_check(config); EXPECT_EQ(1, config->ompThreads));
 
 		// (config->replayDroppedPackets != 0 && config->replayDroppedPackets != 1)
 		MODIFY_AND_RESET(config->replayDroppedPackets, tmpVal, 2, EXPECT_EQ(-1, _lofar_udp_reader_config_check(config)););
 		EXPECT_EQ(0, _lofar_udp_reader_config_check(config));
 
 
+		// _lofar_udp_reader_config_patch
+
+		// (config->packetsReadMax < 1) -> LONG_MAX
+		MODIFY_AND_RESET(config->packetsReadMax, tmpVal, -1, _lofar_udp_reader_config_patch(config); EXPECT_EQ(LONG_MAX, config->packetsReadMax););
+
+		// (config->packetsReadMax < config->packetsPerIteration) -> config->packetsReadMax = config->packetsPerIteration
+		MODIFY_AND_RESET(config->packetsReadMax, tmpVal, 1, _lofar_udp_reader_config_patch(config); EXPECT_EQ(config->packetsPerIteration, config->packetsReadMax););
+
+		// (config->ompThreads < 1) -> config->ompThreads = OMP_THREADS
+		MODIFY_AND_RESET(config->ompThreads, tmpVal, -1, \
+            _lofar_udp_reader_config_patch(config); \
+            EXPECT_EQ(OMP_THREADS, config->ompThreads);
+		);
+
+		// (config->metadata_config.metadataType == NO_META && strnlen(config->metadata_config.metadataLocation, DEF_STR_LEN))
+		snprintf(config->metadata_config.metadataLocation, 32, "thisisastring");
+		MODIFY_AND_RESET(config->metadata_config.metadataType, *((metadata_t*) &tmpVal), NO_META, \
+						 _lofar_udp_reader_config_patch(config); \
+						EXPECT_EQ(DEFAULT_META, config->metadata_config.metadataType);
+		 );
+		config->metadata_config.metadataLocation[0] = '\0';
+
+
 		//lofar_udp_reader *lofar_udp_reader_setup(lofar_udp_config *config)
 		MODIFY_AND_RESET(config->replayDroppedPackets, tmpVal, 2, EXPECT_EQ(nullptr, lofar_udp_reader_setup(config)););
 		//MODIFY_AND_RESET(config->packetsReadMax, tmpVal, LONG_MAX, EXPECT_NE(nullptr, lofar_udp_reader_setup(config)););
+
 	}
 
 	free(config);
@@ -305,7 +322,7 @@ TEST(LibReaderTests, PreprocessingRawData) {
 };
 
 TEST(LibReaderTests, PreprocessingReader) {
-	lofar_udp_reader *reader = reader_setup(150);
+	//lofar_udp_reader *reader = reader_setup(150);
 
 	//int _lofar_udp_skip_to_packet(lofar_udp_reader *reader)
 	//int lofar_udp_get_first_packet_alignment(lofar_udp_reader *reader)
@@ -645,7 +662,7 @@ TEST_P(LibReaderTestsParam, ProcessingData) {
 
 };
 
-
+INSTANTIATE_TEST_SUITE_P(CalibrationModes, LibReaderTestsParam, ::testing::Values(NO_CALIBRATION, GENERATE_JONES, APPLY_CALIBRATION));
 
 TEST(LibReaderTests, ProcessingModes) {
 	{
@@ -673,7 +690,7 @@ TEST(LibReaderTests, ProcessingModes) {
 					values[val] = SHRT_MIN;
 				} else {
 					values[val] -= (float) (RAND_MAX / 2);
-					values[val] = (float) (SHRT_MIN * (values[val] / (RAND_MAX / 2)));
+					values[val] = (float) (SHRT_MIN * (values[val] / ((float) RAND_MAX / 2)));
 				}
 			}
 
