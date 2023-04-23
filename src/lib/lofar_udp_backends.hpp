@@ -76,11 +76,13 @@ if constexpr (calibrateData) { \
 }
 
 #ifdef __clang__
-#define LOOP_OPTIMISATION _Pragma("clang loop vectorize(enable)") \
-_Pragma("clang loop interleave_count(UDPNTIMESLICE)")
+#define LOOP_OPTIMISATION _Pragma("clang loop vectorize(enable) interleave_count(UDPNTIMESLICE)")
+#define FALLBACK_LOOP_OPTIMISATION _Pragma("clang loop vectorize(enable)")
 #else
 #define LOOP_OPTIMISATION _Pragma("omp simd")
+#define FALLBACK_LOOP_OPTIMISATION LOOP_OPTIMISATION
 #endif
+
 
 /**
  * @brief      Get the input index for a given packet, frequency
@@ -261,7 +263,9 @@ udp_channelMajor(int64_t iLoop, const int8_t *inputPortData, O **outputData, int
 
 		CALIBRATE_SETUP(I, O);
 
-		LOOP_OPTIMISATION
+		// Clang fails to optimise this loop with the default configuration
+		// Future TODO: Determine why this fails optimisation
+		FALLBACK_LOOP_OPTIMISATION
 		for (int32_t ts = 0; ts < UDPNTIMESLICE; ts++) {
 			const int64_t tsInOffset = ts * UDPNPOL;
 			const int64_t tsOutOffset = tsOutOffsetBase + ts * (totalBeamlets * UDPNPOL);
@@ -334,7 +338,9 @@ static inline void udp_reversedChannelMajor(int64_t iLoop, const int8_t *inputPo
 
 		CALIBRATE_SETUP(I, O);
 
-		LOOP_OPTIMISATION
+		// Clang fails to optimise this loop with the default configuration
+		// Future TODO: Determine why this fails optimisation
+		FALLBACK_LOOP_OPTIMISATION
 		for (int32_t ts = 0; ts < UDPNTIMESLICE; ts++) {
 			const int64_t tsInOffset = ts * UDPNPOL;
 			const int64_t tsOutOffset = tsOutOffsetBase + ts * (totalBeamlets * UDPNPOL);
@@ -704,7 +710,9 @@ static inline void udp_fullStokesDecimation(int64_t iLoop, const int8_t *inputPo
 
 		CALIBRATE_SETUP(I, O);
 
-		LOOP_OPTIMISATION
+		// Clang fails to optimise this loop with the default configuration
+		// Future TODO: Determine why this fails optimisation
+		FALLBACK_LOOP_OPTIMISATION
 		for (int32_t ts = 0; ts < static_cast<int32_t>(UDPNTIMESLICE / factor); ts++) {
 			const int64_t tsOutOffset = outputTsOffsetCalc<order>(tsOutOffsetBase, ts, totalBeamlets);
 
@@ -1113,7 +1121,7 @@ int32_t lofar_udp_raw_loop(lofar_udp_obs_meta *meta) {
 					const int32_t numSamples = portPacketLength - UDPHDRLEN;
 
 					// Use a LUT to extract the 4-bit signed ints from int8_t
-#pragma unroll(122) // 244 beams packed into 122 bytes, could be unrolled by another factor of 4 * 16, but it would just cause executable bloat
+#pragma GCC unroll(122) // 244 beams packed into 122 bytes, could be unrolled by another factor of 4 * 16, but it would just cause executable bloat
 					for (int32_t idx = 0; idx < numSamples; idx++) {
 						const int8_t *result = bitmodeConversion[(uint8_t) meta->inputData[port][
 								lastInputPacketOffset + idx]];
