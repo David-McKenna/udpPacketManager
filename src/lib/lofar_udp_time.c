@@ -24,12 +24,12 @@ const double clockPacketRateDelta = (CLOCK200MHZ / UDPNTIMESLICE) - (CLOCK160MHZ
 const double clockStepsDelta = clock200MHzSteps - clock160MHzSteps;
 const double clockSampleTimeDelta = clock200MHzSampleTime - clock160MHzSampleTime;
 const double clockPacketRateDelta = clock200MHzPacketRate - clock160MHzPacketRate;
-#endif
 
 #include <assert.h>
 static_assert(clockStepsDelta > 0, "Require Step Delta is positive");
 static_assert(clockSampleTimeDelta < 0, "Require Sample Time Delta ia negative");
 static_assert(clockPacketRateDelta > 0, "Require Packet Rate Delta is positive");
+#endif
 
 /**
  * @brief      Gets the starting packet for a given Unix time
