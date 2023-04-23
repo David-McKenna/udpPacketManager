@@ -282,3 +282,9 @@ TEST(LibTimeTests, ValidateConstValuesForGCC7) {
 	ASSERT_EQ(clockSampleTimeDelta, clock200MHzSampleTime - clock160MHzSampleTime);
 	ASSERT_EQ(clockPacketRateDelta,clock200MHzPacketRate - clock160MHzPacketRate);
 }
+
+TEST(LibTimeTests, ValidateConstValues) {
+	ASSERT_LT(0, clockStepsDelta);
+	ASSERT_GT(0, clockSampleTimeDelta);
+	ASSERT_LT(0, clockPacketRateDelta);
+}
