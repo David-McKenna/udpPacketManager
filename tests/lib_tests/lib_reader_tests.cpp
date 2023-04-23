@@ -600,7 +600,7 @@ TEST_P(LibReaderTestsParam, ProcessingData) {
 					lofar_udp_config *config = config_setup(1, testNum, 4, INT32_MAX, cal);
 					std::cout << config->inputLocations[0] << ", " << currMode << ", " << cal << std::endl;
 					config->processingMode = currMode;
-					#ifndef NO_CAL_TEST
+					#ifndef NO_TEST_CAL
 					if (testNum == 1 && (currMode < 100 || (currMode > 100 && (currMode % 10 < 2)))) {
 						if (currMode == PACKET_NOHDR_COPY) {
 							config->calibrationDuration = 2 * config->packetsPerIteration * clock200MHzSampleTime * UDPNTIMESLICE;
