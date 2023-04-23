@@ -2,6 +2,7 @@
 
 import argparse
 import multiprocessing.shared_memory
+from multiprocessing.resource_tracker import unregister
 import lofarantpos.db
 import numpy as np
 import time as timeLib
@@ -9,7 +10,6 @@ import tqdm
 from astropy.time import Time, TimeDelta
 from casacore.measures import measures
 from dreambeam.rime.scenarios import on_pointing_axis_tracking
-from multiprocessing.resource_tracker import unregister
 
 
 def generateJones(subbands, antennaSet, stn, mdl, time, dur, inte, pnt, firstOutput=False):
@@ -192,7 +192,7 @@ if __name__ == '__main__':
     del data
     ref.close()
 
-    # By default, python will destroy any shared memory it has touched on exit
+    # By default, Python will destroy any shared memory it has touched on exit
     # THANKS FOR DOCUMENTING THIS! /s
     # https://github.com/python/cpython/issues/82300
     unregister(ref._name, 'shared_memory')

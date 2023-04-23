@@ -4,7 +4,7 @@ cmake_minimum_required(VERSION 3.14...3.19)
 # Create a release output by default
 set(default_build_type "Release")
 
-set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
@@ -37,6 +37,18 @@ set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -fno-omit-frame-pointer -fsaniti
 set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -fno-omit-frame-pointer -fsanitize=address")
 set(CMAKE_LINKER_FLAGS_DEBUG "${CMAKE_LINKER_FLAGS_DEBUG} -fno-omit-frame-pointer -fsanitize=address")
 
+# Ensure we have a modern python version available and prepare to install the latest build of dreamBeam
+# multiprocessing.shared_memory required >= 3.8
+set(Python3_FIND_VIRTUALENV LAST)
+find_package(Python3 COMPONENTS Interpreter)
+if(Python3_VERSION VERSION_LESS "3.8")
+	message(FATAL_ERROR "Python 3.8 or later is required for the multiprocessing.shared_memory module")
+endif()
+
+add_custom_target(install_dreamBeam_module
+                  COMMAND ${Python3_EXECUTABLE} -m pip install git+https://github.com/2baOrNot2ba/dreamBeam
+)
+
 # Find the OpenMP package on the system
 
 message("Configuring OpenMP...")
@@ -52,7 +64,7 @@ if(OpenMP_C_LIB_NAMES MATCHES ".*(iomp).*" OR CMAKE_CXX_COMPILER_ID STREQUAL "Cl
 else()
 	message(WARNING "Other OpenMP implementation Detected (performance may be degraded, we strongly recommend avoiding the GCC OpenMP library)\nSetup will continue in 5 seconds.")
 	set(OMP_THREADS 8)
-	if ("${CMAKE_BUILD_TYPE}" MATCHES ".*Debug.*")
+	if (NOT("${CMAKE_BUILD_TYPE}" MATCHES ".*Debug.*"))
 		execute_process(COMMAND ${CMAKE_COMMAND} -E sleep 5)
 	endif()
 endif()
@@ -212,7 +224,7 @@ add_library(lofudpman STATIC
             src/lib/lofar_udp_metadata.c
             src/lib/lofar_udp_time.c)
 
-add_dependencies(lofudpman libfftw3fomp libzstd_static libpsrdada libhdf5 libz libh5bshuf) #yaml) #CSpice::cspice)
+add_dependencies(lofudpman libfftw3fomp libzstd_static libpsrdada libhdf5 libz libh5bshuf install_dreamBeam_module) #yaml) #CSpice::cspice)
 
 # Include all of our library headers
 target_include_directories(lofudpman PUBLIC
