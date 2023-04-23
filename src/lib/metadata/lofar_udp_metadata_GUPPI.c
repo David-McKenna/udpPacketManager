@@ -355,7 +355,7 @@ static struct option long_options[] = {
 	{ 0, 0, NULL, 0 }
 };
 
-\/**
+
  * @brief      Parse a header file and populate an ASCII header struct with the
  *             new values
  *
@@ -363,7 +363,7 @@ static struct option long_options[] = {
  * @param      header     The ASCII header struct
  *
  * @return     Success (0), Failure (>0), Unknown Flag Parsed (-1)
- *\/
+
   __attribute__((unused)) int lofar_udp_metdata_GUPPI_configure_from_file(const char *inputFile, guppi_hdr *header) {
 	int returnVal = 0;
 

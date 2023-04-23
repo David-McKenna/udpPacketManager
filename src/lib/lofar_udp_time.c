@@ -3,17 +3,31 @@
 // Time steps per second in each clock mode
 const double clock200MHzSteps = CLOCK200MHZ;
 const double clock160MHzSteps = CLOCK160MHZ;
-const double clockStepsDelta = clock200MHzSteps - clock160MHzSteps;
+
 
 // Beam samples per second in each clock mode
 const double clock200MHzSampleTime = 1.0 / CLOCK200MHZ;
 const double clock160MHzSampleTime = 1.0 / CLOCK160MHZ;
-const double clockSampleTimeDelta = clock200MHzSampleTime - clock160MHzSampleTime;
 
 // Packets per second in each clock mode
-const double clock200MHzPacketRate = CLOCK200MHZ / 16;
-const double clock160MHzPacketRate = CLOCK160MHZ / 16;
+const double clock200MHzPacketRate = CLOCK200MHZ / UDPNTIMESLICE;
+const double clock160MHzPacketRate = CLOCK160MHZ / UDPNTIMESLICE;
+
+// Thanks GCC 7!
+#if defined(__GNUC__) && !defined(__clang__) && (__GNUC__ <= 7)
+const double clockStepsDelta =  CLOCK200MHZ - CLOCK160MHZ;
+const double clockSampleTimeDelta = (1.0/ CLOCK200MHZ) - (1.0 / CLOCK160MHZ);
+const double clockPacketRateDelta = (CLOCK200MHZ / UDPNTIMESLICE) - (CLOCK160MHZ / UDPNTIMESLICE);
+
+#include <assert.h>
+static_assert(clockStepsDelta == (clock200MHzSteps - clock160MHzSteps));
+static_assert(clockSampleTimeDelta == (clock200MHzSampleTime - clock160MHzSampleTime));
+static_assert(clockPacketRateDelta == (clock200MHzPacketRate - clock160MHzPacketRate));
+#else
+const double clockStepsDelta = clock200MHzSteps - clock160MHzSteps;
+const double clockSampleTimeDelta = clock200MHzSampleTime - clock160MHzSampleTime;
 const double clockPacketRateDelta = clock200MHzPacketRate - clock160MHzPacketRate;
+#endif
 
 /**
  * @brief      Gets the starting packet for a given Unix time

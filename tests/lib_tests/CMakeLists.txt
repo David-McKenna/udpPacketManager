@@ -1,5 +1,7 @@
 include_directories(${GOOGLETEST_DIR}/include ${GOOGLETEST_DIR})
 
+message("Configuring tests...")
+
 add_executable(lib_tests_run
                lib_main_tests.cpp
                lib_reader_tests.cpp
@@ -10,11 +12,11 @@ add_executable(lib_tests_run
                lib_time_tests.cpp)
 
 
-option(NO_CAL_TEST "Don't run calibration tests" $ENV{NO_CAL_TEST})
+option(NO_TEST_CAL "Don't run calibration tests" $ENV{NO_TEST_CAL})
 
-if (NO_CAL_TEST)
-	message("NO_CAL_TEST detected; disabling calibration tests.")
-	target_compile_definitions(lib_tests_run PRIVATE NO_CAL_TEST)
+if (NO_TEST_CAL)
+	message("NO_TEST_CAL detected; disabling calibration tests.")
+	target_compile_definitions(lib_tests_run PRIVATE NO_TEST_CAL)
 endif()
 add_dependencies(lib_tests_run linkTestData)
 target_link_libraries(lib_tests_run gtest_main lofudpman)
