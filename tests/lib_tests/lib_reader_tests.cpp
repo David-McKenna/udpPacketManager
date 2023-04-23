@@ -423,13 +423,111 @@ TEST(LibReaderTests, PreprocessingReader) {
 
 };
 
+
 /*
-const std::vector<processMode_t> packMajor = {};
-const std::vector<processMode_t> timeMajor = {};
-const std::vector<processMode_t> beamMajor = {};
-const std::vector<processMode_t> stokes = {};
+// Input orders
+const std::vector<processMode_t> inputsMatched = {PACKET_FULL_COPY, PACKET_NOHDR_COPY};
+const std::vector<processMode_t> inputsTsNpol = {PACKET_SPLIT_POL, BEAMLET_MAJOR_FULL, BEAMLET_MAJOR_SPLIT_POL,
+												 BEAMLET_MAJOR_SPLIT_POL, BEAMLET_MAJOR_FULL_REV, BEAMLET_MAJOR_SPLIT_POL_REV,
+												 BEAMLET_MAJOR_SPLIT_POL_REV, TIME_MAJOR_FULL, TIME_MAJOR_SPLIT_POL,
+												 TIME_MAJOR_ANT_POL, TIME_MAJOR_ANT_POL_FLOAT, STOKES_I, STOKES_Q,
+												 STOKES_U, STOKES_V, STOKES_IQUV, STOKES_IV }; // Default
+const std::vector<processMode_t> inputTssTsFactorNpol = {STOKES_I_DS2, STOKES_Q_DS2, STOKES_U_DS2, STOKES_V_DS2,
+														 STOKES_IQUV_DS2, STOKES_IV_DS2, STOKES_I_DS4, STOKES_Q_DS4,
+														 STOKES_U_DS4, STOKES_V_DS4, STOKES_IQUV_DS4, STOKES_IV_DS4,
+														 STOKES_I_DS8, STOKES_Q_DS8, STOKES_U_DS8, STOKES_V_DS8,
+														 STOKES_IQUV_DS8, STOKES_IV_DS8, STOKES_I_DS16, STOKES_Q_DS16,
+														 STOKES_U_DS16, STOKES_V_DS16, STOKES_IQUV_DS16, STOKES_IV_DS16,
+														 STOKES_I_REV, STOKES_Q_REV, STOKES_U_REV, STOKES_V_REV,
+														 STOKES_IQUV_REV, STOKES_IV_REV, STOKES_I_DS2_REV, STOKES_Q_DS2_REV,
+														 STOKES_U_DS2_REV, STOKES_V_DS2_REV, STOKES_IQUV_DS2_REV,
+														 STOKES_IV_DS2_REV, STOKES_I_DS4_REV, STOKES_Q_DS4_REV,
+														 STOKES_U_DS4_REV, STOKES_V_DS4_REV, STOKES_IQUV_DS4_REV,
+														 STOKES_IV_DS4_REV, STOKES_I_DS8_REV, STOKES_Q_DS8_REV,
+														 STOKES_U_DS8_REV, STOKES_V_DS8_REV, STOKES_IQUV_DS8_REV,
+														 STOKES_IV_DS8_REV, STOKES_I_DS16_REV, STOKES_Q_DS16_REV,
+														 STOKES_U_DS16_REV, STOKES_V_DS16_REV, STOKES_IQUV_DS16_REV,
+														 STOKES_IV_DS16_REV};
+
+
+
+// Output sizes
+//const std::vector<processMode_t> outputsMatched = {PACKET_FULL_COPY, PACKET_NOHDR_COPY};
+const std::vector<processMode_t> output1Arr = {BEAMLET_MAJOR_FULL, BEAMLET_MAJOR_FULL_REV, TIME_MAJOR_FULL,
+											   STOKES_I, STOKES_Q, STOKES_U, STOKES_V, STOKES_I_DS2, STOKES_Q_DS2,
+											   STOKES_U_DS2, STOKES_V_DS2, STOKES_I_DS4, STOKES_Q_DS4, STOKES_U_DS4,
+											   STOKES_V_DS4, STOKES_I_DS8, STOKES_Q_DS8, STOKES_U_DS8, STOKES_V_DS8,
+											   STOKES_I_DS16, STOKES_Q_DS16, STOKES_U_DS16, STOKES_V_DS16, STOKES_I_REV,
+											   STOKES_Q_REV, STOKES_U_REV, STOKES_V_REV, STOKES_I_DS2_REV, STOKES_Q_DS2_REV,
+											   STOKES_U_DS2_REV, STOKES_V_DS2_REV, STOKES_I_DS4_REV, STOKES_Q_DS4_REV,
+											   STOKES_U_DS4_REV, STOKES_V_DS4_REV, STOKES_I_DS8_REV, STOKES_Q_DS8_REV,
+											   STOKES_U_DS8_REV, STOKES_V_DS8_REV, STOKES_I_DS16_REV, STOKES_Q_DS16_REV,
+											   STOKES_U_DS16_REV, STOKES_V_DS16_REV};
+const std::vector<processMode_t> output2Arr = {TIME_MAJOR_ANT_POL, TIME_MAJOR_ANT_POL_FLOAT, STOKES_IV_DS2,
+											   STOKES_IV_DS4, STOKES_IV_DS8, STOKES_IV_DS16, STOKES_IV_REV,
+											   STOKES_IV_DS2_REV, STOKES_IV_DS4_REV, STOKES_IV_DS8_REV,
+											   STOKES_IV_DS16_REV};
+const std::vector<processMode_t> output4Arr = {PACKET_SPLIT_POL, BEAMLET_MAJOR_SPLIT_POL, BEAMLET_MAJOR_SPLIT_POL_REV,
+											   TIME_MAJOR_SPLIT_POL, STOKES_IQUV, STOKES_IQUV_DS2, STOKES_IQUV_DS4,
+											   STOKES_IQUV_DS8, STOKES_IQUV_DS16, STOKES_IQUV_REV, STOKES_IQUV_DS2_REV,
+											   STOKES_IQUV_DS4_REV, STOKES_IQUV_DS8_REV, STOKES_IQUV_DS16_REV};
+
+// Output bases
+//const std::vector<processMode_t> ouputBaseMatched = {PACKET_FULL_COPY, PACKET_NOHDR_COPY};
+const std::vector<processMode_t> outputBaseFreqMajor = {PACKET_SPLIT_POL, BEAMLET_MAJOR_FULL, BEAMLET_MAJOR_SPLIT_POL};
+const std::vector<processMode_t> outputBaseRevFreqMajor = {BEAMLET_MAJOR_FULL_REV, BEAMLET_MAJOR_SPLIT_POL_REV};
+const std::vector<processMode_t> outputBaseNpolTimeMajor = {TIME_MAJOR_FULL};
+const std::vector<processMode_t> outputBaseAntMajor = {TIME_MAJOR_ANT_POL, TIME_MAJOR_ANT_POL_FLOAT};
+const std::vector<processMode_t> outputBaseTimeMajor = {TIME_MAJOR_SPLIT_POL};
+const std::vector<processMode_t> outputBaseStokesDeci = {STOKES_I, STOKES_Q, STOKES_U, STOKES_V, STOKES_IQUV,
+														 STOKES_IV, STOKES_I_DS2, STOKES_Q_DS2, STOKES_U_DS2,
+														 STOKES_V_DS2, STOKES_IQUV_DS2, STOKES_IV_DS2, STOKES_I_DS4,
+														 STOKES_Q_DS4, STOKES_U_DS4, STOKES_V_DS4, STOKES_IQUV_DS4,
+														 STOKES_IV_DS4, STOKES_I_DS8, STOKES_Q_DS8, STOKES_U_DS8,
+														 STOKES_V_DS8, STOKES_IQUV_DS8, STOKES_IV_DS8, STOKES_I_DS16,
+														 STOKES_Q_DS16, STOKES_U_DS16, STOKES_V_DS16, STOKES_IQUV_DS16,
+														 STOKES_IV_DS16, STOKES_I_REV, STOKES_Q_REV, STOKES_U_REV,
+														 STOKES_V_REV, STOKES_IQUV_REV, STOKES_IV_REV, STOKES_I_DS2_REV,
+														 STOKES_Q_DS2_REV, STOKES_U_DS2_REV, STOKES_V_DS2_REV,
+														 STOKES_IQUV_DS2_REV, STOKES_IV_DS2_REV, STOKES_I_DS4_REV,
+														 STOKES_Q_DS4_REV, STOKES_U_DS4_REV, STOKES_V_DS4_REV,
+														 STOKES_IQUV_DS4_REV, STOKES_IV_DS4_REV, STOKES_I_DS8_REV,
+														 STOKES_Q_DS8_REV, STOKES_U_DS8_REV, STOKES_V_DS8_REV,
+														 STOKES_IQUV_DS8_REV, STOKES_IV_DS8_REV, STOKES_I_DS16_REV,
+														 STOKES_Q_DS16_REV, STOKES_U_DS16_REV, STOKES_V_DS16_REV,
+														 STOKES_IQUV_DS16_REV, STOKES_IV_DS16_REV};
+
+// Output offsets
+//const std::vector<processMode_t> outputOffsetMatches = {PACKET_FULL_COPY, PACKET_NOHDR_COPY};
+const std::vector<processMode_t> outputOffsetTs = {PACKET_SPLIT_POL};
+const std::vector<processMode_t> outputOffstTsBeamPol = {BEAMLET_MAJOR_FULL, BEAMLET_MAJOR_FULL_REV};
+const std::vector<processMode_t> outputOffsetTsBeam = {BEAMLET_MAJOR_SPLIT_POL, BEAMLET_MAJOR_SPLIT_POL_REV};
+const std::vector<processMode_t> outputOffsetTsNpol = {TIME_MAJOR_FULL, TIME_MAJOR_SPLIT_POL};
+const std::vector<processMode_t> outputOffsetTsAnt = {TIME_MAJOR_ANT_POL, TIME_MAJOR_ANT_POL_FLOAT};
+const std::vector<processMode_t> outputOffsetStokesDeci = {STOKES_I, STOKES_Q, STOKES_U, STOKES_V, STOKES_IQUV,
+                                                           STOKES_IV, STOKES_I_DS2, STOKES_Q_DS2, STOKES_U_DS2,
+                                                           STOKES_V_DS2, STOKES_IQUV_DS2, STOKES_IV_DS2, STOKES_I_DS4,
+                                                           STOKES_Q_DS4, STOKES_U_DS4, STOKES_V_DS4, STOKES_IQUV_DS4,
+                                                           STOKES_IV_DS4, STOKES_I_DS8, STOKES_Q_DS8, STOKES_U_DS8,
+                                                           STOKES_V_DS8, STOKES_IQUV_DS8, STOKES_IV_DS8, STOKES_I_DS16,
+                                                           STOKES_Q_DS16, STOKES_U_DS16, STOKES_V_DS16, STOKES_IQUV_DS16,
+                                                           STOKES_IV_DS16, STOKES_I_REV, STOKES_Q_REV, STOKES_U_REV,
+                                                           STOKES_V_REV, STOKES_IQUV_REV, STOKES_IV_REV, STOKES_I_DS2_REV,
+                                                           STOKES_Q_DS2_REV, STOKES_U_DS2_REV, STOKES_V_DS2_REV,
+                                                           STOKES_IQUV_DS2_REV, STOKES_IV_DS2_REV, STOKES_I_DS4_REV,
+                                                           STOKES_Q_DS4_REV, STOKES_U_DS4_REV, STOKES_V_DS4_REV,
+                                                           STOKES_IQUV_DS4_REV, STOKES_IV_DS4_REV, STOKES_I_DS8_REV,
+                                                           STOKES_Q_DS8_REV, STOKES_U_DS8_REV, STOKES_V_DS8_REV,
+                                                           STOKES_IQUV_DS8_REV, STOKES_IV_DS8_REV, STOKES_I_DS16_REV,
+                                                           STOKES_Q_DS16_REV, STOKES_U_DS16_REV, STOKES_V_DS16_REV,
+                                                           STOKES_IQUV_DS16_REV, STOKES_IV_DS16_REV};
+
+
+#define VECTOR_CONTAINS(vector, findme) \
+	std::find(vector.begin(), vector.end(), (findme)) != vector.end()
+
 template<typename I, typename O>
-void blindReformer(lofar_udp_reader *reader) {
+std::vector<O*> blindReformer(lofar_udp_reader *reader) {
 	std::vector<O*> outputs;
 	for (int16_t i = 0; i < reader->meta->numOutputs; i++) {
 		outputs.push_back(static_cast<O>(calloc(reader->meta->packetOutputLength[i] * reader->meta->packetsPerIteration, sizeof(int8_t))));
@@ -445,80 +543,47 @@ void blindReformer(lofar_udp_reader *reader) {
 			int64_t inputOffset, outputOffset, inputStepSize, outputStepSize, outputPortStep;
 			int64_t reverseFrequency = 0;
 
-			if (std::find(packMajor.begin(), packMajor.end(), packMajor.size()) != packMajor.end()) {
-				const int64_t inputOffset = packet * packetLength + (reader->meta->processingMode == PACKET_NOHDR_COPY) * UDPHDRLEN / sizeof(I);
-				const int64_t outputOffset = packet * (packetLength - (reader->meta->processingMode == PACKET_NOHDR_COPY) * UDPHDRLEN / sizeof(I));
+			if (VECTOR_CONTAINS(inputsMatched, reader->meta->processingMode)) {
+				const int64_t inputOffset = packet * packetLength + (reader->meta->processingMode == PACKET_NOHDR_COPY) * headerOffset;
+				const int64_t outputOffset = packet * (packetLength - (reader->meta->processingMode == PACKET_NOHDR_COPY) * headerOffset);
 				if (memcpy(outputs[port][outputOffset], workingData[inputOffset], packetLength * sizeof(I)) != outputs[port][outputOffset]) {
-					throw;
+					break;
 				}
 				continue;
 
-			// Stokes Modes
-			} else if (std::find(stokes.begin(), stokes.end(), stokes.size()) != stokes.end()) {
-				int32_t factor = 1 << reader->meta->processingMode % 10;
-				for (int16_t beamIdx = reader->meta->baseBeamlets[0]; beamIdx < reader->meta->upperBeamlets[port]; beamIdx++) {
-					//int64_t beamletOffset = ;
 
-					for (int16_t timeIdx = 0; timeIdx < UDPNTIMESLICE; timeIdx++) {
-						//int64_t tsOffset = ;
-						//int64_t outputOffset = ;
-						float tmpXr, tmpXi, tmpYr, tmpYi;
-						if (reader->meta->calibrateData == APPLY_CALIBRATION) {
-							calibrateSample<I, O>(&tmpXr, &tmpXi, &tmpYr, &tmpYi, workingData, tsOffset);
-
-						} else {
-							tmpXr = workingData[tsOffset];
-							tmpXi = workingData[tsOffset + 1];
-							tmpYr = workingData[tsOffset + 2];
-							tmpYi = workingData[tsOffset + 3];
-						}
-
-						if ((timeIdx + 1) % factor == 0) {
-							outputs[][outputOffset] = ;
-						}
-					}
-				}
 
 				continue;
 
 			// Time-major modes
-			} else if (std::find(timeMajor.begin(), timeMajor.end(), timeMajor.size()) != timeMajor.end()) {
-
-
-			// Beam-major modes
-			} else if (std::find(beamMajor.begin(), beamMajor.end(), beamMajor.size()) != beamMajor.end()) {
+			} else if () {
 
 			} else {
 				std::cerr << "Unknown processing mode " << std::to_string(reader->meta->processingMode) << std::endl;
 				::testing::Test::HasFailure();
 			}
 
-			for (int16_t beamIdx = reader->meta->baseBeamlets[0]; beamIdx < reader->meta->upperBeamlets[port]; beamIdx++) {
-
-
-				for (int16_t timeIdx = 0; timeIdx < UDPNTIMESLICE; timeIdx++) {
-
-				}
-			}
 		}
 	}
-
-
 }
-*/
+ */
 
-TEST(LibReaderTests, ProcessingData) {
+class LibReaderTestsParam : public testing::TestWithParam<calibrate_t> {};
+TEST_P(LibReaderTestsParam, ProcessingData) {
 	//lofar_udp_reader *reader = reader_setup(150);
 
 	{
 		SCOPED_TRACE("The big one");
 		std::vector<int32_t> flaggedTests = {0, 5, 6};
 		for (int32_t currMode : processingModes) {
-			for (calibrate_t cal : std::vector<calibrate_t>{NO_CALIBRATION, GENERATE_JONES, APPLY_CALIBRATION}) {
+			//for (calibrate_t cal : std::vector<calibrate_t>{NO_CALIBRATION, GENERATE_JONES, APPLY_CALIBRATION})
+			{
+				calibrate_t cal = GetParam();
 				for (int32_t testNum = 0; testNum < numTests; testNum++) {
 					lofar_udp_config *config = config_setup(1, testNum, 4, INT32_MAX, cal);
 					std::cout << config->inputLocations[0] << ", " << currMode << ", " << cal << std::endl;
 					config->processingMode = currMode;
+					#ifndef NO_CAL_TEST
 					if (testNum == 1 && (currMode < 100 || (currMode > 100 && (currMode % 10 < 2)))) {
 						if (currMode == PACKET_NOHDR_COPY) {
 							config->calibrationDuration = 2 * config->packetsPerIteration * clock200MHzSampleTime * UDPNTIMESLICE;
@@ -526,10 +591,11 @@ TEST(LibReaderTests, ProcessingData) {
 							config->calibrationDuration = 0.1;
 						}
 						config->calibrateData = cal;
-					} else {
+					} else
+					#endif
+					{
 						config->calibrateData = NO_CALIBRATION;
 					}
-					//config->calibrateData = NO_CALIBRATION;
 					lofar_udp_reader *reader = lofar_udp_reader_setup(config);
 
 					if (std::find(flaggedTests.begin(), flaggedTests.end(), testNum) != flaggedTests.end() || currMode == (int32_t) TEST_INVALID_MODE) {
