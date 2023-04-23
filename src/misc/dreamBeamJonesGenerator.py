@@ -6,7 +6,6 @@ from multiprocessing.resource_tracker import unregister
 import lofarantpos.db
 import numpy as np
 import time as timeLib
-import tqdm
 from astropy.time import Time, TimeDelta
 from casacore.measures import measures
 from dreambeam.rime.scenarios import on_pointing_axis_tracking
@@ -139,7 +138,7 @@ if __name__ == '__main__':
 
         # For each time sample, calculate the time and determine a J2000 coordinate for the source, which can then be used to determine the Jones matrices
         if args.exact_pos:
-           for i in tqdm.trange(numSamples):
+           for i in range(numSamples):
                 obsTime = obsTime + args.inte
                 time = dm.epoch('utc', f'{obsTime.mjd}d')
                 dm.do_frame(time)

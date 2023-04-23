@@ -39,14 +39,10 @@ set(CMAKE_LINKER_FLAGS_DEBUG "${CMAKE_LINKER_FLAGS_DEBUG} -fno-omit-frame-pointe
 
 # Ensure we have a modern python version available and prepare to install the latest build of dreamBeam
 # multiprocessing.shared_memory required >= 3.8
-set(Python3_FIND_VIRTUALENV LAST)
-find_package(Python3 COMPONENTS Interpreter)
-if(Python3_VERSION VERSION_LESS "3.8")
-	message(FATAL_ERROR "Python 3.8 or later is required for the multiprocessing.shared_memory module")
-endif()
+find_package(Python3 3.8 COMPONENTS Interpreter REQUIRED)
 
-add_custom_target(install_dreamBeam_module
-                  COMMAND ${Python3_EXECUTABLE} -m pip install git+https://github.com/2baOrNot2ba/dreamBeam
+add_custom_target(install_python_requirements
+                  COMMAND ${Python3_EXECUTABLE} -m pip install astropy lofarantpos numpy git+https://github.com/2baOrNot2ba/AntPat git+https://github.com/2baOrNot2ba/dreamBeam
 )
 
 # Find the OpenMP package on the system
@@ -224,7 +220,7 @@ add_library(lofudpman STATIC
             src/lib/lofar_udp_metadata.c
             src/lib/lofar_udp_time.c)
 
-add_dependencies(lofudpman libfftw3fomp libzstd_static libpsrdada libhdf5 libz libh5bshuf install_dreamBeam_module) #yaml) #CSpice::cspice)
+add_dependencies(lofudpman libfftw3fomp libzstd_static libpsrdada libhdf5 libz libh5bshuf install_python_requirements) #yaml) #CSpice::cspice)
 
 # Include all of our library headers
 target_include_directories(lofudpman PUBLIC

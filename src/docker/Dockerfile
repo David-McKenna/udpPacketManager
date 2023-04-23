@@ -19,15 +19,16 @@ RUN find $SOFT/udpPacketManager/ && touch $SOFT/$BUILD_COMMIT
 
 WORKDIR /home/soft
 
-ENV CC clang-15
-ENV CXX clang++-15
+ENV CC="clang-15"
+ENV CXX="clang++-15"
 # Build and install udpPacketManager/mockHeader, riptide, PSRSalsa, CDMT, IQRM, PSRDADA-python
 WORKDIR $SOFT/udpPacketManager
 RUN echo "Building udpPacketManager" && \
 	\
 	apt-get update && \
-	apt-get install -y autoconf clang-15 clang++-15 csh git libomp5-15 libomp-15-dev libtool python3-pip wget && \
-    python3 -m pip install --upgrade pip && \
+	apt-get install -y autoconf ${CC} ${CXX} curl csh git make libomp5-15 libomp-15-dev libtool wget && \
+    curl -sSL https://bootstrap.pypa.io/get-pip.py -o get-pip.py && \
+    python3 get-pip.py && \
     python3 -m pip install cmake && \
 	find ./src && \
 	mkdir build && cd build && cmake .. && cmake --build . -- -j $BUILD_CORES && \
