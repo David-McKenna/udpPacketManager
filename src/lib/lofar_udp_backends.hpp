@@ -930,7 +930,7 @@ int32_t lofar_udp_raw_loop(lofar_udp_obs_meta *meta) {
 		#pragma omp parallel for default(none) shared(byteWorkspace, packetLoss, nThreads, meta, stderr, packetsPerIteration, replayDroppedPackets, bitmodeConversion, trueState, verbose)
 	#endif
 #else
-	#if defined(__GNUC__) && !defined(__clang__)
+	#if defined(__GNUC__) && !defined(__clang__) && (__GNUC__ < 9)
 		#pragma omp parallel for default(none) shared(byteWorkspace, packetLoss, meta, stderr, bitmodeConversion)
 	#else
 		#pragma omp parallel for default(none) shared(byteWorkspace, packetLoss, nThreads, meta, stderr, packetsPerIteration, replayDroppedPackets, bitmodeConversion, trueState)
