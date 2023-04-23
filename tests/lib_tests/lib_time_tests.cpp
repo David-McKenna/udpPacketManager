@@ -276,3 +276,9 @@ TEST(LibTimeTests, DerivedFromReader) {
 
 
 }
+
+TEST(LibTimeTests, ValidateConstValuesForGCC7) {
+	ASSERT_EQ(clockStepsDelta, clock200MHzSteps - clock160MHzSteps);
+	ASSERT_EQ(clockSampleTimeDelta, clock200MHzSampleTime - clock160MHzSampleTime);
+	ASSERT_EQ(clockPacketRateDelta,clock200MHzPacketRate - clock160MHzPacketRate);
+}
