@@ -52,7 +52,9 @@ if(OpenMP_C_LIB_NAMES MATCHES ".*(iomp).*" OR CMAKE_CXX_COMPILER_ID STREQUAL "Cl
 else()
 	message(WARNING "Other OpenMP implementation Detected (performance may be degraded, we strongly recommend avoiding the GCC OpenMP library)\nSetup will continue in 5 seconds.")
 	set(OMP_THREADS 8)
-	#execute_process(COMMAND ${CMAKE_COMMAND} -E sleep 5)
+	if ("${CMAKE_BUILD_TYPE}" MATCHES ".*Debug.*")
+		execute_process(COMMAND ${CMAKE_COMMAND} -E sleep 5)
+	endif()
 endif()
 message("")
 
