@@ -924,9 +924,17 @@ int32_t lofar_udp_raw_loop(lofar_udp_obs_meta *meta) {
 
 	// For each port of data provided,
 #ifdef ALLOW_VERBOSE
-#pragma omp parallel for default(none) shared(byteWorkspace, trueState, packetLoss, nThreads, meta, stderr, packetsPerIteration, replayDroppedPackets, bitmodeConversion, verbose)
+	#if defined(__GNUC__) && !defined(__clang__)
+		#pragma omp parallel for default(none) shared(byteWorkspace, packetLoss, meta, stderr, bitmodeConversion, verbose)
+	#else
+		#pragma omp parallel for default(none) shared(byteWorkspace, packetLoss, nThreads, meta, stderr, packetsPerIteration, replayDroppedPackets, bitmodeConversion, trueState, verbose)
+	#endif
 #else
-#pragma omp parallel for default(none) shared(byteWorkspace, trueState, packetLoss, nThreads, meta, stderr, packetsPerIteration, replayDroppedPackets, bitmodeConversion)
+	#if defined(__GNUC__) && !defined(__clang__)
+		#pragma omp parallel for default(none) shared(byteWorkspace, packetLoss, meta, stderr, bitmodeConversion)
+	#else
+		#pragma omp parallel for default(none) shared(byteWorkspace, packetLoss, nThreads, meta, stderr, packetsPerIteration, replayDroppedPackets, bitmodeConversion, trueState)
+	#endif
 #endif
 	for (int8_t port = 0; port < meta->numPorts; port++) {
 
