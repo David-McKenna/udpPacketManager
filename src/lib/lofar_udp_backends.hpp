@@ -411,14 +411,14 @@ static inline void udp_timeMajor(int64_t iLoop, const int8_t *inputPortData, O *
 	for (int32_t beamlet = baseBeamlet; beamlet < upperBeamlet; beamlet++) {
 		const int64_t tsInOffsetBase = input_offset_index(lastInputPacketOffset, beamlet, timeStepSize);
 		const int64_t tsOutOffsetBase =
-				4 * time_major_index(beamlet, baseBeamlet, cumulativeBeamlets, packetsPerIteration, outputTimeIdx);
+				UDPNPOL * time_major_index(beamlet, baseBeamlet, cumulativeBeamlets, packetsPerIteration, outputTimeIdx);
 
 		CALIBRATE_SETUP(I, O);
 
 		LOOP_OPTIMISATION
 		for (int32_t ts = 0; ts < UDPNTIMESLICE; ts++) {
 			const int64_t tsInOffset = ts * UDPNPOL;
-			const int64_t tsOutOffset = tsOutOffsetBase + ts * 4;
+			const int64_t tsOutOffset = tsOutOffsetBase + ts * UDPNPOL;
 
 			if constexpr (calibrateData) {
 				calibrateDataFunc<I, O>(&(outputData[0][tsOutOffset]),
@@ -478,9 +478,9 @@ udp_timeMajorSplitPols(int64_t iLoop, const int8_t *inputPortData, O **outputDat
 // This output matches the input format required by FFTW
 template<typename I, typename O, const int8_t calibrateData>
 static inline void
-udp_timeMajorDualPols(int64_t iLoop, const int8_t *inputPortData, O **outputData, int64_t lastInputPacketOffset, int32_t timeStepSize,
-					  int32_t upperBeamlet, int32_t cumulativeBeamlets, int64_t packetsPerIteration, int32_t baseBeamlet,
-					  const float *jonesMatrix) {
+udp_timeMajorAntPols(int64_t iLoop, const int8_t *inputPortData, O **outputData, int64_t lastInputPacketOffset, int32_t timeStepSize,
+                     int32_t upperBeamlet, int32_t cumulativeBeamlets, int64_t packetsPerIteration, int32_t baseBeamlet,
+                     const float *jonesMatrix) {
 	const int64_t outputTimeIdx = iLoop * UDPNTIMESLICE;
 	const float *beamletJones;
 
@@ -488,14 +488,14 @@ udp_timeMajorDualPols(int64_t iLoop, const int8_t *inputPortData, O **outputData
 	for (int32_t beamlet = baseBeamlet; beamlet < upperBeamlet; beamlet++) {
 		const int64_t tsInOffsetBase = input_offset_index(lastInputPacketOffset, beamlet, timeStepSize);
 		const int64_t tsOutOffsetBase =
-				2 * time_major_index(beamlet, baseBeamlet, cumulativeBeamlets, packetsPerIteration, outputTimeIdx);
+			(UDPNPOL / 2) * time_major_index(beamlet, baseBeamlet, cumulativeBeamlets, packetsPerIteration, outputTimeIdx);
 
 		CALIBRATE_SETUP(I, O);
 
 		LOOP_OPTIMISATION
 		for (int32_t ts = 0; ts < UDPNTIMESLICE; ts++) {
 			const int64_t tsInOffset = ts * UDPNPOL;
-			const int64_t tsOutOffset = tsOutOffsetBase + ts * 2;
+			const int64_t tsOutOffset = tsOutOffsetBase + ts * (UDPNPOL / 2);
 
 			if constexpr (calibrateData) {
 				calibrateDataFunc<I, O>(&(outputData[0][tsOutOffset]),
@@ -1184,9 +1184,9 @@ int32_t lofar_udp_raw_loop(lofar_udp_obs_meta *meta) {
 					                                            timeStepSize, upperBeamlet, cumulativeBeamlets,
 					                                            packetsPerIteration, baseBeamlet, jonesMatrix);
 				} else if constexpr (trueState == 32 || trueState == TIME_MAJOR_ANT_POL_FLOAT) {
-					udp_timeMajorDualPols<I, O, calibrateData>(iLoop, inputPortData, outputData, lastInputPacketOffset,
-					                                           timeStepSize, upperBeamlet, cumulativeBeamlets,
-					                                           packetsPerIteration, baseBeamlet, jonesMatrix);
+					udp_timeMajorAntPols<I, O, calibrateData>(iLoop, inputPortData, outputData, lastInputPacketOffset,
+					                                          timeStepSize, upperBeamlet, cumulativeBeamlets,
+					                                          packetsPerIteration, baseBeamlet, jonesMatrix);
 
 
 				} else if constexpr (trueState == STOKES_I) {
