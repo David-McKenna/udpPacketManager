@@ -32,9 +32,7 @@ RUN echo "Building udpPacketManager" && \
     python3 -m pip install cmake && \
     git clean -f -x && git reset --hard HEAD && \
 	find ./src && \
-	mkdir build && cd build && cmake .. && cmake --build . -- -j $BUILD_CORES && \
-	cmake --install . && \
-    ctest . -V && \
+	./build.sh 1 && \
     rm -rf /var/lib/apt/lists/*
 
 WORKDIR /home/user

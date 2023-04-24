@@ -44,7 +44,7 @@ function dropPacket () {
 for fil in "${baseFiles[@]}"; do
 
 	# testCase 2: ZSTD compressed
-	zstd -3 "${fil}" -o testCase2/"${fil}.zst" 2>&1 | grep -v "udp_1613" | grep -v "MB"
+	zstd -3 "${fil}" -o testCase2/"${fil}.zst" >/dev/null
 
 	# testCase 1, 3, 4, 5: Unmodified baseline copy
 	for num in 1 {3..5}; do
