@@ -3,7 +3,7 @@
 
 void _lofar_udp_signal_handler_stack(int signalnum) {
 	const int32_t maxStack = 32;
-	void *backtraceBuffer[32];
+	void *backtraceBuffer[maxStack];
 	int32_t numPtrs = backtrace(backtraceBuffer, maxStack);
 	char **funcNames = backtrace_symbols(backtraceBuffer, numPtrs);
 	if (funcNames == NULL) {
