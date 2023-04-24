@@ -8,16 +8,17 @@
 #include <fcntl.h>
 #include <semaphore.h>
 
+// Access environment variables for python script path search
 extern char **environ; // NOLINT(readability-redundant-declaration)
 
 typedef struct {
 	// Initialisers
-	char shmName[32];
-	int64_t shmSize;
+	char shmName[32]; // /dev/shm/shmName
+	int64_t shmSize; // Allocated ptr buffer size
 
 	// Working variables
-	int32_t shmFd;
-	void *shmPtr;
+	int32_t shmFd; // fileno
+	void *shmPtr; // Buffer
 } shmData;
 
 #ifdef __cplusplus
