@@ -10,7 +10,7 @@
  *
  * @return     { description_of_the_return_value }
  */
-int _lofar_udp_io_read_setup_FILE(lofar_udp_io_read_config *const input, const char *inputLocation, int8_t port) {
+int32_t _lofar_udp_io_read_setup_FILE(lofar_udp_io_read_config *const input, const char *inputLocation, int8_t port) {
 	VERBOSE(printf("Opening file at %s for port %d\n", inputLocation, port));
 
 	input->fileRef[port] = fopen(inputLocation, "rb");
@@ -137,7 +137,7 @@ int lofar_udp_io_write_setup_check_exists(char filePath[], int appendMode) {
  *
  * @return     { description_of_the_return_value }
  */
-int _lofar_udp_io_write_setup_FILE(lofar_udp_io_write_config *const config, int8_t outp, int32_t iter) {
+int32_t _lofar_udp_io_write_setup_FILE(lofar_udp_io_write_config *const config, int8_t outp, int32_t iter) {
 	char outputLocation[DEF_STR_LEN];
 
 	if (config->outputFiles[outp] != NULL) {
@@ -198,7 +198,11 @@ int _lofar_udp_io_write_setup_FILE(lofar_udp_io_write_config *const config, int8
  * @return     { description_of_the_return_value }
  */
 int64_t _lofar_udp_io_write_FILE(lofar_udp_io_write_config *const config, int8_t outp, const int8_t *src, int64_t nchars) {
-	return (int64_t) fwrite(src, sizeof(int8_t), nchars, config->outputFiles[outp]);
+	if (config->outputFiles[outp] != NULL) {
+		return (int64_t) fwrite(src, sizeof(int8_t), nchars, config->outputFiles[outp]);
+	}
+	fprintf(stderr, "ERROR %s: Output file pointer is null on outp %d, exiting.\n", __func__, outp);
+	return -1;
 }
 
 int64_t _check_FIFO_status(lofar_udp_io_write_config *config, int8_t outp, int returnReaders) {

@@ -16,7 +16,7 @@ int _lofar_udp_io_write_setup_DADA_ringbuffer(int32_t dadaKey, uint64_t nbufs, i
  *
  * @return     { description_of_the_return_value }
  */
-int
+int32_t
 _lofar_udp_io_read_setup_DADA(lofar_udp_io_read_config *const input, int32_t dadaKey, int8_t port) {
 #ifndef NODADA
 	// Init the logger and HDU
@@ -257,7 +257,7 @@ _lofar_udp_io_read_temp_DADA(void *outbuf, int64_t size, int64_t num, key_t dada
  *
  * @return     { description_of_the_return_value }
  */
-int _lofar_udp_io_write_setup_DADA(lofar_udp_io_write_config *const config, int8_t outp) {
+int32_t _lofar_udp_io_write_setup_DADA(lofar_udp_io_write_config *const config, int8_t outp) {
 #ifndef NODADA
 
 	if (config->dadaWriter[outp].multilog == NULL) {

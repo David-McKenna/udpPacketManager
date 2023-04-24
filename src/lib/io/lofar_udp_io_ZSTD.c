@@ -12,7 +12,7 @@
  *
  * @return     { description_of_the_return_value }
  */
-int
+int32_t
 _lofar_udp_io_read_setup_ZSTD(lofar_udp_io_read_config *const input, const char *inputLocation, int8_t port) {
 	// Copy the file reference into input
 	// Leave in boilerplate return encase the function gets more complicated in future
@@ -342,7 +342,7 @@ int64_t _lofar_udp_io_read_ZSTD(lofar_udp_io_read_config *const input, int8_t po
  *
  * @return     { description_of_the_return_value }
  */
-int _lofar_udp_io_write_setup_ZSTD(lofar_udp_io_write_config *const config, int8_t outp, int32_t iter) {
+int32_t _lofar_udp_io_write_setup_ZSTD(lofar_udp_io_write_config *const config, int8_t outp, int32_t iter) {
 	if (_lofar_udp_io_write_setup_FILE(config, outp, iter) < 0) {
 		return -1;
 	}

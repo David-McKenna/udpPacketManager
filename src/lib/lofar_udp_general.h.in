@@ -192,9 +192,6 @@ typedef enum {
 
 #endif // End of LOFAR_COMPILE_CONSTANTS
 
-
-
-
 // Decode the 'two source' bytes in the CEP header
 #ifndef LOFAR_SOURCE_BYTE_STRUCT
 #define LOFAR_SOURCE_BYTE_STRUCT
@@ -249,8 +246,6 @@ typedef struct __attribute__((__packed__)) lofar_source_bytes {
 	}
 #endif // End of LOFAR_UDP_INIT_MACRO
 
-
-
 #ifndef LOFAR_UDP_GENERAL_H
 #define LOFAR_UDP_GENERAL_H
 
@@ -270,14 +265,6 @@ typedef struct __attribute__((__packed__)) lofar_source_bytes {
 #define STRUCT_COPY_INIT(structtype, variable, defaultstruct) \
     _Static_assert(sizeof(structtype) == sizeof(defaultstruct), "Struct size mismatch"); \
 	*(variable) = defaultstruct;
-	/*
-	 * 	if (memcpy(variable, &defaultstruct, sizeof(structtype)) != variable) {              \
-        fprintf(stderr, "ERROR: Failed to initialise " #variable", returning.\n");    \
-        free(variable);                                                               \
-		cleanup; \
-		return returnVal; \
-	}
-	 */
 
 #define DEFAULT_STRUCT_ALLOC(structtype, variable, defaultstruct, cleanup, returnVal) \
 	_Static_assert(sizeof(structtype) == sizeof(defaultstruct), "Struct size mismatch");                                                                             \
@@ -295,15 +282,6 @@ typedef struct __attribute__((__packed__)) lofar_source_bytes {
 // Silence warnings about parameters not used in certain constexpr paths
 // https://stackoverflow.com/a/1486931
 #define UNUSED(expr) do { (void)(expr); } while (0);
-#define UNUSED_RETURN(expr) ((void)(expr))
-
-// Wrapper for printing errors with debug information as needed
-/*
-#define ERROR(format, ...)  {\
-    fprintf(stderr, "ERROR %s_l%d: ", __func__, __LINE__); \
-    fprintf(stderr, format __VA_OPT__(,) __VA_ARGS__);                                  \
-}
-*/
 
 // Allow C++ imports too
 #ifdef __cplusplus

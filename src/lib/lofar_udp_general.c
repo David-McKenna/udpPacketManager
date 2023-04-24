@@ -69,6 +69,14 @@ int _lofar_udp_prepare_signal_handler() {
 	return 0;
 }
 
+/**
+ * @brief strtol, but for integers
+ *
+ * @param str String to parse
+ * @param endPtr Working pointer, will be updated to first invalid character in string
+ *
+ * @return INT32_MAX: Failure, Other: success
+ */
 int32_t internal_strtoi(char *str, char **endPtr) {
 	long intermediate = strtol(str, endPtr, 10);
 

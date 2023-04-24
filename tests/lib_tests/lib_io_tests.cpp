@@ -70,10 +70,10 @@ TEST(LibIoTests, SetupUseCleanup) {
 						readConfig->readBufSize[i] = testContents.length();
 					}
 
-					int pid;
+					int pid = 0;
 
 					if (type == DADA_ACTIVE || type == FIFO) {
-						int ret;
+						int ret = 0;
 						if (type == DADA_ACTIVE) {
 							ret = pipe(syncPipe);
 						}

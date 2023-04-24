@@ -9,6 +9,7 @@
 #include <unistd.h>
 #include <sys/mman.h>
 #include <sys/stat.h>
+#include <sys/ipc.h>
 
 // BitShuffle header for HDF5 filter
 #include "bshuf_h5filter.h"
@@ -20,14 +21,11 @@ extern "C" {
 #endif
 
 // optarg Parse functions
-int lofar_udp_io_read_parse_optarg(lofar_udp_config *config, const char optarg[]);
-int lofar_udp_io_write_parse_optarg(lofar_udp_io_write_config *config, const char optarg[]);
-
+int32_t lofar_udp_io_read_parse_optarg(lofar_udp_config *config, const char optargc[]);
+int32_t lofar_udp_io_write_parse_optarg(lofar_udp_io_write_config *config, const char optargc[]);
 
 // Setup wrapper functions
-int _lofar_udp_io_read_setup_internal_lib_helper(lofar_udp_io_read_config *const input, const lofar_udp_config *config, const lofar_udp_obs_meta *meta,
-                                                 int8_t port);
-int lofar_udp_io_write_setup_helper(lofar_udp_io_write_config *config, const lofar_udp_obs_meta *meta, int32_t iter);
+int32_t lofar_udp_io_read_setup_helper(lofar_udp_io_read_config *input, int8_t **outputArr, int64_t maxReadSize, int8_t port);
 
 // Operate wrapper functions
 int64_t lofar_udp_io_read(lofar_udp_io_read_config *const input, int8_t port, int8_t *targetArray, int64_t nchars);
@@ -36,8 +34,8 @@ int64_t lofar_udp_io_write(lofar_udp_io_write_config *const config, int8_t outp,
 int64_t lofar_udp_io_write_metadata(lofar_udp_io_write_config *const outConfig, int8_t outp, const lofar_udp_metadata *metadata, const int8_t *headerBuffer, int64_t headerLength);
 
 // More generic setup functions
-int lofar_udp_io_read_setup(lofar_udp_io_read_config *input, int8_t port);
-int lofar_udp_io_write_setup(lofar_udp_io_write_config *config, int32_t iter);
+int32_t lofar_udp_io_read_setup(lofar_udp_io_read_config *input, int8_t port);
+int32_t lofar_udp_io_write_setup(lofar_udp_io_write_config *config, int32_t iter);
 
 // Cleanup wrapper functions
 void lofar_udp_io_read_cleanup(lofar_udp_io_read_config *input, int8_t port);
@@ -47,17 +45,19 @@ void lofar_udp_io_write_cleanup(lofar_udp_io_write_config *config, int8_t outp, 
 
 // Internal wrapped functions
 // Setup functions
-int _lofar_udp_io_read_setup_FILE(lofar_udp_io_read_config *const input, const char *inputLocation, int8_t port);
-int
+int32_t _lofar_udp_io_read_setup_internal_lib_helper(lofar_udp_io_read_config *const input, const lofar_udp_config *config, const lofar_udp_obs_meta *meta,
+                                                 int8_t port);
+int32_t _lofar_udp_io_read_setup_FILE(lofar_udp_io_read_config *const input, const char *inputLocation, int8_t port);
+int32_t
 _lofar_udp_io_read_setup_ZSTD(lofar_udp_io_read_config *const input, const char *inputLocation, int8_t port);
-int
+int32_t
 _lofar_udp_io_read_setup_DADA(lofar_udp_io_read_config *const input, int32_t dadaKey, int8_t port);
-__attribute__((unused)) int _lofar_udp_io_read_setup_HDF5(lofar_udp_io_read_config *const input, const char *inputLocation, int8_t port);
+__attribute__((unused)) int32_t _lofar_udp_io_read_setup_HDF5(lofar_udp_io_read_config *const input, const char *inputLocation, int8_t port);
 
-int _lofar_udp_io_write_setup_FILE(lofar_udp_io_write_config *const config, int8_t outp, int32_t iter);
-int _lofar_udp_io_write_setup_ZSTD(lofar_udp_io_write_config *const config, int8_t outp, int32_t iter);
-int _lofar_udp_io_write_setup_DADA(lofar_udp_io_write_config *const config, int8_t outp);
-int _lofar_udp_io_write_setup_HDF5(lofar_udp_io_write_config *const config, int8_t outp, int32_t iter);
+int32_t _lofar_udp_io_write_setup_FILE(lofar_udp_io_write_config *const config, int8_t outp, int32_t iter);
+int32_t _lofar_udp_io_write_setup_ZSTD(lofar_udp_io_write_config *const config, int8_t outp, int32_t iter);
+int32_t _lofar_udp_io_write_setup_DADA(lofar_udp_io_write_config *const config, int8_t outp);
+int32_t _lofar_udp_io_write_setup_HDF5(lofar_udp_io_write_config *const config, int8_t outp, int32_t iter);
 
 
 // Operate functions
@@ -79,7 +79,7 @@ int64_t _lofar_udp_io_write_metadata_HDF5(lofar_udp_io_write_config *const confi
 int64_t _lofar_udp_io_read_temp_FILE(void *outbuf, int64_t size, int64_t num, const char inputFile[], int8_t resetSeek);
 int64_t _lofar_udp_io_read_temp_ZSTD(void *outbuf, int64_t size, int64_t num, const char inputFile[], int8_t resetSeek);
 int64_t _lofar_udp_io_read_temp_DADA(void *outbuf, int64_t size, int64_t num, key_t dadaKey, int8_t resetSeek);
-int64_t _lofar_udp_io_read_temp_HDF5(void *outbuf, int64_t size, int8_t num, const char inputFile[], int resetSeek);
+int64_t _lofar_udp_io_read_temp_HDF5(void *outbuf, int64_t size, int8_t num, const char inputFile[], int8_t resetSeek);
 
 // Cleanup functions
 void _lofar_udp_io_read_cleanup_FILE(lofar_udp_io_read_config *const input, int8_t port);
@@ -94,8 +94,8 @@ void _lofar_udp_io_write_cleanup_HDF5(lofar_udp_io_write_config *config, int8_t 
 
 // Other functions
 void _swapCharPtr(char **a, char **b);
-long _FILE_file_size(FILE *fileptr);
-long _fd_file_size(int fd);
+int64_t _FILE_file_size(FILE *fileptr);
+int64_t _fd_file_size(int32_t fd);
 
 #ifdef __cplusplus
 }

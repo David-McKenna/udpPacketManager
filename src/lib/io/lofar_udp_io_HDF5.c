@@ -108,8 +108,8 @@ __attribute__((unused)) typedef struct strKeyBoolArrVal {
  *
  * @return     { description_of_the_return_value }
  */
-__attribute__((unused)) int _lofar_udp_io_read_setup_HDF5(__attribute__((unused)) lofar_udp_io_read_config *const input, __attribute__((unused)) const char *inputLocation,
-                                                          __attribute__((unused)) int8_t port) {
+__attribute__((unused)) int32_t _lofar_udp_io_read_setup_HDF5(__attribute__((unused)) lofar_udp_io_read_config *const input, __attribute__((unused)) const char *inputLocation,
+                                                              __attribute__((unused)) int8_t port) {
 	return -1;
 }
 
@@ -155,7 +155,7 @@ __attribute__((unused)) void _lofar_udp_io_read_cleanup_HDF5(__attribute__((unus
  */
 __attribute__((unused)) int64_t
 _lofar_udp_io_read_temp_HDF5(__attribute__((unused)) void *outbuf, __attribute__((unused)) int64_t size, __attribute__((unused)) int8_t num, __attribute__((unused)) const char inputFile[],
-                             __attribute__((unused)) int resetSeek) {
+                             __attribute__((unused)) int8_t resetSeek) {
 	//long readlen = -1;
 	return -1;
 }
@@ -170,7 +170,7 @@ _lofar_udp_io_read_temp_HDF5(__attribute__((unused)) void *outbuf, __attribute__
  *
  * @return     { description_of_the_return_value }
  */
-int _lofar_udp_io_write_setup_HDF5(lofar_udp_io_write_config *const config, int8_t outp, int32_t iter) {
+int32_t _lofar_udp_io_write_setup_HDF5(lofar_udp_io_write_config *const config, __attribute__((unused)) int8_t outp, int32_t iter) {
 
 	// Documentation referenced
 	//
