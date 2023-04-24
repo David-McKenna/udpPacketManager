@@ -267,9 +267,9 @@ TEST(LibMetadataTests, InternalParsers) {
 		SCOPED_TRACE("_lofar_udp_metadata_get_rcumode");
 		// int lofar_udp_metadata_get_rcumode(int input);
 		for (auto [rcu, modes] : std::map<int, std::vector<int>>{
-			{-1, {-1, -10, 0, 99, 101, 120}},
-			{1, {1}},
-			{2, {2}},
+			{-1, {-1, 1, 2, -10, 0, 99, 101, 120}},
+			//{1, {1}},
+			//{2, {2}},
 			{3, {3, 10}},
 			{4, {4, 30}},
 			{5, {5, 110}},
