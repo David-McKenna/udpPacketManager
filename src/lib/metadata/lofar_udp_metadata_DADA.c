@@ -1,7 +1,7 @@
 #include "lofar_udp_time.h"
 
 
-int _lofar_udp_metadata_update_DADA(lofar_udp_metadata *metadata, int newObs) {
+int _lofar_udp_metadata_update_DADA(__attribute__((unused)) lofar_udp_metadata *metadata, __attribute__((unused)) int newObs) {
 	// Base covers all cases, just return
 	return 0;
 }

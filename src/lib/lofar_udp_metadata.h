@@ -49,7 +49,7 @@ int _lofar_udp_metadata_setup_GUPPI(lofar_udp_metadata *metadata);
 int _lofar_udp_metadata_setup_SIGPROC(lofar_udp_metadata *metadata);
 
 int32_t _lofar_udp_metadata_update_BASE(const lofar_udp_reader *reader, lofar_udp_metadata *metadata, int8_t newObs);
-int _lofar_udp_metadata_update_DADA(lofar_udp_metadata *metadata, int newObs);
+int _lofar_udp_metadata_update_DADA(__attribute__((unused)) lofar_udp_metadata *metadata, __attribute__((unused)) int newObs);
 int _lofar_udp_metadata_update_GUPPI(lofar_udp_metadata *metadata, int newObs);
 int _lofar_udp_metadata_update_SIGPROC(lofar_udp_metadata *metadata, int newObs);
 int _lofar_udp_metadata_update_HDF5(lofar_udp_metadata *metadata, int newObs);

@@ -157,7 +157,7 @@ int64_t _lofar_udp_io_read_temp_ZSTD(void *outbuf, int64_t size, int64_t num, co
 
 	// Read in the compressed data
 	int64_t readlen = (int64_t) fread(inBuff, sizeof(int8_t), minRead, inputFilePtr);
-	if (readlen > minRead || readlen < 1) {
+	if (readlen > (int64_t) minRead || readlen < 1) {
 		fprintf(stderr, "Unable to read in data from file; exiting.\n");
 		fclose(inputFilePtr);
 		ZSTD_freeDStream(dstreamTmp);

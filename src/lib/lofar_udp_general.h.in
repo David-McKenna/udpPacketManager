@@ -233,12 +233,12 @@ typedef struct __attribute__((__packed__)) lofar_source_bytes {
 #define LOFAR_UDP_INIT_MACRO
 
 #define ARR_INIT(arr, entries, val) \
-	for (uint64_t ARRIDX = 0; ARRIDX < (entries); ARRIDX++) { \
+	for (int64_t ARRIDX = 0; ARRIDX < (entries); ARRIDX++) { \
 		(arr)[ARRIDX] = val; \
 	}
 
 #define STR_INIT(arr, entries) \
-	for (uint64_t ARRIDX = 0; ARRIDX < (entries); ARRIDX++) { \
+	for (int64_t ARRIDX = 0; ARRIDX < (entries); ARRIDX++) { \
 		(arr)[ARRIDX][0] = '\0'; \
 	}
 #endif // End of LOFAR_UDP_INIT_MACRO

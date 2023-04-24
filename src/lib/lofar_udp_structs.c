@@ -52,7 +52,7 @@ const lofar_udp_io_write_config lofar_udp_io_write_config_default = {
 	.zstdWriter = { { NULL } },
 	.dadaWriter = { { NULL } },
 	.hdf5Writer = { 0,
-		.hdf5DSetWriter = { 0, { 0, 0 }}
+	               .hdf5DSetWriter = {{ 0, { 0, 0 }}}
 	},
 
 

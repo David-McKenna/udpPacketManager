@@ -35,6 +35,11 @@ const double clockPacketRateDelta = clock200MHzPacketRate - clock160MHzPacketRat
  * @return     The starting packet
  */
 int64_t lofar_udp_time_get_packet_from_isot(const char *inputTime, const uint8_t clock200MHz) {
+	if (inputTime == NULL) {
+		fprintf(stderr, "ERROR %s: inputTime is null, exiting.\n", __func__);
+		return -1;
+	}
+
 	struct tm unixTm;
 	time_t unixEpoch = 0;
 
@@ -72,6 +77,11 @@ int64_t lofar_udp_time_get_packets_from_seconds(const double seconds, const uint
  * @param[in]  strlen		The output string buffer length
  */
 void lofar_udp_time_get_current_isot(const lofar_udp_reader *reader, char *stringBuff, const int64_t strlen) {
+	if (reader == NULL || stringBuff == NULL) {
+		fprintf(stderr, "ERROR %s: Input pointer is null (reader: %p, stringBuff: %p, exiting.\n", __func__, reader, stringBuff);
+		return;
+	}
+
 	// Get the current time information
 	const double startTime = lofar_udp_time_get_packet_time(reader->meta->inputData[0]);
 	const time_t startTimeUnix = (uint32_t) (startTime); // 2036 bug
@@ -81,10 +91,16 @@ void lofar_udp_time_get_current_isot(const lofar_udp_reader *reader, char *strin
 
 	// Write the output to a temporary buffer
 	char localBuff[32];
-	strftime(localBuff, VAR_ARR_SIZE(localBuff), "%Y-%m-%dT%H:%M:%S", startTimeStruct);
+	if (!strftime(localBuff, VAR_ARR_SIZE(localBuff), "%Y-%m-%dT%H:%M:%S", startTimeStruct)) {
+		fprintf(stderr, "ERROR %s: Failed to output time (errno %d: %s), exiting.\n", __func__, errno, strerror(errno));
+		return;
+	}
 
 	// Re-write with fractional seconds to the given output buffer
-	snprintf(stringBuff, strlen,  "%s.%06ld", localBuff, (int64_t) ((startTime - (double) startTimeUnix) * 1e6 + 0.5));
+	if (snprintf(stringBuff, strlen,  "%s.%06ld", localBuff, (int64_t) ((startTime - (double) startTimeUnix) * 1e6 + 0.5)) < 0) {
+		fprintf(stderr, "ERROR %s: Failed to append seconds fraction to time stamp %s (errno %d: %s), exiting.\n", __func__, localBuff, errno, strerror(errno));
+		return;
+	}
 }
 
 /**
@@ -127,6 +143,11 @@ double lofar_udp_time_get_packet_time_mjd(const int8_t *inputData) {
  * @param[in]      strlen		The output string buffer length
  */
 void lofar_udp_time_get_daq(const lofar_udp_reader *reader, char *stringBuff, const int32_t strlen) {
+	if (reader == NULL || stringBuff == NULL) {
+		fprintf(stderr, "ERROR %s: Input pointer is null (reader: %p, stringBuff: %p, exiting.\n", __func__, reader, stringBuff);
+		return;
+	}
+
 	// Get the current time information
 	const double startTime = lofar_udp_time_get_packet_time(reader->meta->inputData[0]);
 	const time_t startTimeUnix = (unsigned int) startTime;
@@ -135,5 +156,8 @@ void lofar_udp_time_get_daq(const lofar_udp_reader *reader, char *stringBuff, co
 	startTimeStruct = gmtime(&startTimeUnix);
 
 	// Write the time to the output buffer in the DAQ format
-	strftime(stringBuff, strlen, "%a %b %e %H:%M:%S %Y", startTimeStruct);
+	if (!strftime(stringBuff, strlen, "%a %b %e %H:%M:%S %Y", startTimeStruct)) {
+		fprintf(stderr, "ERROR %s: Failed to output time (errno %d: %s), exiting.\n", __func__, errno, strerror(errno));
+		return;
+	}
 }

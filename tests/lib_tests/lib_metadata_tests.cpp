@@ -298,8 +298,8 @@ TEST(LibMetadataTests, InternalParsers) {
 		SCOPED_TRACE("_lofar_udp_metadata_get_tsv");
 		// int lofar_udp_metadata_get_tsv(const char *inputStr, const char *keyword, char *result);
 		char testStr[3][META_STR_LEN] = { "TESTKEY", "TESTVAL", "" };
-		char testStrCombined[META_STR_LEN];
-		snprintf(testStrCombined, META_STR_LEN - 1, "%s\t%s", testStr[0], testStr[1]);
+		char testStrCombined[2 * META_STR_LEN];
+		snprintf(testStrCombined, 2 * META_STR_LEN, "%s\t%s", testStr[0], testStr[1]);
 
 
 		EXPECT_EQ(0, _lofar_udp_metadata_get_tsv(testStrCombined, testStr[0], testStr[2]));

@@ -153,7 +153,7 @@ TEST(LibIoTests, SetupUseCleanup) {
 							config->inputDadaKeys[i] = readConfig->inputDadaKeys[i];
 						}
 
-						snprintf(config->inputLocations[i], DEF_STR_LEN, "%s", readConfig->inputLocations[i]);
+						snprintf(config->inputLocations[i], DEF_STR_LEN + 1, "%s", readConfig->inputLocations[i]);
 						int8_t *buffer = (int8_t*) calloc(testContents.length() + 1, sizeof(int8_t));
 
 						if (type == FIFO) {
@@ -195,7 +195,7 @@ TEST(LibIoTests, SetupUseCleanup) {
 					// Write/Read comparison
 					for (int j = 0; j < ops; j++) {
 						for (int8_t i = 0; i < testNumInputs; i++) {
-							ARR_INIT(testBuffer, testContents.length(), '\0');
+							ARR_INIT(testBuffer, (int64_t) testContents.length(), '\0');
 							if (type != ZSTDCOMPRESSED || j != 0) {
 								EXPECT_EQ(testContents.length(), lofar_udp_io_read(readConfig, i, testBuffer, testContents.length()));
 							} else {

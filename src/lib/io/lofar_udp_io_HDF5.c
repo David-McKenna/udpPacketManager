@@ -288,7 +288,7 @@ int hdf5SetupStrPtrAttrs(hid_t group, const strKeyStrPtrVal attrs[], size_t numE
 
 	VERBOSE(printf("Begin Loop for %ld\n", numEntries));
 	for (size_t atIdx = 0; atIdx < numEntries; atIdx++) {
-		VERBOSE(printf("%s: %s (%d)\n", attrs[atIdx].key, attrs[atIdx].val, strlen(attrs[atIdx].val)));
+		VERBOSE(printf("%s: %s (%ld)\n", attrs[atIdx].key, attrs[atIdx].val, strlen(attrs[atIdx].val)));
 		int strlenv = strlen(attrs[atIdx].val) + 1;
 		VERBOSE(printf("strlenv: %d\n", strlenv));
 

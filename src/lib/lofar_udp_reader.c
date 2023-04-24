@@ -914,7 +914,7 @@ int32_t _lofar_udp_setup_processing_buffers(const lofar_udp_config *config, lofa
 		// Offset the pointer to the end of the two initial buffer packets
 		VERBOSE(
 			if (meta->VERBOSE) {
-				printf("calloc at %p for %ld +(%d ZSTD, %d packet) bytes\n",
+				printf("calloc at %p for %ld +(%ld ZSTD, %d packet) bytes\n",
 				       meta->inputData[port],
 				       inputBufferSize, additionalBufferSize,
 				       meta->portPacketLength[port] * 2);
@@ -1599,7 +1599,7 @@ int32_t _lofar_udp_shift_remainder_packets(lofar_udp_reader *reader, const int64
 			byteShift = ((int64_t) sizeof(int8_t)) * (packetShift + handlePadding) * portPacketLength;
 
 			VERBOSE(if (reader->meta->VERBOSE) {
-				printf("P: %d, SO: %ld, DO: %d, BS: %ld IDO: %ld\n", port, sourceOffset, destOffset, byteShift,
+				printf("P: %d, SO: %ld, DO: %ld, BS: %ld IDO: %ld\n", port, sourceOffset, destOffset, byteShift,
 					   destOffset + byteShift);
 			});
 
