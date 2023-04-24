@@ -5,7 +5,7 @@
 #define __STDC_WANT_LIB_EXT1__ 1
 
 // strcasestr requirement
-#define _GNU_SOURCE
+#define _GNU_SOURCE 1
 
 // Library information
 #define UPM_VERSION_MAJOR @PROJECT_VERSION_MAJOR@
