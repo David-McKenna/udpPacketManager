@@ -45,14 +45,14 @@ int64_t lofar_udp_metadata_write_file(const lofar_udp_reader *reader, lofar_udp_
 int32_t _lofar_udp_metadata_get_station_name(int stationID, char *stationCode);
 
 //int lofar_udp_metadata_setup_DADA(lofar_udp_metadata *metadata); // Main setup call populates the DADA struct
-int _lofar_udp_metadata_setup_GUPPI(lofar_udp_metadata *metadata);
-int _lofar_udp_metadata_setup_SIGPROC(lofar_udp_metadata *metadata);
+int32_t _lofar_udp_metadata_setup_GUPPI(lofar_udp_metadata *metadata);
+int32_t _lofar_udp_metadata_setup_SIGPROC(lofar_udp_metadata *metadata);
 
 int32_t _lofar_udp_metadata_update_BASE(const lofar_udp_reader *reader, lofar_udp_metadata *metadata, int8_t newObs);
-int _lofar_udp_metadata_update_DADA(__attribute__((unused)) lofar_udp_metadata *metadata, __attribute__((unused)) int newObs);
-int _lofar_udp_metadata_update_GUPPI(lofar_udp_metadata *metadata, int newObs);
-int _lofar_udp_metadata_update_SIGPROC(lofar_udp_metadata *metadata, int newObs);
-int _lofar_udp_metadata_update_HDF5(lofar_udp_metadata *metadata, int newObs);
+int32_t _lofar_udp_metadata_update_DADA(__attribute__((unused)) lofar_udp_metadata *const metadata, __attribute__((unused)) int8_t newObs);
+int32_t _lofar_udp_metadata_update_GUPPI(lofar_udp_metadata *const metadata, int8_t newObs);
+int32_t _lofar_udp_metadata_update_SIGPROC(lofar_udp_metadata *const metadata, int8_t newObs);
+int32_t _lofar_udp_metadata_update_HDF5(lofar_udp_metadata *const metadata, int8_t newObs);
 
 int64_t _lofar_udp_metadata_write_buffer(const lofar_udp_reader *reader, lofar_udp_metadata *const metadata, int8_t *headerBuffer, int64_t headerBufferSize, int8_t newObs);
 int64_t
@@ -62,7 +62,7 @@ int64_t _lofar_udp_metadata_write_file_force(const lofar_udp_reader *reader, lof
 int64_t _lofar_udp_metadata_write_DADA(const lofar_udp_metadata *hdr, int8_t *const headerBuffer, int64_t headerLength);
 int64_t _lofar_udp_metadata_write_GUPPI(const guppi_hdr *hdr, int8_t *const headerBuffer, int64_t headerLength);
 int64_t _lofar_udp_metadata_write_SIGPROC(const sigproc_hdr *hdr, int8_t *const headerBuffer, int64_t headerLength);
-int _lofar_udp_metadata_write_HDF5(const sigproc_hdr *hdr, char * const headerBuffer, size_t headerLength);
+int32_t _lofar_udp_metadata_write_HDF5(const sigproc_hdr *hdr, char * const headerBuffer, size_t headerLength);
 
 
 // Internal functions
@@ -86,37 +86,37 @@ int32_t _lofar_udp_metadata_handle_external_factors(lofar_udp_metadata *metadata
 int32_t _lofar_udp_metdata_setup_BASE(lofar_udp_metadata *metadata);
 
 // Internal variable checks
-int _isEmpty(const char *string);
-int _intNotSet(int input);
-int _longNotSet(long input);
-int _floatNotSet(float input, int exception);
-int _doubleNotSet(double input, int exception);
+int32_t _isEmpty(const char *string);
+int32_t _intNotSet(int32_t input);
+int32_t _longNotSet(int64_t input);
+int32_t _floatNotSet(float input, int8_t exception);
+int32_t _doubleNotSet(double input, int8_t exception);
 
 // DADA buffer writers
-int _writeStr_DADA(char *header, const char *key, const char *value);
-int _writeInt_DADA(char *header, const char *key, int32_t value);
-int _writeLong_DADA(char *header, const char *key, int64_t value);
-__attribute__((unused)) int _writeFloat_DADA(char *header, const char *key, float value, int exception); // Not in spec
-int _writeDouble_DADA(char *header, const char *key, double value, int exception);
+int32_t _writeStr_DADA(char *header, const char *key, const char *value);
+int32_t _writeInt_DADA(char *header, const char *key, int32_t value);
+int32_t _writeLong_DADA(char *header, const char *key, int64_t value);
+__attribute__((unused)) int32_t _writeFloat_DADA(char *header, const char *key, float value, int32_t exception); // Not in spec
+int32_t _writeDouble_DADA(char *header, const char *key, double value, int8_t exception);
 
 // GUPPI buffer writers
-char* _writeStr_GUPPI(char *headerBuffer, const char *key, const char *val);
-char* _writeInt_GUPPI(char *headerBuffer, const char *key, int32_t val);
-char* _writeLong_GUPPI(char *headerBuffer, const char *key, int64_t val);
-__attribute__((unused)) char* _writeFloat_GUPPI(char *headerBuffer, const char *key, float val);
-char* _writeDouble_GUPPI(char *headerBuffer, const char *key, double val);
+char *_writeStr_GUPPI(char *headerBuffer, int64_t headerLength, const char *key, const char *val);
+char *_writeInt_GUPPI(char *headerBuffer, int64_t headerLength, const char *key, int32_t val);
+char *_writeLong_GUPPI(char *headerBuffer, int64_t headerLength, const char *key, int64_t val);
+__attribute__((unused)) char *_writeFloat_GUPPI(char *headerBuffer, int64_t headerLength, const char *key, float val, int8_t exception);
+char *_writeDouble_GUPPI(char *headerBuffer, int64_t headerLength, const char *key, double val, int8_t exception);
 
 // SigProc buffer writers
-char* _writeKey_SIGPROC(char *buffer, const char *name);
-char* _writeStr_SIGPROC(char *buffer, const char *name, const char *value);
-char* _writeInt_SIGPROC(char *buffer, const char *name, int32_t value);
-__attribute__((unused)) char* _writeLong_SIGPROC(char *buffer, const char *name, int64_t value); // Not in spec
-__attribute__((unused)) char* _writeFloat_SIGPROC(char *buffer, const char *name, float value, int exception); // Not in spec
-char* _writeDouble_SIGPROC(char *buffer, const char *name, double value, int exception);
+char *_writeKey_SIGPROC(char *buffer, int64_t *bufferLength, const char *name);
+char *_writeStr_SIGPROC(char *buffer, int64_t bufferLength, const char *name, const char *value);
+char *_writeInt_SIGPROC(char *buffer, int64_t bufferLength, const char *name, int32_t value);
+__attribute__((unused)) char *_writeLong_SIGPROC(char *buffer, int64_t bufferLength, const char *name, int64_t value); // Not in spec
+__attribute__((unused)) char *_writeFloat_SIGPROC(char *buffer, int64_t bufferLength, const char *name, float value, int8_t exception); // Not in spec
+char *_writeDouble_SIGPROC(char *buffer, int64_t bufferLength, const char *name, double value, int8_t exception);
 
 // SigProc helpers
-int _sigprocStationID(int telescopeId);
-__attribute__((unused)) int _sigprocMachineID(const char *machineName); // Currently not implemented
+int32_t _sigprocStationID(int32_t telescopeId);
+__attribute__((unused)) int32_t _sigprocMachineID(const char *machineName); // Currently not implemented
 double _sigprocStr2Pointing(const char *input);
 
 

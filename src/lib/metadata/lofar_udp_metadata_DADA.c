@@ -1,48 +1,68 @@
-#include "lofar_udp_time.h"
+/**
+ * @brief Update the metadata struct to prepare for a DADA header write
+ *
+ * @param metadata	The struct to configure
+ *
+ * @return 0: Success, <0: Failure
+ */
+int32_t _lofar_udp_metadata_setup_DADA(__attribute__((unused)) lofar_udp_metadata *metadata) {
+	return 0;
+}
 
-
-int _lofar_udp_metadata_update_DADA(__attribute__((unused)) lofar_udp_metadata *metadata, __attribute__((unused)) int newObs) {
-	// Base covers all cases, just return
+/**
+ * @brief Update the metadata struct to prepare for a DADA header write
+ *
+ * @param metadata	The struct to configure
+ *
+ * @return 0: Success, <0: Failure
+ */
+int32_t _lofar_udp_metadata_update_DADA(__attribute__((unused)) lofar_udp_metadata *const metadata, __attribute__((unused)) int8_t newObs) {
+	// update_BASE covers all updates, just return
 	return 0;
 }
 
 
 /**
- * @brief      { function_description }
+ * @brief      Write a DADA header to the specified buffer
  *
- * @param      hdr   The header
+ * @param[in]      	hdr   The header
+ * @param[out]     	headerBuffer The output buffer
+ * @param[in]		headerLength The output buffer length
  *
- * @return     { description_of_the_return_value }
+ * @return     >0: Output header size in bytes, <0: Failure
  */
 int64_t _lofar_udp_metadata_write_DADA(const lofar_udp_metadata *hdr, int8_t *const headerBuffer, int64_t headerLength) {
 	if (headerBuffer == NULL || hdr == NULL) {
-		fprintf(stderr, "ERROR: Null buffer provided to %s, exiting.\n", __func__);
+		fprintf(stderr, "ERROR %s: Null buffer provided (hdr: %p, headerBuFFer: %p), exiting.\n", __func__, hdr, headerBuffer);
+		return -1;
 	}
 
 	headerLength /= sizeof(char) / sizeof(int8_t);
 
-	const int fileoutp = hdr->output_file_number % hdr->upm_num_outputs;
-	char keyfmt[16];
-	int returnVal = 0;
+	const int32_t fileoutp = hdr->output_file_number % hdr->upm_num_outputs;
+	const int32_t keyfmtLen = 16;
+	char keyfmt[keyfmtLen];
+	int32_t returnVal = 0;
 
 	// At time of initial implementation the approx. maximum input size here is
 	// (2 + MAX_NUM_PORTS) * DEF_STR_LEN -- beamctl, rawdatafiles
 	// (20 + MAX_OUTPUT_DIMS) * META_STR_LEN -- everything str-based
 	// 40 * (64/entry on the worst end) -- everything non-str
-	// Approximate our warning as 16kb
+	// Approximate our warning as 16,000 characters
 
-	if (headerLength < 4096 * 4) {
-		fprintf(stderr, "WARNING %s: headerBuffer may be too short (%ld provided, %d recommended), returning.\n", __func__, headerLength, 4096 * 4);
+	const int32_t expectedDadaLength = 4096 * 4;
+	if (headerLength < expectedDadaLength) {
+		fprintf(stderr, "WARNING %s: headerBuffer may be too short (%ld characters provided, %d recommended), returning.\n", __func__, headerLength, expectedDadaLength);
 		return -1;
 	}
 
 	char *workingBuffer = (char*) headerBuffer;
 
-
-
+	// TODO: Concern: no easy way to check length of write against remaining buffer.
+	// Maybe predict output length based on max(strlen, 64)?
 	returnVal += _writeDouble_DADA(workingBuffer, "HDR_VERSION", hdr->hdr_version, 0);
 	// Lovely chicken and the egg problem, we'll update it again later.
-	returnVal += _writeLong_DADA(workingBuffer, "HDR_SIZE", (long) strnlen(workingBuffer, headerLength));
+	returnVal += _writeLong_DADA(workingBuffer, "HDR_SIZE", (int64_t) strnlen(workingBuffer, headerLength));
 	returnVal += _writeStr_DADA(workingBuffer, "INSTRUMENT", "CASPSR"); // TODO: ANYTHING ELSE, psrchive exits early if the machine isn't recognised.
 	returnVal += _writeStr_DADA(workingBuffer, "TELESCOPE", hdr->telescope);
 	returnVal += _writeInt_DADA(workingBuffer, "TELESCOPE_RSP", hdr->telescope_rsp_id);
@@ -55,7 +75,7 @@ int64_t _lofar_udp_metadata_write_DADA(const lofar_udp_metadata *hdr, int8_t *co
 
 	for (int port = 0; port < hdr->upm_num_inputs; port++) {
 		// The buffer will likely run out before we get anywhere near a number large enough to fail this snprintf
-		if (snprintf(keyfmt, 15, "RAWFILE%d", port) < 0) {
+		if (snprintf(keyfmt, keyfmtLen - 1, "RAWFILE%d", port) < 0) {
 			fprintf(stderr, "ERROR %s: Failed to create key for raw file %d, exiting.\n", __func__, port);
 			return -1;
 		}
@@ -76,11 +96,13 @@ int64_t _lofar_udp_metadata_write_DADA(const lofar_udp_metadata *hdr, int8_t *co
 
 	// DSPSR requires strptime-parsable input %Y-%m-%D-%H:%M:%S, so it doesn't accept UTC_START with isot format / fractional seconds.
 	char tmpUtc[META_STR_LEN + 1] = "";
+	// Remove the fractional seconds
 	if (sscanf(hdr->obs_utc_start, "%[^.]s%*s", tmpUtc) < 0) {
 		fprintf(stderr, "ERROR %s: Failed to modify UTC_START for DADA header, exiting.\n", __func__);
 		return -1;
 	}
 	char *workingPtr;
+	// Convert the T to a '-'
 	while((workingPtr = strstr(tmpUtc, "T")) != NULL) {
 		*(workingPtr) = '-';
 	}
@@ -106,9 +128,10 @@ int64_t _lofar_udp_metadata_write_DADA(const lofar_udp_metadata *hdr, int8_t *co
 	returnVal += _writeInt_DADA(workingBuffer, "NBIT", hdr->nbit > 0 ? hdr->nbit : -1 * hdr->nbit);
 	returnVal += _writeInt_DADA(workingBuffer, "RESOLUTION", hdr->resolution);
 	returnVal += _writeInt_DADA(workingBuffer, "NDIM", hdr->ndim);
-	returnVal += _writeDouble_DADA(workingBuffer, "TSAMP", hdr->tsamp * 1e6, 0);
+	returnVal += _writeDouble_DADA(workingBuffer, "TSAMP",
+								   hdr->tsamp != -1.0 ? hdr->tsamp * 1e6 : -1.0, // tsamp s -> us, check if unset before scaling.
+								   0);
 	returnVal += _writeStr_DADA(workingBuffer, "STATE", hdr->state);
-
 
 	returnVal += _writeStr_DADA(workingBuffer, "COMMENT", "Further contents are metadata from UPM");
 
@@ -142,6 +165,7 @@ int64_t _lofar_udp_metadata_write_DADA(const lofar_udp_metadata *hdr, int8_t *co
 	returnVal += _writeInt_DADA(workingBuffer, "UPM_LOWERBEAMLET", hdr->upm_lowerbeam);
 
 	// ascii_header_set should overwrite values if they already exist, and the length -shouldn't- change between iterations given that the value is padded
+	// As a result, this should only change the buffer length for the first write to disk, assuming the buffer is re-used
 	returnVal += _writeLong_DADA(workingBuffer, "HDR_SIZE", (long) strnlen(workingBuffer, headerLength));
 
 	if (returnVal < 0) {
@@ -151,16 +175,16 @@ int64_t _lofar_udp_metadata_write_DADA(const lofar_udp_metadata *hdr, int8_t *co
 	return strnlen(workingBuffer, headerLength);
 }
 
-// Only set/get values that have been modified ascii_header_* can return 0 or 1
-// on success, wrap this so that we always return 0 on success
-//
-// @param      header  The header
-// @param[in]  key     The key
-// @param[in]  value   The value
-//
-// @return     { description_of_the_return_value }
-//
-int _writeStr_DADA(char *header, const char *key, const char *value) {
+/**
+ * @brief      Wraps ascii_header_set to write a string to the header
+ *
+ * @param      headerBuffer 	Buffer pointer
+ * @param[in]      key      The key
+ * @param[in]      val      The value
+ *
+ * @return 0: success, other: failure
+ */
+int32_t _writeStr_DADA(char *header, const char *key, const char *value) {
 	VERBOSE(printf("DADA HEADER %s: %s, %s\n", __func__, key, value));
 
 	if (key == NULL || value == NULL || _isEmpty(key)) {
@@ -177,15 +201,15 @@ int _writeStr_DADA(char *header, const char *key, const char *value) {
 }
 
 /**
- * @brief      { function_description }
+ * @brief      Wraps ascii_header_set to write an int to the header
  *
- * @param      header  The header
- * @param[in]  key     The key
- * @param[in]  value   The value
+ * @param      headerBuffer 	Buffer pointer
+ * @param[in]      key      The key
+ * @param[in]      val      The value
  *
- * @return     { description_of_the_return_value }
+ * @return 0: success, other: failure
  */
-int _writeInt_DADA(char *header, const char *key, int32_t value) {
+int32_t _writeInt_DADA(char *header, const char *key, int32_t value) {
 	VERBOSE(printf("DADA HEADER %s: %s, %d\n", __func__, key, value));
 	if (key == NULL || _isEmpty(key)) {
 		fprintf(stderr, "ERROR: DADA key unset: %p: %d.\n", key, value);
@@ -201,15 +225,15 @@ int _writeInt_DADA(char *header, const char *key, int32_t value) {
 }
 
 /**
- * @brief      { function_description }
+ * @brief      Wraps ascii_header_set to write a long to the header
  *
- * @param      header  The header
- * @param[in]  key     The key
- * @param[in]  value   The value
+ * @param      headerBuffer 	Buffer pointer
+ * @param[in]      key      The key
+ * @param[in]      val      The value
  *
- * @return     { description_of_the_return_value }
+ * @return 0: success, other: failure
  */
-int _writeLong_DADA(char *header, const char *key, int64_t value) {
+int32_t _writeLong_DADA(char *header, const char *key, int64_t value) {
 	VERBOSE(printf("DADA HEADER %s: %s, %ld\n", __func__, key, value));
 	if (key == NULL || _isEmpty(key)) {
 		fprintf(stderr, "ERROR: DADA key unset: %p: %ld.\n", key, value);
@@ -225,15 +249,16 @@ int _writeLong_DADA(char *header, const char *key, int64_t value) {
 }
 
 /**
- * @brief      { function_description }
+ * @brief      Wraps ascii_header_set to write a float to the header
  *
- * @param      header  The header
- * @param[in]  key     The key
- * @param[in]  value   The value
+ * @param      headerBuffer 	Buffer pointer
+ * @param[in]      key      The key
+ * @param[in]      val      The value
+ * @param[in]	   exception Swaps the unset check from -1.0 to 0.0
  *
- * @return     { description_of_the_return_value }
+ * @return 0: success, other: failure
  */
-__attribute__((unused)) int _writeFloat_DADA(char *header, const char *key, float value, int exception)  {
+__attribute__((unused)) int32_t _writeFloat_DADA(char *header, const char *key, float value, int32_t exception)  {
 	VERBOSE(printf("DADA HEADER %s: %s, %f\n", __func__, key, value));
 	if (key == NULL || _isEmpty(key)) {
 		fprintf(stderr, "ERROR: DADA key unset: %p: %f.\n", key, value);
@@ -249,15 +274,16 @@ __attribute__((unused)) int _writeFloat_DADA(char *header, const char *key, floa
 }
 
 /**
- * @brief      { function_description }
+ * @brief      Wraps ascii_header_set to write a double to the header
  *
- * @param      header  The header
- * @param[in]  key     The key
- * @param[in]  value   The value
+ * @param      headerBuffer 	Buffer pointer
+ * @param[in]      key      The key
+ * @param[in]      val      The value
+ * @param[in]	   exception Swaps the unset check from -1.0 to 0.0
  *
- * @return     { description_of_the_return_value }
+ * @return 0: success, other: failure
  */
-int _writeDouble_DADA(char *header, const char *key, double value, int exception) {
+int32_t _writeDouble_DADA(char *header, const char *key, double value, int8_t exception) {
 	VERBOSE(printf("DADA HEADER %s: %s, %lf\n", __func__, key, value));
 	if (key == NULL || _isEmpty(key)) {
 		fprintf(stderr, "ERROR: DADA key unset: %p: %lf.\n", key, value);

@@ -1,6 +1,12 @@
 #ifndef LOFAR_COMPILE_CONSTANTS
 #define LOFAR_COMPILE_CONSTANTS
 
+// Extended stdio functions
+#define __STDC_WANT_LIB_EXT1__ 1
+
+// strcasestr requirement
+#define _GNU_SOURCE
+
 // Library information
 #define UPM_VERSION_MAJOR @PROJECT_VERSION_MAJOR@
 #define UPM_VERSION_MINOR @PROJECT_VERSION_MINOR@
@@ -247,9 +253,6 @@ typedef struct __attribute__((__packed__)) lofar_source_bytes {
 
 #ifndef LOFAR_UDP_GENERAL_H
 #define LOFAR_UDP_GENERAL_H
-
-// Extended stdio functions
-#define __STDC_WANT_LIB_EXT1__ 1
 
 #include <stddef.h>
 #include <stdio.h>

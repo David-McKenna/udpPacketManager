@@ -1,13 +1,18 @@
-
-int _lofar_udp_metadata_setup_SIGPROC(lofar_udp_metadata *metadata) {
-
-	if (metadata->output.sigproc == NULL) {
-		if ((metadata->output.sigproc = calloc(1, sizeof(sigproc_hdr))) == NULL) {
-			fprintf(stderr, "ERROR: Failed to allocate memory for sigproc_hdr struct, exiting.\n");
-			return -1;
-		}
+/**
+ * @brief Update the metadata struct to prepare for a SigProc header write
+ *
+ * @param metadata	The struct to configure
+ *
+ * @return 0: Success, <0: Failure
+ */
+int32_t _lofar_udp_metadata_setup_SIGPROC(lofar_udp_metadata *metadata) {
+	if (metadata == NULL) {
+		fprintf(stderr, "ERROR %s: Passed null metadata struct, exiting.\n", __func__);
+		return -1;
 	}
-	*(metadata->output.sigproc) = sigproc_hdr_default;
+	FREE_NOT_NULL(metadata->output.sigproc);
+	metadata->output.sigproc = sigproc_hdr_alloc(0); // Disable fchannels for now. TODO: Optional to enable
+	CHECK_ALLOC_NOCLEAN(metadata->output.sigproc, -1);
 
 	// Copy over strings
 	if (strncpy(metadata->output.sigproc->source_name, metadata->source, META_STR_LEN) != metadata->output.sigproc->source_name) {
@@ -44,15 +49,13 @@ int _lofar_udp_metadata_setup_SIGPROC(lofar_udp_metadata *metadata) {
 	return 0;
 }
 
-int _lofar_udp_metadata_update_SIGPROC(lofar_udp_metadata *metadata, int newObs) {
-
+int32_t _lofar_udp_metadata_update_SIGPROC(lofar_udp_metadata *const metadata, int8_t newObs) {
 	if (metadata == NULL || metadata->output.sigproc == NULL) {
 		fprintf(stderr, "ERROR %s: Input metadata struct is null, exiting.\n", __func__);
 		return -1;
 	}
 
-	// Sigproc headers are only really meant to be used once at the start of the file, so they don't really change.
-
+	// Sigproc headers are only really meant to be used once at the start of the file, so they don't really change during processing.
 
 	if (newObs) {
 		metadata->output.sigproc->tstart = metadata->obs_mjd_start;
@@ -61,9 +64,20 @@ int _lofar_udp_metadata_update_SIGPROC(lofar_udp_metadata *metadata, int newObs)
 	return 0;
 }
 
+/**
+ * @brief      Write a SigProc header to the specified buffer
+ *
+ * @param[in]      	hdr   The header
+ * @param[out]     	headerBuffer The output buffer
+ * @param[in]		headerLength The output buffer length
+ *
+ * @return     >0: Output header size in bytes, <0: Failure
+ */
+#define HDR_LEN_LEFT headerLength - (workingBuffer - (char *) headerBuffer)
 int64_t _lofar_udp_metadata_write_SIGPROC(const sigproc_hdr *hdr, int8_t *const headerBuffer, int64_t headerLength) {
 	if (headerBuffer == NULL || hdr == NULL) {
-		fprintf(stderr, "ERROR: Null buffer provided to %s, exiting.\n", __func__);
+		fprintf(stderr, "ERROR %s: Null buffer provided (hdr: %p, headerBuFFer: %p), exiting.\n", __func__, hdr, headerBuffer);
+		return -1;
 	}
 
 	headerLength /= sizeof(char) / sizeof(int8_t);
@@ -75,47 +89,49 @@ int64_t _lofar_udp_metadata_write_SIGPROC(const sigproc_hdr *hdr, int8_t *const 
 		fprintf(stderr, "WARNING: Buffer is short (<%ld chars), we may overflow this buffer. Continuing with caution...\n", estimatedLength);
 	}
 
-	char *workingPtr = (char *) headerBuffer;
-
-	workingPtr = _writeKey_SIGPROC(workingPtr, "HEADER_START");
-	workingPtr = _writeInt_SIGPROC(workingPtr, "telescope_id", hdr->telescope_id);
-	workingPtr = _writeInt_SIGPROC(workingPtr, "machine_id", hdr->machine_id);
-	workingPtr = _writeInt_SIGPROC(workingPtr, "data_type", hdr->data_type);
-	workingPtr = _writeStr_SIGPROC(workingPtr, "rawdatafile", hdr->rawdatafile);
-	workingPtr = _writeStr_SIGPROC(workingPtr, "source_name", hdr->source_name);
-	workingPtr = _writeInt_SIGPROC(workingPtr, "barycentric", hdr->barycentric);
-	workingPtr = _writeInt_SIGPROC(workingPtr, "pulsarcentric", hdr->pulsarcentric);
-	workingPtr = _writeDouble_SIGPROC(workingPtr, "az_start", hdr->az_start, 0);
-	workingPtr = _writeDouble_SIGPROC(workingPtr, "za_start", hdr->za_start, 0);
-	workingPtr = _writeDouble_SIGPROC(workingPtr, "src_raj", hdr->src_raj, 0);// Maybe exception? Though ra/dec of  -1 arcsec seems less likely than 0
-	workingPtr = _writeDouble_SIGPROC(workingPtr, "src_dej", hdr->src_decj, 0);// Maybe exception?
-	workingPtr = _writeDouble_SIGPROC(workingPtr, "tstart", hdr->tstart, 0);
-	workingPtr = _writeDouble_SIGPROC(workingPtr, "tsamp", hdr->tsamp, 0);
-	workingPtr = _writeInt_SIGPROC(workingPtr, "nbits", hdr->nbits);
-	//workingPtr = writeInt_SIGPROC(workingPtr, "nsamples", hdr->nsamples); // Unfortunately we can't predict the future yet :(
-	workingPtr = _writeDouble_SIGPROC(workingPtr, "fch1", hdr->fch1, 0);
-	workingPtr = _writeDouble_SIGPROC(workingPtr, "foff", hdr->foff, 1);
-	workingPtr = _writeInt_SIGPROC(workingPtr, "nchans", hdr->nchans);
-	workingPtr = _writeInt_SIGPROC(workingPtr, "nifs", hdr->nifs);
-	workingPtr = _writeDouble_SIGPROC(workingPtr, "refdm", hdr->refdm, 0);
-	workingPtr = _writeDouble_SIGPROC(workingPtr, "period", hdr->period, 0);
+	char *workingBuffer = (char *) headerBuffer;
+	int64_t workingBufferLen = HDR_LEN_LEFT;
+	workingBuffer = _writeKey_SIGPROC(workingBuffer, &workingBufferLen, "HEADER_START");
+	workingBuffer = _writeInt_SIGPROC(workingBuffer, HDR_LEN_LEFT, "telescope_id", hdr->telescope_id);
+	workingBuffer = _writeInt_SIGPROC(workingBuffer, HDR_LEN_LEFT, "machine_id", hdr->machine_id);
+	workingBuffer = _writeInt_SIGPROC(workingBuffer, HDR_LEN_LEFT, "data_type", hdr->data_type);
+	workingBuffer = _writeStr_SIGPROC(workingBuffer, HDR_LEN_LEFT, "rawdatafile", hdr->rawdatafile);
+	workingBuffer = _writeStr_SIGPROC(workingBuffer, HDR_LEN_LEFT, "source_name", hdr->source_name);
+	workingBuffer = _writeInt_SIGPROC(workingBuffer, HDR_LEN_LEFT, "barycentric", hdr->barycentric);
+	workingBuffer = _writeInt_SIGPROC(workingBuffer, HDR_LEN_LEFT, "pulsarcentric", hdr->pulsarcentric);
+	workingBuffer = _writeDouble_SIGPROC(workingBuffer, HDR_LEN_LEFT, "az_start", hdr->az_start, 0);
+	workingBuffer = _writeDouble_SIGPROC(workingBuffer, HDR_LEN_LEFT, "za_start", hdr->za_start, 0);
+	workingBuffer = _writeDouble_SIGPROC(workingBuffer, HDR_LEN_LEFT, "src_raj", hdr->src_raj, 0);// Maybe exception? Though ra/dec of  -1 arcsec seems less likely than 0
+	workingBuffer = _writeDouble_SIGPROC(workingBuffer, HDR_LEN_LEFT, "src_dej", hdr->src_decj, 0);// Maybe exception?
+	workingBuffer = _writeDouble_SIGPROC(workingBuffer, HDR_LEN_LEFT, "tstart", hdr->tstart, 0);
+	workingBuffer = _writeDouble_SIGPROC(workingBuffer, HDR_LEN_LEFT, "tsamp", hdr->tsamp, 0);
+	workingBuffer = _writeInt_SIGPROC(workingBuffer, HDR_LEN_LEFT, "nbits", hdr->nbits);
+	//workingBuffer = writeInt_SIGPROC(workingBuffer, "nsamples", hdr->nsamples); // Unfortunately we can't predict the future yet :(
+	workingBuffer = _writeDouble_SIGPROC(workingBuffer, HDR_LEN_LEFT, "fch1", hdr->fch1, 0);
+	workingBuffer = _writeDouble_SIGPROC(workingBuffer, HDR_LEN_LEFT, "foff", hdr->foff, 1);
+	workingBuffer = _writeInt_SIGPROC(workingBuffer, HDR_LEN_LEFT, "nchans", hdr->nchans);
+	workingBuffer = _writeInt_SIGPROC(workingBuffer, HDR_LEN_LEFT, "nifs", hdr->nifs);
+	workingBuffer = _writeDouble_SIGPROC(workingBuffer, HDR_LEN_LEFT, "refdm", hdr->refdm, 0);
+	workingBuffer = _writeDouble_SIGPROC(workingBuffer, HDR_LEN_LEFT, "period", hdr->period, 0);
 
 	// Don't implement frequency tables for now
-	// if (hdr->fchannel != NULL) workingPtr = writeDoubleArray_SIGPROC(workingPtr, header->fchannel);
+	// if (hdr->fchannel != NULL) workingBuffer = writeDoubleArray_SIGPROC(workingBuffer, header->fchannel);
 
-	workingPtr = _writeKey_SIGPROC(workingPtr, "HEADER_END");
+	workingBufferLen = HDR_LEN_LEFT;
+	workingBuffer = _writeKey_SIGPROC(workingBuffer, &workingBufferLen, "HEADER_END");
 
-	if (workingPtr == NULL) {
+	if (workingBuffer == NULL) {
 		fprintf(stderr, "ERROR: Failed to generate sigproc header exiting.\n");
 		return -1;
 	}
 
-	return ((int8_t*) workingPtr + (sizeof(char) - sizeof(int8_t))) - headerBuffer;
+	return ((int8_t*) workingBuffer + (sizeof(char) - sizeof(int8_t))) - headerBuffer;
 
 }
+#undef HDR_LEN_LEFT
 
 
-int _sigprocStationID(int telescopeId) {
+int32_t _sigprocStationID(int32_t telescopeId) {
 	switch(telescopeId) {
 		// IE613 RSP code
 		case 214:
@@ -126,7 +142,7 @@ int _sigprocStationID(int telescopeId) {
 	}
 }
 
-__attribute__((unused)) int _sigprocMachineID(const char *machineName) {
+__attribute__((unused)) int32_t _sigprocMachineID(const char *machineName) {
 	if (strcmp(machineName, "REALTA_ucc1") == 0) {
 		return 1916;
 	} else {
@@ -148,8 +164,17 @@ double _sigprocStr2Pointing(const char *input) {
 	return dd * 1e4 + sign * mm * 1e2 + sign * ss;
 }
 
-char* _writeKey_SIGPROC(char *buffer, const char *name) {
-	if (buffer == NULL || name == NULL) {
+/**
+ * @brief      Writes a string value to the buffer
+ *
+ * @param      buffer 	Buffer pointer
+ * @param[in] 	   bufferLength		Buffer length
+ * @param[in]      name      The string
+ *
+ * @return New buffer head
+ */
+char* _writeKey_SIGPROC(char *buffer, int64_t *bufferLength, const char *name) {
+	if (buffer == NULL || name == NULL || bufferLength == NULL) {
 		return NULL;
 	}
 
@@ -160,23 +185,39 @@ char* _writeKey_SIGPROC(char *buffer, const char *name) {
 		return NULL;
 	}
 
-	size_t bufLen = sizeof(int32_t);
-	if (memcpy(buffer, &len, bufLen) != buffer) {
+	int32_t sizeLen = sizeof(int32_t);
+	if (*bufferLength < (sizeLen + len)) {
+		fprintf(stderr, "ERROR %s: Insufficient buffer size to write key %s, exiting.\n", __func__, name);
+		return NULL;
+	}
+	if (memcpy(buffer, &len, sizeLen) != buffer) {
 		fprintf(stderr, "ERROR: Failed to write string length for string %s, exiting.\n", name);
 		return NULL;
 	}
-	buffer += bufLen;
+	buffer += sizeLen;
+	*bufferLength -= sizeLen;
 
 	VERBOSE(printf("strlen %s: %d\n", name, len));
-	if (memcpy(buffer, name, len) != buffer) {
+	if (memcpy(buffer, name, len) != buffer) { // TODO: Is strlen returning characters or bytes?
 		fprintf(stderr, "ERROR: Failed to write sigproc header string %s to buffer, exiting.\n", name);
 		return NULL;
 	}
+	*bufferLength -= len;
 
 	return buffer + len;
 }
 
-char* _writeStr_SIGPROC(char *buffer, const char *name, const char *value) {
+/**
+ * @brief      Writes a string key value pair value to the buffer
+ *
+ * @param      buffer 	Buffer pointer
+ * @param[in] 	   bufferLength		Buffer length
+ * @param[in]      name      The key string
+ * @param[in]      value      The value string
+ *
+ * @return New buffer head
+ */
+char* _writeStr_SIGPROC(char *buffer, int64_t bufferLength, const char *name, const char *value) {
 	if (buffer == NULL || name == NULL || value == NULL) {
 		return NULL;
 	}
@@ -186,14 +227,24 @@ char* _writeStr_SIGPROC(char *buffer, const char *name, const char *value) {
 		return buffer;
 	}
 
-	if ((buffer = _writeKey_SIGPROC(buffer, name)) == NULL) {
+	if ((buffer = _writeKey_SIGPROC(buffer, &bufferLength, name)) == NULL) {
 		return NULL;
 	}
 
-	return _writeKey_SIGPROC(buffer, value);
+	return _writeKey_SIGPROC(buffer, &bufferLength, value);
 }
 
-char* _writeInt_SIGPROC(char *buffer, const char *name, int32_t value) {
+/**
+ * @brief      Writes a string/int key value pair value to the buffer
+ *
+ * @param      buffer 	Buffer pointer
+ * @param[in] 	   bufferLength		Buffer length
+ * @param[in]      name      The key string
+ * @param[in]      value      The value int
+ *
+ * @return New buffer head
+ */
+char *_writeInt_SIGPROC(char *buffer, int64_t bufferLength, const char *name, int32_t value) {
 	if (buffer == NULL || name == NULL) {
 		return NULL;
 	}
@@ -202,11 +253,15 @@ char* _writeInt_SIGPROC(char *buffer, const char *name, int32_t value) {
 		return buffer;
 	}
 
-	if ((buffer = _writeKey_SIGPROC(buffer, name)) == NULL) {
+	if ((buffer = _writeKey_SIGPROC(buffer, &bufferLength, name)) == NULL) {
 		return NULL;
 	}
 
-	size_t chars = sizeof(int32_t);
+	int32_t chars = sizeof(int32_t);
+	if (bufferLength < chars) {
+		fprintf(stderr, "ERROR %s: Insufficient buffer size to write key %s, exiting.\n", __func__, name);
+		return NULL;
+	}
 	if (memcpy(buffer, &value, chars) != buffer) {
 		fprintf(stderr, "ERROR: Failed to copy sigproc header int %s: %d to buffer, exiting.\n", name, value);
 		return NULL;
@@ -215,7 +270,18 @@ char* _writeInt_SIGPROC(char *buffer, const char *name, int32_t value) {
 	return buffer + chars;
 }
 
-char* _writeLong_SIGPROC(char *buffer, const char *name, int64_t value) {
+// Spec doesn't have any floats, define the function anway
+/**
+ * @brief      Writes a string/long key value pair value to the buffer
+ *
+ * @param      buffer 	Buffer pointer
+ * @param[in] 	   bufferLength		Buffer length
+ * @param[in]      name      The key string
+ * @param[in]      value      The value long
+ *
+ * @return New buffer head
+ */
+__attribute__((unused)) char *_writeLong_SIGPROC(char *buffer, int64_t bufferLength, const char *name, int64_t value) {
 	if (buffer == NULL || name == NULL) {
 		return NULL;
 	}
@@ -224,11 +290,15 @@ char* _writeLong_SIGPROC(char *buffer, const char *name, int64_t value) {
 		return buffer;
 	}
 
-	if ((buffer = _writeKey_SIGPROC(buffer, name)) == NULL) {
+	if ((buffer = _writeKey_SIGPROC(buffer, &bufferLength, name)) == NULL) {
 		return NULL;
 	}
 
-	size_t chars = sizeof(int64_t);
+	int32_t chars = sizeof(int64_t);
+	if (bufferLength < chars) {
+		fprintf(stderr, "ERROR %s: Insufficient buffer size to write key %s, exiting.\n", __func__, name);
+		return NULL;
+	}
 	if (memcpy(buffer, &value, chars) != buffer) {
 		fprintf(stderr, "ERROR: Failed to copy sigproc header long %s: %ld to buffer, exiting.\n", name, value);
 		return NULL;
@@ -238,7 +308,18 @@ char* _writeLong_SIGPROC(char *buffer, const char *name, int64_t value) {
 }
 
 // Spec doesn't have any floats, define the function anyway
-__attribute__((unused)) char* _writeFloat_SIGPROC(char *buffer, const char *name, float value, int exception) {
+/**
+ * @brief      Writes a string/float key value pair value to the buffer
+ *
+ * @param      buffer 	Buffer pointer
+ * @param[in] 	   bufferLength		Buffer length
+ * @param[in]      name      The key string
+ * @param[in]      value      The value float
+ * @param[in]      exception Swap -1.0 check for 0.0
+ *
+ * @return New buffer head
+ */
+__attribute__((unused)) char *_writeFloat_SIGPROC(char *buffer, int64_t bufferLength, const char *name, float value, int8_t exception) {
 	if (buffer == NULL || name == NULL) {
 		return NULL;
 	}
@@ -247,11 +328,15 @@ __attribute__((unused)) char* _writeFloat_SIGPROC(char *buffer, const char *name
 		return buffer;
 	}
 
-	if ((buffer = _writeKey_SIGPROC(buffer, name)) == NULL) {
+	if ((buffer = _writeKey_SIGPROC(buffer, &bufferLength, name)) == NULL) {
 		return NULL;
 	}
 
-	size_t chars = sizeof(float);
+	int32_t chars = sizeof(float);
+	if (bufferLength < chars) {
+		fprintf(stderr, "ERROR %s: Insufficient buffer size to write key %s, exiting.\n", __func__, name);
+		return NULL;
+	}
 	if (memcpy(buffer, &value, chars) != buffer) {
 		fprintf(stderr, "ERROR: Failed to copy sigproc header float %s: %f to buffer, exiting.\n", name, value);
 		return NULL;
@@ -260,7 +345,18 @@ __attribute__((unused)) char* _writeFloat_SIGPROC(char *buffer, const char *name
 	return buffer + chars;
 }
 
-char* _writeDouble_SIGPROC(char *buffer, const char *name, double value, int exception) {
+/**
+ * @brief      Writes a string/double key value pair value to the buffer
+ *
+ * @param      buffer 	Buffer pointer
+ * @param[in] 	   bufferLength		Buffer length
+ * @param[in]      name      The key string
+ * @param[in]      value      The value double
+ * @param[in]      exception Swap -1.0 check for 0.0
+ *
+ * @return New buffer head
+ */
+char *_writeDouble_SIGPROC(char *buffer, int64_t bufferLength, const char *name, double value, int8_t exception) {
 	if (buffer == NULL || name == NULL) {
 		return NULL;
 	}
@@ -269,11 +365,15 @@ char* _writeDouble_SIGPROC(char *buffer, const char *name, double value, int exc
 		return buffer;
 	}
 
-	if ((buffer = _writeKey_SIGPROC(buffer, name)) == NULL) {
+	if ((buffer = _writeKey_SIGPROC(buffer, &bufferLength, name)) == NULL) {
 		return NULL;
 	}
 
-	size_t chars = sizeof(double);
+	int32_t chars = sizeof(double);
+	if (bufferLength < chars) {
+		fprintf(stderr, "ERROR %s: Insufficient buffer size to write key %s, exiting.\n", __func__, name);
+		return NULL;
+	}
 	if (memcpy(buffer, &value, chars) != buffer) {
 		fprintf(stderr, "ERROR: Failed to copy sigproc header int %s: %lf to buffer, exiting.\n", name, value);
 		return NULL;

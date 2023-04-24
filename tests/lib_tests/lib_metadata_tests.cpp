@@ -692,116 +692,128 @@ TEST(LibMetadataTests, StructHandlers) {
 	free(config);
 };
 
-TEST(LibMetadataTests, InternalBufferBuilders) {
+
+class LibMetadataTestInternalBufferBuilders : public ::testing::Test {
+protected:
 	std::hash<std::string> hasher;
-	char headerBuffer[DEF_HDR_LEN];
+	char headerBuffer [DEF_HDR_LEN];
 	char testKey[META_STR_LEN] = "MYKEY";
 	char testVal[META_STR_LEN] = "THISISMYVAL";
-	assert(strnlen(testVal, META_STR_LEN) > 8); // Will be used to test GUPPI failures
-	int testInt = rand();
-	long testLong = ((long) testInt) * ((long) testInt);
-	float testFloat = (float) testLong / (float) rand();
-	double testDouble = (double) testLong / (double) rand();
+	int testInt;
+	long testLong;
+	float testFloat;
+	double testDouble;
 
-	{
-		SCOPED_TRACE("guppi_header_builders");
-		// int writeStr_GUPPI(char *headerBuffer, const char *key, const char *val)
-		headerBuffer[0] = '\0';
-		EXPECT_EQ(headerBuffer + 80, _writeStr_GUPPI(headerBuffer, testKey, testVal));
-		std::string expectedOutput = "MYKEY   = 'THISISMYVAL'";
-		expectedOutput.insert(expectedOutput.length(), 80 - expectedOutput.length(), ' ');
-		std::cout << headerBuffer << "|" << std::endl;
-		std::cout << expectedOutput << "|" << std::endl;
-		EXPECT_EQ(0, strcmp(expectedOutput.c_str(), headerBuffer));
-
-		headerBuffer[0] = '\0';
-		EXPECT_EQ(nullptr, _writeStr_GUPPI(headerBuffer, testVal, testVal));
-		headerBuffer[0] = '\0';
-		EXPECT_EQ(nullptr, _writeStr_GUPPI(headerBuffer, testKey, expectedOutput.c_str()));
-
-		// int writeInt_GUPPI(char *headerBuffer, char *key, int val)
-		headerBuffer[0] = '\0';
-		EXPECT_EQ(headerBuffer + 80, _writeInt_GUPPI(headerBuffer, testKey, testInt));
-		expectedOutput = "MYKEY   = " + std::to_string(testInt);
-		expectedOutput.insert(expectedOutput.length(), 80 - expectedOutput.length(), ' ');
-		std::cout << headerBuffer << "|" << std::endl;
-		std::cout << expectedOutput << "|" << std::endl;
-		EXPECT_EQ(0, strcmp(expectedOutput.c_str(), headerBuffer));
-
-		headerBuffer[0] = '\0';
-		EXPECT_EQ(nullptr, _writeInt_GUPPI(headerBuffer, testVal, testInt));
-
-		// int writeLong_GUPPI(char *headerBuffer, char *key, long val)
-		headerBuffer[0] = '\0';
-		EXPECT_EQ(headerBuffer + 80, _writeLong_GUPPI(headerBuffer, testKey, testLong));
-		expectedOutput = "MYKEY   = " + std::to_string(testLong);
-		expectedOutput.insert(expectedOutput.length(), 80 - expectedOutput.length(), ' ');
-		std::cout << headerBuffer << "|" << std::endl;
-		std::cout << expectedOutput << "|" << std::endl;
-		EXPECT_EQ(0, strcmp(expectedOutput.c_str(), headerBuffer));
-
-		headerBuffer[0] = '\0';
-		EXPECT_EQ(nullptr, _writeLong_GUPPI(headerBuffer, testVal, testLong));
-
-		// __attribute__((unused)) int writeFloat_GUPPI(char *headerBuffer, char *key, float val)
-		headerBuffer[0] = '\0';
-		EXPECT_EQ(headerBuffer + 80, _writeFloat_GUPPI(headerBuffer, testKey, testFloat));
-		//expectedOutput = "MYKEY   = " + std::format("{:.17f}", testFloat);
-		snprintf(headerBuffer + 128, 80, "%.12f", testFloat);
-		expectedOutput = "MYKEY   = ";
-		expectedOutput.append(headerBuffer + 128);
-		expectedOutput.insert(expectedOutput.length(), 80 - expectedOutput.length(), ' ');
-		std::cout << headerBuffer << "|" << std::endl;
-		std::cout << expectedOutput << "|" << std::endl;
-		EXPECT_EQ(0, strcmp(expectedOutput.c_str(), headerBuffer));
-
-		headerBuffer[0] = '\0';
-		EXPECT_EQ(nullptr, _writeFloat_GUPPI(headerBuffer, testVal, testFloat));
-
-		// int writeDouble_GUPPI(char *headerBuffer, char *key, double val)
-		headerBuffer[0] = '\0';
-		EXPECT_EQ(headerBuffer + 80, _writeDouble_GUPPI(headerBuffer, testKey, testDouble));
-		//expectedOutput = "MYKEY   = " + std::format("{:.17lf}", testDouble);
-		snprintf(headerBuffer + 128, 80, "%.17f", testDouble);
-		expectedOutput = "MYKEY   = ";
-		expectedOutput.append(headerBuffer + 128);
-		expectedOutput.insert(expectedOutput.length(), 80 - expectedOutput.length(), ' ');
-		std::cout << headerBuffer << "|" << std::endl;
-		std::cout << expectedOutput << "|" << std::endl;
-		EXPECT_EQ(0, strcmp(expectedOutput.c_str(), headerBuffer));
-
-		headerBuffer[0] = '\0';
-		EXPECT_EQ(nullptr, _writeDouble_GUPPI(headerBuffer, testVal, testDouble));
-
-
-		// int lofar_udp_metadata_write_GUPPI(const guppi_hdr *hdr, char *headerBuffer, size_t headerLength)
-		guppi_hdr *hdr = guppi_hdr_alloc();
-		std::string testBuffer(DEF_HDR_LEN, '\0');
-		(testBuffer.data())[0] = 'a';
-		EXPECT_EQ(-1, _lofar_udp_metadata_write_GUPPI(hdr, (int8_t *) testBuffer.data(), (ASCII_HDR_MEMBS - 1) * 80));
-		EXPECT_EQ(2720, _lofar_udp_metadata_write_GUPPI(hdr, (int8_t *) testBuffer.data(), DEF_HDR_LEN));
-		EXPECT_EQ(5001145786552019502l, hasher(testBuffer));
-
-		free(hdr);
+	void SetUp() override {
+		assert(strnlen(testVal, META_STR_LEN) > 8);
+		srand(0);
+		testInt = rand();
+		testLong = ((long) testInt) * ((long) testInt);
+		testFloat = (float) testLong / (float) rand();
+		testDouble = (double) testLong / (double) rand();
 	}
+};
 
-	{
-		SCOPED_TRACE("sigproc_header_builders");
+
+
+TEST_F(LibMetadataTestInternalBufferBuilders, GUPPIHeaderBuilders) {
+	// int writeStr_GUPPI(char *headerBuffer, const char *key, const char *val)
+	headerBuffer[0] = '\0';
+	EXPECT_EQ(headerBuffer + 80, _writeStr_GUPPI(headerBuffer, DEF_HDR_LEN, testKey, testVal));
+	std::string expectedOutput = "MYKEY   = 'THISISMYVAL'";
+	expectedOutput.insert(expectedOutput.length(), 80 - expectedOutput.length(), ' ');
+	std::cout << headerBuffer << "|" << std::endl;
+	std::cout << expectedOutput << "|" << std::endl;
+	EXPECT_EQ(expectedOutput, std::string(headerBuffer));
+
+	headerBuffer[0] = '\0';
+	EXPECT_EQ(nullptr, _writeStr_GUPPI(headerBuffer, DEF_HDR_LEN, testVal, testVal));
+	headerBuffer[0] = '\0';
+	EXPECT_EQ(nullptr, _writeStr_GUPPI(headerBuffer, DEF_HDR_LEN, testKey, expectedOutput.c_str()));
+
+	// int writeInt_GUPPI(char *headerBuffer, char *key, int val)
+	headerBuffer[0] = '\0';
+	EXPECT_EQ(headerBuffer + 80, _writeInt_GUPPI(headerBuffer, DEF_HDR_LEN, testKey, testInt));
+	expectedOutput = "MYKEY   = " + std::to_string(testInt);
+	expectedOutput.insert(expectedOutput.length(), 80 - expectedOutput.length(), ' ');
+	std::cout << headerBuffer << "|" << std::endl;
+	std::cout << expectedOutput << "|" << std::endl;
+	EXPECT_EQ(expectedOutput, std::string(headerBuffer));
+
+	headerBuffer[0] = '\0';
+	EXPECT_EQ(nullptr, _writeInt_GUPPI(headerBuffer, DEF_HDR_LEN, testVal, testInt));
+
+	// int writeLong_GUPPI(char *headerBuffer, char *key, long val)
+	headerBuffer[0] = '\0';
+	EXPECT_EQ(headerBuffer + 80, _writeLong_GUPPI(headerBuffer, DEF_HDR_LEN, testKey, testLong));
+	expectedOutput = "MYKEY   = " + std::to_string(testLong);
+	expectedOutput.insert(expectedOutput.length(), 80 - expectedOutput.length(), ' ');
+	std::cout << headerBuffer << "|" << std::endl;
+	std::cout << expectedOutput << "|" << std::endl;
+	EXPECT_EQ(expectedOutput, std::string(headerBuffer));
+
+	headerBuffer[0] = '\0';
+	EXPECT_EQ(nullptr, _writeLong_GUPPI(headerBuffer, DEF_HDR_LEN, testVal, testLong));
+
+	// __attribute__((unused)) int writeFloat_GUPPI(char *headerBuffer, char *key, float val)
+	headerBuffer[0] = '\0';
+	EXPECT_EQ(headerBuffer + 80, _writeFloat_GUPPI(headerBuffer, DEF_HDR_LEN, testKey, testFloat, 0));
+	//expectedOutput = "MYKEY   = " + std::format("{:.17f}", testFloat);
+	snprintf(headerBuffer + 128, 80, "%.12f", testFloat);
+	expectedOutput = "MYKEY   = ";
+	expectedOutput.append(headerBuffer + 128);
+	expectedOutput.insert(expectedOutput.length(), 80 - expectedOutput.length(), ' ');
+	std::cout << headerBuffer << "|" << std::endl;
+	std::cout << expectedOutput << "|" << std::endl;
+	EXPECT_EQ(expectedOutput, std::string(headerBuffer));
+
+	headerBuffer[0] = '\0';
+	EXPECT_EQ(nullptr, _writeFloat_GUPPI(headerBuffer, 0, testVal, testFloat, 0));
+
+	// int writeDouble_GUPPI(char *headerBuffer, char *key, double val)
+	headerBuffer[0] = '\0';
+	EXPECT_EQ(headerBuffer + 80, _writeDouble_GUPPI(headerBuffer, DEF_HDR_LEN, testKey, testDouble, 0));
+	//expectedOutput = "MYKEY   = " + std::format("{:.17lf}", testDouble);
+	snprintf(headerBuffer + 128, 80, "%.17f", testDouble);
+	expectedOutput = "MYKEY   = ";
+	expectedOutput.append(headerBuffer + 128);
+	expectedOutput.insert(expectedOutput.length(), 80 - expectedOutput.length(), ' ');
+	std::cout << headerBuffer << "|" << std::endl;
+	std::cout << expectedOutput << "|" << std::endl;
+	EXPECT_EQ(expectedOutput, std::string(headerBuffer));
+
+	headerBuffer[0] = '\0';
+	EXPECT_EQ(nullptr, _writeDouble_GUPPI(headerBuffer, DEF_HDR_LEN, testVal, testDouble, 0));
+
+
+	// int lofar_udp_metadata_write_GUPPI(const guppi_hdr *hdr, char *headerBuffer, size_t headerLength)
+	guppi_hdr *hdr = guppi_hdr_alloc();
+	std::string testBuffer(DEF_HDR_LEN, '\0');
+	(testBuffer.data())[0] = 'a';
+	EXPECT_EQ(-1, _lofar_udp_metadata_write_GUPPI(hdr, (int8_t *) testBuffer.data(), (ASCII_HDR_MEMBS - 1) * 80));
+	EXPECT_EQ(2640, _lofar_udp_metadata_write_GUPPI(hdr, (int8_t *) testBuffer.data(), DEF_HDR_LEN));
+	EXPECT_EQ(14801522510991000719ul, hasher(testBuffer));
+
+	free(hdr);
+}
+
+TEST_F(LibMetadataTestInternalBufferBuilders, SigprocHeaderBuilders) {
 		// char* _writeKey_SIGPROC(char *buffer, const char *name);
 		ARR_INIT(headerBuffer, DEF_HDR_LEN, '\0');
 		char expectedOutput[META_STR_LEN];// = {5, 0, 0, 0, 77, 89, 75, 69, 89, 0};
 		ARR_INIT(expectedOutput, META_STR_LEN, '\0');
+		int64_t hdrBufLen = DEF_HDR_LEN;
 
 		int32_t outputLength = strnlen(testKey, META_STR_LEN);
 		memcpy(expectedOutput, &outputLength, sizeof(int32_t));
 		memcpy(expectedOutput + sizeof(int32_t), testKey, strlen(testKey) * sizeof(char));
 		outputLength += sizeof(int32_t);
-		EXPECT_EQ(headerBuffer + outputLength, _writeKey_SIGPROC(headerBuffer, testKey));
+		EXPECT_EQ(headerBuffer + outputLength, _writeKey_SIGPROC(headerBuffer, &hdrBufLen, testKey));
 
 		EXPECT_EQ(0, strncmp(headerBuffer, expectedOutput, outputLength));
 
-		EXPECT_EQ(nullptr, _writeKey_SIGPROC(nullptr, nullptr));
-		EXPECT_EQ(nullptr, _writeKey_SIGPROC(headerBuffer, ""));
+		EXPECT_EQ(nullptr, _writeKey_SIGPROC(nullptr, &hdrBufLen, nullptr));
+		EXPECT_EQ(nullptr, _writeKey_SIGPROC(headerBuffer, &hdrBufLen, ""));
 
 		// char* _writeStr_SIGPROC(char *buffer, const char *name, const char *value);
 		outputLength = strnlen(testKey, META_STR_LEN);
@@ -812,12 +824,12 @@ TEST(LibMetadataTests, InternalBufferBuilders) {
 		memcpy(expectedOutput + sizeof(int32_t) + strnlen(testKey, META_STR_LEN), &outputLength, sizeof(int32_t));
 		memcpy(expectedOutput + 2 * sizeof(int32_t) + strnlen(testKey, META_STR_LEN), testVal, strlen(testVal) * sizeof(char));
 		outputLength += 2 * sizeof(int32_t) + strnlen(testKey, META_STR_LEN);
-		EXPECT_EQ(headerBuffer + outputLength, _writeStr_SIGPROC(headerBuffer, testKey, testVal));
+		EXPECT_EQ(headerBuffer + outputLength, _writeStr_SIGPROC(headerBuffer, DEF_HDR_LEN, testKey, testVal));
 
 		EXPECT_EQ(0, strncmp(headerBuffer, expectedOutput, outputLength));
 
-		EXPECT_EQ(nullptr, _writeStr_SIGPROC(nullptr, nullptr, nullptr));
-		EXPECT_EQ(headerBuffer, _writeStr_SIGPROC(headerBuffer, "", ""));
+		EXPECT_EQ(nullptr, _writeStr_SIGPROC(nullptr, DEF_HDR_LEN, nullptr, nullptr));
+		EXPECT_EQ(headerBuffer, _writeStr_SIGPROC(headerBuffer, DEF_HDR_LEN, "", ""));
 
 		// char* _writeInt_SIGPROC(char *buffer, const char *name, int32_t value);
 		int32_t testInt = 0xBAAAAAAD;
@@ -827,12 +839,12 @@ TEST(LibMetadataTests, InternalBufferBuilders) {
 		outputLength += sizeof(int32_t);
 		memcpy(expectedOutput + sizeof(int32_t), &testInt, sizeof(int32_t));
 		outputLength += sizeof(int32_t);
-		EXPECT_EQ(headerBuffer + outputLength, _writeInt_SIGPROC(headerBuffer, testKey, testInt));
+		EXPECT_EQ(headerBuffer + outputLength, _writeInt_SIGPROC(headerBuffer, DEF_HDR_LEN, testKey, testInt));
 
 		EXPECT_EQ(0, strncmp(headerBuffer, expectedOutput, outputLength));
 
-		EXPECT_EQ(nullptr, _writeInt_SIGPROC(nullptr, nullptr, 0));
-		EXPECT_EQ(headerBuffer, _writeInt_SIGPROC(headerBuffer, "", 0));
+		EXPECT_EQ(nullptr, _writeInt_SIGPROC(nullptr, DEF_HDR_LEN, nullptr, 0));
+		EXPECT_EQ(headerBuffer, _writeInt_SIGPROC(headerBuffer, DEF_HDR_LEN, "", 0));
 
 		// char* _writeDouble_SIGPROC(char *buffer, const char *name, double value, int exception);
 		double testDbl = 19.16;
@@ -842,14 +854,14 @@ TEST(LibMetadataTests, InternalBufferBuilders) {
 		outputLength += sizeof(int32_t);
 		memcpy(expectedOutput + sizeof(int32_t), &testDbl, sizeof(double));
 		outputLength += sizeof(double);
-		EXPECT_EQ(headerBuffer + outputLength, _writeDouble_SIGPROC(headerBuffer, testKey, testDbl, 0));
+		EXPECT_EQ(headerBuffer + outputLength, _writeDouble_SIGPROC(headerBuffer, DEF_HDR_LEN, testKey, testDbl, 0));
 
 		EXPECT_EQ(0, strncmp(headerBuffer, expectedOutput, outputLength));
 
-		EXPECT_EQ(nullptr, _writeDouble_SIGPROC(nullptr, nullptr, 0, 0));
-		EXPECT_EQ(headerBuffer, _writeDouble_SIGPROC(headerBuffer, "", 0.0, 0));
-		EXPECT_EQ(headerBuffer, _writeDouble_SIGPROC(headerBuffer, testKey, 0.0, 1));
-		EXPECT_NE(headerBuffer, _writeDouble_SIGPROC(headerBuffer, testKey, 0.1, 1));
+		EXPECT_EQ(nullptr, _writeDouble_SIGPROC(nullptr, DEF_HDR_LEN, nullptr, 0, 0));
+		EXPECT_EQ(headerBuffer, _writeDouble_SIGPROC(headerBuffer, DEF_HDR_LEN, "", 0.0, 0));
+		EXPECT_EQ(headerBuffer, _writeDouble_SIGPROC(headerBuffer, DEF_HDR_LEN, testKey, 0.0, 1));
+		EXPECT_NE(headerBuffer, _writeDouble_SIGPROC(headerBuffer, DEF_HDR_LEN, testKey, 0.1, 1));
 
 		// __attribute__((unused)) char* _writeLong_SIGPROC(char *buffer, const char *name, int64_t value); // Not in spec
 		int64_t testLng = 0xBAAAAAAD;
@@ -859,12 +871,12 @@ TEST(LibMetadataTests, InternalBufferBuilders) {
 		outputLength += sizeof(int32_t);
 		memcpy(expectedOutput + sizeof(int32_t), &testLng, sizeof(int64_t));
 		outputLength += sizeof(int64_t);
-		EXPECT_EQ(headerBuffer + outputLength, _writeLong_SIGPROC(headerBuffer, testKey, testLng));
+		EXPECT_EQ(headerBuffer + outputLength, _writeLong_SIGPROC(headerBuffer, DEF_HDR_LEN, testKey, testLng));
 
 		EXPECT_EQ(0, strncmp(headerBuffer, expectedOutput, outputLength));
 
-		EXPECT_EQ(nullptr, _writeLong_SIGPROC(nullptr, nullptr, 0));
-		EXPECT_EQ(headerBuffer, _writeLong_SIGPROC(headerBuffer, "", 0));
+		EXPECT_EQ(nullptr, _writeLong_SIGPROC(nullptr, DEF_HDR_LEN, nullptr, 0));
+		EXPECT_EQ(headerBuffer, _writeLong_SIGPROC(headerBuffer, DEF_HDR_LEN, "", 0));
 
 		// __attribute__((unused)) char* _writeFloat_SIGPROC(char *buffer, const char *name, float value, int exception); // Not in spec
 		float testFlt = 19.16f;
@@ -874,14 +886,14 @@ TEST(LibMetadataTests, InternalBufferBuilders) {
 		outputLength += sizeof(int32_t);
 		memcpy(expectedOutput + sizeof(int32_t), &testDbl, sizeof(float));
 		outputLength += sizeof(float);
-		EXPECT_EQ(headerBuffer + outputLength, _writeFloat_SIGPROC(headerBuffer, testKey, testFlt, 0));
+		EXPECT_EQ(headerBuffer + outputLength, _writeFloat_SIGPROC(headerBuffer, DEF_HDR_LEN, testKey, testFlt, 0));
 
 		EXPECT_EQ(0, strncmp(headerBuffer, expectedOutput, outputLength));
 
-		EXPECT_EQ(nullptr, _writeFloat_SIGPROC(nullptr, nullptr, 0.0f, 0));
-		EXPECT_EQ(headerBuffer, _writeFloat_SIGPROC(headerBuffer, "", 0.0f, 0));
-		EXPECT_EQ(headerBuffer, _writeFloat_SIGPROC(headerBuffer, testKey, 0.0f, 1));
-		EXPECT_NE(headerBuffer, _writeFloat_SIGPROC(headerBuffer, testKey, 0.1f, 1));
+		EXPECT_EQ(nullptr, _writeFloat_SIGPROC(nullptr, DEF_HDR_LEN, nullptr, 0.0f, 0));
+		EXPECT_EQ(headerBuffer, _writeFloat_SIGPROC(headerBuffer, DEF_HDR_LEN, "", 0.0f, 0));
+		EXPECT_EQ(headerBuffer, _writeFloat_SIGPROC(headerBuffer, DEF_HDR_LEN, testKey, 0.0f, 1));
+		EXPECT_NE(headerBuffer, _writeFloat_SIGPROC(headerBuffer, DEF_HDR_LEN, testKey, 0.1f, 1));
 
 
 		// int lofar_udp_metadata_write_SIGPROC(const sigproc_hdr *hdr, char *headerBuffer, size_t headerLength);
@@ -962,92 +974,91 @@ TEST(LibMetadataTests, InternalBufferBuilders) {
 		snprintf(testKey, META_STR_LEN, "MYKEY");
 		snprintf(testVal, META_STR_LEN, "THISISMYVAL");
 
-	}
-
-	{
-		SCOPED_TRACE("dada_header_builders");
-		// int _writeStr_DADA(char *header, const char *key, const char *value);
-		ARR_INIT(headerBuffer, DEF_HDR_LEN, '\0');
-		EXPECT_EQ(0, _writeStr_DADA(headerBuffer, testKey, testVal));
-
-		std::string expectedOutput = "MYKEY        THISISMYVAL            \n";
-		EXPECT_EQ(expectedOutput, std::string(headerBuffer));
-
-		EXPECT_EQ(-1, _writeStr_DADA(headerBuffer, nullptr, testVal));
-		EXPECT_EQ(0, _writeStr_DADA(headerBuffer, testKey, ""));
-		EXPECT_EQ(expectedOutput, std::string(headerBuffer));
-		// int _writeInt_DADA(char *header, const char *key, int32_t value);
-		int32_t testInt = 32;
-		ARR_INIT(headerBuffer, DEF_HDR_LEN, '\0');
-		EXPECT_EQ(0, _writeInt_DADA(headerBuffer, testKey, testInt));
-
-		expectedOutput = "MYKEY        32                     \n";
-		EXPECT_EQ(expectedOutput, std::string(headerBuffer));
-
-		EXPECT_EQ(-1, _writeInt_DADA(headerBuffer, nullptr, testInt));
-		EXPECT_EQ(0, _writeInt_DADA(headerBuffer, testKey, -1));
-		EXPECT_EQ(expectedOutput, std::string(headerBuffer));
-		ARR_INIT(headerBuffer, DEF_HDR_LEN, '\0');
-
-
-		// int _writeLong_DADA(char *header, const char *key, int64_t value);
-		int64_t testLng = 3212342567890l;
-		EXPECT_EQ(0, _writeLong_DADA(headerBuffer, testKey, testLng));
-
-		expectedOutput = "MYKEY        3212342567890          \n";
-		EXPECT_EQ(expectedOutput, std::string(headerBuffer));
-
-		EXPECT_EQ(-1, _writeLong_DADA(headerBuffer, "", testLng));
-		EXPECT_EQ(0, _writeLong_DADA(headerBuffer, testKey, -1l));
-		EXPECT_EQ(expectedOutput, std::string(headerBuffer));
-		ARR_INIT(headerBuffer, DEF_HDR_LEN, '\0');
-
-		// __attribute__((unused)) int _writeFloat_DADA(char *header, const char *key, float value, int exception); // Not in spec
-		float testFlt = 1234.0f;
-		EXPECT_EQ(0, _writeFloat_DADA(headerBuffer, testKey, testFlt, 0));
-
-		expectedOutput = "MYKEY        1234.000000000000      \n";
-		EXPECT_EQ(expectedOutput, std::string(headerBuffer));
-
-		EXPECT_EQ(-1, _writeFloat_DADA(headerBuffer, "", testFlt, 0));
-		EXPECT_EQ(0, _writeFloat_DADA(headerBuffer, testKey, -1.0f, 0));
-		EXPECT_EQ(expectedOutput, std::string(headerBuffer));
-		EXPECT_EQ(0, _writeFloat_DADA(headerBuffer, testKey, 0.0f, 1));
-		EXPECT_EQ(expectedOutput, std::string(headerBuffer));
-		ARR_INIT(headerBuffer, DEF_HDR_LEN, '\0');
-
-		// int _writeDouble_DADA(char *header, const char *key, double value, int exception);
-		double testDbl = 1234567.0;
-		EXPECT_EQ(0, _writeDouble_DADA(headerBuffer, testKey, testDbl, 0));
-
-		expectedOutput = "MYKEY        1234567.00000000000000000   \n";
-		EXPECT_EQ(expectedOutput, std::string(headerBuffer));
-
-		EXPECT_EQ(-1, _writeDouble_DADA(headerBuffer, "", testDbl, 0));
-		EXPECT_EQ(0, _writeDouble_DADA(headerBuffer, testKey, -1.0, 0));
-		EXPECT_EQ(expectedOutput, std::string(headerBuffer));
-		EXPECT_EQ(0, _writeDouble_DADA(headerBuffer, testKey, 0.0, 1));
-		EXPECT_EQ(expectedOutput, std::string(headerBuffer));
-		ARR_INIT(headerBuffer, DEF_HDR_LEN, '\0');
-
-
-
-		// int lofar_udp_metadata_write_DADA(const lofar_udp_metadata *hdr, char * const headerBuffer, size_t headerLength)
-		lofar_udp_metadata *hdr = lofar_udp_metadata_alloc();
-		EXPECT_EQ(-1, _lofar_udp_metadata_write_DADA(hdr, (int8_t*) headerBuffer, 1));
-		EXPECT_EQ(-1, _lofar_udp_metadata_write_DADA(hdr, (int8_t*) headerBuffer, DEF_HDR_LEN));
-		snprintf(hdr->obs_utc_start, META_STR_LEN, "2023-03-03T03:03:03");
-		EXPECT_EQ(468, _lofar_udp_metadata_write_DADA(hdr, (int8_t*) headerBuffer, DEF_HDR_LEN));
-		printf("%s\n", headerBuffer);
-		EXPECT_EQ(5286411601707105073UL, hasher(headerBuffer));
-		hdr->upm_num_inputs = 4;
-		hdr->output_file_number = 1;
-		hdr->upm_num_outputs = 4;
-		EXPECT_EQ(547, _lofar_udp_metadata_write_DADA(hdr, (int8_t*) headerBuffer, DEF_HDR_LEN));
-		printf("%s\n", headerBuffer);
-		EXPECT_EQ(9863917093308632906UL, hasher(headerBuffer));
-	}
 }
+
+TEST_F(LibMetadataTestInternalBufferBuilders, DADAHeaderBuilders) {
+	// int _writeStr_DADA(char *header, const char *key, const char *value);
+	ARR_INIT(headerBuffer, DEF_HDR_LEN, '\0');
+	EXPECT_EQ(0, _writeStr_DADA(headerBuffer, testKey, testVal));
+
+	std::string expectedOutput = "MYKEY        THISISMYVAL            \n";
+	EXPECT_EQ(expectedOutput, std::string(headerBuffer));
+
+	EXPECT_EQ(-1, _writeStr_DADA(headerBuffer, nullptr, testVal));
+	EXPECT_EQ(0, _writeStr_DADA(headerBuffer, testKey, ""));
+	EXPECT_EQ(expectedOutput, std::string(headerBuffer));
+	// int _writeInt_DADA(char *header, const char *key, int32_t value);
+	int32_t testInt = 32;
+	ARR_INIT(headerBuffer, DEF_HDR_LEN, '\0');
+	EXPECT_EQ(0, _writeInt_DADA(headerBuffer, testKey, testInt));
+
+	expectedOutput = "MYKEY        32                     \n";
+	EXPECT_EQ(expectedOutput, std::string(headerBuffer));
+
+	EXPECT_EQ(-1, _writeInt_DADA(headerBuffer, nullptr, testInt));
+	EXPECT_EQ(0, _writeInt_DADA(headerBuffer, testKey, -1));
+	EXPECT_EQ(expectedOutput, std::string(headerBuffer));
+	ARR_INIT(headerBuffer, DEF_HDR_LEN, '\0');
+
+
+	// int _writeLong_DADA(char *header, const char *key, int64_t value);
+	int64_t testLng = 3212342567890l;
+	EXPECT_EQ(0, _writeLong_DADA(headerBuffer, testKey, testLng));
+
+	expectedOutput = "MYKEY        3212342567890          \n";
+	EXPECT_EQ(expectedOutput, std::string(headerBuffer));
+
+	EXPECT_EQ(-1, _writeLong_DADA(headerBuffer, "", testLng));
+	EXPECT_EQ(0, _writeLong_DADA(headerBuffer, testKey, -1l));
+	EXPECT_EQ(expectedOutput, std::string(headerBuffer));
+	ARR_INIT(headerBuffer, DEF_HDR_LEN, '\0');
+
+	// __attribute__((unused)) int _writeFloat_DADA(char *header, const char *key, float value, int exception); // Not in spec
+	float testFlt = 1234.0f;
+	EXPECT_EQ(0, _writeFloat_DADA(headerBuffer, testKey, testFlt, 0));
+
+	expectedOutput = "MYKEY        1234.000000000000      \n";
+	EXPECT_EQ(expectedOutput, std::string(headerBuffer));
+
+	EXPECT_EQ(-1, _writeFloat_DADA(headerBuffer, "", testFlt, 0));
+	EXPECT_EQ(0, _writeFloat_DADA(headerBuffer, testKey, -1.0f, 0));
+	EXPECT_EQ(expectedOutput, std::string(headerBuffer));
+	EXPECT_EQ(0, _writeFloat_DADA(headerBuffer, testKey, 0.0f, 1));
+	EXPECT_EQ(expectedOutput, std::string(headerBuffer));
+	ARR_INIT(headerBuffer, DEF_HDR_LEN, '\0');
+
+	// int _writeDouble_DADA(char *header, const char *key, double value, int exception);
+	double testDbl = 1234567.0;
+	EXPECT_EQ(0, _writeDouble_DADA(headerBuffer, testKey, testDbl, 0));
+
+	expectedOutput = "MYKEY        1234567.00000000000000000   \n";
+	EXPECT_EQ(expectedOutput, std::string(headerBuffer));
+
+	EXPECT_EQ(-1, _writeDouble_DADA(headerBuffer, "", testDbl, 0));
+	EXPECT_EQ(0, _writeDouble_DADA(headerBuffer, testKey, -1.0, 0));
+	EXPECT_EQ(expectedOutput, std::string(headerBuffer));
+	EXPECT_EQ(0, _writeDouble_DADA(headerBuffer, testKey, 0.0, 1));
+	EXPECT_EQ(expectedOutput, std::string(headerBuffer));
+	ARR_INIT(headerBuffer, DEF_HDR_LEN, '\0');
+
+
+
+	// int lofar_udp_metadata_write_DADA(const lofar_udp_metadata *hdr, char * const headerBuffer, size_t headerLength)
+	lofar_udp_metadata *hdr = lofar_udp_metadata_alloc();
+	EXPECT_EQ(-1, _lofar_udp_metadata_write_DADA(hdr, (int8_t*) headerBuffer, 1));
+	EXPECT_EQ(-1, _lofar_udp_metadata_write_DADA(hdr, (int8_t*) headerBuffer, DEF_HDR_LEN));
+	snprintf(hdr->obs_utc_start, META_STR_LEN, "2023-03-03T03:03:03");
+	EXPECT_EQ(425, _lofar_udp_metadata_write_DADA(hdr, (int8_t*) headerBuffer, DEF_HDR_LEN));
+	printf("%s\n", headerBuffer);
+	EXPECT_EQ(3529520108236996014ul, hasher(headerBuffer));
+	hdr->upm_num_inputs = 4;
+	hdr->output_file_number = 1;
+	hdr->upm_num_outputs = 4;
+	EXPECT_EQ(504, _lofar_udp_metadata_write_DADA(hdr, (int8_t*) headerBuffer, DEF_HDR_LEN));
+	printf("%s\n", headerBuffer);
+	EXPECT_EQ(10862490972181063793ul, hasher(headerBuffer));
+}
+
 
 TEST(LibMetadataTests, MetadataWriters) {
 
