@@ -18,7 +18,7 @@ if (NO_TEST_CAL)
 	message("NO_TEST_CAL detected; disabling calibration tests.")
 	target_compile_definitions(lib_tests_run PRIVATE NO_TEST_CAL)
 endif()
-add_dependencies(lib_tests_run linkTestData)
+add_dependencies(lib_tests_run generateTestData linkTestData)
 target_link_libraries(lib_tests_run gtest_main lofudpman)
 
 add_test(NAME lib_tests COMMAND lib_tests_run)

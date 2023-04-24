@@ -1,5 +1,5 @@
 FROM ubuntu:latest
-SHELL ["/bin/bash", "-l", "-c"]
+SHELL ["/usr/bin/env", "bash", "-c"]
 
 
 ENV SOFT /home/soft
@@ -9,7 +9,7 @@ ARG BUILD_CORES=8
 ARG OPT_ARCH="native"
 ARG DEBIAN_FRONTEND=noninteractive
 COPY . $SOFT/udpPacketManager/
-RUN find $SOFT/udpPacketManager/ && touch $SOFT/$BUILD_COMMIT
+RUN find $SOFT/udpPacketManager/src
 
 
 # Get the latest version of in-active-development software
@@ -30,6 +30,7 @@ RUN echo "Building udpPacketManager" && \
     curl -sSL https://bootstrap.pypa.io/get-pip.py -o get-pip.py && \
     python3 get-pip.py && \
     python3 -m pip install cmake && \
+    git clean -f -x && git reset --hard HEAD && \
 	find ./src && \
 	mkdir build && cd build && cmake .. && cmake --build . -- -j $BUILD_CORES && \
 	cmake --install . && \

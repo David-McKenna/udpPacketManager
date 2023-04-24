@@ -16,7 +16,7 @@ jobs:
         ver: [7, 8]
     steps:
       - name: Checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
       - name: Prep Environment
         run: |
           sudo apt-get update
@@ -43,7 +43,7 @@ jobs:
         ver: [9, 10, 11, 12]
     steps:
       - name: Checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
       - name: Prep Environment
         run: |
           sudo apt-get update
@@ -71,7 +71,7 @@ jobs:
         ver: [7, 8, 9]
     steps:
       - name: Checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
       - name: Prep Environment
         run: |
           sudo apt-get update
@@ -97,7 +97,7 @@ jobs:
         ver: [11, 12, 13, 14, 15]
     steps:
       - name: Checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
       - name: Prep Environment
         run: |
           sudo apt-get update
