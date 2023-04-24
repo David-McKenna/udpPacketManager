@@ -11,8 +11,9 @@ FetchContent_Declare(GOOGLETEST
 FetchContent_MakeAvailable(GOOGLETEST)
 
 add_custom_target(generateTestData
-                  COMMAND bash ./rebuild.sh
+                  COMMAND bash ./rebuild.sh "${ZSTD_SOURCE_DIR}/programs/zstd"
                   WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/referenceFiles)
+add_dependencies(generateTestData zstd)
 
 add_custom_target(linkTestData
                   COMMAND ${CMAKE_COMMAND} -E create_symlink

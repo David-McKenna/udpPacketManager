@@ -1,5 +1,7 @@
 #!/bin/env bash
 
+zstdExec=${1:-zstd}
+
 #set -x
 numtest=9
 if [[ $(find ./testCase*/ -type f | wc -l) -eq $((numtest * 4)) ]]; then
@@ -44,7 +46,7 @@ function dropPacket () {
 for fil in "${baseFiles[@]}"; do
 
 	# testCase 2: ZSTD compressed
-	zstd -3 "${fil}" -o testCase2/"${fil}.zst" >/dev/null
+	${zstdExec} -3 "${fil}" -o testCase2/"${fil}.zst" >/dev/null
 
 	# testCase 1, 3, 4, 5: Unmodified baseline copy
 	for num in 1 {3..5}; do
