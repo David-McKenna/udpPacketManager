@@ -219,7 +219,7 @@ int32_t lofar_udp_io_read_setup_helper(lofar_udp_io_read_config *input, int8_t *
  *
  * @return 0: Success, -1: Failure
  */
-int lofar_udp_io_write_setup_helper(lofar_udp_io_write_config *config, const lofar_udp_obs_meta *meta, int32_t iter) {
+int32_t _lofar_udp_io_write_setup_helper(lofar_udp_io_write_config *config, const lofar_udp_obs_meta *meta, int32_t iter) {
 	if (config == NULL || meta == NULL) {
 		fprintf(stderr, "ERROR %s: passed null input configuration (onfig: %p, meta: %p), exiting.\n", __func__, config, meta);
 		return -1;

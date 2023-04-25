@@ -2,7 +2,7 @@
 #define __USE_XOPEN 1
 
 #include "lofar_udp_reader.h"
-#include "lofar_udp_time.h"
+#include "lofar_udp_io.h"
 #include <time.h>
 
 
@@ -10,7 +10,6 @@
 #define __LOFAR_CLI_META
 
 #define UPM_CLI_VERSION "@UPM_CLI_VERSION@"
-#define UPM_FFTW_AVAILABLE "@@"
 
 // Allow C++ imports too
 #ifdef __cplusplus

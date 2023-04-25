@@ -42,7 +42,7 @@ set(CMAKE_LINKER_FLAGS_DEBUG "${CMAKE_LINKER_FLAGS_DEBUG} -fno-omit-frame-pointe
 find_package(Python3 3.8 COMPONENTS Interpreter REQUIRED)
 
 add_custom_command(OUTPUT pip_installed
-                   COMMAND ${Python3_EXECUTABLE} -m pip install astropy lofarantpos numpy git+https://github.com/2baOrNot2ba/AntPat git+https://github.com/David-McKenna/dreamBeam.git@fc7d0a6
+                   COMMAND ${Python3_EXECUTABLE} -m pip install astropy lofarantpos git+https://github.com/2baOrNot2ba/AntPat git+https://github.com/David-McKenna/dreamBeam.git@fc7d0a6
                    COMMAND ${CMAKE_COMMAND} -E touch ${CMAKE_CURRENT_BINARY_DIR}/pip_installed
 
 )

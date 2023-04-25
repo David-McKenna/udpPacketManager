@@ -2,125 +2,92 @@ udpPacketManager
 ================
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.4249771.svg)](https://doi.org/10.5281/zenodo.4249771)
 
-udpPacketManager is a C library developed to handle reading and processing packet streams from international LOFAR
-stations. It is used at the Irish LOFAR station (I-LOFAR) in conjunction with Olaf Wucknitz's (MPIfRA) VLBI recording
-software, but in principle can be used with any packet capture that keeps the last 16 bytes of the UDP header attached
-to CEP packets.
+udpPacketManager is a C library developed to handle reading and processing CEP packet streams from international LOFAR stations. It is used at the Irish LOFAR station (I-LOFAR, [lofar.ie](https://lofar.ie)) for online data processing in conjunction with [ILTDada](https://github.com/David-McKenna/ILTDada) for online data reduction to Stokes parameter science ready data products, or intermediate voltage formats for use with other software packages.  
 
-This library allows for the entire or partial extraction and processing of LOFAR CEP packet streams, re-aligning data to
-account for packet loss or misalignment on the first packet, to produce one of several data products, ranging from raw
-voltages (reordered or not) to a full Stokes vector output.
-
-A guide on how to integrate the software in your project is provided in the **[
-README_INTEGRATION.md](docs/README_INTEGRATION.md)** file, and example implementations can be found in the provided **[
-lofar_cli_extractor.c](src/CLI/lofar_cli_extractor.c)** and my fork of Cees Bassa's coherent dedispersion GPU
-software [CDMT](https://github.com/David-McKenna/cdmt).
+This library allows for entire, partial beamlet extraction and processing of LOFAR CEP packet streams, re-aligning data to account for packet loss or misalignment on the first packet, to produce one of several data products, ranging from raw voltages (reordered or not) to a fully calibrated Stokes vector output.
 
 Caveats & TODOs
 -------
 
 While using the library, do be aware
 
-- CEP packets that are recorded out of order may cause issues, the best way to handle them has not been determined so
-  they are currently skipped
-- The provided python dummy data script tends to generate errors in the output after around 5,000 packets are generated
+- CEP packets that are recorded out of order may cause issues, the best way to handle them has not been determined so they are currently dropped. This may cause some time-major formats to change shape (though at least in our experience, packets are more likely to be lost, no packets in the past year have been received out of order).
 
 Future work should not break the exiting load/process/output loop, and may consist of
 
-- Creating a wrapper python library to allow for easer interfacing within python scripts rather than requiring a C
-  program (pybind11?)
-- Support more decompression algorithms (arbitrary reader input struct?)
+- Creating a wrapper python library to allow for easer interfacing within python scripts rather than requiring a C program (pybind11?)
+- Additional reader/writer format support
+- Additional metdata support (FITS frames?)
 
 Requirements
 ------------
 
-### Building / Using the Library
-- A modern C and C++ compiler with OpenMP 4.5 and C++17 support (gcc/g++-10 used for development, icc/icpc-2021.01 used
-  in production)
+In order to build and use the library, we require
+
+- A modern C and C++ compiler with at least OpenMP 4.5 and C++17 support
+  - `gcc-11`/`g++-11` used for development, `clang-14` used in production
+  - A range of tested `gcc` and `clang` releases can be found in the [`main.yml`](.github/workflows/main.yml) action file.
 - A modern CMake version (>3.14, can be installed with pip)
-- CSH, autoconf, libtool for PSRDADA compile
-- HDF5 user library and development headers
+  - A CMake compatible build system, such as `make` or `ninja`
+  - `git` for cloning repositories
+- `csh`, `autoconf`, `libtool` (for PSRDADA compile)
 
-The library will build fixed version of [Zstandard](https://github.com/facebook/zstd) and [PSRDADA](http://psrdada.sourceforge.net/) which have been tested and found to work. Furuther/past versions can be forced by modifying the [**CMakeLists.txt**](./CMakeLists.txt) file.
+To avail of voltage calibration through [dreamBeam](https://github.com/2baOrNot2ba/dreamBeam), we additionally require
+- A Python 3.8+ Interprerater available at compile and runtime
 
-To automatically install the dependencies on Debian-based systems, the following commands should suffice.
+
+To automatically install the required dependencies on Debian-based systems, the following commands should suffice.
 ```shell
-apt-get install git autoconf csh libhdf5-dev libtool wget
+apt-get install git autoconf csh libtool make wget python3 python3-pip
 pip install cmake
 
-# Optional, for LLVM compilation
+# Optional, for LLVM (clang) compilation
 apt-get install clang libomp-dev libomp5
 ```
 
-While we try to ensure full support for both gcc and icc (LLVM derivatives are not tested at the moment), they have
-different performance profiles. Due to differences in the OpenMP libraries between GCC GOMP and Intel's Classic OpenMP,
-compiling with ICC (not icx) has demonstrated significant performance improvements and advised as the compiler as a
-result. Some sample execution times for working on a 1200 second block of compressed data using an Intel Xeon Gold 6130
-on version 0.6 using processing mode 154 (Full Stokes Vector, 16x decimation), with and without dreamBeam corrections
-applied to the data.
+Our CMake configuration will automatically compile several dependencies (though they will not be installed to the system),
+- [FFTW3](https://www.fftw.org/), a FFT library for channelisation of data
+- [GoogleTest](https://github.com/google/googletest), a testing framework
+- [HDF5](https://github.com/HDFGroup/hdf5), a data model
+  - [bitshuffle](https://github.com/kiyo-masui/bitshuffle), a HDF5 compression filter
+  - [zlib](https://github.com/madler/zlib), a HDF5 depdendency
+- [PSRDADA](https://psrdada.sourceforge.net/), an astronomical ringbuffer implementation
+- [Zstandard](https://github.com/facebook/zstd), a compression library
+- Python packages for calibration (and their dependencies, automatic installation available through cmake)
+  - astropy
+  - dreamBeam
+  - lofarantpos
 
-```
-v0.6 GCC gcc version 9.3.0 (Ubuntu 9.3.0-11ubuntu0~18.04.1):
-dreamBeam: 	Total Read Time:	293.75		Total CPU Ops Time:	376.31	Total Write Time:	0.01
-No dreamBeam: 	Total Read Time:	282.78		Total CPU Ops Time:	164.26	Total Write Time:	0.01
+While we aim to have maximum support for common compilers, during the development of the library we have noted that the LLVM (`clang`) implementation of OpenMP, `libomp` tasks has significant performance benefits as compared to the GCC `libgomp` library, especially for higher core count machines. As a result, we strongly recommend using a `clang` compiler when using the library for online processing of observations. Further details of this behaviour can be found in **[compilers.md](docs/compilers.md)**.
 
-v0.6 ICC icc version 2021.1 Beta (gcc version 7.5.0 compatibility):
-dreamBeam:	Total Read Time:	290.89		Total CPU Ops Time:	66.14	Total Write Time:	0.01
-No dreamBeam:	Total Read Time:	285.35		Total CPU Ops Time:	49.42	Total Write Time:	0.01
-```
-
-Performance can be improved in the GCC path by modifying the default THREADS variable to be between 8 and the number of
-raw cores (not including hyper-threads) per CPU installed in your machine, though including too many threads causes
-performance degradation extremely quickly. The number of threads can be set at run time as well.
-
-The Intel OpenMP library is most easily downloaded by using a modern version of Clang, installing ICC (is now free using the [Intel oneAPI repositories](https://software.intel.com/content/www/us/en/develop/articles/installing-intel-oneapi-toolkits-via-apt.html))
-, or just installing the specific IOMP library via oneAPI (`intel-oneapi-openmp intel-oneapi-runtime-openmp`).
-
-#### Using ICC built objects with GCC/NVCC
-
-While ICC offers significant performance improvements, if downstream objects cannot be compiled with ICC/ICPC, you will
-need to include extra flags to link in the Intel libraries as they cannot be statically included. As a result, these
-flags need to be included.
-
-In the case of NVCC these need to be passed with "-Xlinker" so that the non-CUDA compiler is aware of them, or change
-the base compiler to the Intel C++ compiler (`nvcc` tends to have a 1-2 year lag in compiler support, so this is
-unlikely to be available).
-
-```
-gcc: -L$(ONEAPI_ROOT)/compiler/latest/linux/compiler/lib/intel64_lin/ -liomp5 -lirc
-nvcc: -Xlinker "-L$(ONEAPI_ROOT)/compiler/latest/linux/compiler/lib/intel64_lin/ -liomp5 -lirc"
-nvcc (alt): -ccbin=icpc
-```
-
-### Building / Using the Example CLI
-
-Installing
-----------
-Once the pre-requisites are met, running the following set of commands will build and install the library.
+Building and Installing the Library
+-----------------------------------
+Once the pre-requisites are met, running the following set of commands is sufficient build and install the library.
 
 ```shell
+numThreads=8
 mkdir build; cd build
 cmake ..
-cmake --build . -- -j8
-cmake --install . -- -j8
+cmake --build . -- -j${numThreads}
+
+# Optional, run the test suite
+ctest -V .
 ```
+
+We provide these commands wrapped in a script at **[build.sh](build.sh)**
 
 ### Calibration Installation Notes
 
-If you are also installing the required components for polarmetric calibrations you may receive several errors from
-casacore regarding missing ephemeris, leap second catalogues, etc, which can be fixed by following the following help
-guide
-
-https://casaguides.nrao.edu/index.php?title=Fixing_out_of_date_TAI_UTC_tables_%28missing_information_on_leap_seconds%29
-
-We have automated this process, along with a few other quick fixes into the `make calibration-prep` target, though this
-will only run on Debian-based distributions.
-
+If you are also installing the required components for polarmetric calibrations you may receive several errors from casacore regarding missing ephemeris, leap second catalogues, etc, which can be fixed by following the following [this help guide fomr the NRAO](https://casaguides.nrao.edu/index.php?title=Fixing_out_of_date_TAI_UTC_tables_%28missing_information_on_leap_seconds%29).
 
 Usage
 -----
-Please see the [*README_INTEGRATION.md*](docs/README_INTEGRATION.md) file for a guide to implementing the library in
-your software, and the [*README_CLI.md*](docs/README_CLI.md) file for the usage guide for the provided CLI.
+
+A quickstart guide on how to integrate the software in your project is provided in the **[
+integration(docs/README_INTEGRATION.md)** readme file, and example implementations can be found in the provided **[
+lofar_cli_extractor.c](src/CLI/lofar_cli_extractor.c)**, or a simplified implementation can be found in **[example_processor.c](docs/examples/example_processor.c)**.
+
+Other documentation can be found in the [docs/](docs/) folder.
 
 
 Funding
