@@ -186,7 +186,9 @@ if __name__ == '__main__':
     data = np.frombuffer(ref.buf, dtype = np.float32, count = args.shm_size // jointInvJones.dtype.itemsize)
     data[0] = jointInvJones.shape[0]
     data[1] = jointInvJones.shape[1]
-    data[2:] = jointInvJones.ravel()
+    if (data[0] * data[1] * 4 * 2) != (data.size - 2):
+        print(f"dreamBeamJonesGenerator.py: Unexpected generated shape: Expected {(data.size - 2)} samples  ({(data.size - 2) / 8 / jointInvJones.shape[1]} time samples), generated {jointInvJones.size} samples (({(jointInvJones.size) / 8 / jointInvJones.shape[1]} time samples), reducing output size.")
+    data[2:] = jointInvJones.ravel()[:(args.shm_size // jointInvJones.dtype.itemsize) - 2] # Drop extra time samples if not necessary
     # Remove hanging references
     del data
     ref.close()
