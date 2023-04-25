@@ -185,7 +185,7 @@ if __name__ == '__main__':
     assert(ref.size == args.shm_size)
     data = np.frombuffer(ref.buf, dtype = np.float32, count = args.shm_size // jointInvJones.dtype.itemsize)
     if (data[0] * data[1] * 4 * 2) != (data.size - 2):
-        ts = (data.size - 2) / 8 / jointInvJones.shape[1]
+        ts = int((data.size - 2) / 8 / jointInvJones.shape[1])
         print(f"dreamBeamJonesGenerator.py: Unexpected generated shape: Expected {(data.size - 2)} samples  ({ts} time samples), generated {jointInvJones.size} samples (({(jointInvJones.size) / 8 / jointInvJones.shape[1]} time samples), reducing output size.")
         jointInvJones = jointInvJones[:ts]
     data[0] = jointInvJones.shape[0]
