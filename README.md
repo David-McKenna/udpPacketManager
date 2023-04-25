@@ -73,22 +73,19 @@ cmake --build . -- -j${numThreads}
 # Optional, run the test suite
 ctest -V .
 ```
-
 We provide these commands wrapped in a script at **[build.sh](build.sh)**
 
 ### Calibration Installation Notes
-
-If you are also installing the required components for polarmetric calibrations you may receive several errors from casacore regarding missing ephemeris, leap second catalogues, etc, which can be fixed by following the following [this help guide fomr the NRAO](https://casaguides.nrao.edu/index.php?title=Fixing_out_of_date_TAI_UTC_tables_%28missing_information_on_leap_seconds%29).
+If you are also installing the required components for polarmetric calibrations you may receive several errors from casacore regarding missing ephemeris, leap second catalogues, etc., which can be fixed by following the following [this help guide from the NRAO](https://casaguides.nrao.edu/index.php?title=Fixing_out_of_date_TAI_UTC_tables_%28missing_information_on_leap_seconds%29).
 
 Usage
 -----
 
-A quickstart guide on how to integrate the software in your project is provided in the **[
-integration(docs/README_INTEGRATION.md)** readme file, and example implementations can be found in the provided **[
+A quick-start guide on how to integrate the software in your project is provided in the **[
+integration](docs/README_INTEGRATION.md)** readme file, and example implementations can be found in the provided **[
 lofar_cli_extractor.c](src/CLI/lofar_cli_extractor.c)**, or a simplified implementation can be found in **[example_processor.c](docs/examples/example_processor.c)**.
 
-Other documentation can be found in the [docs/](docs/) folder.
-
+Other documentation can be found in the [docs/](docs) folder.
 
 Funding
 -------
