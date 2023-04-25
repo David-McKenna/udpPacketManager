@@ -70,7 +70,7 @@ int32_t lofar_udp_io_write_setup(lofar_udp_io_write_config *config, int32_t iter
 		return -1;
 	}
 
-	if (config->numOutputs < 0 || config->numOutputs >= MAX_OUTPUT_DIMS) {
+	if (config->numOutputs < 0 || config->numOutputs > MAX_OUTPUT_DIMS) {
 		fprintf(stderr, "ERROR %s: Invalid number of output writers (%d > %d), exiting.\n", __func__, config->numOutputs, MAX_OUTPUT_DIMS);
 		return -1;
 	}
