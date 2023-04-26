@@ -214,7 +214,7 @@ int32_t _lofar_udp_parse_header_buffers(lofar_udp_obs_meta *meta, const int8_t h
 		bitMul = 1.0f + (-0.5f * (float) (meta->inputBitMode == 4)) + (float) (meta->inputBitMode == 16);
 		meta->portPacketLength[port] = ((UDPHDRLEN) + (meta->portRawBeamlets[port] * ((int16_t) (bitMul * UDPNTIMESLICE * UDPNPOL))));
 		if (meta->portPacketLength[port] > MAXPKTLEN) {
-			fprintf(stderr, "ERROR %s: Packet of length %d on port %d is longer than maximum packet length %d, exiting.\n", __func__, meta->portPacketLength[port], port, MAXPKTLEN);
+			fprintf(stderr, "ERROR %s: Packet of length %d on port %d is longer than maximum packet length %ld, exiting.\n", __func__, meta->portPacketLength[port], port, MAXPKTLEN);
 			return -1;
 		}
 

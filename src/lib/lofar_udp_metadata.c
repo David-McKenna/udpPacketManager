@@ -399,6 +399,9 @@ int32_t _lofar_udp_metdata_setup_BASE(lofar_udp_metadata *const metadata) {
 	metadata->upm_dropped_packets = 0;
 	metadata->upm_last_dropped_packets = 0;
 
+	// By default, we don't know the expected bandwidth order, assume it matches the beamctl input
+	metadata->upm_bandflip = 0;
+
 
 	return 0;
 }
@@ -666,16 +669,6 @@ int32_t _lofar_udp_metadata_parse_reader(lofar_udp_metadata *const metadata, con
 
 		// Update number of beamlets
 		metadata->nsubband = reader->meta->totalProcBeamlets;
-		VERBOSE(printf("Reader call\n"));
-		if (_lofar_udp_metadata_update_frequencies(metadata, subbandData) < 0) {
-			return -1;
-		}
-
-		// Get the Telescope ID/Name
-		metadata->telescope_rsp_id = reader->meta->stationID;
-		if (_lofar_udp_metadata_get_station_name(metadata->telescope_rsp_id, metadata->telescope) < 0) {
-			return -1;
-		}
 
 		// Copy over processing parameters
 		metadata->baseport = reader->input->basePort;
@@ -686,7 +679,18 @@ int32_t _lofar_udp_metadata_parse_reader(lofar_udp_metadata *const metadata, con
 		metadata->upm_procmode = reader->meta->processingMode;
 		metadata->upm_input_bitmode = reader->meta->inputBitMode;
 		metadata->upm_calibrated = reader->meta->calibrateData;
+
 		if (_lofar_udp_metadata_processing_mode_metadata(metadata) < 0) {
+			return -1;
+		}
+
+		if (_lofar_udp_metadata_update_frequencies(metadata, subbandData) < 0) {
+			return -1;
+		}
+
+		// Get the Telescope ID/Name
+		metadata->telescope_rsp_id = reader->meta->stationID;
+		if (_lofar_udp_metadata_get_station_name(metadata->telescope_rsp_id, metadata->telescope) < 0) {
 			return -1;
 		}
 
@@ -1400,10 +1404,10 @@ int32_t _lofar_udp_metadata_update_frequencies(lofar_udp_metadata *const metadat
 	// Define the observation bandwidth as the bandwidth between the centre of the top and bottom channels,
 	//  plus a subband to account for the expanded bandwidth from the centre to the edges of the band
 	metadata->bw = (metadata->fbottom - metadata->ftop);
-	double signCorrection = (metadata->bw > 0) ? 1.0 : -1.0;
-	if (metadata->upm_bandflip != (signCorrection == 1.0)) {
-		fprintf(stderr, "ERROR: Bandwidth has been flipped unexpectedly between iterations, exiting.\n");
-		//return -1; TODO: Known issue with mode labelling, will deal with before release
+	int8_t signCorrection = (metadata->bw > 0) ? 1 : -1;
+	if (metadata->upm_bandflip == (signCorrection == 1)) {
+		fprintf(stderr, "ERROR: Bandwidth has been flipped unexpectedly during setup, exiting.\n");
+		return -1;
 	}
 
 	metadata->bw += signCorrection * metadata->subband_bw;
@@ -1463,11 +1467,15 @@ int32_t _lofar_udp_metadata_processing_mode_metadata(lofar_udp_metadata *const m
 		double tmp = metadata->ftop;
 		metadata->ftop = metadata->fbottom;
 		metadata->fbottom = tmp;
-		metadata->subband_bw *= -1;
 		metadata->bw *= -1;
-	} else {
-		fprintf(stderr, "ERROR %s: Bandwidth is flipped, but struct information doesn't match expectations (bool bandflip: %d, fbottom: %lf, ftop: %lf, exiting.\n", __func__, metadata->upm_bandflip, metadata->fbottom, metadata->ftop);
-		//return -1; TODO: Known issue with mode labelling, will deal with before release
+	}
+
+	if (metadata->upm_bandflip && metadata->subband_bw > 0) {
+		metadata->subband_bw *= -1;
+	}
+
+	if (metadata->upm_bandflip && metadata->bw > 0) {
+		metadata->bw *= -1;
 	}
 
 	double samplingTime = metadata->upm_rcuclock == 200 ? clock200MHzSampleTime : clock160MHzSampleTime;

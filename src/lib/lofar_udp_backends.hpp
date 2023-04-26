@@ -529,11 +529,11 @@ static inline constexpr int64_t outputPacketOffsetCalc(const int64_t iLoop, cons
 template<const int32_t order>
 static inline constexpr int64_t outputTsOffsetBaseCalc(const int64_t outputPacketOffset, const int32_t totalBeamlets, const int32_t beamlet, const int32_t baseBeamlet, const int32_t cumulativeBeamlets, const int64_t packetsPerIteration) {
 	if constexpr (order == 0) {
-		return reversed_frequency_major_index(outputPacketOffset, totalBeamlets, beamlet, baseBeamlet,
-		                                                 cumulativeBeamlets, 1);
-	} else if constexpr (order == 1) {
 		return frequency_major_index(outputPacketOffset, beamlet, baseBeamlet, cumulativeBeamlets,
-		                                        1);
+		                             1);
+	} else if constexpr (order == 1) {
+		return reversed_frequency_major_index(outputPacketOffset, totalBeamlets, beamlet, baseBeamlet,
+		                                      cumulativeBeamlets, 1);
 	} else if constexpr (order == 2) {
 		return time_major_index(beamlet, baseBeamlet, cumulativeBeamlets, packetsPerIteration, outputPacketOffset);
 	} else {
