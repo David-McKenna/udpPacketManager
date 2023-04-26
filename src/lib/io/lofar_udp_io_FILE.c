@@ -2,15 +2,15 @@
 // Read interface
 
 /**
- * @brief      { function_description }
+ * @brief      Setup the read I/O struct to handle normal data
  *
  * @param      input   The input
- * @param[in]  config  The configuration
- * @param[in]  port    The port
+ * @param[in]  inputLocation    The input file location
+ * @param[in]  port    The index offset from the base file
  *
- * @return     { description_of_the_return_value }
+ * @return     0: Success, <0: Failure
  */
-int32_t _lofar_udp_io_read_setup_FILE(lofar_udp_io_read_config *const input, const char *inputLocation, int8_t port) {
+int32_t _lofar_udp_io_read_setup_FILE(lofar_udp_io_read_config *const input, const char *inputLocation, const int8_t port) {
 	VERBOSE(printf("Opening file at %s for port %d\n", inputLocation, port));
 
 	input->fileRef[port] = fopen(inputLocation, "rb");
@@ -25,30 +25,28 @@ int32_t _lofar_udp_io_read_setup_FILE(lofar_udp_io_read_config *const input, con
 
 
 /**
- * @brief      { function_description }
+ * @brief      Perform a data read for a normal file
  *
  * @param      input        The input
- * @param[in]  port         The port
- * @param      targetArray  The target array
- * @param[in]  nchars       The nchars
+ * @param[in]  port         The index offset from the base file
+ * @param      targetArray  The output array
+ * @param[in]  nchars       The number of bytes to read
  *
- * @return     { description_of_the_return_value }
+ * @return     <=0: Failure, >0 Characters read
  */
-int64_t _lofar_udp_io_read_FILE(lofar_udp_io_read_config *const input, int8_t port, int8_t *targetArray, int64_t nchars) {
+int64_t _lofar_udp_io_read_FILE(lofar_udp_io_read_config *const input, const int8_t port, int8_t *const targetArray, const int64_t nchars) {
 	// Decompressed file: Read and return the data as needed
 	VERBOSE(printf("reader_nchars: Entering read request (normal): %d, %ld\n", port, nchars));
 	return (int64_t) fread(targetArray, sizeof(int8_t), nchars, input->fileRef[port]);
 }
 
 /**
- * @brief      { function_description }
+ * @brief      Cleanup file references for the read I/O struct
  *
  * @param      input  The input
- * @param[in]  port   The port
- *
- * @return     { description_of_the_return_value }
+ * @param[in]  port   The index offset from the base file
  */
-void _lofar_udp_io_read_cleanup_FILE(lofar_udp_io_read_config *const input, int8_t port) {
+void _lofar_udp_io_read_cleanup_FILE(lofar_udp_io_read_config *const input, const int8_t port) {
 	if (input == NULL) {
 		return;
 	}
@@ -63,18 +61,19 @@ void _lofar_udp_io_read_cleanup_FILE(lofar_udp_io_read_config *const input, int8
 
 
 /**
- * @brief      { function_description }
+ * @brief      Temporarily read in num bytes from a file
  *
- * @param      outbuf     The outbuf
- * @param[in]  size       The size
- * @param[in]  num        The number
+ * @param      outbuf     The output buffer pointer
+ * @param[in]  size       The size of words to read
+ * @param[in]  num        The number of words to read
  * @param[in]  inputFile  The input file
- * @param[in]  resetSeek  The reset seek
+ * @param[in]  resetSeek  Do (1) / Don't (0) reset back to the original location
+ *                        in FILE* after performing a read operation
  *
- * @return     { description_of_the_return_value }
+ * @return     >0: bytes read, <=-1: Failure
  */
-int64_t _lofar_udp_io_read_temp_FILE(void *outbuf, int64_t size, int64_t num, const char inputFile[],
-                                     int8_t resetSeek) {
+int64_t _lofar_udp_io_read_temp_FILE(void *outbuf, const int64_t size, const int64_t num, const char inputFile[],
+                                     const int8_t resetSeek) {
 	FILE *inputFilePtr = fopen(inputFile, "rb");
 	if (inputFilePtr == NULL) {
 		fprintf(stderr, "ERROR: Unable to open normal file at %s, exiting.\n", inputFile);
@@ -112,9 +111,9 @@ int64_t _lofar_udp_io_read_temp_FILE(void *outbuf, int64_t size, int64_t num, co
  * @param      filePath    The file path
  * @param[in]  appendMode  The append mode
  *
- * @return     True if lofar udp i/o write setup check exists, False otherwise.
+ * @return     0: Configuration can process, <0: Failure
  */
-int lofar_udp_io_write_setup_check_exists(char filePath[], int appendMode) {
+int32_t _lofar_udp_io_write_FILE_setup_check_exists(const char filePath[], const int32_t appendMode) {
 	if (appendMode == 1 && access(filePath, F_OK) == 0 && access(filePath, W_OK) != 0) {
 		fprintf(stderr, "ERROR: Unable to write to file at %s, exiting.\n", filePath);
 		return -1;
@@ -126,18 +125,16 @@ int lofar_udp_io_write_setup_check_exists(char filePath[], int appendMode) {
 	return 0;
 }
 
-
-
 /**
- * @brief      { function_description }
+ * @brief      Setup the write I/O struct to handle normal data
  *
  * @param      config  The configuration
  * @param[in]  outp    The outp
- * @param[in]  iter    The iterator
+ * @param[in]  iter    The iteration of the output file
  *
- * @return     { description_of_the_return_value }
+ * @return     0: Success, <0: Failure
  */
-int32_t _lofar_udp_io_write_setup_FILE(lofar_udp_io_write_config *const config, int8_t outp, int32_t iter) {
+int32_t _lofar_udp_io_write_setup_FILE(lofar_udp_io_write_config *const config, const int8_t outp, const int32_t iter) {
 	char outputLocation[DEF_STR_LEN];
 
 	if (config->outputFiles[outp] != NULL) {
@@ -148,7 +145,7 @@ int32_t _lofar_udp_io_write_setup_FILE(lofar_udp_io_write_config *const config, 
 		return -1;
 	}
 
-	if (lofar_udp_io_write_setup_check_exists(outputLocation, config->progressWithExisting)) {
+	if (_lofar_udp_io_write_FILE_setup_check_exists(outputLocation, config->progressWithExisting)) {
 		return -1;
 	}
 
@@ -188,16 +185,16 @@ int32_t _lofar_udp_io_write_setup_FILE(lofar_udp_io_write_config *const config, 
 }
 
 /**
- * @brief      { function_description }
+ * @brief      Perform a data write for a normal file
  *
- * @param      config  The configuration
+ * @param[in]  config  The configuration
  * @param[in]  outp    The outp
- * @param      src     The source
+ * @param[in]  src     The source
  * @param[in]  nchars  The nchars
  *
- * @return     { description_of_the_return_value }
+ * @return  >=0: Number of bytes written, <0: Failure
  */
-int64_t _lofar_udp_io_write_FILE(lofar_udp_io_write_config *const config, int8_t outp, const int8_t *src, int64_t nchars) {
+int64_t _lofar_udp_io_write_FILE(lofar_udp_io_write_config *const config, const int8_t outp, const int8_t *src, const int64_t nchars) {
 	if (config->outputFiles[outp] != NULL) {
 		return (int64_t) fwrite(src, sizeof(int8_t), nchars, config->outputFiles[outp]);
 	}
@@ -205,7 +202,16 @@ int64_t _lofar_udp_io_write_FILE(lofar_udp_io_write_config *const config, int8_t
 	return -1;
 }
 
-int64_t _check_FIFO_status(lofar_udp_io_write_config *config, int8_t outp, int returnReaders) {
+/**
+ * @brief Confirm an output file is a FIFO if it exists, and return readers if requested
+ *
+ * @param config The configuration
+ * @param outp The output index
+ * @param returnReaders bool: Return the number of active FIFO readers instead of 0 on success
+ *
+ * @return 0: Success, >0: (returnReaders) Success, <0: Failure
+ */
+int64_t _check_FIFO_status(const lofar_udp_io_write_config *config, int8_t outp, const int8_t returnReaders) {
 	struct stat fifoStat;
 	if (config->readerType != FIFO) {
 		fprintf(stderr, "ERROR %s: Input config is not FIFO, exiting.\n", __func__);
@@ -232,7 +238,17 @@ int64_t _check_FIFO_status(lofar_udp_io_write_config *config, int8_t outp, int r
 	return 0;
 }
 
-int64_t _lofar_udp_io_write_FIFO(lofar_udp_io_write_config *const config, int8_t outp, const int8_t *src, int64_t nchars) {
+/**
+ * @brief      Perform a data write for a FIFO, raise a warning if we have no active readers before writing
+ *
+ * @param[in]  config  The configuration
+ * @param[in]  outp    The outp
+ * @param[in]  src     The source
+ * @param[in]  nchars  The nchars
+ *
+ * @return     >=0: Bytes written, <0: Failure
+ */
+int64_t _lofar_udp_io_write_FIFO(lofar_udp_io_write_config *const config, const int8_t outp, const int8_t *src, const int64_t nchars) {
 	if (_check_FIFO_status(config, outp, 0)) {
 		return -1;
 	}
@@ -240,13 +256,10 @@ int64_t _lofar_udp_io_write_FIFO(lofar_udp_io_write_config *const config, int8_t
 }
 
 /**
- * @brief      { function_description }
+ * @brief      Cleanup file references for the write I/O struct
  *
  * @param      config     The configuration
  * @param[in]  outp       The outp
- * @param[in]  fullClean  The full clean
- *
- * @return     { description_of_the_return_value }
  */
 void _lofar_udp_io_write_cleanup_FILE(lofar_udp_io_write_config *const config, int8_t outp) {
 	if (config == NULL) {

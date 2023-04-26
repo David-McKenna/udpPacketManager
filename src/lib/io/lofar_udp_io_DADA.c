@@ -2,22 +2,21 @@
 
 // Internal functions
 void _lofar_udp_io_cleanup_DADA_loop(ipcbuf_t *buff, float *timeout);
-int _lofar_udp_io_write_setup_DADA_ringbuffer(int32_t dadaKey, uint64_t nbufs, int64_t bufSize, uint32_t numReaders, int reallocateExisting);
+int32_t _lofar_udp_io_write_setup_DADA_ringbuffer(int32_t dadaKey, uint64_t nbufs, int64_t bufSize, uint32_t numReaders, int8_t reallocateExisting);
 
 // Read Interface
 
 /**
- * @brief      { function_description }
+ * @brief      Setup the read I/O struct to handle PSRDADA data
  *
  * @param      input   The input
- * @param[in]  config  The configuration
- * @param[in]  meta    The meta
- * @param[in]  port    The port
+ * @param[in]  dadaKey	The target ringbuffer to attach to
+ * @param[in]  port    The index offset from the base file
  *
- * @return     { description_of_the_return_value }
+ * @return     0: Success, <0: Failure
  */
 int32_t
-_lofar_udp_io_read_setup_DADA(lofar_udp_io_read_config *const input, int32_t dadaKey, int8_t port) {
+_lofar_udp_io_read_setup_DADA(lofar_udp_io_read_config *const input, const key_t dadaKey, const int8_t port) {
 #ifndef NODADA
 	// Init the logger and HDU
 	input->multilog[port] = multilog_open("udpPacketManager", 0);
@@ -71,16 +70,16 @@ _lofar_udp_io_read_setup_DADA(lofar_udp_io_read_config *const input, int32_t dad
 }
 
 /**
- * @brief      { function_description }
+ * @brief      Perform a data read for a ringbuffer
  *
  * @param      input        The input
- * @param[in]  port         The port
- * @param      targetArray  The target array
- * @param[in]  nchars       The nchars
+ * @param[in]  port         The index offset from the base file
+ * @param      targetArray  The output array
+ * @param[in]  nchars       The number of bytes to read
  *
- * @return     { description_of_the_return_value }
+ * @return     <=0: Failure, >0 Characters read
  */
-int64_t _lofar_udp_io_read_DADA(lofar_udp_io_read_config *const input, int8_t port, int8_t *targetArray, int64_t nchars) {
+int64_t _lofar_udp_io_read_DADA(lofar_udp_io_read_config *const input, const int8_t port, int8_t *const targetArray, const int64_t nchars) {
 #ifndef NODADA
 
 	VERBOSE(printf("reader_nchars: Entering read request (dada): %d, %d, %ld\n", port, input->inputDadaKeys[port], nchars));
@@ -126,14 +125,12 @@ int64_t _lofar_udp_io_read_DADA(lofar_udp_io_read_config *const input, int8_t po
 }
 
 /**
- * @brief      { function_description }
+ * @brief      Cleanup ringbuffer references for the read I/O struct
  *
  * @param      input  The input
- * @param[in]  port   The port
- *
- * @return     { description_of_the_return_value }
+ * @param[in]  port   The index offset from the base file
  */
-void _lofar_udp_io_read_cleanup_DADA(lofar_udp_io_read_config *const input, int8_t port) {
+void _lofar_udp_io_read_cleanup_DADA(lofar_udp_io_read_config *const input, const int8_t port) {
 #ifndef NODADA
 	if (input == NULL) {
 		return;
@@ -164,16 +161,16 @@ void _lofar_udp_io_read_cleanup_DADA(lofar_udp_io_read_config *const input, int8
 
 
 /**
- * @brief      Temporarily read in num bytes from a PSRDADA ringbuffer
+ * @brief      Temporarily read in num bytes from a ringbuffer
  *
  * @param      outbuf     The output buffer pointer
- * @param[in]  size       The size of words ot read
+ * @param[in]  size       The size of words to read
  * @param[in]  num        The number of words to read
- * @param      dadaKey    The PSRDADA ringbuffer ID
+ * @param[in]  inputFile  The input file
  * @param[in]  resetSeek  Do (1) / Don't (0) reset back to the original location
  *                        in FILE* after performing a read operation
  *
- * @return     int 0: ZSTD error, 1: File error, other: data read length
+ * @return     >0: bytes read, <=-1: Failure
  */
 int64_t
 _lofar_udp_io_read_temp_DADA(void *outbuf, int64_t size, int64_t num, key_t dadaKey, int8_t resetSeek) {
@@ -244,20 +241,17 @@ _lofar_udp_io_read_temp_DADA(void *outbuf, int64_t size, int64_t num, key_t dada
 }
 
 
-
-
 // Write Interface
 
-
 /**
- * @brief      { function_description }
+ * @brief      Setup the write I/O struct to handle ringbuffer data
  *
  * @param      config  The configuration
  * @param[in]  outp    The outp
  *
- * @return     { description_of_the_return_value }
+ * @return     0: Success, <0: Failure
  */
-int32_t _lofar_udp_io_write_setup_DADA(lofar_udp_io_write_config *const config, int8_t outp) {
+int32_t _lofar_udp_io_write_setup_DADA(lofar_udp_io_write_config *const config, const int8_t outp) {
 #ifndef NODADA
 
 	if (config->dadaWriter[outp].multilog == NULL) {
@@ -303,7 +297,18 @@ int32_t _lofar_udp_io_write_setup_DADA(lofar_udp_io_write_config *const config, 
 #endif
 }
 
-int _lofar_udp_io_write_setup_DADA_ringbuffer(int32_t dadaKey, uint64_t nbufs, int64_t bufSize, uint32_t numReaders, int reallocateExisting) {
+/**
+ * @brief Setup a ringbuffer instance on a set key_t
+ *
+ * @param dadaKey The key_t of the ringbuffer
+ * @param nbufs The number of buffers inthe ringbuffer
+ * @param bufSize The size of each ringbuffer buffer
+ * @param numReaders The number of expected readers for the ringbuffer
+ * @param reallocateExisting Re-allocate a ringbuffer if it already exists
+ *
+ * @return 0: Success, <0: Failure
+ */
+int32_t _lofar_udp_io_write_setup_DADA_ringbuffer(const int32_t dadaKey, const uint64_t nbufs, const int64_t bufSize, const uint32_t numReaders, const int8_t reallocateExisting) {
 #ifndef NODADA
 	ipcio_t *ringbuffer = calloc(1, sizeof(ipcio_t));
 	CHECK_ALLOC_NOCLEAN(ringbuffer, -1);
@@ -353,16 +358,16 @@ int _lofar_udp_io_write_setup_DADA_ringbuffer(int32_t dadaKey, uint64_t nbufs, i
 }
 
 /**
- * @brief      { function_description }
+ * @brief      Perform a data write for a ringbuffer or it'sassociated header
  *
- * @param      config  The configuration
- * @param[in]  outp    The outp
- * @param      src     The source
- * @param[in]  nchars  The nchars
+ * @param[in]  ringbuffer	The ringbuffer
+ * @param[in]  src		The bytes to write
+ * @param[in]  nchars	The number ofbytes to write
+ * @param[in]  ipcbuf	Do a direct write to a ringbuffer with the ipcbuf interface (for headers)
  *
- * @return     { description_of_the_return_value }
+ * @return  >=0: Number of bytes written, <0: Failure
  */
-int64_t _lofar_udp_io_write_DADA(ipcio_t *const ringbuffer, const int8_t *src, int64_t nchars, int8_t ipcbuf) {
+int64_t _lofar_udp_io_write_DADA(ipcio_t *const ringbuffer, const int8_t *src, const int64_t nchars, const int8_t ipcbuf) {
 #ifndef NODADA
 
 	if (!ipcbuf) {
@@ -409,62 +414,17 @@ int64_t _lofar_udp_io_write_DADA(ipcio_t *const ringbuffer, const int8_t *src, i
 	fprintf(stderr, "ERROR %s: PSRDADA was disable at compile time, exiting.\n", __func__);
 	return -1;
 #endif
-	// Attempts to work around buffers not being marked as filled by manually filling each block
-	/*
-printf("1 %p ,%p\n", src, config->dadaWriter[outp].ringbufferptr);
-char *buffer = config->dadaWriter[outp].ringbufferptr ?: ipcbuf_get_next_write((ipcbuf_t*) config->dadaWriter[outp].ringbuffer);
-long writtenChars = 0, writeSize = config->writeBufSize[outp], offset = config->dadaWriter[outp].ringbufferOffset?: 0;
-
-printf("2 %p ,%p, %ld, %ld, %ld\n", src, buffer, buffer - src, src - buffer, nchars);
-while(writtenChars < nchars) {
-	if (offset == config->writeBufSize[outp] || buffer == NULL) {
-		buffer = ipcbuf_get_next_write((ipcbuf_t*) config->dadaWriter[outp].ringbuffer);
-		offset = 0;
-	}
-
-	writeSize = (config->writeBufSize[outp] - offset) < nchars ? (config->writeBufSize[outp] - offset) : nchars;
-
-
-printf("3 %p ,%p, %ld, %ld\n", src, buffer, writeSize, config->writeBufSize[outp]);
-	if (memcpy(&(buffer[offset]), &(src[writtenChars]), writeSize) != &(buffer[offset])) {
-		fprintf(stderr, "ERROR: Failed to write to output ringbuffer, exiting.\n");
-		return -1;
-	}
-printf("4 %p ,%p\n", src, buffer);
-
-	writtenChars += writeSize;
-	printf("%ld, %ld\n", writeSize / 7824, writtenChars);
-	offset += writeSize;
-
-	if (offset == config->writeBufSize[outp]) {
-		if (ipcbuf_mark_filled((ipcbuf_t*) config->dadaWriter[outp].ringbuffer, config->writeBufSize[outp]) < 0) {
-			fprintf(stderr, "ERROR: Failed to mark buffer as filled, exiting.\n");
-			return -1;
-		}
-	}
 }
-
-printf("Op complete, exiting.\n");
-
-config->dadaWriter[outp].ringbufferptr = buffer;
-config->dadaWriter[outp].ringbufferOffset = offset;
-
-return writtenChars;
-*/
-}
-
 
 
 /**
- * @brief      { function_description }
+ * @brief      Cleanup ringbuffer references for the write I/O struct
  *
  * @param      config     The configuration
  * @param[in]  outp       The outp
- * @param[in]  fullClean  The full clean
- *
- * @return     { description_of_the_return_value }
+ * @param[in]  fullClean  Perform a full clean, dealloc the ringbuffer
  */
-void _lofar_udp_io_write_cleanup_DADA(lofar_udp_io_write_config *const config, int8_t outp, int8_t fullClean) {
+void _lofar_udp_io_write_cleanup_DADA(lofar_udp_io_write_config *const config, const int8_t outp, const int8_t fullClean) {
 #ifndef NODADA
 	if (config == NULL) {
 		return;
@@ -520,6 +480,12 @@ void _lofar_udp_io_write_cleanup_DADA(lofar_udp_io_write_config *const config, i
 #endif
 }
 
+/**
+ * @brief A ringbuffer may still have a reader when we want to destroy it, only destroy it after
+ * 			the reader has complete it's work, it is hung on a read, or a timeout point has been reached
+ * @param buff	The ringbuffer
+ * @param timeoutPtr	The timeout time
+ */
 void _lofar_udp_io_cleanup_DADA_loop(ipcbuf_t *buff, float *timeoutPtr) {
 #ifndef NODADA
 	const int32_t sampleEveryNMilli = 5;

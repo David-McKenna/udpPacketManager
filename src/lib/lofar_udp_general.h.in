@@ -165,8 +165,10 @@ typedef enum {
 #define UDPHDRLEN 16
 #define UDPCURVER 3
 #define UDPMAXBEAM 244
+#define UDPMINBITMDE 4
 #define UDPNPOL 4
 #define UDPNTIMESLICE 16
+#define MAXPKTLEN (UDPHDRLEN + UDPNPOL * UDPNTIMESLICE * (UDPMAXBEAM / (sizeof(int8_t) * 8 / UDPMINBITMDE)))
 
 // Timing values
 #define LFREPOCH 1199145600 // 2008-01-01 Unix time, sanity check

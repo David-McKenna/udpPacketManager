@@ -39,7 +39,7 @@ int32_t _lofar_udp_parse_header_buffers(lofar_udp_obs_meta *meta, const int8_t h
 int32_t _lofar_udp_setup_parse_headers(lofar_udp_config *config, lofar_udp_obs_meta *meta, int8_t inputHeaders[MAX_NUM_PORTS][UDPHDRLEN]);
 int32_t _lofar_udp_skip_to_packet(lofar_udp_reader *reader);
 int32_t _lofar_udp_setup_processing(lofar_udp_obs_meta *meta);
-int32_t _lofar_udp_setup_processing_buffers(const lofar_udp_config *config, lofar_udp_obs_meta *meta);
+int32_t _lofar_udp_setup_processing_output_buffers(const lofar_udp_config *config, lofar_udp_obs_meta *meta);
 int32_t _lofar_udp_get_first_packet_alignment(lofar_udp_reader *reader);
 int32_t _lofar_udp_shift_remainder_packets(lofar_udp_reader *reader, const int64_t shiftPackets[], int8_t handlePadding);
 int32_t _lofar_udp_reader_config_check(const lofar_udp_config *config);

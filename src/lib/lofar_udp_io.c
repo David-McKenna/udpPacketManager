@@ -122,7 +122,7 @@ int32_t lofar_udp_io_write_setup(lofar_udp_io_write_config *config, int32_t iter
  *
  * @return 0: Success, -1: Failure
  */
-int32_t _lofar_udp_io_read_setup_internal_lib_helper(lofar_udp_io_read_config *const input, const lofar_udp_config *config, const lofar_udp_obs_meta *meta,
+int32_t _lofar_udp_io_read_setup_internal_lib_helper(lofar_udp_io_read_config *const input, const lofar_udp_config *config, lofar_udp_obs_meta *meta,
                                                  int8_t port) {
 
 	if (input == NULL || config == NULL || meta == NULL) {
@@ -167,6 +167,37 @@ int32_t _lofar_udp_io_read_setup_internal_lib_helper(lofar_udp_io_read_config *c
 		fprintf(stderr, "ERROR: Failed to copy input location to reader on port %d, exiting.\n", port);
 		return -1;
 	}
+
+	// Allocate the memory needed to store the raw data, initialise some variables along the way
+
+	// The input buffer is extended by 2 packets to allow for both a reference packet from a previous iteration
+	// and a fall-back packet encase replaying packets is disabled (all 0s to pad the output)
+
+	// If we have a compressed reader, align the length with the ZSTD buffer sizes
+	size_t additionalBufferSize = _lofar_udp_io_read_ZSTD_fix_buffer_size(meta->portPacketLength[port] * meta->packetsPerIteration, 1);
+	size_t inputBufferSize = meta->portPacketLength[port] * (meta->packetsPerIteration) +
+							 (MAXPKTLEN * 2) + // << 2 buffer packets mentioned above, use fixed size encase of unexpected packet sizes
+	                         additionalBufferSize * (config->readerType == ZSTDCOMPRESSED);
+	meta->inputData[port] = calloc(inputBufferSize, sizeof(int8_t));
+	CHECK_ALLOC(meta->inputData[port], -1,
+	            for (int8_t i = 0; i < port; i++) { free(meta->inputData[i]); }
+	);
+	// Offset the pointer to the end of the two initial buffer packets
+	VERBOSE(
+		if (meta->VERBOSE) {
+			printf("calloc at %p for %ld +(%ld ZSTD, %d packet) bytes\n",
+			       meta->inputData[port],
+			       inputBufferSize, additionalBufferSize,
+			       MAXPKTLEN * 2);
+		}
+	);
+	// Shift for buffer packets
+	meta->inputData[port] += (MAXPKTLEN * 2);
+
+	// Initialise these arrays while we're looping
+	meta->inputDataOffset[port] = 0;
+	meta->portLastDroppedPackets[port] = 0;
+	meta->portTotalDroppedPackets[port] = 0;
 
 	return lofar_udp_io_read_setup_helper(input, (int8_t**) meta->inputData, meta->packetsPerIteration * meta->portPacketLength[port], port);
 }
@@ -922,8 +953,43 @@ lofar_udp_io_read_temp(const lofar_udp_config *config, int8_t port, int8_t *outb
 
 }
 
-// Metadata functions
+// Helper functions
 
+/**
+ * @brief	Patch the size of a zstandard buffer so that it will be a multiple of the zstandard output frame size
+ *
+ * @param bufferSize	Target buffer size
+ * @param deltaOnly		bool: Only return the difference from the current buffer
+ *
+ * @return	>0: Requested buffer length, <0: Failure
+ */
+int64_t _lofar_udp_io_read_ZSTD_fix_buffer_size(int64_t bufferSize, int8_t deltaOnly) {
+	const int64_t zstdAlignedSize = ZSTD_DStreamOutSize(); // ~132kB
+	// This should be impossible; it should just be returning a header define, but check anyway.
+	if (zstdAlignedSize < 0) {
+		__builtin_unreachable();
+		fprintf(stderr, "ERROR %s: Zstandard library appears to be corrupted, got %ld as the frame length, exiting.\n", zstdAlignedSize);
+		return -1;
+	}
+
+	// Extreme edge case: add an extra frame of data encase we need a small partial read at the end of a frame.
+	// Only possible for very small packetsPerIteration, but it's still possible.
+	const int64_t bufferMul = bufferSize / zstdAlignedSize + 1 * ((bufferSize % zstdAlignedSize) || (bufferSize == 0) ? 1 : 0);
+	const int64_t newBufferSize = bufferMul * zstdAlignedSize;
+
+	if (deltaOnly) {
+		return newBufferSize - bufferSize;
+	}
+
+	return newBufferSize;
+}
+
+/**
+ * @brief Swap the values of two character pointers
+ *
+ * @param a A pointer
+ * @param b A pointer
+ */
 void _swapCharPtr(char **a, char **b) {
 	char *tmp = *a;
 	*a = *b;
@@ -931,14 +997,12 @@ void _swapCharPtr(char **a, char **b) {
 }
 
 /**
-//  * { list_item_description }
-// @brief      Get the size of a file ptr on disk
-//
-// @param      fileptr  The fileptr
-// @param[in]  fd    File descriptor
-//
-// @return     long: size of file on disk in bytes */
-//
+ * @brief      Get the size of a FILE* struct target on disk
+ *
+ * @param[in]  fileptr	FILE* struct
+ *
+ * @return     Size of file on disk in bytes
+ */
 int64_t _FILE_file_size(FILE *fileptr) {
 	return _fd_file_size(fileno(fileptr));
 }
@@ -946,9 +1010,9 @@ int64_t _FILE_file_size(FILE *fileptr) {
 /**
  * @brief      Get the size of a file descriptor on disk
  *
- * @param[in]  fd    File descriptor
+ * @param[in]  fd    File descriptor int
  *
- * @return     long: size of file on disk in bytes
+ * @return     Size of file on disk in bytes
  */
 int64_t _fd_file_size(int32_t fd) {
 	struct stat stat_s;

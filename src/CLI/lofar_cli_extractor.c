@@ -623,7 +623,7 @@ int main(int argc, char *argv[]) {
 
 					// Open new files
 					reader->meta->packetsPerIteration = reader->packetsPerIteration;
-					if ((returnVal = lofar_udp_io_write_setup_helper(outConfig, reader->meta, eventLoop)) < 0) {
+					if ((returnVal = _lofar_udp_io_write_setup_helper(outConfig, reader->meta, eventLoop)) < 0) {
 						fprintf(stderr, "ERROR: Failed to open new file are breakpoint reached (%d, errno %d: %s), breaking.\n", returnVal, errno, strerror(errno));
 						returnValMeta = (returnValMeta < 0 && returnValMeta > -6) ? returnValMeta : -6;
 						break;

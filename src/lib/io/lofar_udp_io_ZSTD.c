@@ -3,17 +3,16 @@
 
 
 /**
- * @brief      { function_description }
+ * @brief      Setup the read I/O struct to handle zstandard data
  *
  * @param      input   The input
- * @param[in]  config  The configuration
- * @param[in]  meta    The meta
- * @param[in]  port    The port
+ * @param[in]  inputLocation    The input file location
+ * @param[in]  port    The index offset from the base file
  *
- * @return     { description_of_the_return_value }
+ * @return     0: Success, <0: Failure
  */
 int32_t
-_lofar_udp_io_read_setup_ZSTD(lofar_udp_io_read_config *const input, const char *inputLocation, int8_t port) {
+_lofar_udp_io_read_setup_ZSTD(lofar_udp_io_read_config *const input, const char *inputLocation, const int8_t port) {
 	// Copy the file reference into input
 	// Leave in boilerplate return encase the function gets more complicated in future
 	int returnVal;
@@ -75,147 +74,15 @@ _lofar_udp_io_read_setup_ZSTD(lofar_udp_io_read_config *const input, const char 
 	return 0;
 }
 
-int64_t _lofar_udp_io_read_ZSTD_fix_buffer_size(int64_t bufferSize, int8_t deltaOnly) {
-	const int64_t zstdAlignedSize = ZSTD_DStreamOutSize();
-	const int64_t bufferMul = bufferSize / zstdAlignedSize + 1 * ((bufferSize % zstdAlignedSize) || (bufferSize == 0) ? 1 : 0);
-	const int64_t newBufferSize = bufferMul * zstdAlignedSize;
-	// Extreme edge case: add an extra frame of data encase we need a small partial read at the end of a frame.
-	// Only possible for very small packetsPerIteration, but it's still possible.
-	if (!deltaOnly) {
-		return newBufferSize;
-	}
-
-	return newBufferSize - bufferSize;
-}
-
-
 /**
- * @brief      { function_description }
+ * @brief      Perform a data read for a normal file
  *
- * @param      input  The input
- * @param[in]  port   The port
+ * @param      input        The input
+ * @param[in]  port         The index offset from the base file
+ * @param      targetArray  The output array
+ * @param[in]  nchars       The number of bytes to read
  *
- * @return     { description_of_the_return_value }
- */
-void _lofar_udp_io_read_cleanup_ZSTD(lofar_udp_io_read_config *const input, int8_t port) {
-	if (input == NULL) {
-		return;
-	}
-
-	_lofar_udp_io_read_cleanup_FILE(input, port);
-
-	// Free the decompression stream
-	if (input->dstream[port] != NULL) {
-		VERBOSE(printf("Freeing decompression buffers and ZSTD stream on port %d\n", port););
-		ZSTD_freeDStream(input->dstream[port]);
-		void *tmpPtr = (void *) input->readingTracker[port].src;
-		munmap(tmpPtr, input->readingTracker[port].size);
-		input->dstream[port] = NULL;
-	}
-
-	if (input->readerType == ZSTDCOMPRESSED_INDIRECT) {
-		FREE_NOT_NULL(input->decompressionTracker[port].dst);
-	}
-}
-
-
-
-/**
- * @brief      Temporarily read in num bytes from a zstandard compressed file
- *
- * @param      outbuf     The output buffer pointer
- * @param[in]  size       The size of words ot read
- * @param[in]  num        The number of words to read
- * @param      inputFile  The input file
- * @param[in]  resetSeek  Do (1) / Don't (0) reset back to the original location
- *                        in FILE* after performing a read operation
- *
- * @return     int 0: ZSTD error, 1: File error, other: data read length
- */
-int64_t _lofar_udp_io_read_temp_ZSTD(void *outbuf, int64_t size, int64_t num, const char inputFile[],
-                                     int8_t resetSeek) {
-	VERBOSE(printf("%s: %s, %ld\n", __func__, inputFile, strlen(inputFile)));
-	FILE *inputFilePtr = fopen(inputFile, "rb");
-	if (inputFilePtr == NULL) {
-		fprintf(stderr, "ERROR: Unable to open normal file at %s, exiting.\n", inputFile);
-		return -1;
-	}
-
-	// Build the decompression stream
-	ZSTD_DStream *dstreamTmp = ZSTD_createDStream();
-	int readFactor = ((size * num) / ZSTD_DStreamInSize()) + 1;
-	size_t minRead = ZSTD_DStreamInSize() * readFactor;
-	size_t minOut = ZSTD_DStreamOutSize() * readFactor;
-	ZSTD_initDStream(dstreamTmp);
-
-	// Allocate the buffer memory, build the buffer structs
-	int8_t *inBuff = calloc(minRead, sizeof(int8_t));
-	int8_t *localOutBuff = calloc(minOut, sizeof(int8_t));
-
-	ZSTD_inBuffer tmpRead = { inBuff, minRead * sizeof(int8_t), 0 };
-	ZSTD_outBuffer tmpDecom = { localOutBuff, minOut * sizeof(int8_t), 0 };
-
-	// Read in the compressed data
-	int64_t readlen = (int64_t) fread(inBuff, sizeof(int8_t), minRead, inputFilePtr);
-	if (readlen > (int64_t) minRead || readlen < 1) {
-		fprintf(stderr, "Unable to read in data from file; exiting.\n");
-		fclose(inputFilePtr);
-		ZSTD_freeDStream(dstreamTmp);
-		FREE_NOT_NULL(inBuff);
-		FREE_NOT_NULL(localOutBuff);
-		return -1;
-	}
-
-	// Move the read head back to the start of the packer
-	if (resetSeek) {
-		if (fseek(inputFilePtr, -(int64_t) readlen * sizeof(int8_t), SEEK_CUR) != 0) {
-			fprintf(stderr, "Failed to reset seek head, exiting.\n");
-			fclose(inputFilePtr);
-			return -2;
-		}
-	}
-
-	fclose(inputFilePtr);
-
-	// Decompressed the data, check for errors
-	size_t output = ZSTD_decompressStream(dstreamTmp, &tmpDecom, &tmpRead);
-
-	VERBOSE(printf("Header decompression code: %ld, %s\n", output, ZSTD_getErrorName(output)));
-
-	if (ZSTD_isError(output)) {
-		fprintf(stderr, "ZSTD encountered an error while doing temp read (code %ld, %s), exiting.\n", output,
-				ZSTD_getErrorName(output));
-		ZSTD_freeDStream(dstreamTmp);
-		FREE_NOT_NULL(inBuff);
-		FREE_NOT_NULL(localOutBuff);
-		return -1;
-	}
-
-	// Cap the return value of the data
-	readlen = (int64_t) tmpDecom.pos;
-	if (readlen > (int64_t) size * num) { readlen = size * num; }
-
-	// Copy the output and cleanup
-	if (memcpy(outbuf, localOutBuff, size * num) != outbuf) {
-		fprintf(stderr, "ERROR: Failed to copy ZSTD temp read to output, exiting.\n");
-		return -1;
-	}
-	ZSTD_freeDStream(dstreamTmp);
-	FREE_NOT_NULL(inBuff);
-	FREE_NOT_NULL(localOutBuff);
-
-	return readlen;
-
-}
-
-/**
- * @brief      { function_description }
- *
- * @param      input   The input
- * @param[in]  port    The port
- * @param[in]  nchars  The nchars
- *
- * @return     { description_of_the_return_value }
+ * @return     <=0: Failure, >0 Characters read
  */
 int64_t _lofar_udp_io_read_ZSTD(lofar_udp_io_read_config *const input, int8_t port, int8_t *targetArray, int64_t nchars) {
 	// Compressed file: Perform streaming decompression on a zstandard compressed file
@@ -326,23 +193,133 @@ int64_t _lofar_udp_io_read_ZSTD(lofar_udp_io_read_config *const input, int8_t po
 	return dataRead;
 }
 
+/**
+ * @brief      Cleanup zstandard compressed file references for the read I/O struct
+ *
+ * @param      input  The input
+ * @param[in]  port   The index offset from the base file
+ */
+void _lofar_udp_io_read_cleanup_ZSTD(lofar_udp_io_read_config *const input, const int8_t port) {
+	if (input == NULL) {
+		return;
+	}
 
+	_lofar_udp_io_read_cleanup_FILE(input, port);
 
+	// Free the decompression stream
+	if (input->dstream[port] != NULL) {
+		VERBOSE(printf("Freeing decompression buffers and ZSTD stream on port %d\n", port););
+		ZSTD_freeDStream(input->dstream[port]);
+		void *tmpPtr = (void *) input->readingTracker[port].src;
+		munmap(tmpPtr, input->readingTracker[port].size);
+		input->dstream[port] = NULL;
+	}
 
+	if (input->readerType == ZSTDCOMPRESSED_INDIRECT) {
+		FREE_NOT_NULL(input->decompressionTracker[port].dst);
+	}
+}
+
+/**
+ * @brief      Temporarily read in num bytes from a zstandard compressed file file
+ *
+ * @param      outbuf     The output buffer pointer
+ * @param[in]  size       The size of words to read
+ * @param[in]  num        The number of words to read
+ * @param[in]  inputFile  The input file
+ * @param[in]  resetSeek  Do (1) / Don't (0) reset back to the original location
+ *                        in FILE* after performing a read operation
+ *
+ * @return     >0: bytes read, <=-1: Failure
+ */
+int64_t _lofar_udp_io_read_temp_ZSTD(void *outbuf, const int64_t size, const int64_t num, const char inputFile[],
+                                     const int8_t resetSeek) {
+	VERBOSE(printf("%s: %s, %ld\n", __func__, inputFile, strlen(inputFile)));
+	FILE *inputFilePtr = fopen(inputFile, "rb");
+	if (inputFilePtr == NULL) {
+		fprintf(stderr, "ERROR: Unable to open normal file at %s, exiting.\n", inputFile);
+		return -1;
+	}
+
+	// Build the decompression stream
+	ZSTD_DStream *dstreamTmp = ZSTD_createDStream();
+	int readFactor = ((size * num) / ZSTD_DStreamInSize()) + 1;
+	size_t minRead = ZSTD_DStreamInSize() * readFactor;
+	size_t minOut = ZSTD_DStreamOutSize() * readFactor;
+	ZSTD_initDStream(dstreamTmp);
+
+	// Allocate the buffer memory, build the buffer structs
+	int8_t *inBuff = calloc(minRead, sizeof(int8_t));
+	int8_t *localOutBuff = calloc(minOut, sizeof(int8_t));
+
+	ZSTD_inBuffer tmpRead = { inBuff, minRead * sizeof(int8_t), 0 };
+	ZSTD_outBuffer tmpDecom = { localOutBuff, minOut * sizeof(int8_t), 0 };
+
+	// Read in the compressed data
+	int64_t readlen = (int64_t) fread(inBuff, sizeof(int8_t), minRead, inputFilePtr);
+	if (readlen > (int64_t) minRead || readlen < 1) {
+		fprintf(stderr, "Unable to read in data from file; exiting.\n");
+		fclose(inputFilePtr);
+		ZSTD_freeDStream(dstreamTmp);
+		FREE_NOT_NULL(inBuff);
+		FREE_NOT_NULL(localOutBuff);
+		return -1;
+	}
+
+	// Move the read head back to the start of the packer
+	if (resetSeek) {
+		if (fseek(inputFilePtr, -(int64_t) readlen * sizeof(int8_t), SEEK_CUR) != 0) {
+			fprintf(stderr, "Failed to reset seek head, exiting.\n");
+			fclose(inputFilePtr);
+			return -2;
+		}
+	}
+
+	fclose(inputFilePtr);
+
+	// Decompressed the data, check for errors
+	size_t output = ZSTD_decompressStream(dstreamTmp, &tmpDecom, &tmpRead);
+
+	VERBOSE(printf("Header decompression code: %ld, %s\n", output, ZSTD_getErrorName(output)));
+
+	if (ZSTD_isError(output)) {
+		fprintf(stderr, "ZSTD encountered an error while doing temp read (code %ld, %s), exiting.\n", output,
+				ZSTD_getErrorName(output));
+		ZSTD_freeDStream(dstreamTmp);
+		FREE_NOT_NULL(inBuff);
+		FREE_NOT_NULL(localOutBuff);
+		return -1;
+	}
+
+	// Cap the return value of the data
+	readlen = (int64_t) tmpDecom.pos;
+	if (readlen > (int64_t) size * num) { readlen = size * num; }
+
+	// Copy the output and cleanup
+	if (memcpy(outbuf, localOutBuff, size * num) != outbuf) {
+		fprintf(stderr, "ERROR: Failed to copy ZSTD temp read to output, exiting.\n");
+		return -1;
+	}
+	ZSTD_freeDStream(dstreamTmp);
+	FREE_NOT_NULL(inBuff);
+	FREE_NOT_NULL(localOutBuff);
+
+	return readlen;
+
+}
 
 //Write Interface
 
-
 /**
- * @brief      { function_description }
+ * @brief      Setup the write I/O struct to handle normal data
  *
  * @param      config  The configuration
  * @param[in]  outp    The outp
- * @param[in]  iter    The iterator
+ * @param[in]  iter    The iteration of the output file
  *
- * @return     { description_of_the_return_value }
+ * @return     0: Success, <0: Failure
  */
-int32_t _lofar_udp_io_write_setup_ZSTD(lofar_udp_io_write_config *const config, int8_t outp, int32_t iter) {
+int32_t _lofar_udp_io_write_setup_ZSTD(lofar_udp_io_write_config *const config, const int8_t outp, const int32_t iter) {
 	if (_lofar_udp_io_write_setup_FILE(config, outp, iter) < 0) {
 		return -1;
 	}
@@ -409,17 +386,17 @@ int32_t _lofar_udp_io_write_setup_ZSTD(lofar_udp_io_write_config *const config, 
 
 
 /**
- * @brief      { function_description }
+ * @brief      Perform a data write for a zstdcompressed file
  *
- * @param      config  The configuration
+ * @param[in]  config  The configuration
  * @param[in]  outp    The outp
- * @param      src     The source
+ * @param[in]  src     The source
  * @param[in]  nchars  The nchars
  *
- * @return     { description_of_the_return_value }
+ * @return  >=0: Number of bytes written, <0: Failure
  */
 int64_t
-_lofar_udp_io_write_ZSTD(lofar_udp_io_write_config *const config, int8_t outp, const int8_t *src, int64_t nchars) {
+_lofar_udp_io_write_ZSTD(lofar_udp_io_write_config *const config, const int8_t outp, const int8_t *src, const int64_t nchars) {
 
 	ZSTD_inBuffer input = { src, nchars, 0 };
 	ZSTD_outBuffer output = { config->zstdWriter[outp].compressionBuffer.dst, config->zstdWriter[outp].compressionBuffer.size, 0 };
@@ -442,15 +419,13 @@ _lofar_udp_io_write_ZSTD(lofar_udp_io_write_config *const config, int8_t outp, c
 }
 
 /**
- * @brief      { function_description }
+ * @brief      Cleanup zstandard file references for the write I/O struct
  *
  * @param      config     The configuration
  * @param[in]  outp       The outp
- * @param[in]  fullClean  The full clean
- *
- * @return     { description_of_the_return_value }
+ * @param[in]  fullClean  Perform a full clean, dealloc the ringbuffer
  */
-void _lofar_udp_io_write_cleanup_ZSTD(lofar_udp_io_write_config *const config, int8_t outp, int8_t fullClean) {
+void _lofar_udp_io_write_cleanup_ZSTD(lofar_udp_io_write_config *const config, const int8_t outp, const int8_t fullClean) {
 	if (config == NULL) {
 		return;
 	}
@@ -469,5 +444,4 @@ void _lofar_udp_io_write_cleanup_ZSTD(lofar_udp_io_write_config *const config, i
 		ZSTD_freeCCtxParams(config->cparams);
 		config->cparams = NULL;
 	}
-
 }

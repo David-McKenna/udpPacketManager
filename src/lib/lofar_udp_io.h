@@ -45,7 +45,7 @@ void lofar_udp_io_write_cleanup(lofar_udp_io_write_config *config, int8_t outp, 
 
 // Internal wrapped functions
 // Setup functions
-int32_t _lofar_udp_io_read_setup_internal_lib_helper(lofar_udp_io_read_config *const input, const lofar_udp_config *config, const lofar_udp_obs_meta *meta,
+int32_t _lofar_udp_io_read_setup_internal_lib_helper(lofar_udp_io_read_config *const input, const lofar_udp_config *config, lofar_udp_obs_meta *meta,
                                                  int8_t port);
 int32_t _lofar_udp_io_write_setup_helper(lofar_udp_io_write_config *config, const lofar_udp_obs_meta *meta, int32_t iter);
 
@@ -53,7 +53,7 @@ int32_t _lofar_udp_io_read_setup_FILE(lofar_udp_io_read_config *const input, con
 int32_t
 _lofar_udp_io_read_setup_ZSTD(lofar_udp_io_read_config *const input, const char *inputLocation, int8_t port);
 int32_t
-_lofar_udp_io_read_setup_DADA(lofar_udp_io_read_config *const input, int32_t dadaKey, int8_t port);
+_lofar_udp_io_read_setup_DADA(lofar_udp_io_read_config *const input, key_t dadaKey, int8_t port);
 __attribute__((unused)) int32_t _lofar_udp_io_read_setup_HDF5(lofar_udp_io_read_config *const input, const char *inputLocation, int8_t port);
 
 int32_t _lofar_udp_io_write_setup_FILE(lofar_udp_io_write_config *const config, int8_t outp, int32_t iter);
@@ -92,7 +92,7 @@ __attribute__((unused)) void _lofar_udp_io_read_cleanup_HDF5(lofar_udp_io_read_c
 void _lofar_udp_io_write_cleanup_FILE(lofar_udp_io_write_config *const config, int8_t outp);
 void _lofar_udp_io_write_cleanup_ZSTD(lofar_udp_io_write_config *const config, int8_t outp, int8_t fullClean);
 void _lofar_udp_io_write_cleanup_DADA(lofar_udp_io_write_config *const config, int8_t outp, int8_t fullClean);
-void _lofar_udp_io_write_cleanup_HDF5(lofar_udp_io_write_config *config, int8_t outp, int8_t fullClean);
+void _lofar_udp_io_write_cleanup_HDF5(lofar_udp_io_write_config *const config, int8_t outp, int8_t fullClean);
 
 // Other functions
 void _swapCharPtr(char **a, char **b);

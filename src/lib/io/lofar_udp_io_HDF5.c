@@ -1,4 +1,7 @@
 
+// This file is build on macros to try and keep it in some way clean
+// Yes, it is ugly, but without it the file would be 2-3x longer.
+
 // HDF5 group open/error handling macro
 #define HDF_OPEN_GROUP(outGroupVar, inputHDF, groupName)        \
 VERBOSE(printf("Opening HDF5 group %s\n", groupName);)              \
@@ -8,40 +11,46 @@ if (((outGroupVar) = H5Gopen(inputHDF, groupName, 0)) < 0) {    \
 	return -1;                                                  \
 };
 
+
+// Group/Dataset attribute setter
+// Get the number of attributes in the struct, call the correct wrapper function, cleanup on error
 #define _H5_SET_ATTRS(groupId, toSetAttrs, funcName, closeFunc)  \
 numAttrs = VAR_ARR_SIZE(toSetAttrs);                        \
-																								\
 if (funcName(groupId, toSetAttrs, numAttrs) < 0) {   \
     closeFunc(groupId);                                                               \
 	return -1;                                                                                  \
 };
 
+// Group wrapper to _H5_SET_ATTRS
 #define H5G_SET_ATTRS(groupId, toSetAttrs, funcName)  \
 	_H5_SET_ATTRS(groupId, toSetAttrs, funcName, H5Gclose)
 
+// Dataset wrapper to _H5_SET_ATTRS
 #define H5D_SET_ATTRS(groupId, toSetAttrs, funcName)  \
 	_H5_SET_ATTRS(groupId, toSetAttrs, funcName, H5Dclose)
 
+// Error check every call, raise warnings if an issue is encountered
+// This is for soft errors, such as initialising a struct, that aren't essential
 #define H5_ERR_CHECK(variable, statement) \
-if (((variable) = (statement)) < 0) {         \
-	fprintf(stderr, "HDF5 Error encountered (%s:%d): ", __FILE__, __LINE__); \
-	H5Eprint(variable, stderr);           \
-};
+	H5_ERR_CHECK_RETURN(variable, statement, "", 0)
 
+// This is forhard errors, where an actual operation has failed and we must exit
 #define H5_ERR_CHECK_RETURN(variable, statement, msg, returnCode) \
 if (((variable) = (statement)) < 0) {         \
-	fprintf(stderr, "HDF5 Error encountered %s (%s:%d): ", msg, __FILE__, __LINE__); \
+	fprintf(stderr, "ERROR %s: HDF5 Error encountered %s: ", __func__, msg); \
 	H5Eprint((variable), stderr);                                      \
-	return (returnCode);                                                                  \
+    if (returnCode) {                                                              \
+        return (returnCode);                                            \
+    }                                                                  \
 };
 
-// Metadata function
-const char* get_rcumode_str(int rcumode);
+// Metadata function for ICD003
+const char* get_rcumode_str(const int32_t rcumode);
 
 // F#!* everything about this.
 // This is the only way I've found to write a value that h5py reads as a bool, by
 //  matching the hdf5 internal system.
-//  0/1 values is not enough, this needs a unique type.
+//  0/1 values is not enough, this needs a unique named type.
 typedef enum bool_t {
 	FALSE = 0,
 	TRUE = 1
@@ -100,13 +109,13 @@ __attribute__((unused)) typedef struct strKeyBoolArrVal {
 
 
 /**
- * @brief      Stub, currently unused
+ * @brief      (NOT IMPLEMENTED) Setup the read I/O struct to handle HDF5 data
  *
  * @param      input   The input
- * @param[in]  config  The configuration
- * @param[in]  port    The port
+ * @param[in]  inputLocation    The input file location
+ * @param[in]  port    The index offset from the base file
  *
- * @return     { description_of_the_return_value }
+ * @return     0: Success, <0: Failure
  */
 __attribute__((unused)) int32_t _lofar_udp_io_read_setup_HDF5(__attribute__((unused)) lofar_udp_io_read_config *const input, __attribute__((unused)) const char *inputLocation,
                                                               __attribute__((unused)) int8_t port) {
@@ -115,62 +124,55 @@ __attribute__((unused)) int32_t _lofar_udp_io_read_setup_HDF5(__attribute__((unu
 
 
 /**
- * @brief      Stub, currently unused
+ * @brief      (NOT IMPLEMENTED) Cleanup HDF5 file references for the read I/O struct
  *
- * @param      input        The input
- * @param[in]  port         The port
- * @param      targetArray  The target array
- * @param[in]  nchars       The nchars
- *
- * @return     { description_of_the_return_value }
+ * @param      input  The input
+ * @param[in]  port   The index offset from the base file
  */
 __attribute__((unused)) int64_t _lofar_udp_io_read_HDF5(__attribute__((unused)) lofar_udp_io_read_config *const input, __attribute__((unused)) int8_t port, __attribute__((unused)) int8_t *targetArray, __attribute__((unused)) int64_t nchars) {
 	return -1;
 }
 
 /**
- * @brief      Stub, currently unused
+ * @brief      Cleanup HDF5 file references for the read I/O struct
  *
  * @param      input  The input
- * @param[in]  port   The port
- *
- * @return     { description_of_the_return_value }
+ * @param[in]  port   The index offset from the base file
  */
 __attribute__((unused)) void _lofar_udp_io_read_cleanup_HDF5(__attribute__((unused)) lofar_udp_io_read_config *const input, __attribute__((unused)) int8_t port) {
 	return; // NOLINT(readability-redundant-control-flow)
 }
 
-
-
 /**
- * @brief      Stub, currently unused
+ * @brief      Temporarily read in num bytes from a HDF5 file
  *
- * @param      outbuf     The outbuf
- * @param[in]  size       The size
- * @param[in]  num        The number
- * @param[in]  inputFile  The input HDF5
- * @param[in]  resetSeek  The reset seek
+ * @param      outbuf     The output buffer pointer
+ * @param[in]  size       The size of words to read
+ * @param[in]  num        The number of words to read
+ * @param[in]  inputFile  The input file
+ * @param[in]  resetSeek  Do (1) / Don't (0) reset back to the original location
+ *                        in FILE* after performing a read operation
  *
- * @return     { description_of_the_return_value }
+ * @return     >0: bytes read, <=-1: Failure
  */
 __attribute__((unused)) int64_t
-_lofar_udp_io_read_temp_HDF5(__attribute__((unused)) void *outbuf, __attribute__((unused)) int64_t size, __attribute__((unused)) int8_t num, __attribute__((unused)) const char inputFile[],
-                             __attribute__((unused)) int8_t resetSeek) {
+_lofar_udp_io_read_temp_HDF5(__attribute__((unused)) void *outbuf, __attribute__((unused)) const int64_t size, __attribute__((unused)) const int8_t num, __attribute__((unused)) const char inputFile[],
+                             __attribute__((unused)) const int8_t resetSeek) {
 	//long readlen = -1;
 	return -1;
 }
 
 
 /**
- * @brief      { function_description }
+ * @brief      Setup the write I/O struct to handle HDF5 data
  *
  * @param      config  The configuration
  * @param[in]  outp    The outp
- * @param[in]  iter    The iterator
+ * @param[in]  iter    The iteration of the output file
  *
- * @return     { description_of_the_return_value }
+ * @return     0: Success, <0: Failure
  */
-int32_t _lofar_udp_io_write_setup_HDF5(lofar_udp_io_write_config *const config, __attribute__((unused)) int8_t outp, int32_t iter) {
+int32_t _lofar_udp_io_write_setup_HDF5(lofar_udp_io_write_config *const config, __attribute__((unused)) int8_t outp, const int32_t iter) {
 
 	// Documentation referenced
 	//
@@ -199,10 +201,10 @@ int32_t _lofar_udp_io_write_setup_HDF5(lofar_udp_io_write_config *const config, 
 						        "/SUB_ARRAY_POINTING_000/BEAM_000/COORDINATES/TIME",
 						        "/SYS_LOG"
 		};
-		int numGroups = VAR_ARR_SIZE(groupNames);
+		int32_t numGroups = VAR_ARR_SIZE(groupNames);
 
 		// Create the default group/dataset structures
-		for (int groupIdx = 0; groupIdx < numGroups; groupIdx++) {
+		for (int32_t groupIdx = 0; groupIdx < numGroups; groupIdx++) {
 			VERBOSE(printf("HDF5: Creating group  %d/%d %s\n", groupIdx, numGroups, groupNames[groupIdx]));
 
 			H5_ERR_CHECK_RETURN(group, H5Gcreate(config->hdf5Writer.file, groupNames[groupIdx], H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT), "Failed to create group", -1);
@@ -1142,16 +1144,16 @@ int64_t _lofar_udp_io_write_metadata_HDF5(lofar_udp_io_write_config *const confi
 }
 
 /**
- * @brief      { function_description }
+ * @brief      Perform a data write for a HDf5 file
  *
- * @param      config  The configuration
+ * @param[in]  config  The configuration
  * @param[in]  outp    The outp
- * @param      src     The source
+ * @param[in]  src     The source
  * @param[in]  nchars  The nchars
  *
- * @return     { description_of_the_return_value }
+ * @return  >=0: Number of bytes written, <0: Failure
  */
-int64_t _lofar_udp_io_write_HDF5(lofar_udp_io_write_config *const config, int8_t outp, const int8_t *src, int64_t nchars) {
+int64_t _lofar_udp_io_write_HDF5(lofar_udp_io_write_config *const config, const int8_t outp, const int8_t *src, const int64_t nchars) {
 	hsize_t offsets[2];
 	offsets[0] = config->hdf5Writer.hdf5DSetWriter[outp].dims[0];
 	offsets[1] = 0;
@@ -1190,15 +1192,13 @@ int64_t _lofar_udp_io_write_HDF5(lofar_udp_io_write_config *const config, int8_t
 }
 
 /**
- * @brief      { function_description }
+ * @brief      Cleanup HDF5 file references for the write I/O struct
  *
  * @param      config     The configuration
  * @param[in]  outp       The outp
- * @param[in]  fullClean  The full clean
- *
- * @return     { description_of_the_return_value }
+ * @param[in]  fullClean  Perform a full clean, dealloc the ringbuffer
  */
-void _lofar_udp_io_write_cleanup_HDF5(lofar_udp_io_write_config *config, int8_t outp, int8_t fullClean) {
+void _lofar_udp_io_write_cleanup_HDF5(lofar_udp_io_write_config *const config, const int8_t outp, const int8_t fullClean) {
 	if (config == NULL || config->hdf5Writer.file == -1) {
 		return;
 	}
@@ -1216,11 +1216,10 @@ void _lofar_udp_io_write_cleanup_HDF5(lofar_udp_io_write_config *config, int8_t 
 
 		config->hdf5Writer.file = -1;
 	}
-
 }
 
 
-const char* get_rcumode_str(int rcumode) {
+const char* get_rcumode_str(const int32_t rcumode) {
 	switch (rcumode) {
 		// Base values of bands
 		case 3:
@@ -1244,7 +1243,9 @@ const char* get_rcumode_str(int rcumode) {
 }
 
 #undef HDF_OPEN_GROUP
+#undef _H5_SET_ATTRS
 #undef H5G_SET_ATTRS
 #undef H5D_SET_ATTRS
 #undef H5_ERR_CHECK
+#undef H5_ERR_CHECK_RETURN
 #undef shortStrLen

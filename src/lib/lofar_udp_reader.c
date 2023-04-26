@@ -213,6 +213,10 @@ int32_t _lofar_udp_parse_header_buffers(lofar_udp_obs_meta *meta, const int8_t h
 		// 16-bit: 2x the size per sample
 		bitMul = 1.0f + (-0.5f * (float) (meta->inputBitMode == 4)) + (float) (meta->inputBitMode == 16);
 		meta->portPacketLength[port] = ((UDPHDRLEN) + (meta->portRawBeamlets[port] * ((int16_t) (bitMul * UDPNTIMESLICE * UDPNPOL))));
+		if (meta->portPacketLength[port] > MAXPKTLEN) {
+			fprintf(stderr, "ERROR %s: Packet of length %d on port %d is longer than maximum packet length %d, exiting.\n", __func__, meta->portPacketLength[port], port, MAXPKTLEN);
+			return -1;
+		}
 
 		if (port > 0) {
 			if (meta->portPacketLength[port] != meta->portPacketLength[port - 1]) {
@@ -897,38 +901,8 @@ int32_t _lofar_udp_setup_processing(lofar_udp_obs_meta *meta) {
 }
 
 
-int32_t _lofar_udp_setup_processing_buffers(const lofar_udp_config *config, lofar_udp_obs_meta *meta) {
-	// Allocate the memory needed to store the raw / processed data, initialise the variables that are stored on a per-port basis.
-	for (int8_t port = 0; port < meta->numPorts; port++) {
-		// The input buffer is extended by 2 packets to allow for both a reference packet from a previous iteration
-		// and a fall-back packet encase replaying packets is disabled (all 0s to pad the output)
-
-		// If we have a compressed reader, align the length with the ZSTD buffer sizes
-		size_t additionalBufferSize = _lofar_udp_io_read_ZSTD_fix_buffer_size(meta->portPacketLength[port] * meta->packetsPerIteration, 1);
-		size_t inputBufferSize = meta->portPacketLength[port] * (meta->packetsPerIteration + 2) + // << 2 buffer packets mentioned above
-		                         additionalBufferSize * (config->readerType == ZSTDCOMPRESSED);
-		meta->inputData[port] = calloc(inputBufferSize, sizeof(int8_t));
-		CHECK_ALLOC(meta->inputData[port], -1,
-			for (int8_t i = 0; i < port; i++) { free(meta->inputData[i]); }
-		);
-		// Offset the pointer to the end of the two initial buffer packets
-		VERBOSE(
-			if (meta->VERBOSE) {
-				printf("calloc at %p for %ld +(%ld ZSTD, %d packet) bytes\n",
-				       meta->inputData[port],
-				       inputBufferSize, additionalBufferSize,
-				       meta->portPacketLength[port] * 2);
-			}
-		);
-		// Shift for buffer packets
-		meta->inputData[port] += (meta->portPacketLength[port] * 2);
-
-		// Initialise these arrays while we're looping
-		meta->inputDataOffset[port] = 0;
-		meta->portLastDroppedPackets[port] = 0;
-		meta->portTotalDroppedPackets[port] = 0;
-	}
-
+int32_t _lofar_udp_setup_processing_output_buffers(const lofar_udp_config *config, lofar_udp_obs_meta *meta) {
+	// Allocate the memory needed to store the processed data
 	for (int8_t out = 0; out < meta->numOutputs; out++) {
 		VERBOSE(
 			printf("Packet output length %d, Packets per iter %ld\n", meta->packetOutputLength[out], meta->packetsPerIteration)
@@ -936,8 +910,7 @@ int32_t _lofar_udp_setup_processing_buffers(const lofar_udp_config *config, lofa
 
 		meta->outputData[out] = calloc((int64_t) meta->packetOutputLength[out] * meta->packetsPerIteration, sizeof(int8_t));
 		CHECK_ALLOC(meta->outputData[out], -1,
-		            for (int8_t i = 0; i < meta->numPorts; i++) { free(meta->inputData[i]); }
-					for (int8_t i = 0; i < out; i++) {free(meta->outputData[i]); }
+		            for (int8_t i = 0; i < out; i++) {free(meta->outputData[i]); }
 		);
 
 		VERBOSE(if (meta->VERBOSE) {
@@ -1143,7 +1116,7 @@ lofar_udp_reader *lofar_udp_reader_setup(lofar_udp_config *config) {
 		return NULL;
 	}
 
-	if (_lofar_udp_setup_processing_buffers(config, meta) < 0) {
+	if (_lofar_udp_setup_processing_output_buffers(config, meta) < 0) {
 		fprintf(stderr, "Unable to setup processing buffers, exiting.\n");
 		FREE_NOT_NULL(meta);
 		return NULL;
@@ -1655,10 +1628,10 @@ void lofar_udp_reader_cleanup(lofar_udp_reader *reader) {
 
 				VERBOSE(if (reader->meta->VERBOSE) {
 					printf("On port: %d freeing inputData at %p\n", i, reader->meta->inputData[i] -
-					                                                   2 * reader->meta->portPacketLength[i]);
+						MAXPKTLEN * 2);
 				});
 
-				int8_t *tmpPtr = (reader->meta->inputData[i] - 2 * reader->meta->portPacketLength[i]);
+				int8_t *tmpPtr = (reader->meta->inputData[i] - (MAXPKTLEN * 2));
 				FREE_NOT_NULL(tmpPtr);
 				reader->meta->inputData[i] = NULL;
 			}
