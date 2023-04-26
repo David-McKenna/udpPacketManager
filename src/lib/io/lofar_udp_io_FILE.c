@@ -14,7 +14,6 @@ int32_t _lofar_udp_io_read_setup_FILE(lofar_udp_io_read_config *const input, con
 	VERBOSE(printf("Opening file at %s for port %d\n", inputLocation, port));
 
 	input->fileRef[port] = fopen(inputLocation, "rb");
-
 	if (input->fileRef[port] == NULL) {
 		fprintf(stderr, "ERROR: Failed to open file at %s: errno %d, %s.\n", inputLocation, errno, strerror(errno));
 		return -1;
@@ -37,7 +36,11 @@ int32_t _lofar_udp_io_read_setup_FILE(lofar_udp_io_read_config *const input, con
 int64_t _lofar_udp_io_read_FILE(lofar_udp_io_read_config *const input, const int8_t port, int8_t *const targetArray, const int64_t nchars) {
 	// Decompressed file: Read and return the data as needed
 	VERBOSE(printf("reader_nchars: Entering read request (normal): %d, %ld\n", port, nchars));
-	return (int64_t) fread(targetArray, sizeof(int8_t), nchars, input->fileRef[port]);
+	if (input->fileRef[port] != NULL) {
+		return (int64_t) fread(targetArray, sizeof(int8_t), nchars, input->fileRef[port]);
+	}
+	fprintf(stderr, "ERROR %s: Input file pointer is null on portp %d, exiting.\n", __func__, port);
+	return -1;
 }
 
 /**
@@ -74,6 +77,15 @@ void _lofar_udp_io_read_cleanup_FILE(lofar_udp_io_read_config *const input, cons
  */
 int64_t _lofar_udp_io_read_temp_FILE(void *outbuf, const int64_t size, const int64_t num, const char inputFile[],
                                      const int8_t resetSeek) {
+	if (outbuf == NULL || inputFile == NULL) {
+		fprintf(stderr, "ERROR %s: Passed nullptr (outbuf: %p, inputFile %p), exiting.\n", __func__, outbuf, inputFile);
+		return -1;
+	}
+	if (size * num < 0) {
+		fprintf(stderr, "ERROR %s: No work to perform (size %ld, num %ld), exiting.\n", __func__, size, num);
+		return -1;
+	}
+
 	FILE *inputFilePtr = fopen(inputFile, "rb");
 	if (inputFilePtr == NULL) {
 		fprintf(stderr, "ERROR: Unable to open normal file at %s, exiting.\n", inputFile);
@@ -96,9 +108,12 @@ int64_t _lofar_udp_io_read_temp_FILE(void *outbuf, const int64_t size, const int
 		}
 	}
 
-	fclose(inputFilePtr);
+	if (fclose(inputFilePtr)) {
+		fprintf(stderr, "ERROR %s: Failed to close temporary file pointer for %s (errno %d: %s), exiting.\n", __func__, inputFile, errno, strerror(errno));
+		return -1;
+	}
 
-	return readlen;
+	return readlen * size;
 }
 
 
@@ -136,24 +151,33 @@ int32_t _lofar_udp_io_write_FILE_setup_check_exists(const char filePath[], const
  */
 int32_t _lofar_udp_io_write_setup_FILE(lofar_udp_io_write_config *const config, const int8_t outp, const int32_t iter) {
 	char outputLocation[DEF_STR_LEN];
+	if (config == NULL) {
+		fprintf(stderr, "ERROR %s: Writer struct is null, exiting.\n", __func__);
+		return -1;
+	}
 
+	// Cleanup the struct if it is already initialised
 	if (config->outputFiles[outp] != NULL) {
 		lofar_udp_io_write_cleanup(config, outp, 1);
 	}
 
+	// Determine the output file name
 	if (lofar_udp_io_parse_format(outputLocation, config->outputFormat, -1, iter, outp, config->firstPacket) < 0) {
 		return -1;
 	}
 
+	// Check if it exists, and if it if we can continue
 	if (_lofar_udp_io_write_FILE_setup_check_exists(outputLocation, config->progressWithExisting)) {
 		return -1;
 	}
 
+	// Proceeding: copy the output name to our struct
 	if (strncpy(config->outputLocations[outp], outputLocation, DEF_STR_LEN) != config->outputLocations[outp]) {
 		fprintf(stderr, "ERROR: Failed to copy output file path (%s), exiting.\n", outputLocation);
 		return -1;
 	}
 
+	// Create a FIFO if needed
 	if (config->readerType == FIFO) {
 		struct stat fileStat;
 
@@ -162,17 +186,20 @@ int32_t _lofar_udp_io_write_setup_FILE(lofar_udp_io_write_config *const config, 
 			if (!config->progressWithExisting) {
 				fprintf(stderr, "ERROR: Failed to create FIFO at %s (errno %d: %s), exiting.\n", outputLocation, errno, strerror(errno));
 				return -1;
+			// Re-create a FIFO at the given location if we can
 			} else if (!(stat(outputLocation, &fileStat) == 0 && S_ISFIFO(fileStat.st_mode))) {
 				fprintf(stderr, "WARNING: Normal file already exists at %s when a FIFO was requested, attempting to replace with a FIFO..\n", outputLocation);
 				if (!remove(outputLocation)) {
 					fprintf(stderr, "ERROR: Failed to remove non-FIFO file at %s (errno %d: %s), exiting.\n", outputLocation, errno, strerror(errno));
 					return -1;
 				}
+				// Recursive call to create the FIFO and continue initialisation
 				return _lofar_udp_io_write_setup_FILE(config, outp, iter);
 			}
 		}
 	}
 
+	// Open a buffered file pointer
 	FILE *tmpPtr = fopen(outputLocation, "wb");
 	if (tmpPtr == NULL) {
 		fprintf(stderr, "ERROR: Failed to open output (type %d. location %s, errno %d, (%s)), exiting.\n", config->readerType, outputLocation, errno, strerror(errno));
@@ -218,6 +245,7 @@ int64_t _check_FIFO_status(const lofar_udp_io_write_config *config, int8_t outp,
 		return -1;
 	}
 
+	// Ensure the file location is a FIFO
 	if (-1 == stat(config->outputLocations[outp], &fifoStat)) {
 		fprintf(stderr, "ERROR: Failed to check FIFO status while writing, exiting.\n");
 		return -1;
@@ -227,10 +255,12 @@ int64_t _check_FIFO_status(const lofar_udp_io_write_config *config, int8_t outp,
 		return -1;
 	}
 
+	// Retun readers on request
 	if (returnReaders) {
 		return (int64_t) fifoStat.st_nlink;
 	}
 
+	// Warn if there are no readers; we may hang until one consumes data
 	if (fifoStat.st_nlink < 1) {
 		fprintf(stderr, "WARNING: Write request for FIFO, but it has no readers, the process may hang.\n");
 	}
@@ -279,7 +309,5 @@ void _lofar_udp_io_write_cleanup_FILE(lofar_udp_io_write_config *const config, i
 
 		fclose(config->outputFiles[outp]);
 		config->outputFiles[outp] = NULL;
-
 	}
-
 }

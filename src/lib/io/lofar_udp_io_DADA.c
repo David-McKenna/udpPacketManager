@@ -23,21 +23,23 @@ _lofar_udp_io_read_setup_DADA(lofar_udp_io_read_config *const input, const key_t
 	input->dadaReader[port] = dada_hdu_create(input->multilog[port]);
 
 	if (input->multilog[port] == NULL || input->dadaReader[port] == NULL) {
-		fprintf(stderr, "ERROR: Unable to initialsie PSRDADA logger on port %d. Exiting.\n", port);
+		fprintf(stderr, "ERROR: Unable to initialise PSRDADA logger on port %d. Exiting.\n", port);
 		return -1;
 	}
 
-	// If successful, connect to the ingbuffer as a given reader type
-	if (dadaKey < 0) {
+	// If successful, connect to the ringbuffer as a given reader type
+	if (dadaKey < IPC_PRIVATE || dadaKey > INT32_MAX) {
 		fprintf(stderr, "ERROR: Invalid PSRDADA ringbuffer key (%d) on port %d, exiting.\n", dadaKey, port);
 		return -2;
 	}
-
 	dada_hdu_set_key(input->dadaReader[port], dadaKey);
+
+	// Connect to the ringbuffer instance
 	if (dada_hdu_connect(input->dadaReader[port])) {
 		return -3;
 	}
 
+	// Register ourselfs as the active reader
 	if (dada_hdu_lock_read(input->dadaReader[port])) {
 		return -4;
 	}
@@ -45,18 +47,19 @@ _lofar_udp_io_read_setup_DADA(lofar_udp_io_read_config *const input, const key_t
 	// If we are restarting, align to the expected packet length
 	if ((ipcio_tell(input->dadaReader[port]->data_block) % input->portPacketLength[port]) != 0) {
 		if (ipcio_seek(input->dadaReader[port]->data_block,
-					   7824 - (int64_t) (ipcio_tell(input->dadaReader[port]->data_block) % 7824), SEEK_CUR) < 0) {
+		               input->portPacketLength[port] - (int64_t) (ipcio_tell(input->dadaReader[port]->data_block) % input->portPacketLength[port]), SEEK_CUR) < 0) {
 			return -5;
 		}
 	}
 
-	input->dadaPageSize[port] = (long) ipcbuf_get_bufsz((ipcbuf_t *) input->dadaReader[port]->data_block);
+	input->dadaPageSize[port] = (int64_t) ipcbuf_get_bufsz((ipcbuf_t *) input->dadaReader[port]->data_block);
 	if (input->dadaPageSize[port] < 1) {
 		fprintf(stderr, "ERROR: Failed to get PSRDADA buffer size on ringbuffer %d for port %d, exiting.\n", dadaKey,
 				port);
 		return -6;
 	}
 
+	// Remove our reader status until we need to perform a read
 	if (dada_hdu_unlock_read(input->dadaReader[port])) {
 		return -7;
 	}
@@ -86,13 +89,14 @@ int64_t _lofar_udp_io_read_DADA(lofar_udp_io_read_config *const input, const int
 
 	int64_t dataRead = 0, currentRead;
 
-	// To prevent a lock up when we call ipcio_stop, read the data in gulps
+	// To prevent a lock-up when we call ipcio_stop, read the data in gulps
 	int64_t readChars = ((dataRead + input->dadaPageSize[port]) > nchars) ? (nchars - dataRead)
 																	   : input->dadaPageSize[port];
-	// Loop until we read the requested amount of data
+	// Register as the active reader
 	if (dada_hdu_lock_read(input->dadaReader[port])) {
 		return -1;
 	}
+	// Loop until we read the requested amount of data
 	while (dataRead < nchars) {
 		if ((currentRead = ipcio_read(input->dadaReader[port]->data_block, (char *) &(targetArray[dataRead]), readChars)) < 1) {
 			fprintf(stderr, "ERROR: Failed to complete DADA read on port %d (%ld / %ld), returning partial data.\n",
@@ -101,6 +105,7 @@ int64_t _lofar_udp_io_read_DADA(lofar_udp_io_read_config *const input, const int
 			//return (dataRead > 0) ? dataRead : -1;
 			// If this read fails at the start of a read, return the error, otherwise return the data read so far.
 			if (dataRead == 0) {
+				dada_hdu_unlock_read(input->dadaReader[port]);
 				return -1;
 			} else {
 				break;
@@ -110,6 +115,7 @@ int64_t _lofar_udp_io_read_DADA(lofar_udp_io_read_config *const input, const int
 		readChars = ((dataRead + input->dadaPageSize[port]) > nchars) ? (nchars - dataRead) : input->dadaPageSize[port];
 	}
 
+	// Unlock the ringbuffer
 	if (dada_hdu_unlock_read(input->dadaReader[port])) {
 		return -1;
 	}
@@ -136,11 +142,6 @@ void _lofar_udp_io_read_cleanup_DADA(lofar_udp_io_read_config *const input, cons
 		return;
 	}
 	if (input->dadaReader[port] != NULL) {
-		/*
-		if (dada_hdu_unlock_read(input->dadaReader[port]) < 0) {
-			fprintf(stderr, "ERROR: Failed to close PSRDADA buffer %d on port %d.\n", input->inputDadaKeys[port], port);
-		}
-		*/
 		FREE_NOT_NULL(input->dadaReader[port]->data_block->buf_ptrs);
 		if (dada_hdu_disconnect(input->dadaReader[port]) < 0) {
 			fprintf(stderr, "ERROR: Failed to disconnect from PSRDADA buffer %d on port %d.\n", input->inputDadaKeys[port],
@@ -155,6 +156,7 @@ void _lofar_udp_io_read_cleanup_DADA(lofar_udp_io_read_config *const input, cons
 		}
 		input->multilog[port] = NULL; // multilog_close frees the ptr;
 	}
+	input->dadaPageSize[port] = -1;
 #endif
 }
 
@@ -175,14 +177,15 @@ void _lofar_udp_io_read_cleanup_DADA(lofar_udp_io_read_config *const input, cons
 int64_t
 _lofar_udp_io_read_temp_DADA(void *outbuf, int64_t size, int64_t num, key_t dadaKey, int8_t resetSeek) {
 #ifndef NODADA
+	// Initialise a reader
 	ipcio_t tmpReader;
 	if (memcpy(&tmpReader, &(IPCIO_INIT), sizeof(ipcbuf_t)) != &tmpReader) {
 		fprintf(stderr, "ERROR: Failed to initialise temp ringbuffer reader, exiting.\n");
 		return -1;
 	}
-	// Only use an active reader for now, I just can't make the passive reader implementationstable.
+	// Only use an active reader for now, I just can't make the passive reader implementation stable.
 	char readerChar = 'R';
-	if (dadaKey < 1) {
+	if (dadaKey < IPC_PRIVATE || dadaKey > INT32_MAX) {
 		fprintf(stderr, "ERROR: Invalid PSRDADA ringbuffer key %d (%x), exiting.\n", dadaKey, dadaKey);
 		return -1;
 	}
@@ -194,21 +197,26 @@ _lofar_udp_io_read_temp_DADA(void *outbuf, int64_t size, int64_t num, key_t dada
 		return -1;
 	}
 
+	// Open as the reader
 	if (ipcio_open(&tmpReader, readerChar) < 0) {
 		return -1;
 	}
 
+	// Cap reads at 1 buffer; if we go into the next buffer, we cannot go back.
 	int64_t numRead = ipcbuf_get_bufsz(&(tmpReader.buf)) - 1;
 	if (numRead < (size * num)) {
 		fprintf(stderr, "WARNING: DADA temporary reads must be shorter than a buffer, reducing read from %ld to %ld.\n", (size * num), numRead);
 		num = numRead / size;
 	}
 
+	// TODO: Consider seeking back to the start of the buffer before reading.
 	if ((numRead = ipcio_read(&tmpReader, outbuf, num * size)) < 0) {
 		return -1;
 	}
 
 	// Only the active reader needs an explicit seek + close, passive reader will raise an error here
+#pragma clang diagnostic push
+#pragma ide diagnostic ignored "ConstantConditionsOC"
 	if (readerChar == 'R') {
 		// fseek() if requested....
 		if (resetSeek == 1) {
@@ -220,6 +228,7 @@ _lofar_udp_io_read_temp_DADA(void *outbuf, int64_t size, int64_t num, key_t dada
 			return -1;
 		}
 	}
+#pragma clang diagnostic pop
 
 
 	// PSRDADA memory leak...
@@ -229,8 +238,7 @@ _lofar_udp_io_read_temp_DADA(void *outbuf, int64_t size, int64_t num, key_t dada
 	}
 
 	if (numRead != size * num) {
-		fprintf(stderr, "Unable to read %ld elements from ringbuffer %d, exiting.\n", size * num, dadaKey);
-		return -1;
+		fprintf(stderr, "Unable to read (%ld/)%ld elements from ringbuffer %d\n", numRead, size * num, dadaKey);
 	}
 
 	return numRead;
@@ -254,6 +262,7 @@ _lofar_udp_io_read_temp_DADA(void *outbuf, int64_t size, int64_t num, key_t dada
 int32_t _lofar_udp_io_write_setup_DADA(lofar_udp_io_write_config *const config, const int8_t outp) {
 #ifndef NODADA
 
+	// Initialise a multilog for the HDU
 	if (config->dadaWriter[outp].multilog == NULL) {
 		config->dadaWriter[outp].multilog = multilog_open(config->dadaConfig.programName, config->dadaConfig.syslog);
 
@@ -265,16 +274,20 @@ int32_t _lofar_udp_io_write_setup_DADA(lofar_udp_io_write_config *const config, 
 		multilog_add(config->dadaWriter[outp].multilog, stdout);
 	}
 
+	// Initialuse a ringbuffer, followed by a HDU
 	if (config->dadaWriter[outp].hdu == NULL) {
+		// ringbuffer
 		if (_lofar_udp_io_write_setup_DADA_ringbuffer(config->outputDadaKeys[outp],
 		                                              config->dadaConfig.nbufs, config->writeBufSize[outp], config->dadaConfig.num_readers,
 		                                              config->progressWithExisting) < 0 ||
+	    // header ringbuffer
 			_lofar_udp_io_write_setup_DADA_ringbuffer(config->outputDadaKeys[outp] + 1,
 			                                          config->dadaConfig.nbufs, config->writeBufSize[outp], config->dadaConfig.num_readers,
 			                                          config->progressWithExisting)) {
 			return -1;
 		}
 
+		// Attach to the newly created ringbuffer
 		config->dadaWriter[outp].hdu = dada_hdu_create(config->dadaWriter[outp].multilog);
 		dada_hdu_set_key(config->dadaWriter[outp].hdu, config->outputDadaKeys[outp]);
 		if (dada_hdu_connect(config->dadaWriter[outp].hdu) < 0) {
@@ -314,9 +327,10 @@ int32_t _lofar_udp_io_write_setup_DADA_ringbuffer(const int32_t dadaKey, const u
 	CHECK_ALLOC_NOCLEAN(ringbuffer, -1);
 	*(ringbuffer) = IPCIO_INIT;
 
-
+	// Create the ringbuffer
 	if (ipcio_create(ringbuffer, dadaKey, nbufs, bufSize, numReaders) < 0) {
 		// ipcio_create(...) prints error to stderr, so we just need to exit, or do something else.
+		// If it exists, and we;re allowed to, re-allocate the ringbuffer
 		if (reallocateExisting) {
 			fprintf(stderr, "WARNING: Failed to create ringbuffer, but progressWithExisting int is set, attempting to destroy and re-create to given ringbuffer %d (%x)...\n", dadaKey, dadaKey);
 
@@ -341,7 +355,7 @@ int32_t _lofar_udp_io_write_setup_DADA_ringbuffer(const int32_t dadaKey, const u
 		}
 	}
 
-	// Close the ringbuffer
+	// Close the ringbuffer, we will open it in a HDU
 	if (ipcio_disconnect(ringbuffer)) {
 		// ipcio_disconnect(...) prints error to stderr, so we just need to exit.
 		return -1;
@@ -370,23 +384,30 @@ int32_t _lofar_udp_io_write_setup_DADA_ringbuffer(const int32_t dadaKey, const u
 int64_t _lofar_udp_io_write_DADA(ipcio_t *const ringbuffer, const int8_t *src, const int64_t nchars, const int8_t ipcbuf) {
 #ifndef NODADA
 
+	// If performing a data write,
 	if (!ipcbuf) {
+		// Open as the active writer
 		if (ipcio_open(ringbuffer, 'W') < 0) {
 			return -1;
 		}
 
+		// Write the data
 		int64_t writtenBytes = ipcio_write(ringbuffer, (char *) src, nchars);
 
-		if (writtenBytes < 0 || ipcio_close(ringbuffer) < 0) {
+		// Unlock the buffer and continue
+		if (ipcio_close(ringbuffer) < 0 || writtenBytes < 0) {
 			return -1;
 		}
 
 		return writtenBytes;
 	} else {
+		// If opening as a header, get the buffer and lock as a writer
+		// This is possible as an ipcio_t starts with an ipcbuf_t, followed by extra data
 		ipcbuf_t *buffer = (ipcbuf_t *) ringbuffer;
 		if (ipcbuf_lock_write(buffer) < 0) {
 			return -1;
 		}
+		// While data in our buffer remains, fill up ringbuffer pages
 		int64_t written = 0;
 		while (nchars) {
 			int64_t headerSize = (int64_t) ipcbuf_get_bufsz(buffer);
@@ -398,11 +419,12 @@ int64_t _lofar_udp_io_write_DADA(ipcio_t *const ringbuffer, const int8_t *src, c
 			}
 
 			written += toWrite;
-			if (ipcbuf_mark_filled (buffer, toWrite) < 0) {
+			if (ipcbuf_mark_filled(buffer, toWrite) < 0) {
 				return -1;
 			}
 		}
 
+		// Unlock the buffer and continue
 		if (ipcbuf_unlock_write(buffer) < 0) {
 			return -1;
 		}
@@ -436,12 +458,11 @@ void _lofar_udp_io_write_cleanup_DADA(lofar_udp_io_write_config *const config, c
 		ipcbuf_lock_write(config->dadaWriter[outp].hdu->header_block);
 	}
 
-	if (dada_hdu_unlock_write(config->dadaWriter[outp].hdu) < 0) {
-		return;
-	}
+	// Unlock write permissions
+	dada_hdu_unlock_write(config->dadaWriter[outp].hdu);
 
 
-	// Close the ringbuffer writers
+	// Close the ringbuffer instances
 	if (fullClean) {
 		// Wait for readers to finish up and exit, or timeout (ipcio_read can hang if it requests data past the EOD point)
 		if (config->dadaWriter[outp].hdu->data_block != NULL) {
@@ -460,6 +481,8 @@ void _lofar_udp_io_write_cleanup_DADA(lofar_udp_io_write_config *const config, c
 
 	}
 
+	// Cleanup the writers
+	// Part of this is a hangover from before we used the HDU interface, but it still works perfectly well
 	if (config->dadaWriter[outp].hdu->data_block) {
 		ipcio_destroy(config->dadaWriter[outp].hdu->data_block);
 	}
@@ -492,15 +515,18 @@ void _lofar_udp_io_cleanup_DADA_loop(ipcbuf_t *buff, float *timeoutPtr) {
 
 	float timeout = *timeoutPtr;
 	float totalSleep = 0.001f * sampleEveryNMilli;
-	long iters = 0;
+	int64_t iters = 0;
+	// Hold a reference to the lat read buffer, we may be stuck within 1-2 blocks of the last write,
+	//  in which case we will need to force an exit
 	uint64_t previousBuffer = ipcbuf_get_read_count(buff);
 
+	// Loop until we exit or timeout
 	while (totalSleep < timeout) {
 		if (ipcbuf_get_reader_conn(buff) != 0) {
 			break;
 		}
 
-		// Notify the user every second
+		// Notify the user of the current status every second
 		if (iters % (1000 / sampleEveryNMilli) == 0) {
 			// If the reader is stuck on the last block, just exit early.
 			if (iters != 0 && previousBuffer == ipcbuf_get_read_count(buff) && (ipcbuf_get_write_count(buff) - previousBuffer) < 2) {
