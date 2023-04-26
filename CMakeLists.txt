@@ -59,12 +59,10 @@ find_package(OpenMP REQUIRED)
 execute_process(COMMAND bash -c "cat /proc/cpuinfo | uniq | grep -m 2 \"siblings\" | cut -d \":\" -f 2 | sort --numeric --unique | xargs echo"
                 OUTPUT_VARIABLE OMP_THREADS
 )
-if(OpenMP_C_LIB_NAMES MATCHES ".*(iomp).*" OR CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
-	message ("Intel-like OpenMP Detected.")
-	# Determine the optimal number of threads for this machine (when using Intel OpenMP Libraries)
 
-else()
-	message(WARNING "Other OpenMP implementation Detected (performance may be degraded, we strongly recommend avoiding the GCC OpenMP library)\nSetup will continue in 5 seconds.")
+#if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
+if (OpenMP_C_LIB_NAMES MATCHES ".*(gomp).*")
+	message(WARNING "The GCC OpenMP implementation has been detected (performance may be degraded, we strongly recommend avoiding the GCC OpenMP library, see compilers.md for further details)\nSetup will continue in 5 seconds.")
 	set(OMP_THREADS 8)
 	if (NOT("${CMAKE_BUILD_TYPE}" MATCHES ".*Debug.*"))
 		execute_process(COMMAND ${CMAKE_COMMAND} -E sleep 5)
