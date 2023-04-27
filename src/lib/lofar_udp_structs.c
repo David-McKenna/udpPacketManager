@@ -15,22 +15,20 @@ const lofar_udp_io_read_config lofar_udp_io_read_config_default = {
 							 // Set to 0 to assume no use as default
 
 	// Inputs pre- and post-formatting
-	.inputLocations = { "" },
+	.inputLocations = { "" }, // NEEDS FULL RUNTIME INITIALISATION
 	.inputDadaKeys = { -1 }, // NEEDS FULL RUNTIME INITIALISATION
 	.basePort = 0,
 	.offsetPortCount = 0,
 	.stepSizePort = 1,
 
-	// Main reading objects
-	.fileRef = { NULL },
-	.dstream = { NULL },
-	.dadaReader = { NULL },
+	.dstream = { NULL }, // NEEDS FULL RUNTIME INITIALISATION
+	.dadaReader = { NULL }, // NEEDS FULL RUNTIME INITIALISATION
 
 	// Associated objects
-	.readingTracker = { { NULL, 0, 0 } },
-	.decompressionTracker = { { NULL, 0, 0 } },
-	.zstdLastRead = { 0 },
-	.multilog = { NULL },
+	.readingTracker = { { NULL, 0, 0 } }, // NEEDS FULL RUNTIME INITIALISATION
+	.decompressionTracker = { { NULL, 0, 0 } }, // NEEDS FULL RUNTIME INITIALISATION
+	.zstdLastRead = { 0 }, // NEEDS FULL RUNTIME INITIALISATION
+	.multilog = { NULL }, // NEEDS FULL RUNTIME INITIALISATION
 	.dadaPageSize = { -1 } // NEEDS FULL RUNTIME INITIALISATION
 };
 
@@ -53,7 +51,7 @@ const lofar_udp_io_write_config lofar_udp_io_write_config_default = {
 
 	// Main writing objects
 	.outputFiles = { NULL, },
-	.zstdWriter = { { NULL, {} } },
+	.zstdWriter = { { NULL, { NULL, 0, 0 } } },
 	.dadaWriter = { { NULL, NULL } },
 	.hdf5Writer = { 0,
 	               .hdf5DSetWriter = {{ 0, { 0, 0 }}}
@@ -94,7 +92,9 @@ const lofar_udp_calibration lofar_udp_calibration_default = {
 
 // Configuration default
 const lofar_udp_config lofar_udp_config_default = {
-	.inputLocations = {  },
+	.readerType = NO_ACTION,
+	.inputLocations = { "" },
+	.inputDadaKeys = { -1 }, // NEEDS FULL RUNTIME INITIALISATION
 	.metadata_config = {
 		// Initialised by alloc func
 	},
@@ -105,12 +105,11 @@ const lofar_udp_config lofar_udp_config_default = {
 	.packetsPerIteration = 65536,
 	.startingPacket = -1,
 	.packetsReadMax = -1,
-	.readerType = NO_ACTION,
 	.beamletLimits = { 0, 0 },
 	.calibrateData = NO_CALIBRATION,
 	.calibrationDuration = 3600.0f,
 	.ompThreads = OMP_THREADS,
-	.inputDadaKeys = { -1 }, // NEEDS FULL RUNTIME INITIALISATION
+
 
 	.basePort = 0,
 	.offsetPortCount = 0,
@@ -152,6 +151,21 @@ const metadata_config metadata_config_default = {
 lofar_udp_obs_meta *_lofar_udp_obs_meta_alloc() {
 	DEFAULT_STRUCT_ALLOC(lofar_udp_obs_meta, meta, lofar_udp_obs_meta_default, ;, NULL);
 
+	ARR_INIT(meta->inputData, MAX_NUM_PORTS, NULL);
+	ARR_INIT(meta->outputData, MAX_NUM_PORTS, NULL);
+	ARR_INIT(meta->inputDataOffset, MAX_NUM_PORTS, 0);
+
+	ARR_INIT(meta->portRawBeamlets, MAX_NUM_PORTS, -1);
+	ARR_INIT(meta->portRawCumulativeBeamlets, MAX_NUM_PORTS, -1);
+
+	ARR_INIT(meta->baseBeamlets, MAX_NUM_PORTS, 0);
+	ARR_INIT(meta->upperBeamlets, MAX_NUM_PORTS, -1);
+	ARR_INIT(meta->portCumulativeBeamlets, MAX_NUM_PORTS, -1);
+	ARR_INIT(meta->portPacketLength, MAX_NUM_PORTS, -1);
+	ARR_INIT(meta->packetOutputLength, MAX_NUM_PORTS, -1);
+	ARR_INIT(meta->portLastDroppedPackets, MAX_NUM_PORTS, 0);
+	ARR_INIT(meta->portTotalDroppedPackets, MAX_NUM_PORTS, 0);
+
 	return meta;
 }
 
@@ -182,6 +196,9 @@ lofar_udp_config* lofar_udp_config_alloc() {
 	DEFAULT_STRUCT_ALLOC(lofar_udp_config, config, lofar_udp_config_default, ;, NULL);
 	STRUCT_COPY_INIT(metadata_config, &(config->metadata_config), metadata_config_default);
 
+	STR_INIT(config->inputLocations, MAX_NUM_PORTS);
+	ARR_INIT(config->inputDadaKeys, MAX_NUM_PORTS, -1);
+
 	return config;
 }
 
@@ -191,9 +208,23 @@ lofar_udp_io_read_config* lofar_udp_io_read_alloc() {
 	ARR_INIT(input->readBufSize, MAX_NUM_PORTS, -1);
 	ARR_INIT(input->portPacketLength, MAX_NUM_PORTS, -1);
 	ARR_INIT(input->preBufferSpace, MAX_NUM_PORTS, 0); // Init as 0 default-value, only update on use
+	STR_INIT(input->inputLocations, MAX_NUM_PORTS);
 	ARR_INIT(input->inputDadaKeys, MAX_NUM_PORTS, -1);
-	ARR_INIT(input->dadaPageSize, MAX_NUM_PORTS, -1);
+	ARR_INIT(input->fileRef, MAX_NUM_PORTS, NULL);
+	ARR_INIT(input->dstream, MAX_NUM_PORTS, NULL);
+	ARR_INIT(input->dadaReader, MAX_NUM_PORTS, NULL);
+	ARR_INIT(input->multilog, MAX_NUM_PORTS, NULL);
 	ARR_INIT(input->zstdLastRead, MAX_NUM_PORTS, 0);
+	ARR_INIT(input->dadaPageSize, MAX_NUM_PORTS, -1);
+
+	for (int8_t port = 0; port < MAX_NUM_PORTS; port++) {
+		input->readingTracker[port].src = NULL;
+		input->readingTracker[port].size = 0;
+		input->readingTracker[port].pos = 0;
+		input->decompressionTracker[port].dst = NULL;
+		input->decompressionTracker[port].size = 0;
+		input->decompressionTracker[port].pos = 0;
+	}
 
 	return input;
 }
@@ -202,7 +233,23 @@ lofar_udp_io_write_config* lofar_udp_io_write_alloc() {
 	DEFAULT_STRUCT_ALLOC(lofar_udp_io_write_config, output, lofar_udp_io_write_config_default, ;, NULL);
 
 	ARR_INIT(output->writeBufSize, MAX_OUTPUT_DIMS, -1);
+	STR_INIT(output->outputLocations, MAX_OUTPUT_DIMS);
 	ARR_INIT(output->outputDadaKeys, MAX_OUTPUT_DIMS, -1);
+	ARR_INIT(output->outputFiles, MAX_OUTPUT_DIMS, NULL);
+
+	for (int8_t outp = 0; outp < MAX_OUTPUT_DIMS; outp++) {
+		output->zstdWriter[outp].cstream = NULL;
+		output->zstdWriter[outp].compressionBuffer.dst = NULL;
+		output->zstdWriter[outp].compressionBuffer.size = 0;
+		output->zstdWriter[outp].compressionBuffer.pos = 0;
+
+		output->dadaWriter[outp].hdu = NULL;
+		output->dadaWriter[outp].multilog = NULL;
+
+		output->hdf5Writer.hdf5DSetWriter[outp].dset = 0;
+		output->hdf5Writer.hdf5DSetWriter[outp].dims[0] = -1;
+		output->hdf5Writer.hdf5DSetWriter[outp].dims[1] = -1;
+	}
 
 	return output;
 }

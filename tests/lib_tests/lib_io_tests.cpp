@@ -201,13 +201,14 @@ TEST(LibIoTests, SetupUseCleanup) {
 							if (type != ZSTDCOMPRESSED || j != 0) {
 								EXPECT_EQ(testContents.length(), lofar_udp_io_read(readConfig, i, ptrBuffers[i], testContents.length()));
 							} else {
+								printf("%p - %p = %ld\n", testBuffer, ptrBuffers[i], testBuffer - ptrBuffers[i]);
 								EXPECT_EQ(-1, lofar_udp_io_read(readConfig, i, testBuffer, testContents.length()));
-								readConfig->decompressionTracker[i].dst = ptrBuffers[i];
 								EXPECT_EQ(testContents.length(), lofar_udp_io_read(readConfig, i, ptrBuffers[i], testContents.length()));
 							}
 
 							// substr limit for readers that read in blocks (ZSTD)
-							EXPECT_EQ(testContents, std::string((char *) ptrBuffers[i]).substr(0, testContents.length()));
+							EXPECT_EQ(testContents, std::string((char *) ptrBuffers[i], testContents.length()));
+							ARR_INIT(ptrBuffers[i], testContents.length(), '\0');
 
 						}
 					}
@@ -218,8 +219,10 @@ TEST(LibIoTests, SetupUseCleanup) {
 					}
 
 					for (int i = 0; i < testNumInputs; i++) {
+						FREE_NOT_NULL(ptrBuffers[i]);
 						lofar_udp_io_read_cleanup(readConfig, i);
 					}
+					FREE_NOT_NULL(ptrBuffers);
 
 					if (type == DADA_ACTIVE || type == FIFO) {
 						wait(&pid);

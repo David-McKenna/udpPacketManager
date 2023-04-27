@@ -201,7 +201,7 @@ typedef struct lofar_udp_config {
 	// numPorts - the number of ports to process, [1, 4 - offsetPortCount]
 	// basePort must ALWAYS be the absolute base value if you want to parse metadata, i.e.
 	//  if you want to parse just ports 2 and 3, set the baseVal to 0, offsetPortCount to 2
-	//  and numPorts to 2. Otherwise we can't parse the beamctl command correctly.
+	//  and numPorts to 2. Otherwise, we can't parse the beamctl command correctly.
 	//
 	// These can all be set by using the io_read_parse_optarg function
 	int32_t basePort;

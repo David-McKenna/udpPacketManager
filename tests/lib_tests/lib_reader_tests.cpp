@@ -319,6 +319,7 @@ TEST(LibReaderTests, PreprocessingRawData) {
 		free(config);
 	}
 
+	free(header);
 };
 
 TEST(LibReaderTests, PreprocessingReader) {
@@ -428,6 +429,8 @@ TEST(LibReaderTests, PreprocessingReader) {
 
 			}
 		}
+
+		FREE_NOT_NULL(meta);
 
 
 	}

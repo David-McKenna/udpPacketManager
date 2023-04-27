@@ -238,9 +238,6 @@ int32_t lofar_udp_io_read_setup_helper(lofar_udp_io_read_config *input, int8_t *
 
 	// ZSTD needs to write directly to a given output buffer
 	if (input->readerType == ZSTDCOMPRESSED) {
-		input->decompressionTracker[port].dst = outputArr[port];
-
-
 		if (maxReadSize % ZSTD_DStreamOutSize()) {
 			if (input->decompressionTracker[port].size < 1 || input->decompressionTracker[port].size % ZSTD_DStreamOutSize()) {
 				int64_t trueBufferLength = input->readBufSize[port] + input->preBufferSpace[port];
@@ -254,6 +251,8 @@ int32_t lofar_udp_io_read_setup_helper(lofar_udp_io_read_config *input, int8_t *
 				input->decompressionTracker[port].size = input->readBufSize[port] + additionalBufferLength;
 			}
 		}
+
+		input->decompressionTracker[port].dst = outputArr[port];
 	}
 
 	// Call the main setup function

@@ -74,7 +74,7 @@ _lofar_udp_io_read_setup_ZSTD(lofar_udp_io_read_config *const input, const char 
 		//fprintf(stderr, "WARNING: ZSTDCOMPRESSED_INDIRECT is enabled but a buffer wasn't provided, allocating %ld bytes for you.\n", bufferSize);
 		input->decompressionTracker[port].dst = calloc(bufferSize, sizeof(int8_t));
 		input->decompressionTracker[port].size = bufferSize;
-	} else if (input->readerType == ZSTDCOMPRESSED && input->decompressionTracker[port].size == -1) {
+	} else if (input->readerType == ZSTDCOMPRESSED && input->decompressionTracker[port].size == 0) {
 		input->decompressionTracker[port].size = bufferSize;
 	}
 
@@ -99,7 +99,7 @@ int64_t _lofar_udp_io_read_ZSTD(lofar_udp_io_read_config *const input, int8_t po
 		return -1;
 	}
 
-	int64_t dataRead = 0, byteDelta;
+	int64_t dataRead, byteDelta;
 	size_t previousDecompressionPos;
 	size_t returnVal;
 
@@ -112,7 +112,7 @@ int64_t _lofar_udp_io_read_ZSTD(lofar_udp_io_read_config *const input, int8_t po
 	if (input->readerType == ZSTDCOMPRESSED) {
 		dest = targetArray;
 		int64_t ptrByteDifference = targetArray - (int8_t *) input->decompressionTracker[port].dst;
-		if (ptrByteDifference < 0 || ptrByteDifference > input->decompressionTracker[port].size) {
+		if (ptrByteDifference < 0 || ptrByteDifference > (int64_t) input->decompressionTracker[port].size) {
 			fprintf(stderr, "ERROR %s: Passed buffer is not within pre-set buffer range (delta %ld), exiting.\n", __func__, ptrByteDifference);
 			return -1;
 		}
@@ -230,7 +230,7 @@ void _lofar_udp_io_read_cleanup_ZSTD(lofar_udp_io_read_config *const input, cons
 	}
 
 	// Reset the buffer size
-	input->decompressionTracker[port].size = -1;
+	input->decompressionTracker[port].size = 0;
 }
 
 /**
