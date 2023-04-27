@@ -1,0 +1,17 @@
+{
+  "@context": "https://raw.githubusercontent.com/codemeta/codemeta/master/codemeta.jsonld",
+  "@type": "Code",
+  "author": [
+
+  ],
+  "identifier": "https://doi.org/10.5281/zenodo.4249771",
+  "codeRepository": "https://github.com/David-McKenna/udpPacketManager",
+  "datePublished": "2023-04-25",
+  "dateModified": "2023-04-25",
+  "dateCreated": "2023-04-25",
+  "description": "C Library for handling CEP packet data from an international LOFAR station",
+  "keywords": "C, LOFAR, PSRDADA, HDF5, SigProc, GUPPI",
+  "license": "GPLv3.0",
+  "title": "udpPacketManager",
+  "version": "v1.0.0"
+}
