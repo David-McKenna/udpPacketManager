@@ -214,7 +214,7 @@ int32_t _lofar_udp_parse_header_buffers(lofar_udp_obs_meta *meta, const int8_t h
 		bitMul = 1.0f + (-0.5f * (float) (meta->inputBitMode == 4)) + (float) (meta->inputBitMode == 16);
 		meta->portPacketLength[port] = ((UDPHDRLEN) + (meta->portRawBeamlets[port] * ((int16_t) (bitMul * UDPNTIMESLICE * UDPNPOL))));
 		if (meta->portPacketLength[port] > MAXPKTLEN) {
-			fprintf(stderr, "ERROR %s: Packet of length %d on port %d is longer than maximum packet length %ld, exiting.\n", __func__, meta->portPacketLength[port], port, MAXPKTLEN);
+			fprintf(stderr, "ERROR %s: Packet of length %d on port %d is longer than maximum packet length %d, exiting.\n", __func__, meta->portPacketLength[port], port, MAXPKTLEN);
 			return -1;
 		}
 
@@ -901,7 +901,7 @@ int32_t _lofar_udp_setup_processing(lofar_udp_obs_meta *meta) {
 }
 
 
-int32_t _lofar_udp_setup_processing_output_buffers(const lofar_udp_config *config, lofar_udp_obs_meta *meta) {
+int32_t _lofar_udp_setup_processing_output_buffers(lofar_udp_obs_meta *meta) {
 	// Allocate the memory needed to store the processed data
 	for (int8_t out = 0; out < meta->numOutputs; out++) {
 		VERBOSE(
@@ -1033,7 +1033,11 @@ void _lofar_udp_reader_config_patch(lofar_udp_config *config) {
 	}
 
 	if (config->metadata_config.metadataType == NO_META && strnlen(config->metadata_config.metadataLocation, DEF_STR_LEN)) {
-		fprintf(stderr, "WARNING: Metadata location is defined as %s, but metadata type is NO_META, changing metadata to DEFAULT_META.\n", config->metadata_config.metadataLocation);
+		// Notify on metadata status change if we do not have an immediate use for the data (might still want it at execution time)
+		if (!config->calibrateData) {
+			fprintf(stderr, "WARNING: Metadata location is defined as %s, but metadata type is NO_META, changing metadata to DEFAULT_META.\n",
+			        config->metadata_config.metadataLocation);
+		}
 		config->metadata_config.metadataType = DEFAULT_META;
 	}
 }
@@ -1116,7 +1120,7 @@ lofar_udp_reader *lofar_udp_reader_setup(lofar_udp_config *config) {
 		return NULL;
 	}
 
-	if (_lofar_udp_setup_processing_output_buffers(config, meta) < 0) {
+	if (_lofar_udp_setup_processing_output_buffers(meta) < 0) {
 		fprintf(stderr, "Unable to setup processing buffers, exiting.\n");
 		FREE_NOT_NULL(meta);
 		return NULL;
@@ -1628,10 +1632,10 @@ void lofar_udp_reader_cleanup(lofar_udp_reader *reader) {
 
 				VERBOSE(if (reader->meta->VERBOSE) {
 					printf("On port: %d freeing inputData at %p\n", i, reader->meta->inputData[i] -
-						MAXPKTLEN * 2);
+						PREBUFLEN);
 				});
 
-				int8_t *tmpPtr = (reader->meta->inputData[i] - (MAXPKTLEN * 2));
+				int8_t *tmpPtr = (reader->meta->inputData[i] - PREBUFLEN);
 				FREE_NOT_NULL(tmpPtr);
 				reader->meta->inputData[i] = NULL;
 			}

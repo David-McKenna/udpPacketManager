@@ -176,6 +176,7 @@ TEST(LibIoTests, SetupUseCleanup) {
 					lofar_udp_config_cleanup(config);
 
 					// Read test
+					int8_t **ptrBuffers = (int8_t**) calloc(testNumInputs, sizeof(int8_t*));
 					for (int i = 0; i < testNumInputs; i++) {
 						// FIFO cannot be temp, wait for it to be available here
 						if (type == FIFO) {
@@ -187,7 +188,8 @@ TEST(LibIoTests, SetupUseCleanup) {
 
 						// Be extremely verbose with DADA keys; in testing bits were randomly added to the upper ender of the key.
 						if (type == DADA_ACTIVE) std::cout << std::to_string(readConfig->inputDadaKeys[i] + 1) << std::endl;
-						EXPECT_EQ(0, lofar_udp_io_read_setup(readConfig, i));
+						ptrBuffers[i] = (int8_t*) calloc(testContents.length() + 1, sizeof(int8_t));
+						EXPECT_EQ(0, lofar_udp_io_read_setup_helper(readConfig, ptrBuffers, (testContents.length() + 1) * sizeof(int8_t), i));
 						if (type == DADA_ACTIVE) std::cout << std::to_string(readConfig->inputDadaKeys[i] + 1) << std::endl;
 
 					}
@@ -197,13 +199,16 @@ TEST(LibIoTests, SetupUseCleanup) {
 						for (int8_t i = 0; i < testNumInputs; i++) {
 							ARR_INIT(testBuffer, (int64_t) testContents.length(), '\0');
 							if (type != ZSTDCOMPRESSED || j != 0) {
-								EXPECT_EQ(testContents.length(), lofar_udp_io_read(readConfig, i, testBuffer, testContents.length()));
+								EXPECT_EQ(testContents.length(), lofar_udp_io_read(readConfig, i, ptrBuffers[i], testContents.length()));
 							} else {
 								EXPECT_EQ(-1, lofar_udp_io_read(readConfig, i, testBuffer, testContents.length()));
-								readConfig->decompressionTracker[i].dst = testBuffer;
-								EXPECT_EQ(testContents.length(), lofar_udp_io_read(readConfig, i, testBuffer, testContents.length()));
+								readConfig->decompressionTracker[i].dst = ptrBuffers[i];
+								EXPECT_EQ(testContents.length(), lofar_udp_io_read(readConfig, i, ptrBuffers[i], testContents.length()));
 							}
-							EXPECT_EQ(std::string((char *) testBuffer), testContents);
+
+							// substr limit for readers that read in blocks (ZSTD)
+							EXPECT_EQ(testContents, std::string((char *) ptrBuffers[i]).substr(0, testContents.length()));
+
 						}
 					}
 

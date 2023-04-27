@@ -48,6 +48,9 @@ typedef struct lofar_udp_io_read_config {
 	int32_t portPacketLength[MAX_NUM_PORTS];
 	int8_t numInputs;
 
+	// Reader requires space before the buffer, note for any reallocs
+	int32_t preBufferSpace[MAX_NUM_PORTS];
+
 	// Inputs post-formatting
 	char inputLocations[MAX_NUM_PORTS][DEF_STR_LEN + 1];
 	key_t inputDadaKeys[MAX_NUM_PORTS];
@@ -282,7 +285,8 @@ typedef struct lofar_udp_io_write_config {
 
 	struct {
 		int32_t compressionLevel;
-		int8_t enableSeek;
+		int32_t numThreads;
+		int8_t enableSeek; // Not implemented
 	} zstdConfig;
 	struct {
 		uint64_t nbufs;

@@ -168,7 +168,41 @@ typedef enum {
 #define UDPMINBITMDE 4
 #define UDPNPOL 4
 #define UDPNTIMESLICE 16
-#define MAXPKTLEN (UDPHDRLEN + UDPNPOL * UDPNTIMESLICE * (UDPMAXBEAM / (sizeof(int8_t) * 8 / UDPMINBITMDE)))
+
+// Some compiler assumptions here...
+#define MAXPKTLEN \
+	UDPHDRLEN + UDPNPOL * UDPNTIMESLICE * (UDPMAXBEAM / (8 / UDPMINBITMDE))
+
+// Ensure alignment for upto AVX512 SIMD ops
+#define MEMALIGNMENT 64
+#define MEMMISALIGNMENT (MAXPKTLEN % MEMALIGNMENT)
+#if MEMMISALIGNMENT
+#define PREBUFLEN \
+	((((int32_t) (MEMALIGNMENT / MAXPKTLEN)) + 1) * MEMALIGNMENT)
+#else
+#define PREBUFLEN \
+	(2 * MAXPKTLEN)
+#endif
+
+// This may be the ugliest code in this repo. Also, why can't GCC just support _Static_asserts...
+#ifdef __clang__
+// Ugly hack to access sizeof
+// Any time we access this header through C++, it should be in an extern "C" block,
+//  Close the open block, run our assert, and re-open it.
+#ifdef _cplusplus
+}
+// Ugly hack to access sizeof
+template<typename T> constexpr int32_t typeSize() {
+	return sizeof(T);
+}
+
+_Static_assert(typeSize<int8_t>() == 1, "Require int8_t is 8bits long for above calculation.");
+extern "C" {
+#endif
+_Static_assert((PREBUFLEN % MEMALIGNMENT) == 0, "Ensure that MAXPKTLEN offsets will result in memaligned data");
+_Static_assert(PREBUFLEN > 2 * MAXPKTLEN, "Ensure that PREBUFLEN is long enough to support 2 packets");
+
+#endif
 
 // Timing values
 #define LFREPOCH 1199145600 // 2008-01-01 Unix time, sanity check

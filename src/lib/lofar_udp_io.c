@@ -176,30 +176,33 @@ int32_t _lofar_udp_io_read_setup_internal_lib_helper(lofar_udp_io_read_config *c
 	// If we have a compressed reader, align the length with the ZSTD buffer sizes
 	size_t additionalBufferSize = _lofar_udp_io_read_ZSTD_fix_buffer_size(meta->portPacketLength[port] * meta->packetsPerIteration, 1);
 	size_t inputBufferSize = meta->portPacketLength[port] * (meta->packetsPerIteration) +
-							 (MAXPKTLEN * 2) + // << 2 buffer packets mentioned above, use fixed size encase of unexpected packet sizes
+							 PREBUFLEN + // << 2 buffer packets mentioned above, use fixed size encase of unexpected packet sizes
 	                         additionalBufferSize * (config->readerType == ZSTDCOMPRESSED);
 	meta->inputData[port] = calloc(inputBufferSize, sizeof(int8_t));
 	CHECK_ALLOC(meta->inputData[port], -1,
 	            for (int8_t i = 0; i < port; i++) { free(meta->inputData[i]); }
 	);
+	input->readBufSize[port] = inputBufferSize - PREBUFLEN - additionalBufferSize * (config->readerType == ZSTDCOMPRESSED);
+	input->decompressionTracker[port].size = inputBufferSize - PREBUFLEN;
 	// Offset the pointer to the end of the two initial buffer packets
 	VERBOSE(
 		if (meta->VERBOSE) {
 			printf("calloc at %p for %ld +(%ld ZSTD, %d packet) bytes\n",
 			       meta->inputData[port],
 			       inputBufferSize, additionalBufferSize,
-			       MAXPKTLEN * 2);
+			       PREBUFLEN);
 		}
 	);
 	// Shift for buffer packets
-	meta->inputData[port] += (MAXPKTLEN * 2);
+	meta->inputData[port] += PREBUFLEN;
+	input->preBufferSpace[port] = PREBUFLEN;
 
 	// Initialise these arrays while we're looping
 	meta->inputDataOffset[port] = 0;
 	meta->portLastDroppedPackets[port] = 0;
 	meta->portTotalDroppedPackets[port] = 0;
 
-	return lofar_udp_io_read_setup_helper(input, (int8_t**) meta->inputData, meta->packetsPerIteration * meta->portPacketLength[port], port);
+	return lofar_udp_io_read_setup_helper(input, (int8_t**) meta->inputData, input->readBufSize[port], port);
 }
 
 /**
@@ -236,6 +239,21 @@ int32_t lofar_udp_io_read_setup_helper(lofar_udp_io_read_config *input, int8_t *
 	// ZSTD needs to write directly to a given output buffer
 	if (input->readerType == ZSTDCOMPRESSED) {
 		input->decompressionTracker[port].dst = outputArr[port];
+
+
+		if (maxReadSize % ZSTD_DStreamOutSize()) {
+			if (input->decompressionTracker[port].size < 1 || input->decompressionTracker[port].size % ZSTD_DStreamOutSize()) {
+				int64_t trueBufferLength = input->readBufSize[port] + input->preBufferSpace[port];
+				int64_t additionalBufferLength = _lofar_udp_io_read_ZSTD_fix_buffer_size(input->readBufSize[port], 1);
+				fprintf(stderr, "WARNING: Resizing ZSTD buffer from %ld bytes to %ld(+%ld) bytes.\n", trueBufferLength,
+				        trueBufferLength + additionalBufferLength, additionalBufferLength);
+				void *tmp = realloc(outputArr[port] - input->preBufferSpace[port], trueBufferLength + additionalBufferLength);
+				CHECK_ALLOC_NOCLEAN(tmp, -1);
+				outputArr[port] = tmp + input->preBufferSpace[port];
+				// Update the true buffer size
+				input->decompressionTracker[port].size = input->readBufSize[port] + additionalBufferLength;
+			}
+		}
 	}
 
 	// Call the main setup function
@@ -968,7 +986,7 @@ int64_t _lofar_udp_io_read_ZSTD_fix_buffer_size(int64_t bufferSize, int8_t delta
 	// This should be impossible; it should just be returning a header define, but check anyway.
 	if (zstdAlignedSize < 0) {
 		__builtin_unreachable();
-		fprintf(stderr, "ERROR %s: Zstandard library appears to be corrupted, got %ld as the frame length, exiting.\n", zstdAlignedSize);
+		fprintf(stderr, "ERROR %s: Zstandard library appears to be corrupted, got %ld as the frame length, exiting.\n", __func__, zstdAlignedSize);
 		return -1;
 	}
 

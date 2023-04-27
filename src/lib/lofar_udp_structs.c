@@ -10,6 +10,10 @@ const lofar_udp_io_read_config lofar_udp_io_read_config_default = {
 	.portPacketLength = { -1 }, // NEEDS FULL RUNTIME INITIALISATION
 	.numInputs = 0,
 
+	// Reader requires space before the buffer, note for any reallocs
+	.preBufferSpace = { 0 }, // NEEDS FULL RUNTIME INITIALISATION
+							 // Set to 0 to assume no use as default
+
 	// Inputs pre- and post-formatting
 	.inputLocations = { "" },
 	.inputDadaKeys = { -1 }, // NEEDS FULL RUNTIME INITIALISATION
@@ -23,8 +27,8 @@ const lofar_udp_io_read_config lofar_udp_io_read_config_default = {
 	.dadaReader = { NULL },
 
 	// Associated objects
-	.readingTracker = { { NULL } },
-	.decompressionTracker = { { NULL } },
+	.readingTracker = { { NULL, 0, 0 } },
+	.decompressionTracker = { { NULL, 0, 0 } },
 	.zstdLastRead = { 0 },
 	.multilog = { NULL },
 	.dadaPageSize = { -1 } // NEEDS FULL RUNTIME INITIALISATION
@@ -49,8 +53,8 @@ const lofar_udp_io_write_config lofar_udp_io_write_config_default = {
 
 	// Main writing objects
 	.outputFiles = { NULL, },
-	.zstdWriter = { { NULL } },
-	.dadaWriter = { { NULL } },
+	.zstdWriter = { { NULL, {} } },
+	.dadaWriter = { { NULL, NULL } },
 	.hdf5Writer = { 0,
 	               .hdf5DSetWriter = {{ 0, { 0, 0 }}}
 	},
@@ -60,6 +64,8 @@ const lofar_udp_io_write_config lofar_udp_io_write_config_default = {
 	// zstd configuration
 	.zstdConfig = {
 		.compressionLevel = 3,
+		.numThreads = 2,
+		.enableSeek = -1, // Not implemented
 	},
 
 	// PSRDADA configuration
@@ -188,6 +194,7 @@ lofar_udp_io_read_config* lofar_udp_io_read_alloc() {
 
 	ARR_INIT(input->readBufSize, MAX_NUM_PORTS, -1);
 	ARR_INIT(input->portPacketLength, MAX_NUM_PORTS, -1);
+	ARR_INIT(input->preBufferSpace, MAX_NUM_PORTS, 0); // Init as 0 default-value, only update on use
 	ARR_INIT(input->inputDadaKeys, MAX_NUM_PORTS, -1);
 	ARR_INIT(input->dadaPageSize, MAX_NUM_PORTS, -1);
 	ARR_INIT(input->zstdLastRead, MAX_NUM_PORTS, 0);
