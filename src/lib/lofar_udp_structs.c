@@ -133,6 +133,8 @@ const lofar_udp_obs_meta lofar_udp_obs_meta_default = {
 	.inputData = { NULL },
 	.outputData = { NULL },
 	.packetsRead = 0,
+	.processingMode = UNSET_MODE,
+	.dataOrder = UNKNOWN,
 	.inputDataReady = 0,
 	.outputDataReady = 0,
 	.jonesMatrices = NULL,
@@ -176,12 +178,6 @@ lofar_udp_calibration* _lofar_udp_calibration_alloc() {
 	return calibration;
 }
 
-metadata_config* lofar_udp_metadata_config_alloc() {
-	DEFAULT_STRUCT_ALLOC(metadata_config, config, metadata_config_default, ;, NULL);
-
-	return config;
-}
-
 lofar_udp_config* lofar_udp_config_alloc() {
 	DEFAULT_STRUCT_ALLOC(lofar_udp_config, config, lofar_udp_config_default, ;, NULL);
 	STRUCT_COPY_INIT(metadata_config, &(config->metadata_config), metadata_config_default);
@@ -210,7 +206,6 @@ lofar_udp_io_write_config* lofar_udp_io_write_alloc() {
 
 	return output;
 }
-
 
 void lofar_udp_config_cleanup(lofar_udp_config *config) {
 	FREE_NOT_NULL(config);

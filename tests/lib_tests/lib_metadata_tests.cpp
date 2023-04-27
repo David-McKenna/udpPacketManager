@@ -131,6 +131,7 @@ TEST(LibMetadataTests, HelperFunctions) {
 	// int lofar_udp_metdata_set_default(lofar_udp_metadata *metadata)
 	const int32_t flagIdx = 64;
 	static_assert(flagIdx < MAX_NUM_PORTS * UDPMAXBEAM);
+	EXPECT_EQ(-1, _lofar_udp_metdata_setup_BASE(nullptr));
 	for (metadata_t mode : std::vector<metadata_t>{NO_META, GUPPI, DADA, SIGPROC, HDF5_META}) {
 		metadata->type = mode;
 		metadata->subbands[flagIdx] = 32;
@@ -168,7 +169,7 @@ TEST(LibMetadataTests, HelperFunctions) {
 	{
 		SCOPED_TRACE("_lofar_udp_metadata_handle_external_factors");
 		// int lofar_udp_metadata_handle_external_factors(lofar_udp_metadata *metadata, const metadata_config *config);
-		metadata_config *config = lofar_udp_metadata_config_alloc();
+		metadata_config *config = (metadata_config *) calloc(1, sizeof(metadata_config));
 		lofar_udp_metadata *reference = (lofar_udp_metadata *) calloc(1, sizeof(lofar_udp_metadata));
 		assert(reference != nullptr);
 		*reference = *metadata;
@@ -343,43 +344,60 @@ TEST(LibMetadataTests, InternalParsers) {
 
 		SCOPED_TRACE("_lofar_udp_metadata_parse_pointing");
 		// int lofar_udp_metadata_parse_pointing(lofar_udp_metadata *metadata, const char inputStr[], int digi);
-		std::map<std::string, std::tuple<int, double, double, std::string, std::string, std::string>> inputs {
+		std::map<std::string, std::tuple<int, double, double, std::string, std::string, std::string>> inputs{
 			std::make_pair("0,0,'J2000'", std::make_tuple(0, 0., 0., "00:00:00.0000", "00:00:00.0000", "J2000")),
 			std::make_pair("asdfjasdjfakjsdfj';#[];[]];[2.0, 1.0, \"SUN\"]dfljasldjfa", std::make_tuple(1, 2.0, 1.0, "07:38:21.9742", "57:17:44.8062", "SUN")),
 		};
-		for (auto [key, tup] : inputs) {
+		for (auto [key, tup]: inputs) {
 			int digi = std::get<0>(tup);
 			EXPECT_EQ(0, _lofar_udp_metadata_parse_pointing(meta, key.c_str(), digi));
 			if (digi) {
 				EXPECT_EQ(meta->ra_rad, std::get<1>(tup));
 				EXPECT_EQ(meta->dec_rad, std::get<2>(tup));
-				EXPECT_EQ(std::get<3>(tup), std::string{meta->ra});
-				EXPECT_EQ(std::get<4>(tup), std::string{meta->dec});
+				EXPECT_EQ(std::get<3>(tup), std::string{ meta->ra });
+				EXPECT_EQ(std::get<4>(tup), std::string{ meta->dec });
 			} else {
 				EXPECT_EQ(meta->ra_rad_analog, std::get<1>(tup));
 				EXPECT_EQ(meta->dec_rad_analog, std::get<2>(tup));
-				EXPECT_EQ(std::get<3>(tup), std::string{meta->ra_analog});
-				EXPECT_EQ(std::get<4>(tup), std::string{meta->dec_analog});
+				EXPECT_EQ(std::get<3>(tup), std::string{ meta->ra_analog });
+				EXPECT_EQ(std::get<4>(tup), std::string{ meta->dec_analog });
 			}
-			EXPECT_EQ(std::get<5>(tup), std::string{meta->coord_basis});
+			EXPECT_EQ(std::get<5>(tup), std::string{ meta->coord_basis });
 
 			meta->coord_basis[0] = '\0';
 		}
 		meta->coord_basis[0] = 'S';
 		EXPECT_EQ(-4, _lofar_udp_metadata_parse_pointing(meta, "0,0,'J2000'", 1));
 		EXPECT_EQ(-1, _lofar_udp_metadata_parse_pointing(meta, "1", 1));
-
-
-
-		{
-			SCOPED_TRACE("_lofar_udp_metadata_parse_rcumode");
-			// int lofar_udp_metadata_parse_rcumode(lofar_udp_metadata *metadata, const char *inputStr, int *beamctlData);
-			EXPECT_NONFATAL_FAILURE(EXPECT_TRUE(false);, "");
-		}
-
-
 		lofar_udp_metadata_cleanup(meta);
+
 	}
+
+
+};
+
+TEST(LibMetadataTests, rcumode) {
+
+	SCOPED_TRACE("_lofar_udp_metadata_parse_rcumode");
+	// int lofar_udp_metadata_parse_rcumode(lofar_udp_metadata *metadata, const char *inputStr, int *beamctlData);
+	lofar_udp_metadata *meta = lofar_udp_metadata_alloc();
+	char inputStr[] = "--rcumode=            ";
+	int beamctldata[9] = {-1,};
+	meta->upm_rcuclock = -1;
+	EXPECT_EQ(-1, _lofar_udp_metadata_parse_rcumode(meta, inputStr, nullptr));
+	EXPECT_EQ(-1, _lofar_udp_metadata_parse_rcumode(meta, inputStr, beamctldata));
+	inputStr[10] = '9';
+	EXPECT_EQ(-1, _lofar_udp_metadata_parse_rcumode(meta, inputStr, beamctldata));
+	inputStr[10] = '6';
+	meta->upm_rcuclock = 200;
+	EXPECT_EQ(-1, _lofar_udp_metadata_parse_rcumode(meta, inputStr, beamctldata));
+	inputStr[10] = '5';
+	meta->upm_rcuclock = 200;
+	EXPECT_EQ(0, _lofar_udp_metadata_parse_rcumode(meta, inputStr, beamctldata));
+
+
+	lofar_udp_metadata_cleanup(meta);
+
 
 };
 
@@ -387,6 +405,8 @@ TEST(LibMetadataTests, ParserGlue) {
 	// int lofar_udp_metadata_parse_beamctl(lofar_udp_metadata *metadata, const char *inputLine, int *rcuMode);
 	// int lofar_udp_metadata_update_frequencies(lofar_udp_metadata *metadata, int *subbandData);
 	// int lofar_udp_metadata_count_csv(const char *inputStr);
+	EXPECT_EQ(-1, _lofar_udp_metadata_parse_beamctl(nullptr, nullptr, nullptr));
+
 
 
 	// int lofar_udp_metadata_parse_input_file(lofar_udp_metadata *metadata, const char inputFile[]);
@@ -410,7 +430,7 @@ TEST(LibMetadataTests, StructHandlers) {
 	lofar_udp_metadata *metadata = lofar_udp_metadata_alloc();
 	lofar_udp_obs_meta *meta = _lofar_udp_obs_meta_alloc();
 	lofar_udp_reader *reader = _lofar_udp_reader_alloc(meta);
-	metadata_config *config = lofar_udp_metadata_config_alloc();
+	metadata_config *config = (metadata_config*) calloc(1, sizeof(metadata_config));
 	{
 		SCOPED_TRACE("lofar_udp_metadata_setup");
 		// int lofar_udp_metadata_setup(lofar_udp_metadata *metadata, const lofar_udp_reader *reader, const metadata_config *config);
@@ -446,9 +466,13 @@ TEST(LibMetadataTests, StructHandlers) {
 		EXPECT_EQ(0, _lofar_udp_metadata_parse_input_file(metadata, metadataLocation[6].c_str()));
 		int32_t hold = metadata->nsubband;
 		metadata->nsubband = -1;
-		int tmpSubbands[9] = {};
+		int tmpSubbands[9] = {0, };
 		EXPECT_EQ(-1, _lofar_udp_metadata_update_frequencies(metadata, tmpSubbands));
 		metadata->nsubband = hold;
+		metadata->upm_bandflip = 0;
+		EXPECT_EQ(-1, _lofar_udp_metadata_update_frequencies(metadata, tmpSubbands));
+		metadata->upm_bandflip = 1;
+		EXPECT_EQ(0, _lofar_udp_metadata_update_frequencies(metadata, tmpSubbands));
 
 
 		strncpy(config->metadataLocation, metadataLocation[3].c_str(), DEF_STR_LEN);
@@ -565,6 +589,9 @@ TEST(LibMetadataTests, StructHandlers) {
 		}
 
 		EXPECT_EQ(0, lofar_udp_metadata_setup(metadata, reader, config));
+
+		metadata->subband_bw = 10;
+		EXPECT_EQ(-1, lofar_udp_metadata_setup(metadata, reader, config));
 
 
 	}

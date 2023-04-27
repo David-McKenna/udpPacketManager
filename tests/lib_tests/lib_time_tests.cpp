@@ -38,6 +38,9 @@ TEST(LibTimeTests, DeriveToPackets) {
 	{
 		SCOPED_TRACE("lofar_udp_time_get_packet_from_isot");
 
+		ASSERT_EQ(-1, lofar_udp_time_get_packet_from_isot(nullptr, 0));
+		EXPECT_EQ(-1, lofar_udp_time_get_packet_from_isot("This is not a time string", 0));
+
 		const size_t numTestCases = 4;
 		// https://random.limited/date-time-generator/
 		const std::string inputDates[numTestCases] = {
@@ -60,9 +63,9 @@ TEST(LibTimeTests, DeriveToPackets) {
 
 		// Expected Failure
 		//EXPECT_EQ(1, lofar_udp_time_get_packet_from_isot("2022-02-29T01:01:01", 0)); // -- apparently this is a legal date for strptime / timegm?
-		EXPECT_EQ(1, lofar_udp_time_get_packet_from_isot("2022-02-02T26:01:01", 0));
-		EXPECT_EQ(1, lofar_udp_time_get_packet_from_isot("2222-02-02T26:01:01", 0));
-		EXPECT_EQ(1, lofar_udp_time_get_packet_from_isot("2022-02-02T22:22:22.22", 0));
+		EXPECT_EQ(-1, lofar_udp_time_get_packet_from_isot("2022-02-02T26:01:01", 0));
+		EXPECT_EQ(-1, lofar_udp_time_get_packet_from_isot("2222-02-02T26:01:01", 0));
+		EXPECT_EQ(-1, lofar_udp_time_get_packet_from_isot("2022-02-02T22:22:22.22", 0));
 	}
 
 	//long lofar_udp_time_get_packets_from_seconds(double seconds, const uint32_t clock200MHz);
@@ -235,14 +238,28 @@ TEST(LibTimeTests, DerivedFromReader) {
 		SCOPED_TRACE("lofar_udp_time_get_current_isot");
 		SCOPED_TRACE("lofar_udp_time_get_daq");
 
-		dummyHeader header;
+				dummyHeader header;
 		header.setClock(1);
 		lofar_udp_obs_meta *meta = (lofar_udp_obs_meta *) calloc(1, sizeof(lofar_udp_obs_meta));
 		lofar_udp_reader *reader = _lofar_udp_reader_alloc(meta);
 		reader->meta->inputData[0] = &(header.data[0]);
 
-		const size_t outputStrLen = 64;
+		const int64_t outputStrLen = 64;
 		char output[outputStrLen] = "";
+
+		lofar_udp_time_get_daq(nullptr, output, 0);
+		EXPECT_EQ(0, strlen(output));
+		ARR_INIT(output, outputStrLen, '\0');
+		lofar_udp_time_get_daq(reader, output, 0);
+		EXPECT_EQ(0, strlen(output));
+		ARR_INIT(output, outputStrLen, '\0');
+
+		lofar_udp_time_get_current_isot(nullptr, output, 0);
+		EXPECT_EQ(0, strlen(output));
+		ARR_INIT(output, outputStrLen, '\0');
+		lofar_udp_time_get_current_isot(reader, output, 0);
+		EXPECT_EQ(0, strlen(output));
+		ARR_INIT(output, outputStrLen, '\0');
 
 		struct timeStrPair {
 			int32_t time;

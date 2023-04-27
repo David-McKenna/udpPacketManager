@@ -741,16 +741,21 @@ int32_t _lofar_udp_setup_processing(lofar_udp_obs_meta *meta) {
 
 	// Sanity check the processing mode
 	switch (meta->processingMode) {
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wimplicit-fallthrough"
+#pragma GCC diagnostic push
 		case PACKET_FULL_COPY ... PACKET_NOHDR_COPY:
 			if (meta->calibrateData > GENERATE_JONES) {
 				fprintf(stderr, "WARNING: Modes 0 and 1 cannot be calibrated as they are copying full packets, we will generate calibration tables but not apply them, continuing.\n");
 				meta->calibrateData = GENERATE_JONES;
 			}
 		case PACKET_SPLIT_POL:
+#pragma GCC diagnostic pop
+			meta->dataOrder = PACKET_MAJOR;
+			break;
+
 		case BEAMLET_MAJOR_FULL ... BEAMLET_MAJOR_SPLIT_POL:
 		case BEAMLET_MAJOR_FULL_REV ... BEAMLET_MAJOR_SPLIT_POL_REV:
-		case TIME_MAJOR_FULL ... TIME_MAJOR_ANT_POL:
-		case TIME_MAJOR_ANT_POL_FLOAT:
 		case STOKES_I ... STOKES_I_DS16:
 		case STOKES_Q ... STOKES_Q_DS16:
 		case STOKES_U ... STOKES_U_DS16:
@@ -763,6 +768,18 @@ int32_t _lofar_udp_setup_processing(lofar_udp_obs_meta *meta) {
 		case STOKES_V_REV ... STOKES_V_DS16_REV:
 		case STOKES_IQUV_REV ... STOKES_IQUV_DS16_REV:
 		case STOKES_IV_REV ... STOKES_IV_DS16_REV:
+			meta->dataOrder = FREQUENCY_MAJOR;
+			break;
+
+		case TIME_MAJOR_FULL ... TIME_MAJOR_ANT_POL:
+		case TIME_MAJOR_ANT_POL_FLOAT:
+		case STOKES_I_TIME ... STOKES_I_DS16_TIME:
+		case STOKES_Q_TIME ... STOKES_Q_DS16_TIME:
+		case STOKES_U_TIME ... STOKES_U_DS16_TIME:
+		case STOKES_V_TIME ... STOKES_V_DS16_TIME:
+		case STOKES_IQUV_TIME ... STOKES_IQUV_DS16_TIME:
+		case STOKES_IV_TIME ... STOKES_IV_DS16_TIME:
+			meta->dataOrder = TIME_MAJOR;
 			break;
 
 		case UNSET_MODE:
@@ -832,6 +849,10 @@ int32_t _lofar_udp_setup_processing(lofar_udp_obs_meta *meta) {
 		case STOKES_Q_REV ... STOKES_Q_DS16_REV:
 		case STOKES_U_REV ... STOKES_U_DS16_REV:
 		case STOKES_V_REV ... STOKES_V_DS16_REV:
+		case STOKES_I_TIME ... STOKES_I_DS16_TIME:
+		case STOKES_Q_TIME ... STOKES_Q_DS16_TIME:
+		case STOKES_U_TIME ... STOKES_U_DS16_TIME:
+		case STOKES_V_TIME ... STOKES_V_DS16_TIME:
 			meta->numOutputs = 1;
 			meta->outputBitMode = 32;
 			// 4 input words -> 1 larger word
@@ -842,6 +863,7 @@ int32_t _lofar_udp_setup_processing(lofar_udp_obs_meta *meta) {
 
 		case STOKES_IQUV ... STOKES_IQUV_DS16:
 		case STOKES_IQUV_REV ... STOKES_IQUV_DS16_REV:
+		case STOKES_IQUV_TIME ... STOKES_IQUV_DS16_TIME:
 			meta->numOutputs = 4;
 			meta->outputBitMode = 32;
 			// 4 input words -> 4 larger words
@@ -852,6 +874,7 @@ int32_t _lofar_udp_setup_processing(lofar_udp_obs_meta *meta) {
 
 		case STOKES_IV ... STOKES_IV_DS16:
 		case STOKES_IV_REV ... STOKES_IV_DS16_REV:
+		case STOKES_IV_TIME ... STOKES_IV_DS16_TIME:
 			meta->numOutputs = 2;
 			meta->outputBitMode = 32;
 			// 4 input words -> 2 larger word
@@ -1427,7 +1450,13 @@ int32_t lofar_udp_reader_step_timed(lofar_udp_reader *reader, double timing[2]) 
 	// On the setup iteration, the output data is marked as ready to prevent this occurring until the first read step is called
 	if (reader->meta->outputDataReady != 1 && reader->meta->packetsPerIteration > 0) {
 		if ((stepReturnVal = lofar_udp_cpp_loop_interface(reader->meta)) > 0) {
-			return stepReturnVal;
+			// outputDataReady is negative -> out of order packets -> need to re-run for time-major modes
+			if (reader->meta->outputDataReady < 0 && reader->meta->dataOrder == TIME_MAJOR) {
+				fprintf(stderr, "WARNING: Re-running processing due to out of order packets and time-major processing mode.\n");
+				stepReturnVal = lofar_udp_cpp_loop_interface(reader->meta);
+			} else {
+				return stepReturnVal;
+			}
 		}
 
 		reader->meta->packetsRead += reader->meta->packetsPerIteration;

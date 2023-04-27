@@ -890,7 +890,7 @@ int64_t lofar_udp_io_write_metadata(lofar_udp_io_write_config *const outConfig, 
 		case ZSTDCOMPRESSED_INDIRECT:
 			return lofar_udp_io_write(outConfig, outp, headerBuffer, outputHeaderSize);
 
-		// Ringbuffer is offet by 1 from normal writes
+		// Ringbuffer is offset by 1 from normal writes
 		case DADA_ACTIVE:
 			return _lofar_udp_io_write_DADA((ipcio_t*) outConfig->dadaWriter[outp].hdu->header_block, headerBuffer, outputHeaderSize, 1);
 

@@ -38,7 +38,7 @@ extern "C" {
 
 int64_t lofar_udp_time_get_packet_from_isot(const char *inputTime, uint8_t clock200MHz);
 int64_t lofar_udp_time_get_packets_from_seconds(const double seconds, uint8_t clock200MHz);
-void lofar_udp_time_get_current_isot(const lofar_udp_reader *reader, char *stringBuff,int64_t strlen);
+void lofar_udp_time_get_current_isot(const lofar_udp_reader *reader, char *stringBuff, const int32_t strlen);
 void lofar_udp_time_get_daq(const lofar_udp_reader *reader, char *stringBuff, int32_t strlen);
 double lofar_udp_time_get_packet_time(const int8_t *inputData);
 double lofar_udp_time_get_packet_time_mjd(const int8_t *inputData);

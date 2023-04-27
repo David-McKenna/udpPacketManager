@@ -2,7 +2,9 @@
 
 /**
  * @brief 			Provide a guess at the intended output metadata based on a filename
+ *
  * @param[in] optargc 	Input filename
+ *
  * @return 			metadata_t: Best guess at type, or NO_META
  */
 metadata_t lofar_udp_metadata_parse_type_output(const char optargc[]) {
@@ -119,6 +121,7 @@ int32_t lofar_udp_metadata_setup(lofar_udp_metadata *const metadata, const lofar
 		case HDF5_META:
 			return 0;
 
+		// Shouldn't be reachable; we exit earlier if there's no metadata to process
 		case NO_META:
 		default:
 			__builtin_unreachable();
@@ -536,7 +539,7 @@ int32_t _lofar_udp_metadata_parse_normal_file(lofar_udp_metadata *const metadata
 			strncat(metadata->upm_beamctl, inputLine, 2 * DEF_STR_LEN - 1 - strlen(metadata->upm_beamctl));
 
 
-		} else if ((strPtr = strcasestr(inputLine, "SOURCE")) != NULL) {
+		} else if ((strPtr = strcasestr(inputLine, "SOURCE\t")) != NULL) {
 
 			VERBOSE(printf("Source detected, passing on.\n"));
 			if (_lofar_udp_metadata_get_tsv(strPtr, "SOURCE", metadata->source) < 0) {
@@ -551,14 +554,14 @@ int32_t _lofar_udp_metadata_parse_normal_file(lofar_udp_metadata *const metadata
 			 *      return -1;
 			 *  }
 			 * } */
-		} else if ((strPtr = strcasestr(inputLine, "OBS-ID")) != NULL) {
+		} else if ((strPtr = strcasestr(inputLine, "OBS-ID\t")) != NULL) {
 
 			VERBOSE(printf("Observation ID detected, passing on.\n"));
 			if (_lofar_udp_metadata_get_tsv(strPtr, "OBS-ID", metadata->obs_id) < 0) {
 				FREE_NOT_NULL(inputLine);
 				return -1;
 			}
-		} else if ((strPtr = strcasestr(inputLine, "OBSERVER")) != NULL) {
+		} else if ((strPtr = strcasestr(inputLine, "OBSERVER\t")) != NULL) {
 
 			VERBOSE(printf("Observer detected, passing on.\n"));
 			if (_lofar_udp_metadata_get_tsv(strPtr, "OBSERVER", metadata->observer) < 0) {
@@ -837,6 +840,11 @@ int32_t _lofar_udp_metadata_parse_beamctl(lofar_udp_metadata *const metadata, co
  * @return 0: success, <0: failure
  */
 int32_t _lofar_udp_metadata_parse_rcumode(lofar_udp_metadata *const metadata, const char *inputStr, int32_t *const beamctlData) {
+	if (metadata == NULL || inputStr == NULL || beamctlData == NULL) {
+		fprintf(stderr, "ERROR %s: Passed null pointer (%p, %p, %p), exiting.\n", __func__, metadata, inputStr, beamctlData);
+		return -1;
+	}
+
 	int16_t workingInt = -1;
 	// Extract the set rcumode/band value
 	if (sscanf(inputStr, "%*[^=]=%hd", &(workingInt)) < 0) {
@@ -846,9 +854,10 @@ int32_t _lofar_udp_metadata_parse_rcumode(lofar_udp_metadata *const metadata, co
 	int16_t lastClock = metadata->upm_rcuclock;
 	metadata->upm_rcuclock = _lofar_udp_metadata_get_clockmode(workingInt);
 	metadata->upm_rcumode = _lofar_udp_metadata_get_rcumode(workingInt);
+	lastClock = lastClock > 0 ? lastClock : metadata->upm_rcuclock;
 
 	// Only mode 6 can use the 160MHz clock
-	if (metadata->upm_rcuclock == 160 && metadata->upm_rcumode != 6) {
+	if (lastClock == 160 && metadata->upm_rcumode != 6) {
 		fprintf(stderr, "ERROR: Conflicting RCU clock/mode information (160MHz clock, but mode %d, exiting.\n", metadata->upm_rcuclock);
 		return -1;
 	}
@@ -856,14 +865,14 @@ int32_t _lofar_udp_metadata_parse_rcumode(lofar_udp_metadata *const metadata, co
 	// Extract the current RCU mode for offsetting subbands to the correct frequencies
 	beamctlData[0] = (int32_t) metadata->upm_rcumode;
 
-	// Ensure we are not mixing the 160MHz / 200MHz clock (fairly certain this is impossible anyway)
-	if (lastClock > 100 && lastClock != metadata->upm_rcuclock) {
-		fprintf(stderr, "ERROR: 160/200MHz clock mixing detected (previously %d, now %d), this is not currently supported. Exiting.\n", lastClock, metadata->upm_rcuclock);
+	if (beamctlData[0] == -1) {
+		fprintf(stderr, "ERROR: Failed to determine RCU mode, exiting.\n");
 		return -1;
 	}
 
-	if (beamctlData[0] == -1) {
-		fprintf(stderr, "ERROR: Failed to determine RCU mode, exiting.\n");
+	// Ensure we are not mixing the 160MHz / 200MHz clock (fairly certain this is impossible anyway)
+	if (lastClock != metadata->upm_rcuclock) {
+		fprintf(stderr, "ERROR: 160/200MHz clock mixing detected (previously %d, now %d), this is not currently supported. Exiting.\n", lastClock, metadata->upm_rcuclock);
 		return -1;
 	}
 
@@ -1442,6 +1451,12 @@ int32_t _lofar_udp_metadata_processing_mode_metadata(lofar_udp_metadata *const m
 		case STOKES_V ... STOKES_V_DS16:
 		case STOKES_IQUV ... STOKES_IQUV_DS16:
 		case STOKES_IV ... STOKES_IV_DS16:
+		case STOKES_I_TIME ... STOKES_I_DS16_TIME:
+		case STOKES_Q_TIME ... STOKES_Q_DS16_TIME:
+		case STOKES_U_TIME ... STOKES_U_DS16_TIME:
+		case STOKES_V_TIME ... STOKES_V_DS16_TIME:
+		case STOKES_IQUV_TIME ... STOKES_IQUV_DS16_TIME:
+		case STOKES_IV_TIME ... STOKES_IV_DS16_TIME:
 			metadata->upm_bandflip = 0;
 			break;
 
@@ -1557,6 +1572,34 @@ int32_t _lofar_udp_metadata_processing_mode_metadata(lofar_udp_metadata *const m
 			strncpy(metadata->upm_outputfmt_comment, "Chunked Time Major, Split by Antenna, Forced Float Output", META_STR_LEN);
 			break;
 
+		case STOKES_I ... STOKES_I_DS16:
+			snprintf(metadata->upm_outputfmt[0], META_STR_LEN, "I-POS-%dx", 1 << metadata->upm_procmode % 10);
+			snprintf(metadata->upm_outputfmt_comment, META_STR_LEN, "Stokes I, with %dx downsampling", 1 << (metadata->upm_procmode % 10));
+			break;
+		case STOKES_Q ... STOKES_Q_DS16:
+			snprintf(metadata->upm_outputfmt[0], META_STR_LEN, "Q-POS-%dx", 1 << metadata->upm_procmode % 10);
+			snprintf(metadata->upm_outputfmt_comment, META_STR_LEN, "Stokes Q, with %dx downsampling", 1 << (metadata->upm_procmode % 10));
+			break;
+		case STOKES_U ... STOKES_U_DS16:
+			snprintf(metadata->upm_outputfmt[0], META_STR_LEN, "U-POS-%dx", 1 << metadata->upm_procmode % 10);
+			snprintf(metadata->upm_outputfmt_comment, META_STR_LEN, "Stokes U, with %dx downsampling", 1 << (metadata->upm_procmode % 10));
+			break;
+		case STOKES_V ... STOKES_V_DS16:
+			snprintf(metadata->upm_outputfmt[0], META_STR_LEN, "V-POS-%dx", 1 << metadata->upm_procmode % 10);
+			snprintf(metadata->upm_outputfmt_comment, META_STR_LEN, "Stokes V, with %dx downsampling", 1 << (metadata->upm_procmode % 10));
+			break;
+		case STOKES_IQUV ... STOKES_IQUV_DS16:
+			snprintf(metadata->upm_outputfmt[0], META_STR_LEN, "I-POS-%dx", 1 << metadata->upm_procmode % 10);
+			snprintf(metadata->upm_outputfmt[1], META_STR_LEN, "Q-POS-%dx", 1 << metadata->upm_procmode % 10);
+			snprintf(metadata->upm_outputfmt[2], META_STR_LEN, "U-POS-%dx", 1 << metadata->upm_procmode % 10);
+			snprintf(metadata->upm_outputfmt[3], META_STR_LEN, "V-POS-%dx", 1 << metadata->upm_procmode % 10);
+			snprintf(metadata->upm_outputfmt_comment, META_STR_LEN, "Stokes IQUV, with %dx downsampling", 1 << (metadata->upm_procmode % 10));
+			break;
+		case STOKES_IV ... STOKES_IV_DS16:
+			snprintf(metadata->upm_outputfmt[0], META_STR_LEN, "I-POS-%dx", 1 << metadata->upm_procmode % 10);
+			snprintf(metadata->upm_outputfmt[1], META_STR_LEN, "V-POS-%dx", 1 << metadata->upm_procmode % 10);
+			snprintf(metadata->upm_outputfmt_comment, META_STR_LEN, "Stokes IV, with %dx downsampling", 1 << (metadata->upm_procmode % 10));
+			break;
 
 		case STOKES_I_REV ... STOKES_I_DS16_REV:
 			snprintf(metadata->upm_outputfmt[0], META_STR_LEN, "I-NEG-%dx", 1 << metadata->upm_procmode % 10);
@@ -1587,34 +1630,33 @@ int32_t _lofar_udp_metadata_processing_mode_metadata(lofar_udp_metadata *const m
 			snprintf(metadata->upm_outputfmt_comment, META_STR_LEN, "Stokes IV, with reversed frequencies and %dx downsampling", 1 << (metadata->upm_procmode % 10));
 			break;
 
-
-		case STOKES_I ... STOKES_I_DS16:
-			snprintf(metadata->upm_outputfmt[0], META_STR_LEN, "I-POS-%dx", 1 << metadata->upm_procmode % 10);
-			snprintf(metadata->upm_outputfmt_comment, META_STR_LEN, "Stokes I, with %dx downsampling", 1 << (metadata->upm_procmode % 10));
+		case STOKES_I_TIME ... STOKES_I_DS16_TIME:
+			snprintf(metadata->upm_outputfmt[0], META_STR_LEN, "I-TME-%dx", 1 << metadata->upm_procmode % 10);
+			snprintf(metadata->upm_outputfmt_comment, META_STR_LEN, "Stokes I, time-major with %dx downsampling", 1 << (metadata->upm_procmode % 10));
 			break;
-		case STOKES_Q ... STOKES_Q_DS16:
-			snprintf(metadata->upm_outputfmt[0], META_STR_LEN, "Q-POS-%dx", 1 << metadata->upm_procmode % 10);
-			snprintf(metadata->upm_outputfmt_comment, META_STR_LEN, "Stokes Q, with %dx downsampling", 1 << (metadata->upm_procmode % 10));
+		case STOKES_Q_TIME ... STOKES_Q_DS16_TIME:
+			snprintf(metadata->upm_outputfmt[0], META_STR_LEN, "Q-TME-%dx", 1 << metadata->upm_procmode % 10);
+			snprintf(metadata->upm_outputfmt_comment, META_STR_LEN, "Stokes Q, time-major with %dx downsampling", 1 << (metadata->upm_procmode % 10));
 			break;
-		case STOKES_U ... STOKES_U_DS16:
-			snprintf(metadata->upm_outputfmt[0], META_STR_LEN, "U-POS-%dx", 1 << metadata->upm_procmode % 10);
-			snprintf(metadata->upm_outputfmt_comment, META_STR_LEN, "Stokes U, with %dx downsampling", 1 << (metadata->upm_procmode % 10));
+		case STOKES_U_TIME ... STOKES_U_DS16_TIME:
+			snprintf(metadata->upm_outputfmt[0], META_STR_LEN, "U-TME-%dx", 1 << metadata->upm_procmode % 10);
+			snprintf(metadata->upm_outputfmt_comment, META_STR_LEN, "Stokes U, time-major with %dx downsampling", 1 << (metadata->upm_procmode % 10));
 			break;
-		case STOKES_V ... STOKES_V_DS16:
-			snprintf(metadata->upm_outputfmt[0], META_STR_LEN, "V-POS-%dx", 1 << metadata->upm_procmode % 10);
-			snprintf(metadata->upm_outputfmt_comment, META_STR_LEN, "Stokes V, with %dx downsampling", 1 << (metadata->upm_procmode % 10));
+		case STOKES_V_TIME ... STOKES_V_DS16_TIME:
+			snprintf(metadata->upm_outputfmt[0], META_STR_LEN, "V-TME-%dx", 1 << metadata->upm_procmode % 10);
+			snprintf(metadata->upm_outputfmt_comment, META_STR_LEN, "Stokes V, time-major with %dx downsampling", 1 << (metadata->upm_procmode % 10));
 			break;
-		case STOKES_IQUV ... STOKES_IQUV_DS16:
-			snprintf(metadata->upm_outputfmt[0], META_STR_LEN, "I-POS-%dx", 1 << metadata->upm_procmode % 10);
-			snprintf(metadata->upm_outputfmt[1], META_STR_LEN, "Q-POS-%dx", 1 << metadata->upm_procmode % 10);
-			snprintf(metadata->upm_outputfmt[2], META_STR_LEN, "U-POS-%dx", 1 << metadata->upm_procmode % 10);
-			snprintf(metadata->upm_outputfmt[3], META_STR_LEN, "V-POS-%dx", 1 << metadata->upm_procmode % 10);
-			snprintf(metadata->upm_outputfmt_comment, META_STR_LEN, "Stokes IQUV, with %dx downsampling", 1 << (metadata->upm_procmode % 10));
+		case STOKES_IQUV_TIME ... STOKES_IQUV_DS16_TIME:
+			snprintf(metadata->upm_outputfmt[0], META_STR_LEN, "I-TME-%dx", 1 << metadata->upm_procmode % 10);
+			snprintf(metadata->upm_outputfmt[1], META_STR_LEN, "Q-TME-%dx", 1 << metadata->upm_procmode % 10);
+			snprintf(metadata->upm_outputfmt[2], META_STR_LEN, "U-TME-%dx", 1 << metadata->upm_procmode % 10);
+			snprintf(metadata->upm_outputfmt[3], META_STR_LEN, "V-TME-%dx", 1 << metadata->upm_procmode % 10);
+			snprintf(metadata->upm_outputfmt_comment, META_STR_LEN, "Stokes IQUV, time-major with %dx downsampling", 1 << (metadata->upm_procmode % 10));
 			break;
-		case STOKES_IV ... STOKES_IV_DS16:
-			snprintf(metadata->upm_outputfmt[0], META_STR_LEN, "I-POS-%dx", 1 << metadata->upm_procmode % 10);
-			snprintf(metadata->upm_outputfmt[1], META_STR_LEN, "V-POS-%dx", 1 << metadata->upm_procmode % 10);
-			snprintf(metadata->upm_outputfmt_comment, META_STR_LEN, "Stokes IV, with %dx downsampling", 1 << (metadata->upm_procmode % 10));
+		case STOKES_IV_TIME ... STOKES_IV_DS16_TIME:
+			snprintf(metadata->upm_outputfmt[0], META_STR_LEN, "I-TME-%dx", 1 << metadata->upm_procmode % 10);
+			snprintf(metadata->upm_outputfmt[1], META_STR_LEN, "V-TME-%dx", 1 << metadata->upm_procmode % 10);
+			snprintf(metadata->upm_outputfmt_comment, META_STR_LEN, "Stokes IV, time-major with %dx downsampling", 1 << (metadata->upm_procmode % 10));
 			break;
 
 		default:
@@ -1670,6 +1712,12 @@ int32_t _lofar_udp_metadata_processing_mode_metadata(lofar_udp_metadata *const m
 		case STOKES_V_REV ... STOKES_V_DS16_REV:
 		case STOKES_IQUV_REV ... STOKES_IQUV_DS16_REV:
 		case STOKES_IV_REV ... STOKES_IV_DS16_REV:
+		case STOKES_I_TIME ... STOKES_I_DS16_TIME:
+		case STOKES_Q_TIME ... STOKES_Q_DS16_TIME:
+		case STOKES_U_TIME ... STOKES_U_DS16_TIME:
+		case STOKES_V_TIME ... STOKES_V_DS16_TIME:
+		case STOKES_IQUV_TIME ... STOKES_IQUV_DS16_TIME:
+		case STOKES_IV_TIME ... STOKES_IV_DS16_TIME:
 			metadata->ndim = 1;
 			metadata->npol = 2;
 			break;
@@ -1696,6 +1744,10 @@ int32_t _lofar_udp_metadata_processing_mode_metadata(lofar_udp_metadata *const m
 		case STOKES_Q_REV ... STOKES_Q_DS16_REV:
 		case STOKES_U_REV ... STOKES_U_DS16_REV:
 		case STOKES_V_REV ... STOKES_V_DS16_REV:
+		case STOKES_I_TIME ... STOKES_I_DS16_TIME:
+		case STOKES_Q_TIME ... STOKES_Q_DS16_TIME:
+		case STOKES_U_TIME ... STOKES_U_DS16_TIME:
+		case STOKES_V_TIME ... STOKES_V_DS16_TIME:
 			metadata->upm_rel_outputs[0] = 1;
 			for (int8_t i = 1; i < MAX_OUTPUT_DIMS; i++) {
 				metadata->upm_rel_outputs[i] = 0;
@@ -1710,6 +1762,7 @@ int32_t _lofar_udp_metadata_processing_mode_metadata(lofar_udp_metadata *const m
 		// Stokes IQUV
 		case STOKES_IQUV ... STOKES_IQUV_DS16:
 		case STOKES_IQUV_REV ... STOKES_IQUV_DS16_REV:
+		case STOKES_IQUV_TIME ... STOKES_IQUV_DS16_TIME:
 			for (int8_t i = 0; i < MAX_OUTPUT_DIMS; i++) {
 				metadata->upm_rel_outputs[i] = 1;
 			}
@@ -1730,6 +1783,7 @@ int32_t _lofar_udp_metadata_processing_mode_metadata(lofar_udp_metadata *const m
 		// Stokes IV
 		case STOKES_IV ... STOKES_IV_DS16:
 		case STOKES_IV_REV ... STOKES_IV_DS16_REV:
+		case STOKES_IV_TIME ... STOKES_IV_DS16_TIME:
 			for (int8_t i = 0; i < MAX_OUTPUT_DIMS; i++) {
 				if (i == 0 || i == 3) {
 					metadata->upm_rel_outputs[i] = 1;
@@ -1773,6 +1827,12 @@ int32_t _lofar_udp_metadata_processing_mode_metadata(lofar_udp_metadata *const m
 		case STOKES_V_REV ... STOKES_V_DS16_REV:
 		case STOKES_IQUV_REV ... STOKES_IQUV_DS16_REV:
 		case STOKES_IV_REV ... STOKES_IV_DS16_REV:
+		case STOKES_I_TIME ... STOKES_I_DS16_TIME:
+		case STOKES_Q_TIME ... STOKES_Q_DS16_TIME:
+		case STOKES_U_TIME ... STOKES_U_DS16_TIME:
+		case STOKES_V_TIME ... STOKES_V_DS16_TIME:
+		case STOKES_IQUV_TIME ... STOKES_IQUV_DS16_TIME:
+		case STOKES_IV_TIME ... STOKES_IV_DS16_TIME:
 			// Intensity: Square-law detected total power.
 			metadata->upm_output_voltages = 0;
 			if (strncpy(metadata->state, "Intensity", META_STR_LEN) != metadata->state) {
@@ -1815,6 +1875,12 @@ int32_t _lofar_udp_metadata_processing_mode_metadata(lofar_udp_metadata *const m
 		case STOKES_V_REV ... STOKES_V_DS16_REV:
 		case STOKES_IQUV_REV ... STOKES_IQUV_DS16_REV:
 		case STOKES_IV_REV ... STOKES_IV_DS16_REV:
+		case STOKES_I_TIME ... STOKES_I_DS16_TIME:
+		case STOKES_Q_TIME ... STOKES_Q_DS16_TIME:
+		case STOKES_U_TIME ... STOKES_U_DS16_TIME:
+		case STOKES_V_TIME ... STOKES_V_DS16_TIME:
+		case STOKES_IQUV_TIME ... STOKES_IQUV_DS16_TIME:
+		case STOKES_IV_TIME ... STOKES_IV_DS16_TIME:
 			// Floats are defined as -32 since ints are also 32 bits wide
 			// Sigproc will require the absolute value here
 			metadata->nbit = -32;

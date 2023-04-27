@@ -11,7 +11,7 @@
 int32_t lofar_udp_cpp_loop_interface(lofar_udp_obs_meta *meta) {
 	VERBOSE(if (meta->VERBOSE) {
 		printf("Entered C++ call for %d (%d, %d)\n", meta->processingMode, meta->calibrateData,
-			   meta->inputBitMode);
+		       meta->inputBitMode);
 	});
 
 	const calibrate_t calibrateData = meta->calibrateData;
@@ -148,91 +148,169 @@ int32_t lofar_udp_cpp_loop_interface(lofar_udp_obs_meta *meta) {
 						case STOKES_IV_DS16:
 							return lofar_udp_raw_loop<int8_t, float, 4000 + STOKES_IV_DS16, 1>(meta);
 
-							/*
 							// Non-decimated Stokes
-						case 200:
-							return lofar_udp_raw_loop<int8_t, float, 4000 + 200, 1>(meta);
-						case 210:
-							return lofar_udp_raw_loop<int8_t, float, 4000 + 210, 1>(meta);
-						case 220:
-							return lofar_udp_raw_loop<int8_t, float, 4000 + 220, 1>(meta);
-						case 230:
-							return lofar_udp_raw_loop<int8_t, float, 4000 + 230, 1>(meta);
-						case 250:
-							return lofar_udp_raw_loop<int8_t, float, 4000 + 250, 1>(meta);
-						case 260:
-							return lofar_udp_raw_loop<int8_t, float, 4000 + 260, 1>(meta);
+						case STOKES_I_REV:
+							return lofar_udp_raw_loop<int8_t, float, 4000 + STOKES_I_REV, 1>(meta);
+						case STOKES_Q_REV:
+							return lofar_udp_raw_loop<int8_t, float, 4000 + STOKES_Q_REV, 1>(meta);
+						case STOKES_U_REV:
+							return lofar_udp_raw_loop<int8_t, float, 4000 + STOKES_U_REV, 1>(meta);
+						case STOKES_V_REV:
+							return lofar_udp_raw_loop<int8_t, float, 4000 + STOKES_V_REV, 1>(meta);
+						case STOKES_IQUV_REV:
+							return lofar_udp_raw_loop<int8_t, float, 4000 + STOKES_IQUV_REV, 1>(meta);
+						case STOKES_IV_REV:
+							return lofar_udp_raw_loop<int8_t, float, 4000 + STOKES_IV_REV, 1>(meta);
 
 
 
 							// Decimated Stokes I
-						case 201:
-							return lofar_udp_raw_loop<int8_t, float, 4000 + 201, 1>(meta);
-						case 202:
-							return lofar_udp_raw_loop<int8_t, float, 4000 + 202, 1>(meta);
-						case 203:
-							return lofar_udp_raw_loop<int8_t, float, 4000 + 203, 1>(meta);
-						case 204:
-							return lofar_udp_raw_loop<int8_t, float, 4000 + 204, 1>(meta);
+						case STOKES_I_DS2_REV:
+							return lofar_udp_raw_loop<int8_t, float, 4000 + STOKES_I_DS2_REV, 1>(meta);
+						case STOKES_I_DS4_REV:
+							return lofar_udp_raw_loop<int8_t, float, 4000 + STOKES_I_DS4_REV, 1>(meta);
+						case STOKES_I_DS8_REV:
+							return lofar_udp_raw_loop<int8_t, float, 4000 + STOKES_I_DS8_REV, 1>(meta);
+						case STOKES_I_DS16_REV:
+							return lofar_udp_raw_loop<int8_t, float, 4000 + STOKES_I_DS16_REV, 1>(meta);
 
 
 							// Decimated Stokes Q
-						case 211:
-							return lofar_udp_raw_loop<int8_t, float, 4000 + 211, 1>(meta);
-						case 212:
-							return lofar_udp_raw_loop<int8_t, float, 4000 + 212, 1>(meta);
-						case 213:
-							return lofar_udp_raw_loop<int8_t, float, 4000 + 213, 1>(meta);
-						case 214:
-							return lofar_udp_raw_loop<int8_t, float, 4000 + 214, 1>(meta);
+						case STOKES_Q_DS2_REV:
+							return lofar_udp_raw_loop<int8_t, float, 4000 + STOKES_Q_DS2_REV, 1>(meta);
+						case STOKES_Q_DS4_REV:
+							return lofar_udp_raw_loop<int8_t, float, 4000 + STOKES_Q_DS4_REV, 1>(meta);
+						case STOKES_Q_DS8_REV:
+							return lofar_udp_raw_loop<int8_t, float, 4000 + STOKES_Q_DS8_REV, 1>(meta);
+						case STOKES_Q_DS16_REV:
+							return lofar_udp_raw_loop<int8_t, float, 4000 + STOKES_Q_DS16_REV, 1>(meta);
 
 
 							// Decimated Stokes U
-						case 221:
-							return lofar_udp_raw_loop<int8_t, float, 4000 + 221, 1>(meta);
-						case 222:
-							return lofar_udp_raw_loop<int8_t, float, 4000 + 222, 1>(meta);
-						case 223:
-							return lofar_udp_raw_loop<int8_t, float, 4000 + 223, 1>(meta);
-						case 224:
-							return lofar_udp_raw_loop<int8_t, float, 4000 + 224, 1>(meta);
+						case STOKES_U_DS2_REV:
+							return lofar_udp_raw_loop<int8_t, float, 4000 + STOKES_U_DS2_REV, 1>(meta);
+						case STOKES_U_DS4_REV:
+							return lofar_udp_raw_loop<int8_t, float, 4000 + STOKES_U_DS4_REV, 1>(meta);
+						case STOKES_U_DS8_REV:
+							return lofar_udp_raw_loop<int8_t, float, 4000 + STOKES_U_DS8_REV, 1>(meta);
+						case STOKES_U_DS16_REV:
+							return lofar_udp_raw_loop<int8_t, float, 4000 + STOKES_U_DS16_REV, 1>(meta);
 
 
 							// Decimated Stokes V
-						case 231:
-							return lofar_udp_raw_loop<int8_t, float, 4000 + 231, 1>(meta);
-						case 232:
-							return lofar_udp_raw_loop<int8_t, float, 4000 + 232, 1>(meta);
-						case 233:
-							return lofar_udp_raw_loop<int8_t, float, 4000 + 233, 1>(meta);
-						case 234:
-							return lofar_udp_raw_loop<int8_t, float, 4000 + 234, 1>(meta);
+						case STOKES_V_DS2_REV:
+							return lofar_udp_raw_loop<int8_t, float, 4000 + STOKES_V_DS2_REV, 1>(meta);
+						case STOKES_V_DS4_REV:
+							return lofar_udp_raw_loop<int8_t, float, 4000 + STOKES_V_DS4_REV, 1>(meta);
+						case STOKES_V_DS8_REV:
+							return lofar_udp_raw_loop<int8_t, float, 4000 + STOKES_V_DS8_REV, 1>(meta);
+						case STOKES_V_DS16_REV:
+							return lofar_udp_raw_loop<int8_t, float, 4000 + STOKES_V_DS16_REV, 1>(meta);
 
 							// Decimated Full Stokes
-						case 251:
-							return lofar_udp_raw_loop<int8_t, float, 4000 + 251, 1>(meta);
-						case 252:
-							return lofar_udp_raw_loop<int8_t, float, 4000 + 252, 1>(meta);
-						case 253:
-							return lofar_udp_raw_loop<int8_t, float, 4000 + 253, 1>(meta);
-						case 254:
-							return lofar_udp_raw_loop<int8_t, float, 4000 + 254, 1>(meta);
+						case STOKES_IQUV_DS2_REV:
+							return lofar_udp_raw_loop<int8_t, float, 4000 + STOKES_IQUV_DS2_REV, 1>(meta);
+						case STOKES_IQUV_DS4_REV:
+							return lofar_udp_raw_loop<int8_t, float, 4000 + STOKES_IQUV_DS4_REV, 1>(meta);
+						case STOKES_IQUV_DS8_REV:
+							return lofar_udp_raw_loop<int8_t, float, 4000 + STOKES_IQUV_DS8_REV, 1>(meta);
+						case STOKES_IQUV_DS16_REV:
+							return lofar_udp_raw_loop<int8_t, float, 4000 + STOKES_IQUV_DS16_REV, 1>(meta);
 
 
 							// Decimated Useful Stokes
-						case 261:
-							return lofar_udp_raw_loop<int8_t, float, 4000 + 261, 1>(meta);
-						case 262:
-							return lofar_udp_raw_loop<int8_t, float, 4000 + 262, 1>(meta);
-						case 263:
-							return lofar_udp_raw_loop<int8_t, float, 4000 + 263, 1>(meta);
-						case 264:
-							return lofar_udp_raw_loop<int8_t, float, 4000 + 264, 1>(meta);
-							*/
+						case STOKES_IV_DS2_REV:
+							return lofar_udp_raw_loop<int8_t, float, 4000 + STOKES_IV_DS2_REV, 1>(meta);
+						case STOKES_IV_DS4_REV:
+							return lofar_udp_raw_loop<int8_t, float, 4000 + STOKES_IV_DS4_REV, 1>(meta);
+						case STOKES_IV_DS8_REV:
+							return lofar_udp_raw_loop<int8_t, float, 4000 + STOKES_IV_DS8_REV, 1>(meta);
+						case STOKES_IV_DS16_REV:
+							return lofar_udp_raw_loop<int8_t, float, 4000 + STOKES_IV_DS16_REV, 1>(meta);
+
+							// Non-decimated Stokes
+						case STOKES_I_TIME:
+							return lofar_udp_raw_loop<int8_t, float, 4000 + STOKES_I_TIME, 1>(meta);
+						case STOKES_Q_TIME:
+							return lofar_udp_raw_loop<int8_t, float, 4000 + STOKES_Q_TIME, 1>(meta);
+						case STOKES_U_TIME:
+							return lofar_udp_raw_loop<int8_t, float, 4000 + STOKES_U_TIME, 1>(meta);
+						case STOKES_V_TIME:
+							return lofar_udp_raw_loop<int8_t, float, 4000 + STOKES_V_TIME, 1>(meta);
+						case STOKES_IQUV_TIME:
+							return lofar_udp_raw_loop<int8_t, float, 4000 + STOKES_IQUV_TIME, 1>(meta);
+						case STOKES_IV_TIME:
+							return lofar_udp_raw_loop<int8_t, float, 4000 + STOKES_IV_TIME, 1>(meta);
+
+
+
+							// Decimated Stokes I
+						case STOKES_I_DS2_TIME:
+							return lofar_udp_raw_loop<int8_t, float, 4000 + STOKES_I_DS2_TIME, 1>(meta);
+						case STOKES_I_DS4_TIME:
+							return lofar_udp_raw_loop<int8_t, float, 4000 + STOKES_I_DS4_TIME, 1>(meta);
+						case STOKES_I_DS8_TIME:
+							return lofar_udp_raw_loop<int8_t, float, 4000 + STOKES_I_DS8_TIME, 1>(meta);
+						case STOKES_I_DS16_TIME:
+							return lofar_udp_raw_loop<int8_t, float, 4000 + STOKES_I_DS16_TIME, 1>(meta);
+
+
+							// Decimated Stokes Q
+						case STOKES_Q_DS2_TIME:
+							return lofar_udp_raw_loop<int8_t, float, 4000 + STOKES_Q_DS2_TIME, 1>(meta);
+						case STOKES_Q_DS4_TIME:
+							return lofar_udp_raw_loop<int8_t, float, 4000 + STOKES_Q_DS4_TIME, 1>(meta);
+						case STOKES_Q_DS8_TIME:
+							return lofar_udp_raw_loop<int8_t, float, 4000 + STOKES_Q_DS8_TIME, 1>(meta);
+						case STOKES_Q_DS16_TIME:
+							return lofar_udp_raw_loop<int8_t, float, 4000 + STOKES_Q_DS16_TIME, 1>(meta);
+
+
+							// Decimated Stokes U
+						case STOKES_U_DS2_TIME:
+							return lofar_udp_raw_loop<int8_t, float, 4000 + STOKES_U_DS2_TIME, 1>(meta);
+						case STOKES_U_DS4_TIME:
+							return lofar_udp_raw_loop<int8_t, float, 4000 + STOKES_U_DS4_TIME, 1>(meta);
+						case STOKES_U_DS8_TIME:
+							return lofar_udp_raw_loop<int8_t, float, 4000 + STOKES_U_DS8_TIME, 1>(meta);
+						case STOKES_U_DS16_TIME:
+							return lofar_udp_raw_loop<int8_t, float, 4000 + STOKES_U_DS16_TIME, 1>(meta);
+
+
+							// Decimated Stokes V
+						case STOKES_V_DS2_TIME:
+							return lofar_udp_raw_loop<int8_t, float, 4000 + STOKES_V_DS2_TIME, 1>(meta);
+						case STOKES_V_DS4_TIME:
+							return lofar_udp_raw_loop<int8_t, float, 4000 + STOKES_V_DS4_TIME, 1>(meta);
+						case STOKES_V_DS8_TIME:
+							return lofar_udp_raw_loop<int8_t, float, 4000 + STOKES_V_DS8_TIME, 1>(meta);
+						case STOKES_V_DS16_TIME:
+							return lofar_udp_raw_loop<int8_t, float, 4000 + STOKES_V_DS16_TIME, 1>(meta);
+
+							// Decimated Full Stokes
+						case STOKES_IQUV_DS2_TIME:
+							return lofar_udp_raw_loop<int8_t, float, 4000 + STOKES_IQUV_DS2_TIME, 1>(meta);
+						case STOKES_IQUV_DS4_TIME:
+							return lofar_udp_raw_loop<int8_t, float, 4000 + STOKES_IQUV_DS4_TIME, 1>(meta);
+						case STOKES_IQUV_DS8_TIME:
+							return lofar_udp_raw_loop<int8_t, float, 4000 + STOKES_IQUV_DS8_TIME, 1>(meta);
+						case STOKES_IQUV_DS16_TIME:
+							return lofar_udp_raw_loop<int8_t, float, 4000 + STOKES_IQUV_DS16_TIME, 1>(meta);
+
+
+							// Decimated Useful Stokes
+						case STOKES_IV_DS2_TIME:
+							return lofar_udp_raw_loop<int8_t, float, 4000 + STOKES_IV_DS2_TIME, 1>(meta);
+						case STOKES_IV_DS4_TIME:
+							return lofar_udp_raw_loop<int8_t, float, 4000 + STOKES_IV_DS4_TIME, 1>(meta);
+						case STOKES_IV_DS8_TIME:
+							return lofar_udp_raw_loop<int8_t, float, 4000 + STOKES_IV_DS8_TIME, 1>(meta);
+						case STOKES_IV_DS16_TIME:
+							return lofar_udp_raw_loop<int8_t, float, 4000 + STOKES_IV_DS16_TIME, 1>(meta);
 
 						default:
 							fprintf(stderr, "Unknown processing mode %d (%d, %d). Exiting.\n", processingMode,
-									inputBitMode, calibrateData);
+							        inputBitMode, calibrateData);
 							return 2;
 					}
 
@@ -353,88 +431,169 @@ int32_t lofar_udp_cpp_loop_interface(lofar_udp_obs_meta *meta) {
 							return lofar_udp_raw_loop<int8_t, float, STOKES_IV_DS16, 1>(meta);
 
 
-							/*
 							// Non-decimated Stokes
-						case 200:
-							return lofar_udp_raw_loop<int8_t, float, 200, 1>(meta);
-						case 210:
-							return lofar_udp_raw_loop<int8_t, float, 210, 1>(meta);
-						case 220:
-							return lofar_udp_raw_loop<int8_t, float, 220, 1>(meta);
-						case 230:
-							return lofar_udp_raw_loop<int8_t, float, 230, 1>(meta);
-						case 250:
-							return lofar_udp_raw_loop<int8_t, float, 250, 1>(meta);
-						case 260:
-							return lofar_udp_raw_loop<int8_t, float, 260, 1>(meta);
+						case STOKES_I_REV:
+							return lofar_udp_raw_loop<int8_t, float, STOKES_I_REV, 1>(meta);
+						case STOKES_Q_REV:
+							return lofar_udp_raw_loop<int8_t, float, STOKES_Q_REV, 1>(meta);
+						case STOKES_U_REV:
+							return lofar_udp_raw_loop<int8_t, float, STOKES_U_REV, 1>(meta);
+						case STOKES_V_REV:
+							return lofar_udp_raw_loop<int8_t, float, STOKES_V_REV, 1>(meta);
+						case STOKES_IQUV_REV:
+							return lofar_udp_raw_loop<int8_t, float, STOKES_IQUV_REV, 1>(meta);
+						case STOKES_IV_REV:
+							return lofar_udp_raw_loop<int8_t, float, STOKES_IV_REV, 1>(meta);
 
 
 
 							// Decimated Stokes I
-						case 201:
-							return lofar_udp_raw_loop<int8_t, float, 201, 1>(meta);
-						case 202:
-							return lofar_udp_raw_loop<int8_t, float, 202, 1>(meta);
-						case 203:
-							return lofar_udp_raw_loop<int8_t, float, 203, 1>(meta);
-						case 204:
-							return lofar_udp_raw_loop<int8_t, float, 204, 1>(meta);
+						case STOKES_I_DS2_REV:
+							return lofar_udp_raw_loop<int8_t, float, STOKES_I_DS2_REV, 1>(meta);
+						case STOKES_I_DS4_REV:
+							return lofar_udp_raw_loop<int8_t, float, STOKES_I_DS4_REV, 1>(meta);
+						case STOKES_I_DS8_REV:
+							return lofar_udp_raw_loop<int8_t, float, STOKES_I_DS8_REV, 1>(meta);
+						case STOKES_I_DS16_REV:
+							return lofar_udp_raw_loop<int8_t, float, STOKES_I_DS16_REV, 1>(meta);
 
 
 							// Decimated Stokes Q
-						case 211:
-							return lofar_udp_raw_loop<int8_t, float, 211, 1>(meta);
-						case 212:
-							return lofar_udp_raw_loop<int8_t, float, 212, 1>(meta);
-						case 213:
-							return lofar_udp_raw_loop<int8_t, float, 213, 1>(meta);
-						case 214:
-							return lofar_udp_raw_loop<int8_t, float, 214, 1>(meta);
+						case STOKES_Q_DS2_REV:
+							return lofar_udp_raw_loop<int8_t, float, STOKES_Q_DS2_REV, 1>(meta);
+						case STOKES_Q_DS4_REV:
+							return lofar_udp_raw_loop<int8_t, float, STOKES_Q_DS4_REV, 1>(meta);
+						case STOKES_Q_DS8_REV:
+							return lofar_udp_raw_loop<int8_t, float, STOKES_Q_DS8_REV, 1>(meta);
+						case STOKES_Q_DS16_REV:
+							return lofar_udp_raw_loop<int8_t, float, STOKES_Q_DS16_REV, 1>(meta);
 
 
 							// Decimated Stokes U
-						case 221:
-							return lofar_udp_raw_loop<int8_t, float, 221, 1>(meta);
-						case 222:
-							return lofar_udp_raw_loop<int8_t, float, 222, 1>(meta);
-						case 223:
-							return lofar_udp_raw_loop<int8_t, float, 223, 1>(meta);
-						case 224:
-							return lofar_udp_raw_loop<int8_t, float, 224, 1>(meta);
+						case STOKES_U_DS2_REV:
+							return lofar_udp_raw_loop<int8_t, float, STOKES_U_DS2_REV, 1>(meta);
+						case STOKES_U_DS4_REV:
+							return lofar_udp_raw_loop<int8_t, float, STOKES_U_DS4_REV, 1>(meta);
+						case STOKES_U_DS8_REV:
+							return lofar_udp_raw_loop<int8_t, float, STOKES_U_DS8_REV, 1>(meta);
+						case STOKES_U_DS16_REV:
+							return lofar_udp_raw_loop<int8_t, float, STOKES_U_DS16_REV, 1>(meta);
 
 
 							// Decimated Stokes V
-						case 231:
-							return lofar_udp_raw_loop<int8_t, float, 231, 1>(meta);
-						case 232:
-							return lofar_udp_raw_loop<int8_t, float, 232, 1>(meta);
-						case 233:
-							return lofar_udp_raw_loop<int8_t, float, 233, 1>(meta);
-						case 234:
-							return lofar_udp_raw_loop<int8_t, float, 234, 1>(meta);
+						case STOKES_V_DS2_REV:
+							return lofar_udp_raw_loop<int8_t, float, STOKES_V_DS2_REV, 1>(meta);
+						case STOKES_V_DS4_REV:
+							return lofar_udp_raw_loop<int8_t, float, STOKES_V_DS4_REV, 1>(meta);
+						case STOKES_V_DS8_REV:
+							return lofar_udp_raw_loop<int8_t, float, STOKES_V_DS8_REV, 1>(meta);
+						case STOKES_V_DS16_REV:
+							return lofar_udp_raw_loop<int8_t, float, STOKES_V_DS16_REV, 1>(meta);
 
 
 							// Decimated Full Stokes
-						case 251:
-							return lofar_udp_raw_loop<int8_t, float, 251, 1>(meta);
-						case 252:
-							return lofar_udp_raw_loop<int8_t, float, 252, 1>(meta);
-						case 253:
-							return lofar_udp_raw_loop<int8_t, float, 253, 1>(meta);
-						case 254:
-							return lofar_udp_raw_loop<int8_t, float, 254, 1>(meta);
+						case STOKES_IQUV_DS2_REV:
+							return lofar_udp_raw_loop<int8_t, float, STOKES_IQUV_DS2_REV, 1>(meta);
+						case STOKES_IQUV_DS4_REV:
+							return lofar_udp_raw_loop<int8_t, float, STOKES_IQUV_DS4_REV, 1>(meta);
+						case STOKES_IQUV_DS8_REV:
+							return lofar_udp_raw_loop<int8_t, float, STOKES_IQUV_DS8_REV, 1>(meta);
+						case STOKES_IQUV_DS16_REV:
+							return lofar_udp_raw_loop<int8_t, float, STOKES_IQUV_DS16_REV, 1>(meta);
 
 
 							// Decimated Useful Stokes
-						case 261:
-							return lofar_udp_raw_loop<int8_t, float, 261, 1>(meta);
-						case 262:
-							return lofar_udp_raw_loop<int8_t, float, 262, 1>(meta);
-						case 263:
-							return lofar_udp_raw_loop<int8_t, float, 263, 1>(meta);
-						case 264:
-							return lofar_udp_raw_loop<int8_t, float, 264, 1>(meta);
-						*/
+						case STOKES_IV_DS2_REV:
+							return lofar_udp_raw_loop<int8_t, float, STOKES_IV_DS2_REV, 1>(meta);
+						case STOKES_IV_DS4_REV:
+							return lofar_udp_raw_loop<int8_t, float, STOKES_IV_DS4_REV, 1>(meta);
+						case STOKES_IV_DS8_REV:
+							return lofar_udp_raw_loop<int8_t, float, STOKES_IV_DS8_REV, 1>(meta);
+						case STOKES_IV_DS16_REV:
+							return lofar_udp_raw_loop<int8_t, float, STOKES_IV_DS16_REV, 1>(meta);
+
+
+							// Non-decimated Stokes
+						case STOKES_I_TIME:
+							return lofar_udp_raw_loop<int8_t, float, STOKES_I_TIME, 1>(meta);
+						case STOKES_Q_TIME:
+							return lofar_udp_raw_loop<int8_t, float, STOKES_Q_TIME, 1>(meta);
+						case STOKES_U_TIME:
+							return lofar_udp_raw_loop<int8_t, float, STOKES_U_TIME, 1>(meta);
+						case STOKES_V_TIME:
+							return lofar_udp_raw_loop<int8_t, float, STOKES_V_TIME, 1>(meta);
+						case STOKES_IQUV_TIME:
+							return lofar_udp_raw_loop<int8_t, float, STOKES_IQUV_TIME, 1>(meta);
+						case STOKES_IV_TIME:
+							return lofar_udp_raw_loop<int8_t, float, STOKES_IV_TIME, 1>(meta);
+
+
+
+							// Decimated Stokes I
+						case STOKES_I_DS2_TIME:
+							return lofar_udp_raw_loop<int8_t, float, STOKES_I_DS2_TIME, 1>(meta);
+						case STOKES_I_DS4_TIME:
+							return lofar_udp_raw_loop<int8_t, float, STOKES_I_DS4_TIME, 1>(meta);
+						case STOKES_I_DS8_TIME:
+							return lofar_udp_raw_loop<int8_t, float, STOKES_I_DS8_TIME, 1>(meta);
+						case STOKES_I_DS16_TIME:
+							return lofar_udp_raw_loop<int8_t, float, STOKES_I_DS16_TIME, 1>(meta);
+
+
+							// Decimated Stokes Q
+						case STOKES_Q_DS2_TIME:
+							return lofar_udp_raw_loop<int8_t, float, STOKES_Q_DS2_TIME, 1>(meta);
+						case STOKES_Q_DS4_TIME:
+							return lofar_udp_raw_loop<int8_t, float, STOKES_Q_DS4_TIME, 1>(meta);
+						case STOKES_Q_DS8_TIME:
+							return lofar_udp_raw_loop<int8_t, float, STOKES_Q_DS8_TIME, 1>(meta);
+						case STOKES_Q_DS16_TIME:
+							return lofar_udp_raw_loop<int8_t, float, STOKES_Q_DS16_TIME, 1>(meta);
+
+
+							// Decimated Stokes U
+						case STOKES_U_DS2_TIME:
+							return lofar_udp_raw_loop<int8_t, float, STOKES_U_DS2_TIME, 1>(meta);
+						case STOKES_U_DS4_TIME:
+							return lofar_udp_raw_loop<int8_t, float, STOKES_U_DS4_TIME, 1>(meta);
+						case STOKES_U_DS8_TIME:
+							return lofar_udp_raw_loop<int8_t, float, STOKES_U_DS8_TIME, 1>(meta);
+						case STOKES_U_DS16_TIME:
+							return lofar_udp_raw_loop<int8_t, float, STOKES_U_DS16_TIME, 1>(meta);
+
+
+							// Decimated Stokes V
+						case STOKES_V_DS2_TIME:
+							return lofar_udp_raw_loop<int8_t, float, STOKES_V_DS2_TIME, 1>(meta);
+						case STOKES_V_DS4_TIME:
+							return lofar_udp_raw_loop<int8_t, float, STOKES_V_DS4_TIME, 1>(meta);
+						case STOKES_V_DS8_TIME:
+							return lofar_udp_raw_loop<int8_t, float, STOKES_V_DS8_TIME, 1>(meta);
+						case STOKES_V_DS16_TIME:
+							return lofar_udp_raw_loop<int8_t, float, STOKES_V_DS16_TIME, 1>(meta);
+
+
+							// Decimated Full Stokes
+						case STOKES_IQUV_DS2_TIME:
+							return lofar_udp_raw_loop<int8_t, float, STOKES_IQUV_DS2_TIME, 1>(meta);
+						case STOKES_IQUV_DS4_TIME:
+							return lofar_udp_raw_loop<int8_t, float, STOKES_IQUV_DS4_TIME, 1>(meta);
+						case STOKES_IQUV_DS8_TIME:
+							return lofar_udp_raw_loop<int8_t, float, STOKES_IQUV_DS8_TIME, 1>(meta);
+						case STOKES_IQUV_DS16_TIME:
+							return lofar_udp_raw_loop<int8_t, float, STOKES_IQUV_DS16_TIME, 1>(meta);
+
+
+							// Decimated Useful Stokes
+						case STOKES_IV_DS2_TIME:
+							return lofar_udp_raw_loop<int8_t, float, STOKES_IV_DS2_TIME, 1>(meta);
+						case STOKES_IV_DS4_TIME:
+							return lofar_udp_raw_loop<int8_t, float, STOKES_IV_DS4_TIME, 1>(meta);
+						case STOKES_IV_DS8_TIME:
+							return lofar_udp_raw_loop<int8_t, float, STOKES_IV_DS8_TIME, 1>(meta);
+						case STOKES_IV_DS16_TIME:
+							return lofar_udp_raw_loop<int8_t, float, STOKES_IV_DS16_TIME, 1>(meta);
+
 
 						default:
 							fprintf(stderr, "Unknown processing mode %d (%d, %d). Exiting.\n", processingMode,
@@ -558,88 +717,167 @@ int32_t lofar_udp_cpp_loop_interface(lofar_udp_obs_meta *meta) {
 						case STOKES_IV_DS16:
 							return lofar_udp_raw_loop<int16_t, float, STOKES_IV_DS16, 1>(meta);
 
-							/*
 							// Non-decimated Stokes
-						case 200:
-							return lofar_udp_raw_loop<int16_t, float, 200, 1>(meta);
-						case 210:
-							return lofar_udp_raw_loop<int16_t, float, 210, 1>(meta);
-						case 220:
-							return lofar_udp_raw_loop<int16_t, float, 220, 1>(meta);
-						case 230:
-							return lofar_udp_raw_loop<int16_t, float, 230, 1>(meta);
-						case 250:
-							return lofar_udp_raw_loop<int16_t, float, 250, 1>(meta);
-						case 260:
-							return lofar_udp_raw_loop<int16_t, float, 260, 1>(meta);
+						case STOKES_I_REV:
+							return lofar_udp_raw_loop<int16_t, float, STOKES_I_REV, 1>(meta);
+						case STOKES_Q_REV:
+							return lofar_udp_raw_loop<int16_t, float, STOKES_Q_REV, 1>(meta);
+						case STOKES_U_REV:
+							return lofar_udp_raw_loop<int16_t, float, STOKES_U_REV, 1>(meta);
+						case STOKES_V_REV:
+							return lofar_udp_raw_loop<int16_t, float, STOKES_V_REV, 1>(meta);
+						case STOKES_IQUV_REV:
+							return lofar_udp_raw_loop<int16_t, float, STOKES_IQUV_REV, 1>(meta);
+						case STOKES_IV_REV:
+							return lofar_udp_raw_loop<int16_t, float, STOKES_IV_REV, 1>(meta);
 
 
 
 							// Decimated Stokes I
-						case 201:
-							return lofar_udp_raw_loop<int16_t, float, 201, 1>(meta);
-						case 202:
-							return lofar_udp_raw_loop<int16_t, float, 202, 1>(meta);
-						case 203:
-							return lofar_udp_raw_loop<int16_t, float, 203, 1>(meta);
-						case 204:
-							return lofar_udp_raw_loop<int16_t, float, 204, 1>(meta);
+						case STOKES_I_DS2_REV:
+							return lofar_udp_raw_loop<int16_t, float, STOKES_I_DS2_REV, 1>(meta);
+						case STOKES_I_DS4_REV:
+							return lofar_udp_raw_loop<int16_t, float, STOKES_I_DS4_REV, 1>(meta);
+						case STOKES_I_DS8_REV:
+							return lofar_udp_raw_loop<int16_t, float, STOKES_I_DS8_REV, 1>(meta);
+						case STOKES_I_DS16_REV:
+							return lofar_udp_raw_loop<int16_t, float, STOKES_I_DS16_REV, 1>(meta);
 
 
 							// Decimated Stokes Q
-						case 211:
-							return lofar_udp_raw_loop<int16_t, float, 211, 1>(meta);
-						case 212:
-							return lofar_udp_raw_loop<int16_t, float, 212, 1>(meta);
-						case 213:
-							return lofar_udp_raw_loop<int16_t, float, 213, 1>(meta);
-						case 214:
-							return lofar_udp_raw_loop<int16_t, float, 214, 1>(meta);
+						case STOKES_Q_DS2_REV:
+							return lofar_udp_raw_loop<int16_t, float, STOKES_Q_DS2_REV, 1>(meta);
+						case STOKES_Q_DS4_REV:
+							return lofar_udp_raw_loop<int16_t, float, STOKES_Q_DS4_REV, 1>(meta);
+						case STOKES_Q_DS8_REV:
+							return lofar_udp_raw_loop<int16_t, float, STOKES_Q_DS8_REV, 1>(meta);
+						case STOKES_Q_DS16_REV:
+							return lofar_udp_raw_loop<int16_t, float, STOKES_Q_DS16_REV, 1>(meta);
 
 
 							// Decimated Stokes U
-						case 221:
-							return lofar_udp_raw_loop<int16_t, float, 221, 1>(meta);
-						case 222:
-							return lofar_udp_raw_loop<int16_t, float, 222, 1>(meta);
-						case 223:
-							return lofar_udp_raw_loop<int16_t, float, 223, 1>(meta);
-						case 224:
-							return lofar_udp_raw_loop<int16_t, float, 224, 1>(meta);
+						case STOKES_U_DS2_REV:
+							return lofar_udp_raw_loop<int16_t, float, STOKES_U_DS2_REV, 1>(meta);
+						case STOKES_U_DS4_REV:
+							return lofar_udp_raw_loop<int16_t, float, STOKES_U_DS4_REV, 1>(meta);
+						case STOKES_U_DS8_REV:
+							return lofar_udp_raw_loop<int16_t, float, STOKES_U_DS8_REV, 1>(meta);
+						case STOKES_U_DS16_REV:
+							return lofar_udp_raw_loop<int16_t, float, STOKES_U_DS16_REV, 1>(meta);
 
 
 							// Decimated Stokes V
-						case 231:
-							return lofar_udp_raw_loop<int16_t, float, 231, 1>(meta);
-						case 232:
-							return lofar_udp_raw_loop<int16_t, float, 232, 1>(meta);
-						case 233:
-							return lofar_udp_raw_loop<int16_t, float, 233, 1>(meta);
-						case 234:
-							return lofar_udp_raw_loop<int16_t, float, 234, 1>(meta);
+						case STOKES_V_DS2_REV:
+							return lofar_udp_raw_loop<int16_t, float, STOKES_V_DS2_REV, 1>(meta);
+						case STOKES_V_DS4_REV:
+							return lofar_udp_raw_loop<int16_t, float, STOKES_V_DS4_REV, 1>(meta);
+						case STOKES_V_DS8_REV:
+							return lofar_udp_raw_loop<int16_t, float, STOKES_V_DS8_REV, 1>(meta);
+						case STOKES_V_DS16_REV:
+							return lofar_udp_raw_loop<int16_t, float, STOKES_V_DS16_REV, 1>(meta);
 
 
 							// Decimated Full Stokes
-						case 251:
-							return lofar_udp_raw_loop<int16_t, float, 251, 1>(meta);
-						case 252:
-							return lofar_udp_raw_loop<int16_t, float, 252, 1>(meta);
-						case 253:
-							return lofar_udp_raw_loop<int16_t, float, 253, 1>(meta);
-						case 254:
-							return lofar_udp_raw_loop<int16_t, float, 254, 1>(meta);
+						case STOKES_IQUV_DS2_REV:
+							return lofar_udp_raw_loop<int16_t, float, STOKES_IQUV_DS2_REV, 1>(meta);
+						case STOKES_IQUV_DS4_REV:
+							return lofar_udp_raw_loop<int16_t, float, STOKES_IQUV_DS4_REV, 1>(meta);
+						case STOKES_IQUV_DS8_REV:
+							return lofar_udp_raw_loop<int16_t, float, STOKES_IQUV_DS8_REV, 1>(meta);
+						case STOKES_IQUV_DS16_REV:
+							return lofar_udp_raw_loop<int16_t, float, STOKES_IQUV_DS16_REV, 1>(meta);
 
 
 							// Decimated Useful Stokes
-						case 261:
-							return lofar_udp_raw_loop<int16_t, float, 261, 1>(meta);
-						case 262:
-							return lofar_udp_raw_loop<int16_t, float, 262, 1>(meta);
-						case 263:
-							return lofar_udp_raw_loop<int16_t, float, 263, 1>(meta);
-						case 264:
-							return lofar_udp_raw_loop<int16_t, float, 264, 1>(meta);
-							*/
+						case STOKES_IV_DS2_REV:
+							return lofar_udp_raw_loop<int16_t, float, STOKES_IV_DS2_REV, 1>(meta);
+						case STOKES_IV_DS4_REV:
+							return lofar_udp_raw_loop<int16_t, float, STOKES_IV_DS4_REV, 1>(meta);
+						case STOKES_IV_DS8_REV:
+							return lofar_udp_raw_loop<int16_t, float, STOKES_IV_DS8_REV, 1>(meta);
+						case STOKES_IV_DS16_REV:
+							return lofar_udp_raw_loop<int16_t, float, STOKES_IV_DS16_REV, 1>(meta);
+
+							// Non-decimated Stokes
+						case STOKES_I_TIME:
+							return lofar_udp_raw_loop<int16_t, float, STOKES_I_TIME, 1>(meta);
+						case STOKES_Q_TIME:
+							return lofar_udp_raw_loop<int16_t, float, STOKES_Q_TIME, 1>(meta);
+						case STOKES_U_TIME:
+							return lofar_udp_raw_loop<int16_t, float, STOKES_U_TIME, 1>(meta);
+						case STOKES_V_TIME:
+							return lofar_udp_raw_loop<int16_t, float, STOKES_V_TIME, 1>(meta);
+						case STOKES_IQUV_TIME:
+							return lofar_udp_raw_loop<int16_t, float, STOKES_IQUV_TIME, 1>(meta);
+						case STOKES_IV_TIME:
+							return lofar_udp_raw_loop<int16_t, float, STOKES_IV_TIME, 1>(meta);
+
+
+
+							// Decimated Stokes I
+						case STOKES_I_DS2_TIME:
+							return lofar_udp_raw_loop<int16_t, float, STOKES_I_DS2_TIME, 1>(meta);
+						case STOKES_I_DS4_TIME:
+							return lofar_udp_raw_loop<int16_t, float, STOKES_I_DS4_TIME, 1>(meta);
+						case STOKES_I_DS8_TIME:
+							return lofar_udp_raw_loop<int16_t, float, STOKES_I_DS8_TIME, 1>(meta);
+						case STOKES_I_DS16_TIME:
+							return lofar_udp_raw_loop<int16_t, float, STOKES_I_DS16_TIME, 1>(meta);
+
+
+							// Decimated Stokes Q
+						case STOKES_Q_DS2_TIME:
+							return lofar_udp_raw_loop<int16_t, float, STOKES_Q_DS2_TIME, 1>(meta);
+						case STOKES_Q_DS4_TIME:
+							return lofar_udp_raw_loop<int16_t, float, STOKES_Q_DS4_TIME, 1>(meta);
+						case STOKES_Q_DS8_TIME:
+							return lofar_udp_raw_loop<int16_t, float, STOKES_Q_DS8_TIME, 1>(meta);
+						case STOKES_Q_DS16_TIME:
+							return lofar_udp_raw_loop<int16_t, float, STOKES_Q_DS16_TIME, 1>(meta);
+
+
+							// Decimated Stokes U
+						case STOKES_U_DS2_TIME:
+							return lofar_udp_raw_loop<int16_t, float, STOKES_U_DS2_TIME, 1>(meta);
+						case STOKES_U_DS4_TIME:
+							return lofar_udp_raw_loop<int16_t, float, STOKES_U_DS4_TIME, 1>(meta);
+						case STOKES_U_DS8_TIME:
+							return lofar_udp_raw_loop<int16_t, float, STOKES_U_DS8_TIME, 1>(meta);
+						case STOKES_U_DS16_TIME:
+							return lofar_udp_raw_loop<int16_t, float, STOKES_U_DS16_TIME, 1>(meta);
+
+
+							// Decimated Stokes V
+						case STOKES_V_DS2_TIME:
+							return lofar_udp_raw_loop<int16_t, float, STOKES_V_DS2_TIME, 1>(meta);
+						case STOKES_V_DS4_TIME:
+							return lofar_udp_raw_loop<int16_t, float, STOKES_V_DS4_TIME, 1>(meta);
+						case STOKES_V_DS8_TIME:
+							return lofar_udp_raw_loop<int16_t, float, STOKES_V_DS8_TIME, 1>(meta);
+						case STOKES_V_DS16_TIME:
+							return lofar_udp_raw_loop<int16_t, float, STOKES_V_DS16_TIME, 1>(meta);
+
+
+							// Decimated Full Stokes
+						case STOKES_IQUV_DS2_TIME:
+							return lofar_udp_raw_loop<int16_t, float, STOKES_IQUV_DS2_TIME, 1>(meta);
+						case STOKES_IQUV_DS4_TIME:
+							return lofar_udp_raw_loop<int16_t, float, STOKES_IQUV_DS4_TIME, 1>(meta);
+						case STOKES_IQUV_DS8_TIME:
+							return lofar_udp_raw_loop<int16_t, float, STOKES_IQUV_DS8_TIME, 1>(meta);
+						case STOKES_IQUV_DS16_TIME:
+							return lofar_udp_raw_loop<int16_t, float, STOKES_IQUV_DS16_TIME, 1>(meta);
+
+
+							// Decimated Useful Stokes
+						case STOKES_IV_DS2_TIME:
+							return lofar_udp_raw_loop<int16_t, float, STOKES_IV_DS2_TIME, 1>(meta);
+						case STOKES_IV_DS4_TIME:
+							return lofar_udp_raw_loop<int16_t, float, STOKES_IV_DS4_TIME, 1>(meta);
+						case STOKES_IV_DS8_TIME:
+							return lofar_udp_raw_loop<int16_t, float, STOKES_IV_DS8_TIME, 1>(meta);
+						case STOKES_IV_DS16_TIME:
+							return lofar_udp_raw_loop<int16_t, float, STOKES_IV_DS16_TIME, 1>(meta);
 
 						default:
 							fprintf(stderr, "Unknown processing mode %d (%d, %d). Exiting.\n", processingMode,
@@ -649,12 +887,12 @@ int32_t lofar_udp_cpp_loop_interface(lofar_udp_obs_meta *meta) {
 
 				default:
 					fprintf(stderr, "Unexpected bitmode %d (%d, %d). Exiting.\n", inputBitMode, processingMode,
-							calibrateData);
+					        calibrateData);
 					return 2;
 			}
 
 
-		// Interfaces to raw data interfaces (no calibration applied in our code)
+			// Interfaces to raw data interfaces (no calibration applied in our code)
 		case NO_CALIBRATION:
 		case GENERATE_JONES:
 			// Bitmode dependant inputs
@@ -778,90 +1016,171 @@ int32_t lofar_udp_cpp_loop_interface(lofar_udp_obs_meta *meta) {
 							return lofar_udp_raw_loop<int8_t, float, 4000 + STOKES_IV_DS16, 0>(meta);
 
 
-							/*
 							// Non-decimated Stokes
-						case 200:
-							return lofar_udp_raw_loop<int8_t, float, 4000 + 200, 0>(meta);
-						case 210:
-							return lofar_udp_raw_loop<int8_t, float, 4000 + 210, 0>(meta);
-						case 220:
-							return lofar_udp_raw_loop<int8_t, float, 4000 + 220, 0>(meta);
-						case 230:
-							return lofar_udp_raw_loop<int8_t, float, 4000 + 230, 0>(meta);
-						case 250:
-							return lofar_udp_raw_loop<int8_t, float, 4000 + 250, 0>(meta);
-						case 260:
-							return lofar_udp_raw_loop<int8_t, float, 4000 + 260, 0>(meta);
+						case STOKES_I_REV:
+							return lofar_udp_raw_loop<int8_t, float, 4000 + STOKES_I_REV, 0>(meta);
+						case STOKES_Q_REV:
+							return lofar_udp_raw_loop<int8_t, float, 4000 + STOKES_Q_REV, 0>(meta);
+						case STOKES_U_REV:
+							return lofar_udp_raw_loop<int8_t, float, 4000 + STOKES_U_REV, 0>(meta);
+						case STOKES_V_REV:
+							return lofar_udp_raw_loop<int8_t, float, 4000 + STOKES_V_REV, 0>(meta);
+						case STOKES_IQUV_REV:
+							return lofar_udp_raw_loop<int8_t, float, 4000 + STOKES_IQUV_REV, 0>(meta);
+						case STOKES_IV_REV:
+							return lofar_udp_raw_loop<int8_t, float, 4000 + STOKES_IV_REV, 0>(meta);
 
 
-								// Decimated Stokes I
-							case 201:
-								return lofar_udp_raw_loop<int8_t, float, 4000 + 201, 0>(meta);
-							case 202:
-								return lofar_udp_raw_loop<int8_t, float, 4000 + 202, 0>(meta);
-							case 203:
-								return lofar_udp_raw_loop<int8_t, float, 4000 + 203, 0>(meta);
-							case 204:
-								return lofar_udp_raw_loop<int8_t, float, 4000 + 204, 0>(meta);
+
+							// Decimated Stokes I
+						case STOKES_I_DS2_REV:
+							return lofar_udp_raw_loop<int8_t, float, 4000 + STOKES_I_DS2_REV, 0>(meta);
+						case STOKES_I_DS4_REV:
+							return lofar_udp_raw_loop<int8_t, float, 4000 + STOKES_I_DS4_REV, 0>(meta);
+						case STOKES_I_DS8_REV:
+							return lofar_udp_raw_loop<int8_t, float, 4000 + STOKES_I_DS8_REV, 0>(meta);
+						case STOKES_I_DS16_REV:
+							return lofar_udp_raw_loop<int8_t, float, 4000 + STOKES_I_DS16_REV, 0>(meta);
 
 
-								// Decimated Stokes Q
-							case 211:
-								return lofar_udp_raw_loop<int8_t, float, 4000 + 211, 0>(meta);
-							case 212:
-								return lofar_udp_raw_loop<int8_t, float, 4000 + 212, 0>(meta);
-							case 213:
-								return lofar_udp_raw_loop<int8_t, float, 4000 + 213, 0>(meta);
-							case 214:
-								return lofar_udp_raw_loop<int8_t, float, 4000 + 214, 0>(meta);
+							// Decimated Stokes Q
+						case STOKES_Q_DS2_REV:
+							return lofar_udp_raw_loop<int8_t, float, 4000 + STOKES_Q_DS2_REV, 0>(meta);
+						case STOKES_Q_DS4_REV:
+							return lofar_udp_raw_loop<int8_t, float, 4000 + STOKES_Q_DS4_REV, 0>(meta);
+						case STOKES_Q_DS8_REV:
+							return lofar_udp_raw_loop<int8_t, float, 4000 + STOKES_Q_DS8_REV, 0>(meta);
+						case STOKES_Q_DS16_REV:
+							return lofar_udp_raw_loop<int8_t, float, 4000 + STOKES_Q_DS16_REV, 0>(meta);
 
 
-								// Decimated Stokes U
-							case 221:
-								return lofar_udp_raw_loop<int8_t, float, 4000 + 221, 0>(meta);
-							case 222:
-								return lofar_udp_raw_loop<int8_t, float, 4000 + 222, 0>(meta);
-							case 223:
-								return lofar_udp_raw_loop<int8_t, float, 4000 + 223, 0>(meta);
-							case 224:
-								return lofar_udp_raw_loop<int8_t, float, 4000 + 224, 0>(meta);
+							// Decimated Stokes U
+						case STOKES_U_DS2_REV:
+							return lofar_udp_raw_loop<int8_t, float, 4000 + STOKES_U_DS2_REV, 0>(meta);
+						case STOKES_U_DS4_REV:
+							return lofar_udp_raw_loop<int8_t, float, 4000 + STOKES_U_DS4_REV, 0>(meta);
+						case STOKES_U_DS8_REV:
+							return lofar_udp_raw_loop<int8_t, float, 4000 + STOKES_U_DS8_REV, 0>(meta);
+						case STOKES_U_DS16_REV:
+							return lofar_udp_raw_loop<int8_t, float, 4000 + STOKES_U_DS16_REV, 0>(meta);
 
 
-								// Decimated Stokes V
-							case 231:
-								return lofar_udp_raw_loop<int8_t, float, 4000 + 231, 0>(meta);
-							case 232:
-								return lofar_udp_raw_loop<int8_t, float, 4000 + 232, 0>(meta);
-							case 233:
-								return lofar_udp_raw_loop<int8_t, float, 4000 + 233, 0>(meta);
-							case 234:
-								return lofar_udp_raw_loop<int8_t, float, 4000 + 234, 0>(meta);
+							// Decimated Stokes V
+						case STOKES_V_DS2_REV:
+							return lofar_udp_raw_loop<int8_t, float, 4000 + STOKES_V_DS2_REV, 0>(meta);
+						case STOKES_V_DS4_REV:
+							return lofar_udp_raw_loop<int8_t, float, 4000 + STOKES_V_DS4_REV, 0>(meta);
+						case STOKES_V_DS8_REV:
+							return lofar_udp_raw_loop<int8_t, float, 4000 + STOKES_V_DS8_REV, 0>(meta);
+						case STOKES_V_DS16_REV:
+							return lofar_udp_raw_loop<int8_t, float, 4000 + STOKES_V_DS16_REV, 0>(meta);
 
-								// Decimated Full Stokes
-							case 251:
-								return lofar_udp_raw_loop<int8_t, float, 4000 + 251, 0>(meta);
-							case 252:
-								return lofar_udp_raw_loop<int8_t, float, 4000 + 252, 0>(meta);
-							case 253:
-								return lofar_udp_raw_loop<int8_t, float, 4000 + 253, 0>(meta);
-							case 254:
-								return lofar_udp_raw_loop<int8_t, float, 4000 + 254, 0>(meta);
+							// Decimated Full Stokes
+						case STOKES_IQUV_DS2_REV:
+							return lofar_udp_raw_loop<int8_t, float, 4000 + STOKES_IQUV_DS2_REV, 0>(meta);
+						case STOKES_IQUV_DS4_REV:
+							return lofar_udp_raw_loop<int8_t, float, 4000 + STOKES_IQUV_DS4_REV, 0>(meta);
+						case STOKES_IQUV_DS8_REV:
+							return lofar_udp_raw_loop<int8_t, float, 4000 + STOKES_IQUV_DS8_REV, 0>(meta);
+						case STOKES_IQUV_DS16_REV:
+							return lofar_udp_raw_loop<int8_t, float, 4000 + STOKES_IQUV_DS16_REV, 0>(meta);
 
 
-								// Decimated Useful Stokes
-							case 261:
-								return lofar_udp_raw_loop<int8_t, float, 4000 + 261, 0>(meta);
-							case 262:
-								return lofar_udp_raw_loop<int8_t, float, 4000 + 262, 0>(meta);
-							case 263:
-								return lofar_udp_raw_loop<int8_t, float, 4000 + 263, 0>(meta);
-							case 264:
-								return lofar_udp_raw_loop<int8_t, float, 4000 + 264, 0>(meta);
-							*/
+							// Decimated Useful Stokes
+						case STOKES_IV_DS2_REV:
+							return lofar_udp_raw_loop<int8_t, float, 4000 + STOKES_IV_DS2_REV, 0>(meta);
+						case STOKES_IV_DS4_REV:
+							return lofar_udp_raw_loop<int8_t, float, 4000 + STOKES_IV_DS4_REV, 0>(meta);
+						case STOKES_IV_DS8_REV:
+							return lofar_udp_raw_loop<int8_t, float, 4000 + STOKES_IV_DS8_REV, 0>(meta);
+						case STOKES_IV_DS16_REV:
+							return lofar_udp_raw_loop<int8_t, float, 4000 + STOKES_IV_DS16_REV, 0>(meta);
+
+
+
+							// Non-decimated Stokes
+						case STOKES_I_TIME:
+							return lofar_udp_raw_loop<int8_t, float, 4000 + STOKES_I_TIME, 0>(meta);
+						case STOKES_Q_TIME:
+							return lofar_udp_raw_loop<int8_t, float, 4000 + STOKES_Q_TIME, 0>(meta);
+						case STOKES_U_TIME:
+							return lofar_udp_raw_loop<int8_t, float, 4000 + STOKES_U_TIME, 0>(meta);
+						case STOKES_V_TIME:
+							return lofar_udp_raw_loop<int8_t, float, 4000 + STOKES_V_TIME, 0>(meta);
+						case STOKES_IQUV_TIME:
+							return lofar_udp_raw_loop<int8_t, float, 4000 + STOKES_IQUV_TIME, 0>(meta);
+						case STOKES_IV_TIME:
+							return lofar_udp_raw_loop<int8_t, float, 4000 + STOKES_IV_TIME, 0>(meta);
+
+
+
+							// Decimated Stokes I
+						case STOKES_I_DS2_TIME:
+							return lofar_udp_raw_loop<int8_t, float, 4000 + STOKES_I_DS2_TIME, 0>(meta);
+						case STOKES_I_DS4_TIME:
+							return lofar_udp_raw_loop<int8_t, float, 4000 + STOKES_I_DS4_TIME, 0>(meta);
+						case STOKES_I_DS8_TIME:
+							return lofar_udp_raw_loop<int8_t, float, 4000 + STOKES_I_DS8_TIME, 0>(meta);
+						case STOKES_I_DS16_TIME:
+							return lofar_udp_raw_loop<int8_t, float, 4000 + STOKES_I_DS16_TIME, 0>(meta);
+
+
+							// Decimated Stokes Q
+						case STOKES_Q_DS2_TIME:
+							return lofar_udp_raw_loop<int8_t, float, 4000 + STOKES_Q_DS2_TIME, 0>(meta);
+						case STOKES_Q_DS4_TIME:
+							return lofar_udp_raw_loop<int8_t, float, 4000 + STOKES_Q_DS4_TIME, 0>(meta);
+						case STOKES_Q_DS8_TIME:
+							return lofar_udp_raw_loop<int8_t, float, 4000 + STOKES_Q_DS8_TIME, 0>(meta);
+						case STOKES_Q_DS16_TIME:
+							return lofar_udp_raw_loop<int8_t, float, 4000 + STOKES_Q_DS16_TIME, 0>(meta);
+
+
+							// Decimated Stokes U
+						case STOKES_U_DS2_TIME:
+							return lofar_udp_raw_loop<int8_t, float, 4000 + STOKES_U_DS2_TIME, 0>(meta);
+						case STOKES_U_DS4_TIME:
+							return lofar_udp_raw_loop<int8_t, float, 4000 + STOKES_U_DS4_TIME, 0>(meta);
+						case STOKES_U_DS8_TIME:
+							return lofar_udp_raw_loop<int8_t, float, 4000 + STOKES_U_DS8_TIME, 0>(meta);
+						case STOKES_U_DS16_TIME:
+							return lofar_udp_raw_loop<int8_t, float, 4000 + STOKES_U_DS16_TIME, 0>(meta);
+
+
+							// Decimated Stokes V
+						case STOKES_V_DS2_TIME:
+							return lofar_udp_raw_loop<int8_t, float, 4000 + STOKES_V_DS2_TIME, 0>(meta);
+						case STOKES_V_DS4_TIME:
+							return lofar_udp_raw_loop<int8_t, float, 4000 + STOKES_V_DS4_TIME, 0>(meta);
+						case STOKES_V_DS8_TIME:
+							return lofar_udp_raw_loop<int8_t, float, 4000 + STOKES_V_DS8_TIME, 0>(meta);
+						case STOKES_V_DS16_TIME:
+							return lofar_udp_raw_loop<int8_t, float, 4000 + STOKES_V_DS16_TIME, 0>(meta);
+
+							// Decimated Full Stokes
+						case STOKES_IQUV_DS2_TIME:
+							return lofar_udp_raw_loop<int8_t, float, 4000 + STOKES_IQUV_DS2_TIME, 0>(meta);
+						case STOKES_IQUV_DS4_TIME:
+							return lofar_udp_raw_loop<int8_t, float, 4000 + STOKES_IQUV_DS4_TIME, 0>(meta);
+						case STOKES_IQUV_DS8_TIME:
+							return lofar_udp_raw_loop<int8_t, float, 4000 + STOKES_IQUV_DS8_TIME, 0>(meta);
+						case STOKES_IQUV_DS16_TIME:
+							return lofar_udp_raw_loop<int8_t, float, 4000 + STOKES_IQUV_DS16_TIME, 0>(meta);
+
+
+							// Decimated Useful Stokes
+						case STOKES_IV_DS2_TIME:
+							return lofar_udp_raw_loop<int8_t, float, 4000 + STOKES_IV_DS2_TIME, 0>(meta);
+						case STOKES_IV_DS4_TIME:
+							return lofar_udp_raw_loop<int8_t, float, 4000 + STOKES_IV_DS4_TIME, 0>(meta);
+						case STOKES_IV_DS8_TIME:
+							return lofar_udp_raw_loop<int8_t, float, 4000 + STOKES_IV_DS8_TIME, 0>(meta);
+						case STOKES_IV_DS16_TIME:
+							return lofar_udp_raw_loop<int8_t, float, 4000 + STOKES_IV_DS16_TIME, 0>(meta);
 
 						default:
 							fprintf(stderr, "Unknown processing mode %d (%d, %d). Exiting.\n", processingMode,
-									inputBitMode, calibrateData);
+							        inputBitMode, calibrateData);
 							return 2;
 					}
 
@@ -984,88 +1303,167 @@ int32_t lofar_udp_cpp_loop_interface(lofar_udp_obs_meta *meta) {
 						case STOKES_IV_DS16:
 							return lofar_udp_raw_loop<int8_t, float, STOKES_IV_DS16, 0>(meta);
 
-							/*
-								// Non-decimated Stokes
-							case 200:
-								return lofar_udp_raw_loop<int8_t, float, 200, 0>(meta);
-							case 210:
-								return lofar_udp_raw_loop<int8_t, float, 210, 0>(meta);
-							case 220:
-								return lofar_udp_raw_loop<int8_t, float, 220, 0>(meta);
-							case 230:
-								return lofar_udp_raw_loop<int8_t, float, 230, 0>(meta);
-							case 250:
-								return lofar_udp_raw_loop<int8_t, float, 250, 0>(meta);
-							case 260:
-								return lofar_udp_raw_loop<int8_t, float, 260, 0>(meta);
+							// Non-decimated Stokes
+						case STOKES_I_REV:
+							return lofar_udp_raw_loop<int8_t, float, STOKES_I_REV, 0>(meta);
+						case STOKES_Q_REV:
+							return lofar_udp_raw_loop<int8_t, float, STOKES_Q_REV, 0>(meta);
+						case STOKES_U_REV:
+							return lofar_udp_raw_loop<int8_t, float, STOKES_U_REV, 0>(meta);
+						case STOKES_V_REV:
+							return lofar_udp_raw_loop<int8_t, float, STOKES_V_REV, 0>(meta);
+						case STOKES_IQUV_REV:
+							return lofar_udp_raw_loop<int8_t, float, STOKES_IQUV_REV, 0>(meta);
+						case STOKES_IV_REV:
+							return lofar_udp_raw_loop<int8_t, float, STOKES_IV_REV, 0>(meta);
 
 
 
-								// Decimated Stokes I
-							case 201:
-								return lofar_udp_raw_loop<int8_t, float, 201, 0>(meta);
-							case 202:
-								return lofar_udp_raw_loop<int8_t, float, 202, 0>(meta);
-							case 203:
-								return lofar_udp_raw_loop<int8_t, float, 203, 0>(meta);
-							case 204:
-								return lofar_udp_raw_loop<int8_t, float, 204, 0>(meta);
+							// Decimated Stokes I
+						case STOKES_I_DS2_REV:
+							return lofar_udp_raw_loop<int8_t, float, STOKES_I_DS2_REV, 0>(meta);
+						case STOKES_I_DS4_REV:
+							return lofar_udp_raw_loop<int8_t, float, STOKES_I_DS4_REV, 0>(meta);
+						case STOKES_I_DS8_REV:
+							return lofar_udp_raw_loop<int8_t, float, STOKES_I_DS8_REV, 0>(meta);
+						case STOKES_I_DS16_REV:
+							return lofar_udp_raw_loop<int8_t, float, STOKES_I_DS16_REV, 0>(meta);
 
 
-								// Decimated Stokes Q
-							case 211:
-								return lofar_udp_raw_loop<int8_t, float, 211, 0>(meta);
-							case 212:
-								return lofar_udp_raw_loop<int8_t, float, 212, 0>(meta);
-							case 213:
-								return lofar_udp_raw_loop<int8_t, float, 213, 0>(meta);
-							case 214:
-								return lofar_udp_raw_loop<int8_t, float, 214, 0>(meta);
+							// Decimated Stokes Q
+						case STOKES_Q_DS2_REV:
+							return lofar_udp_raw_loop<int8_t, float, STOKES_Q_DS2_REV, 0>(meta);
+						case STOKES_Q_DS4_REV:
+							return lofar_udp_raw_loop<int8_t, float, STOKES_Q_DS4_REV, 0>(meta);
+						case STOKES_Q_DS8_REV:
+							return lofar_udp_raw_loop<int8_t, float, STOKES_Q_DS8_REV, 0>(meta);
+						case STOKES_Q_DS16_REV:
+							return lofar_udp_raw_loop<int8_t, float, STOKES_Q_DS16_REV, 0>(meta);
 
 
-								// Decimated Stokes U
-							case 221:
-								return lofar_udp_raw_loop<int8_t, float, 221, 0>(meta);
-							case 222:
-								return lofar_udp_raw_loop<int8_t, float, 222, 0>(meta);
-							case 223:
-								return lofar_udp_raw_loop<int8_t, float, 223, 0>(meta);
-							case 224:
-								return lofar_udp_raw_loop<int8_t, float, 224, 0>(meta);
+							// Decimated Stokes U
+						case STOKES_U_DS2_REV:
+							return lofar_udp_raw_loop<int8_t, float, STOKES_U_DS2_REV, 0>(meta);
+						case STOKES_U_DS4_REV:
+							return lofar_udp_raw_loop<int8_t, float, STOKES_U_DS4_REV, 0>(meta);
+						case STOKES_U_DS8_REV:
+							return lofar_udp_raw_loop<int8_t, float, STOKES_U_DS8_REV, 0>(meta);
+						case STOKES_U_DS16_REV:
+							return lofar_udp_raw_loop<int8_t, float, STOKES_U_DS16_REV, 0>(meta);
 
 
-								// Decimated Stokes V
-							case 231:
-								return lofar_udp_raw_loop<int8_t, float, 231, 0>(meta);
-							case 232:
-								return lofar_udp_raw_loop<int8_t, float, 232, 0>(meta);
-							case 233:
-								return lofar_udp_raw_loop<int8_t, float, 233, 0>(meta);
-							case 234:
-								return lofar_udp_raw_loop<int8_t, float, 234, 0>(meta);
+							// Decimated Stokes V
+						case STOKES_V_DS2_REV:
+							return lofar_udp_raw_loop<int8_t, float, STOKES_V_DS2_REV, 0>(meta);
+						case STOKES_V_DS4_REV:
+							return lofar_udp_raw_loop<int8_t, float, STOKES_V_DS4_REV, 0>(meta);
+						case STOKES_V_DS8_REV:
+							return lofar_udp_raw_loop<int8_t, float, STOKES_V_DS8_REV, 0>(meta);
+						case STOKES_V_DS16_REV:
+							return lofar_udp_raw_loop<int8_t, float, STOKES_V_DS16_REV, 0>(meta);
 
 
-								// Decimated Full Stokes
-							case 251:
-								return lofar_udp_raw_loop<int8_t, float, 251, 0>(meta);
-							case 252:
-								return lofar_udp_raw_loop<int8_t, float, 252, 0>(meta);
-							case 253:
-								return lofar_udp_raw_loop<int8_t, float, 253, 0>(meta);
-							case 254:
-								return lofar_udp_raw_loop<int8_t, float, 254, 0>(meta);
+							// Decimated Full Stokes
+						case STOKES_IQUV_DS2_REV:
+							return lofar_udp_raw_loop<int8_t, float, STOKES_IQUV_DS2_REV, 0>(meta);
+						case STOKES_IQUV_DS4_REV:
+							return lofar_udp_raw_loop<int8_t, float, STOKES_IQUV_DS4_REV, 0>(meta);
+						case STOKES_IQUV_DS8_REV:
+							return lofar_udp_raw_loop<int8_t, float, STOKES_IQUV_DS8_REV, 0>(meta);
+						case STOKES_IQUV_DS16_REV:
+							return lofar_udp_raw_loop<int8_t, float, STOKES_IQUV_DS16_REV, 0>(meta);
 
 
-								// Decimated Useful Stokes
-							case 261:
-								return lofar_udp_raw_loop<int8_t, float, 261, 0>(meta);
-							case 262:
-								return lofar_udp_raw_loop<int8_t, float, 262, 0>(meta);
-							case 263:
-								return lofar_udp_raw_loop<int8_t, float, 263, 0>(meta);
-							case 264:
-								return lofar_udp_raw_loop<int8_t, float, 264, 0>(meta);
-							*/
+							// Decimated Useful Stokes
+						case STOKES_IV_DS2_REV:
+							return lofar_udp_raw_loop<int8_t, float, STOKES_IV_DS2_REV, 0>(meta);
+						case STOKES_IV_DS4_REV:
+							return lofar_udp_raw_loop<int8_t, float, STOKES_IV_DS4_REV, 0>(meta);
+						case STOKES_IV_DS8_REV:
+							return lofar_udp_raw_loop<int8_t, float, STOKES_IV_DS8_REV, 0>(meta);
+						case STOKES_IV_DS16_REV:
+							return lofar_udp_raw_loop<int8_t, float, STOKES_IV_DS16_REV, 0>(meta);
+
+							// Non-decimated Stokes
+						case STOKES_I_TIME:
+							return lofar_udp_raw_loop<int8_t, float, STOKES_I_TIME, 0>(meta);
+						case STOKES_Q_TIME:
+							return lofar_udp_raw_loop<int8_t, float, STOKES_Q_TIME, 0>(meta);
+						case STOKES_U_TIME:
+							return lofar_udp_raw_loop<int8_t, float, STOKES_U_TIME, 0>(meta);
+						case STOKES_V_TIME:
+							return lofar_udp_raw_loop<int8_t, float, STOKES_V_TIME, 0>(meta);
+						case STOKES_IQUV_TIME:
+							return lofar_udp_raw_loop<int8_t, float, STOKES_IQUV_TIME, 0>(meta);
+						case STOKES_IV_TIME:
+							return lofar_udp_raw_loop<int8_t, float, STOKES_IV_TIME, 0>(meta);
+
+
+
+							// Decimated Stokes I
+						case STOKES_I_DS2_TIME:
+							return lofar_udp_raw_loop<int8_t, float, STOKES_I_DS2_TIME, 0>(meta);
+						case STOKES_I_DS4_TIME:
+							return lofar_udp_raw_loop<int8_t, float, STOKES_I_DS4_TIME, 0>(meta);
+						case STOKES_I_DS8_TIME:
+							return lofar_udp_raw_loop<int8_t, float, STOKES_I_DS8_TIME, 0>(meta);
+						case STOKES_I_DS16_TIME:
+							return lofar_udp_raw_loop<int8_t, float, STOKES_I_DS16_TIME, 0>(meta);
+
+
+							// Decimated Stokes Q
+						case STOKES_Q_DS2_TIME:
+							return lofar_udp_raw_loop<int8_t, float, STOKES_Q_DS2_TIME, 0>(meta);
+						case STOKES_Q_DS4_TIME:
+							return lofar_udp_raw_loop<int8_t, float, STOKES_Q_DS4_TIME, 0>(meta);
+						case STOKES_Q_DS8_TIME:
+							return lofar_udp_raw_loop<int8_t, float, STOKES_Q_DS8_TIME, 0>(meta);
+						case STOKES_Q_DS16_TIME:
+							return lofar_udp_raw_loop<int8_t, float, STOKES_Q_DS16_TIME, 0>(meta);
+
+
+							// Decimated Stokes U
+						case STOKES_U_DS2_TIME:
+							return lofar_udp_raw_loop<int8_t, float, STOKES_U_DS2_TIME, 0>(meta);
+						case STOKES_U_DS4_TIME:
+							return lofar_udp_raw_loop<int8_t, float, STOKES_U_DS4_TIME, 0>(meta);
+						case STOKES_U_DS8_TIME:
+							return lofar_udp_raw_loop<int8_t, float, STOKES_U_DS8_TIME, 0>(meta);
+						case STOKES_U_DS16_TIME:
+							return lofar_udp_raw_loop<int8_t, float, STOKES_U_DS16_TIME, 0>(meta);
+
+
+							// Decimated Stokes V
+						case STOKES_V_DS2_TIME:
+							return lofar_udp_raw_loop<int8_t, float, STOKES_V_DS2_TIME, 0>(meta);
+						case STOKES_V_DS4_TIME:
+							return lofar_udp_raw_loop<int8_t, float, STOKES_V_DS4_TIME, 0>(meta);
+						case STOKES_V_DS8_TIME:
+							return lofar_udp_raw_loop<int8_t, float, STOKES_V_DS8_TIME, 0>(meta);
+						case STOKES_V_DS16_TIME:
+							return lofar_udp_raw_loop<int8_t, float, STOKES_V_DS16_TIME, 0>(meta);
+
+
+							// Decimated Full Stokes
+						case STOKES_IQUV_DS2_TIME:
+							return lofar_udp_raw_loop<int8_t, float, STOKES_IQUV_DS2_TIME, 0>(meta);
+						case STOKES_IQUV_DS4_TIME:
+							return lofar_udp_raw_loop<int8_t, float, STOKES_IQUV_DS4_TIME, 0>(meta);
+						case STOKES_IQUV_DS8_TIME:
+							return lofar_udp_raw_loop<int8_t, float, STOKES_IQUV_DS8_TIME, 0>(meta);
+						case STOKES_IQUV_DS16_TIME:
+							return lofar_udp_raw_loop<int8_t, float, STOKES_IQUV_DS16_TIME, 0>(meta);
+
+
+							// Decimated Useful Stokes
+						case STOKES_IV_DS2_TIME:
+							return lofar_udp_raw_loop<int8_t, float, STOKES_IV_DS2_TIME, 0>(meta);
+						case STOKES_IV_DS4_TIME:
+							return lofar_udp_raw_loop<int8_t, float, STOKES_IV_DS4_TIME, 0>(meta);
+						case STOKES_IV_DS8_TIME:
+							return lofar_udp_raw_loop<int8_t, float, STOKES_IV_DS8_TIME, 0>(meta);
+						case STOKES_IV_DS16_TIME:
+							return lofar_udp_raw_loop<int8_t, float, STOKES_IV_DS16_TIME, 0>(meta);
 
 						default:
 							fprintf(stderr, "Unknown processing mode %d (%d, %d). Exiting.\n", processingMode,
@@ -1192,88 +1590,168 @@ int32_t lofar_udp_cpp_loop_interface(lofar_udp_obs_meta *meta) {
 						case STOKES_IV_DS16:
 							return lofar_udp_raw_loop<int16_t, float, STOKES_IV_DS16, 0>(meta);
 
-							/*
-								// Non-decimated Stokes
-							case 200:
-								return lofar_udp_raw_loop<int16_t, float, 200, 0>(meta);
-							case 210:
-								return lofar_udp_raw_loop<int16_t, float, 210, 0>(meta);
-							case 220:
-								return lofar_udp_raw_loop<int16_t, float, 220, 0>(meta);
-							case 230:
-								return lofar_udp_raw_loop<int16_t, float, 230, 0>(meta);
-							case 250:
-								return lofar_udp_raw_loop<int16_t, float, 250, 0>(meta);
-							case 260:
-								return lofar_udp_raw_loop<int16_t, float, 260, 0>(meta);
+
+							// Non-decimated Stokes
+						case STOKES_I_REV:
+							return lofar_udp_raw_loop<int16_t, float, STOKES_I_REV, 0>(meta);
+						case STOKES_Q_REV:
+							return lofar_udp_raw_loop<int16_t, float, STOKES_Q_REV, 0>(meta);
+						case STOKES_U_REV:
+							return lofar_udp_raw_loop<int16_t, float, STOKES_U_REV, 0>(meta);
+						case STOKES_V_REV:
+							return lofar_udp_raw_loop<int16_t, float, STOKES_V_REV, 0>(meta);
+						case STOKES_IQUV_REV:
+							return lofar_udp_raw_loop<int16_t, float, STOKES_IQUV_REV, 0>(meta);
+						case STOKES_IV_REV:
+							return lofar_udp_raw_loop<int16_t, float, STOKES_IV_REV, 0>(meta);
 
 
 
-								// Decimated Stokes I
-							case 201:
-								return lofar_udp_raw_loop<int16_t, float, 201, 0>(meta);
-							case 202:
-								return lofar_udp_raw_loop<int16_t, float, 202, 0>(meta);
-							case 203:
-								return lofar_udp_raw_loop<int16_t, float, 203, 0>(meta);
-							case 204:
-								return lofar_udp_raw_loop<int16_t, float, 204, 0>(meta);
+							// Decimated Stokes I
+						case STOKES_I_DS2_REV:
+							return lofar_udp_raw_loop<int16_t, float, STOKES_I_DS2_REV, 0>(meta);
+						case STOKES_I_DS4_REV:
+							return lofar_udp_raw_loop<int16_t, float, STOKES_I_DS4_REV, 0>(meta);
+						case STOKES_I_DS8_REV:
+							return lofar_udp_raw_loop<int16_t, float, STOKES_I_DS8_REV, 0>(meta);
+						case STOKES_I_DS16_REV:
+							return lofar_udp_raw_loop<int16_t, float, STOKES_I_DS16_REV, 0>(meta);
 
 
-								// Decimated Stokes Q
-							case 211:
-								return lofar_udp_raw_loop<int16_t, float, 211, 0>(meta);
-							case 212:
-								return lofar_udp_raw_loop<int16_t, float, 212, 0>(meta);
-							case 213:
-								return lofar_udp_raw_loop<int16_t, float, 213, 0>(meta);
-							case 214:
-								return lofar_udp_raw_loop<int16_t, float, 214, 0>(meta);
+							// Decimated Stokes Q
+						case STOKES_Q_DS2_REV:
+							return lofar_udp_raw_loop<int16_t, float, STOKES_Q_DS2_REV, 0>(meta);
+						case STOKES_Q_DS4_REV:
+							return lofar_udp_raw_loop<int16_t, float, STOKES_Q_DS4_REV, 0>(meta);
+						case STOKES_Q_DS8_REV:
+							return lofar_udp_raw_loop<int16_t, float, STOKES_Q_DS8_REV, 0>(meta);
+						case STOKES_Q_DS16_REV:
+							return lofar_udp_raw_loop<int16_t, float, STOKES_Q_DS16_REV, 0>(meta);
 
 
-								// Decimated Stokes U
-							case 221:
-								return lofar_udp_raw_loop<int16_t, float, 221, 0>(meta);
-							case 222:
-								return lofar_udp_raw_loop<int16_t, float, 222, 0>(meta);
-							case 223:
-								return lofar_udp_raw_loop<int16_t, float, 223, 0>(meta);
-							case 224:
-								return lofar_udp_raw_loop<int16_t, float, 224, 0>(meta);
+							// Decimated Stokes U
+						case STOKES_U_DS2_REV:
+							return lofar_udp_raw_loop<int16_t, float, STOKES_U_DS2_REV, 0>(meta);
+						case STOKES_U_DS4_REV:
+							return lofar_udp_raw_loop<int16_t, float, STOKES_U_DS4_REV, 0>(meta);
+						case STOKES_U_DS8_REV:
+							return lofar_udp_raw_loop<int16_t, float, STOKES_U_DS8_REV, 0>(meta);
+						case STOKES_U_DS16_REV:
+							return lofar_udp_raw_loop<int16_t, float, STOKES_U_DS16_REV, 0>(meta);
 
 
-								// Decimated Stokes V
-							case 231:
-								return lofar_udp_raw_loop<int16_t, float, 231, 0>(meta);
-							case 232:
-								return lofar_udp_raw_loop<int16_t, float, 232, 0>(meta);
-							case 233:
-								return lofar_udp_raw_loop<int16_t, float, 233, 0>(meta);
-							case 234:
-								return lofar_udp_raw_loop<int16_t, float, 234, 0>(meta);
+							// Decimated Stokes V
+						case STOKES_V_DS2_REV:
+							return lofar_udp_raw_loop<int16_t, float, STOKES_V_DS2_REV, 0>(meta);
+						case STOKES_V_DS4_REV:
+							return lofar_udp_raw_loop<int16_t, float, STOKES_V_DS4_REV, 0>(meta);
+						case STOKES_V_DS8_REV:
+							return lofar_udp_raw_loop<int16_t, float, STOKES_V_DS8_REV, 0>(meta);
+						case STOKES_V_DS16_REV:
+							return lofar_udp_raw_loop<int16_t, float, STOKES_V_DS16_REV, 0>(meta);
 
 
-								// Decimated Full Stokes
-							case 251:
-								return lofar_udp_raw_loop<int16_t, float, 251, 0>(meta);
-							case 252:
-								return lofar_udp_raw_loop<int16_t, float, 252, 0>(meta);
-							case 253:
-								return lofar_udp_raw_loop<int16_t, float, 253, 0>(meta);
-							case 254:
-								return lofar_udp_raw_loop<int16_t, float, 254, 0>(meta);
+							// Decimated Full Stokes
+						case STOKES_IQUV_DS2_REV:
+							return lofar_udp_raw_loop<int16_t, float, STOKES_IQUV_DS2_REV, 0>(meta);
+						case STOKES_IQUV_DS4_REV:
+							return lofar_udp_raw_loop<int16_t, float, STOKES_IQUV_DS4_REV, 0>(meta);
+						case STOKES_IQUV_DS8_REV:
+							return lofar_udp_raw_loop<int16_t, float, STOKES_IQUV_DS8_REV, 0>(meta);
+						case STOKES_IQUV_DS16_REV:
+							return lofar_udp_raw_loop<int16_t, float, STOKES_IQUV_DS16_REV, 0>(meta);
 
 
-								// Decimated Useful Stokes
-							case 261:
-								return lofar_udp_raw_loop<int16_t, float, 261, 0>(meta);
-							case 262:
-								return lofar_udp_raw_loop<int16_t, float, 262, 0>(meta);
-							case 263:
-								return lofar_udp_raw_loop<int16_t, float, 263, 0>(meta);
-							case 264:
-								return lofar_udp_raw_loop<int16_t, float, 264, 0>(meta);
-							*/
+							// Decimated Useful Stokes
+						case STOKES_IV_DS2_REV:
+							return lofar_udp_raw_loop<int16_t, float, STOKES_IV_DS2_REV, 0>(meta);
+						case STOKES_IV_DS4_REV:
+							return lofar_udp_raw_loop<int16_t, float, STOKES_IV_DS4_REV, 0>(meta);
+						case STOKES_IV_DS8_REV:
+							return lofar_udp_raw_loop<int16_t, float, STOKES_IV_DS8_REV, 0>(meta);
+						case STOKES_IV_DS16_REV:
+							return lofar_udp_raw_loop<int16_t, float, STOKES_IV_DS16_REV, 0>(meta);
+
+							// Non-decimated Stokes
+						case STOKES_I_TIME:
+							return lofar_udp_raw_loop<int16_t, float, STOKES_I_TIME, 0>(meta);
+						case STOKES_Q_TIME:
+							return lofar_udp_raw_loop<int16_t, float, STOKES_Q_TIME, 0>(meta);
+						case STOKES_U_TIME:
+							return lofar_udp_raw_loop<int16_t, float, STOKES_U_TIME, 0>(meta);
+						case STOKES_V_TIME:
+							return lofar_udp_raw_loop<int16_t, float, STOKES_V_TIME, 0>(meta);
+						case STOKES_IQUV_TIME:
+							return lofar_udp_raw_loop<int16_t, float, STOKES_IQUV_TIME, 0>(meta);
+						case STOKES_IV_TIME:
+							return lofar_udp_raw_loop<int16_t, float, STOKES_IV_TIME, 0>(meta);
+
+
+
+							// Decimated Stokes I
+						case STOKES_I_DS2_TIME:
+							return lofar_udp_raw_loop<int16_t, float, STOKES_I_DS2_TIME, 0>(meta);
+						case STOKES_I_DS4_TIME:
+							return lofar_udp_raw_loop<int16_t, float, STOKES_I_DS4_TIME, 0>(meta);
+						case STOKES_I_DS8_TIME:
+							return lofar_udp_raw_loop<int16_t, float, STOKES_I_DS8_TIME, 0>(meta);
+						case STOKES_I_DS16_TIME:
+							return lofar_udp_raw_loop<int16_t, float, STOKES_I_DS16_TIME, 0>(meta);
+
+
+							// Decimated Stokes Q
+						case STOKES_Q_DS2_TIME:
+							return lofar_udp_raw_loop<int16_t, float, STOKES_Q_DS2_TIME, 0>(meta);
+						case STOKES_Q_DS4_TIME:
+							return lofar_udp_raw_loop<int16_t, float, STOKES_Q_DS4_TIME, 0>(meta);
+						case STOKES_Q_DS8_TIME:
+							return lofar_udp_raw_loop<int16_t, float, STOKES_Q_DS8_TIME, 0>(meta);
+						case STOKES_Q_DS16_TIME:
+							return lofar_udp_raw_loop<int16_t, float, STOKES_Q_DS16_TIME, 0>(meta);
+
+
+							// Decimated Stokes U
+						case STOKES_U_DS2_TIME:
+							return lofar_udp_raw_loop<int16_t, float, STOKES_U_DS2_TIME, 0>(meta);
+						case STOKES_U_DS4_TIME:
+							return lofar_udp_raw_loop<int16_t, float, STOKES_U_DS4_TIME, 0>(meta);
+						case STOKES_U_DS8_TIME:
+							return lofar_udp_raw_loop<int16_t, float, STOKES_U_DS8_TIME, 0>(meta);
+						case STOKES_U_DS16_TIME:
+							return lofar_udp_raw_loop<int16_t, float, STOKES_U_DS16_TIME, 0>(meta);
+
+
+							// Decimated Stokes V
+						case STOKES_V_DS2_TIME:
+							return lofar_udp_raw_loop<int16_t, float, STOKES_V_DS2_TIME, 0>(meta);
+						case STOKES_V_DS4_TIME:
+							return lofar_udp_raw_loop<int16_t, float, STOKES_V_DS4_TIME, 0>(meta);
+						case STOKES_V_DS8_TIME:
+							return lofar_udp_raw_loop<int16_t, float, STOKES_V_DS8_TIME, 0>(meta);
+						case STOKES_V_DS16_TIME:
+							return lofar_udp_raw_loop<int16_t, float, STOKES_V_DS16_TIME, 0>(meta);
+
+
+							// Decimated Full Stokes
+						case STOKES_IQUV_DS2_TIME:
+							return lofar_udp_raw_loop<int16_t, float, STOKES_IQUV_DS2_TIME, 0>(meta);
+						case STOKES_IQUV_DS4_TIME:
+							return lofar_udp_raw_loop<int16_t, float, STOKES_IQUV_DS4_TIME, 0>(meta);
+						case STOKES_IQUV_DS8_TIME:
+							return lofar_udp_raw_loop<int16_t, float, STOKES_IQUV_DS8_TIME, 0>(meta);
+						case STOKES_IQUV_DS16_TIME:
+							return lofar_udp_raw_loop<int16_t, float, STOKES_IQUV_DS16_TIME, 0>(meta);
+
+
+							// Decimated Useful Stokes
+						case STOKES_IV_DS2_TIME:
+							return lofar_udp_raw_loop<int16_t, float, STOKES_IV_DS2_TIME, 0>(meta);
+						case STOKES_IV_DS4_TIME:
+							return lofar_udp_raw_loop<int16_t, float, STOKES_IV_DS4_TIME, 0>(meta);
+						case STOKES_IV_DS8_TIME:
+							return lofar_udp_raw_loop<int16_t, float, STOKES_IV_DS8_TIME, 0>(meta);
+						case STOKES_IV_DS16_TIME:
+							return lofar_udp_raw_loop<int16_t, float, STOKES_IV_DS16_TIME, 0>(meta);
 
 						default:
 							fprintf(stderr, "Unknown processing mode %d (%d, %d). Exiting.\n", processingMode,
@@ -1283,7 +1761,7 @@ int32_t lofar_udp_cpp_loop_interface(lofar_udp_obs_meta *meta) {
 
 				default:
 					fprintf(stderr, "Unexpected bitmode %d (%d, %d). Exiting.\n", inputBitMode, processingMode,
-							calibrateData);
+					        calibrateData);
 					return 2;
 			}
 
@@ -1297,57 +1775,57 @@ int32_t lofar_udp_cpp_loop_interface(lofar_udp_obs_meta *meta) {
 // LUT for 4-bit data, faster than re-calculating upper/lower nibble for every sample.
 //@formatter:off
 const int8_t bitmodeConversion[256][2] = {
-		{ 0 , 0 }, { 0 , 1 }, { 0 , 2 }, { 0 , 3 }, { 0 , 4 },
-		{ 0 , 5 }, { 0 , 6 }, { 0 , 7 }, { 0 , -8 }, { 0 , -7 },
-		{ 0 , -6 }, { 0 , -5 }, { 0 , -4 }, { 0 , -3 }, { 0 , -2 },
-		{ 0 , -1 }, { 1 , 0 }, { 1 , 1 }, { 1 , 2 }, { 1 , 3 },
-		{ 1 , 4 }, { 1 , 5 }, { 1 , 6 }, { 1 , 7 }, { 1 , -8 },
-		{ 1 , -7 }, { 1 , -6 }, { 1 , -5 }, { 1 , -4 }, { 1 , -3 },
-		{ 1 , -2 }, { 1 , -1 }, { 2 , 0 }, { 2 , 1 }, { 2 , 2 },
-		{ 2 , 3 }, { 2 , 4 }, { 2 , 5 }, { 2 , 6 }, { 2 , 7 },
-		{ 2 , -8 }, { 2 , -7 }, { 2 , -6 }, { 2 , -5 }, { 2 , -4 },
-		{ 2 , -3 }, { 2 , -2 }, { 2 , -1 }, { 3 , 0 }, { 3 , 1 },
-		{ 3 , 2 }, { 3 , 3 }, { 3 , 4 }, { 3 , 5 }, { 3 , 6 },
-		{ 3 , 7 }, { 3 , -8 }, { 3 , -7 }, { 3 , -6 }, { 3 , -5 },
-		{ 3 , -4 }, { 3 , -3 }, { 3 , -2 }, { 3 , -1 }, { 4 , 0 },
-		{ 4 , 1 }, { 4 , 2 }, { 4 , 3 }, { 4 , 4 }, { 4 , 5 },
-		{ 4 , 6 }, { 4 , 7 }, { 4 , -8 }, { 4 , -7 }, { 4 , -6 },
-		{ 4 , -5 }, { 4 , -4 }, { 4 , -3 }, { 4 , -2 }, { 4 , -1 },
-		{ 5 , 0 }, { 5 , 1 }, { 5 , 2 }, { 5 , 3 }, { 5 , 4 },
-		{ 5 , 5 }, { 5 , 6 }, { 5 , 7 }, { 5 , -8 }, { 5 , -7 },
-		{ 5 , -6 }, { 5 , -5 }, { 5 , -4 }, { 5 , -3 }, { 5 , -2 },
-		{ 5 , -1 }, { 6 , 0 }, { 6 , 1 }, { 6 , 2 }, { 6 , 3 },
-		{ 6 , 4 }, { 6 , 5 }, { 6 , 6 }, { 6 , 7 }, { 6 , -8 },
-		{ 6 , -7 }, { 6 , -6 }, { 6 , -5 }, { 6 , -4 }, { 6 , -3 },
-		{ 6 , -2 }, { 6 , -1 }, { 7 , 0 }, { 7 , 1 }, { 7 , 2 },
-		{ 7 , 3 }, { 7 , 4 }, { 7 , 5 }, { 7 , 6 }, { 7 , 7 },
-		{ 7 , -8 }, { 7 , -7 }, { 7 , -6 }, { 7 , -5 }, { 7 , -4 },
-		{ 7 , -3 }, { 7 , -2 }, { 7 , -1 }, { -8 , 0 }, { -8 , 1 },
-		{ -8 , 2 }, { -8 , 3 }, { -8 , 4 }, { -8 , 5 }, { -8 , 6 },
-		{ -8 , 7 }, { -8 , -8 }, { -8 , -7 }, { -8 , -6 }, { -8 , -5 },
-		{ -8 , -4 }, { -8 , -3 }, { -8 , -2 }, { -8 , -1 }, { -7 , 0 },
-		{ -7 , 1 }, { -7 , 2 }, { -7 , 3 }, { -7 , 4 }, { -7 , 5 },
-		{ -7 , 6 }, { -7 , 7 }, { -7 , -8 }, { -7 , -7 }, { -7 , -6 },
-		{ -7 , -5 }, { -7 , -4 }, { -7 , -3 }, { -7 , -2 }, { -7 , -1 },
-		{ -6 , 0 }, { -6 , 1 }, { -6 , 2 }, { -6 , 3 }, { -6 , 4 },
-		{ -6 , 5 }, { -6 , 6 }, { -6 , 7 }, { -6 , -8 }, { -6 , -7 },
-		{ -6 , -6 }, { -6 , -5 }, { -6 , -4 }, { -6 , -3 }, { -6 , -2 },
-		{ -6 , -1 }, { -5 , 0 }, { -5 , 1 }, { -5 , 2 }, { -5 , 3 },
-		{ -5 , 4 }, { -5 , 5 }, { -5 , 6 }, { -5 , 7 }, { -5 , -8 },
-		{ -5 , -7 }, { -5 , -6 }, { -5 , -5 }, { -5 , -4 }, { -5 , -3 },
-		{ -5 , -2 }, { -5 , -1 }, { -4 , 0 }, { -4 , 1 }, { -4 , 2 },
-		{ -4 , 3 }, { -4 , 4 }, { -4 , 5 }, { -4 , 6 }, { -4 , 7 },
-		{ -4 , -8 }, { -4 , -7 }, { -4 , -6 }, { -4 , -5 }, { -4 , -4 },
-		{ -4 , -3 }, { -4 , -2 }, { -4 , -1 }, { -3 , 0 }, { -3 , 1 },
-		{ -3 , 2 }, { -3 , 3 }, { -3 , 4 }, { -3 , 5 }, { -3 , 6 },
-		{ -3 , 7 }, { -3 , -8 }, { -3 , -7 }, { -3 , -6 }, { -3 , -5 },
-		{ -3 , -4 }, { -3 , -3 }, { -3 , -2 }, { -3 , -1 }, { -2 , 0 },
-		{ -2 , 1 }, { -2 , 2 }, { -2 , 3 }, { -2 , 4 }, { -2 , 5 },
-		{ -2 , 6 }, { -2 , 7 }, { -2 , -8 }, { -2 , -7 }, { -2 , -6 },
-		{ -2 , -5 }, { -2 , -4 }, { -2 , -3 }, { -2 , -2 }, { -2 , -1 },
-		{ -1 , 0 }, { -1 , 1 }, { -1 , 2 }, { -1 , 3 }, { -1 , 4 },
-		{ -1 , 5 }, { -1 , 6 }, { -1 , 7 }, { -1 , -8 }, { -1 , -7 },
-		{ -1 , -6 }, { -1 , -5 }, { -1 , -4 }, { -1 , -3 }, { -1 , -2 },
-		{ -1 , -1 }
+	{ 0 , 0 }, { 0 , 1 }, { 0 , 2 }, { 0 , 3 }, { 0 , 4 },
+	{ 0 , 5 }, { 0 , 6 }, { 0 , 7 }, { 0 , -8 }, { 0 , -7 },
+	{ 0 , -6 }, { 0 , -5 }, { 0 , -4 }, { 0 , -3 }, { 0 , -2 },
+	{ 0 , -1 }, { 1 , 0 }, { 1 , 1 }, { 1 , 2 }, { 1 , 3 },
+	{ 1 , 4 }, { 1 , 5 }, { 1 , 6 }, { 1 , 7 }, { 1 , -8 },
+	{ 1 , -7 }, { 1 , -6 }, { 1 , -5 }, { 1 , -4 }, { 1 , -3 },
+	{ 1 , -2 }, { 1 , -1 }, { 2 , 0 }, { 2 , 1 }, { 2 , 2 },
+	{ 2 , 3 }, { 2 , 4 }, { 2 , 5 }, { 2 , 6 }, { 2 , 7 },
+	{ 2 , -8 }, { 2 , -7 }, { 2 , -6 }, { 2 , -5 }, { 2 , -4 },
+	{ 2 , -3 }, { 2 , -2 }, { 2 , -1 }, { 3 , 0 }, { 3 , 1 },
+	{ 3 , 2 }, { 3 , 3 }, { 3 , 4 }, { 3 , 5 }, { 3 , 6 },
+	{ 3 , 7 }, { 3 , -8 }, { 3 , -7 }, { 3 , -6 }, { 3 , -5 },
+	{ 3 , -4 }, { 3 , -3 }, { 3 , -2 }, { 3 , -1 }, { 4 , 0 },
+	{ 4 , 1 }, { 4 , 2 }, { 4 , 3 }, { 4 , 4 }, { 4 , 5 },
+	{ 4 , 6 }, { 4 , 7 }, { 4 , -8 }, { 4 , -7 }, { 4 , -6 },
+	{ 4 , -5 }, { 4 , -4 }, { 4 , -3 }, { 4 , -2 }, { 4 , -1 },
+	{ 5 , 0 }, { 5 , 1 }, { 5 , 2 }, { 5 , 3 }, { 5 , 4 },
+	{ 5 , 5 }, { 5 , 6 }, { 5 , 7 }, { 5 , -8 }, { 5 , -7 },
+	{ 5 , -6 }, { 5 , -5 }, { 5 , -4 }, { 5 , -3 }, { 5 , -2 },
+	{ 5 , -1 }, { 6 , 0 }, { 6 , 1 }, { 6 , 2 }, { 6 , 3 },
+	{ 6 , 4 }, { 6 , 5 }, { 6 , 6 }, { 6 , 7 }, { 6 , -8 },
+	{ 6 , -7 }, { 6 , -6 }, { 6 , -5 }, { 6 , -4 }, { 6 , -3 },
+	{ 6 , -2 }, { 6 , -1 }, { 7 , 0 }, { 7 , 1 }, { 7 , 2 },
+	{ 7 , 3 }, { 7 , 4 }, { 7 , 5 }, { 7 , 6 }, { 7 , 7 },
+	{ 7 , -8 }, { 7 , -7 }, { 7 , -6 }, { 7 , -5 }, { 7 , -4 },
+	{ 7 , -3 }, { 7 , -2 }, { 7 , -1 }, { -8 , 0 }, { -8 , 1 },
+	{ -8 , 2 }, { -8 , 3 }, { -8 , 4 }, { -8 , 5 }, { -8 , 6 },
+	{ -8 , 7 }, { -8 , -8 }, { -8 , -7 }, { -8 , -6 }, { -8 , -5 },
+	{ -8 , -4 }, { -8 , -3 }, { -8 , -2 }, { -8 , -1 }, { -7 , 0 },
+	{ -7 , 1 }, { -7 , 2 }, { -7 , 3 }, { -7 , 4 }, { -7 , 5 },
+	{ -7 , 6 }, { -7 , 7 }, { -7 , -8 }, { -7 , -7 }, { -7 , -6 },
+	{ -7 , -5 }, { -7 , -4 }, { -7 , -3 }, { -7 , -2 }, { -7 , -1 },
+	{ -6 , 0 }, { -6 , 1 }, { -6 , 2 }, { -6 , 3 }, { -6 , 4 },
+	{ -6 , 5 }, { -6 , 6 }, { -6 , 7 }, { -6 , -8 }, { -6 , -7 },
+	{ -6 , -6 }, { -6 , -5 }, { -6 , -4 }, { -6 , -3 }, { -6 , -2 },
+	{ -6 , -1 }, { -5 , 0 }, { -5 , 1 }, { -5 , 2 }, { -5 , 3 },
+	{ -5 , 4 }, { -5 , 5 }, { -5 , 6 }, { -5 , 7 }, { -5 , -8 },
+	{ -5 , -7 }, { -5 , -6 }, { -5 , -5 }, { -5 , -4 }, { -5 , -3 },
+	{ -5 , -2 }, { -5 , -1 }, { -4 , 0 }, { -4 , 1 }, { -4 , 2 },
+	{ -4 , 3 }, { -4 , 4 }, { -4 , 5 }, { -4 , 6 }, { -4 , 7 },
+	{ -4 , -8 }, { -4 , -7 }, { -4 , -6 }, { -4 , -5 }, { -4 , -4 },
+	{ -4 , -3 }, { -4 , -2 }, { -4 , -1 }, { -3 , 0 }, { -3 , 1 },
+	{ -3 , 2 }, { -3 , 3 }, { -3 , 4 }, { -3 , 5 }, { -3 , 6 },
+	{ -3 , 7 }, { -3 , -8 }, { -3 , -7 }, { -3 , -6 }, { -3 , -5 },
+	{ -3 , -4 }, { -3 , -3 }, { -3 , -2 }, { -3 , -1 }, { -2 , 0 },
+	{ -2 , 1 }, { -2 , 2 }, { -2 , 3 }, { -2 , 4 }, { -2 , 5 },
+	{ -2 , 6 }, { -2 , 7 }, { -2 , -8 }, { -2 , -7 }, { -2 , -6 },
+	{ -2 , -5 }, { -2 , -4 }, { -2 , -3 }, { -2 , -2 }, { -2 , -1 },
+	{ -1 , 0 }, { -1 , 1 }, { -1 , 2 }, { -1 , 3 }, { -1 , 4 },
+	{ -1 , 5 }, { -1 , 6 }, { -1 , 7 }, { -1 , -8 }, { -1 , -7 },
+	{ -1 , -6 }, { -1 , -5 }, { -1 , -4 }, { -1 , -3 }, { -1 , -2 },
+	{ -1 , -1 }
 };
 //@formatter:on

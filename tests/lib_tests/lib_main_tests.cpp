@@ -1,6 +1,30 @@
 #include "gtest/gtest.h"
 #include "lofar_udp_general.h"
 
+TEST(LibGenTests, interalStrtoi) {
+	// int32_t internal_strtoi(char *str, char **endPtr)
+
+	const int32_t bufferLen = 64;
+	char *endPtr, *buffer = (char*) calloc(bufferLen, sizeof(char));
+
+	snprintf(buffer, bufferLen, "%ld", ((int64_t) INT32_MAX) * 2);
+	EXPECT_EQ(INT32_MAX, internal_strtoi(buffer, &endPtr));
+	EXPECT_EQ(endPtr, buffer);
+	snprintf(buffer, bufferLen, "%ld", ((int64_t) INT32_MIN) * 2);
+	EXPECT_EQ(INT32_MAX, internal_strtoi(buffer, &endPtr));
+	EXPECT_EQ(endPtr, buffer);
+
+	char *expectedEndPtr = buffer + snprintf(buffer, bufferLen, "%d", INT32_MAX - 1);
+	EXPECT_EQ(INT32_MAX - 1, internal_strtoi(buffer, &endPtr));
+	EXPECT_EQ(expectedEndPtr, endPtr);
+
+	expectedEndPtr = buffer + snprintf(buffer, bufferLen, "%d", INT32_MIN + 1);
+	EXPECT_EQ(INT32_MIN + 1, internal_strtoi(buffer, &endPtr));
+	EXPECT_EQ(expectedEndPtr, endPtr);
+
+	free(buffer);
+
+}
 
 TEST(LibSignalTests, SignalSetup) {
 	//int _lofar_udp_prepare_signal_handler()
@@ -12,7 +36,7 @@ TEST(LibSignalTests, SignalPipe) {
 	ASSERT_NO_THROW(_lofar_udp_signal_handler(SIGPIPE));
 }
 
-#define NO_EXIT_TESTS
+//#define NO_EXIT_TESTS
 #ifndef NO_EXIT_TESTS
 TEST(LibSignalTests, SignalSegv) {
 	//void _lofar_udp_signal_handler(int signalnum)

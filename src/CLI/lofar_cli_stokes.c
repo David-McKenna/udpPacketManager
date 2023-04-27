@@ -917,8 +917,8 @@ int main(int argc, char *argv[]) {
 				printf("Detectsolo\n");
 				transposeDetect(in1, in2, outputStokes, mbin, channelisation, nsub, spectralDownsample, stokesParameters);
 			}
-			ARR_INIT(((float *) intermediateX), (size_t) nbin * nsub * 2,0.0f);
-			ARR_INIT(((float *) intermediateY), (size_t) nbin * nsub * 2,0.0f);
+			ARR_INIT(((float *) intermediateX), (int64_t) nbin * nsub * 2,0.0f);
+			ARR_INIT(((float *) intermediateY), (int64_t) nbin * nsub * 2,0.0f);
 			CLICK(tockDetect);
 			timing[5] = TICKTOCK(tickDetect, tockDetect);
 			totalDetectTime += timing[5];

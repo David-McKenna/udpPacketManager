@@ -123,6 +123,7 @@ typedef struct lofar_udp_obs_meta {
 	// Configuration: replay last packet or copy a 0 packed file, set the processing mode, and it's related processing function
 	int8_t replayDroppedPackets;
 	processMode_t processingMode;
+	dataOrder_t dataOrder;
 
 	// Overall runtime information
 	int64_t packetsPerIteration;
@@ -318,7 +319,6 @@ extern "C" {
 // External
 lofar_udp_config *lofar_udp_config_alloc();
 void lofar_udp_config_cleanup(lofar_udp_config *config);
-metadata_config* lofar_udp_metadata_config_alloc();
 lofar_udp_io_read_config *lofar_udp_io_read_alloc();
 lofar_udp_io_write_config *lofar_udp_io_write_alloc();
 

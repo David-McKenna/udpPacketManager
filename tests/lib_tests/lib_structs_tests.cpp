@@ -1,6 +1,6 @@
 #include "gtest/gtest.h"
-#include "lofar_udp_structs.h"
-#include "lofar_udp_structs_metadata.h"
+#include "lofar_udp_reader.h"
+#include "lofar_udp_io.h"
 
 
 TEST(LibStructsTests, NormalAllocTests) {
@@ -14,9 +14,7 @@ TEST(LibStructsTests, NormalAllocTests) {
 	//lofar_udp_io_read_config* lofar_udp_io_read_alloc()
 	lofar_udp_reader* reader = _lofar_udp_reader_alloc(meta);
 	EXPECT_NE(nullptr, reader);
-	free(meta);
-	free(reader->input);
-	free(reader);
+	lofar_udp_reader_cleanup(reader);
 
 	//lofar_udp_config* lofar_udp_config_alloc()
 	//lofar_udp_calibration* _lofar_udp_calibration_alloc()
@@ -27,7 +25,12 @@ TEST(LibStructsTests, NormalAllocTests) {
 	//lofar_udp_io_write_config* lofar_udp_io_write_alloc()
 	lofar_udp_io_write_config *output = lofar_udp_io_write_alloc();
 	EXPECT_NE(nullptr, output);
-	free(output);
+	FREE_NOT_NULL(output);
+
+	lofar_udp_calibration *cal = _lofar_udp_calibration_alloc();
+	EXPECT_NE(nullptr, cal);
+	FREE_NOT_NULL(cal);
+
 }
 
 TEST(LibStructsTests, MetadataAllocTests) {
@@ -51,7 +54,5 @@ TEST(LibStructsTests, MetadataAllocTests) {
 		EXPECT_NE(nullptr, meta->output.guppi);
 	}
 
-	free(meta->output.sigproc);
-	free(meta->output.guppi);
-	free(meta);
+	lofar_udp_metadata_cleanup(meta);
 }

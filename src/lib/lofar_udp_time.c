@@ -51,8 +51,8 @@ int64_t lofar_udp_time_get_packet_from_isot(const char *inputTime, const uint8_t
 		}
 	}
 
-	fprintf(stderr, "ERROR: Invalid time string, %s / %lu, exiting.\n", inputTime, unixEpoch);
-	return 1;
+	fprintf(stderr, "ERROR %s: Invalid time string, %s / %lu (errno %d: %s), exiting.\n", __func__, inputTime, unixEpoch, errno, strerror(errno));
+	return -1;
 
 }
 
@@ -65,7 +65,7 @@ int64_t lofar_udp_time_get_packet_from_isot(const char *inputTime, const uint8_t
  * @return     The number of packets generated
  */
 int64_t lofar_udp_time_get_packets_from_seconds(const double seconds, const uint8_t clock200MHz) {
-	return (long) (seconds * (clock160MHzPacketRate + clockPacketRateDelta * clock200MHz));
+	return (int64_t) (seconds * (clock160MHzPacketRate + clockPacketRateDelta * clock200MHz));
 }
 
 
@@ -76,9 +76,20 @@ int64_t lofar_udp_time_get_packets_from_seconds(const double seconds, const uint
  * @param[out] stringBuff 	The string buffer
  * @param[in]  strlen		The output string buffer length
  */
-void lofar_udp_time_get_current_isot(const lofar_udp_reader *reader, char *stringBuff, const int64_t strlen) {
+void lofar_udp_time_get_current_isot(const lofar_udp_reader *reader, char *stringBuff, const int32_t strlen) {
 	if (reader == NULL || stringBuff == NULL) {
 		fprintf(stderr, "ERROR %s: Input pointer is null (reader: %p, stringBuff: %p, exiting.\n", __func__, reader, stringBuff);
+		return;
+	}
+
+	// %Y = 4, %m = 2, %d = 2
+	// %H = 2, %M = 2, %S = 2, %06 = 6
+	// 2 ':', 1 'T', 1 '.', nullbyte
+	const int32_t outputStrLen = 4 + 2 + 2 \
+								+ 2 + 2 + 2 + 6 \
+								+ 2 + 1 + 2 + 1 + 1;
+	if (strlen < outputStrLen) {
+		fprintf(stderr, "ERROR %s: Input string is too short (expected length is at least %d, given %d), exiting.\n", __func__, outputStrLen, strlen);
 		return;
 	}
 
@@ -86,12 +97,17 @@ void lofar_udp_time_get_current_isot(const lofar_udp_reader *reader, char *strin
 	const double startTime = lofar_udp_time_get_packet_time(reader->meta->inputData[0]);
 	const time_t startTimeUnix = (uint32_t) (startTime); // 2036 bug
 
-	struct tm *startTimeStruct;
-	startTimeStruct = gmtime(&startTimeUnix);
+	struct tm startTimeStruct, *startTimePtr;
+	startTimePtr = gmtime_r(&startTimeUnix, &startTimeStruct);
+
+	if (startTimePtr != &startTimeStruct) {
+		fprintf(stderr, "ERROR %s: Failed to get time, exiting.\n", __func__);
+		return;
+	}
 
 	// Write the output to a temporary buffer
 	char localBuff[32];
-	if (!strftime(localBuff, VAR_ARR_SIZE(localBuff), "%Y-%m-%dT%H:%M:%S", startTimeStruct)) {
+	if (!strftime(localBuff, VAR_ARR_SIZE(localBuff), "%Y-%m-%dT%H:%M:%S", startTimePtr)) {
 		fprintf(stderr, "ERROR %s: Failed to output time (errno %d: %s), exiting.\n", __func__, errno, strerror(errno));
 		return;
 	}
@@ -148,15 +164,31 @@ void lofar_udp_time_get_daq(const lofar_udp_reader *reader, char *stringBuff, co
 		return;
 	}
 
+	// %a = 3, %b = 3, %e = 2,
+	// %H = 2, %M = 2, %S = 2, %Y = 4,
+	// 4 spaces, 2 ':', nullbyte
+	const int32_t outputStrLen = 3 + 3 + 2 \
+								+ 2 + 2 + 2 + 4 \
+								+ 4 + 2 + 1;
+	if (strlen < outputStrLen) {
+		fprintf(stderr, "ERROR %s: Input string is too short (expected length is at least %d, given %d), exiting.\n", __func__, outputStrLen, strlen);
+		return;
+	}
+
 	// Get the current time information
 	const double startTime = lofar_udp_time_get_packet_time(reader->meta->inputData[0]);
-	const time_t startTimeUnix = (unsigned int) startTime;
+	const time_t startTimeUnix = (uint32_t) startTime;
 
-	struct tm *startTimeStruct;
-	startTimeStruct = gmtime(&startTimeUnix);
+	struct tm startTimeStruct, *startTimePtr;
+	startTimePtr = gmtime_r(&startTimeUnix, &startTimeStruct);
+
+	if (startTimePtr != &startTimeStruct) {
+		fprintf(stderr, "ERROR %s: Failed to get time, exiting.\n", __func__);
+		return;
+	}
 
 	// Write the time to the output buffer in the DAQ format
-	if (!strftime(stringBuff, strlen, "%a %b %e %H:%M:%S %Y", startTimeStruct)) {
+	if (!strftime(stringBuff, strlen, "%a %b %e %H:%M:%S %Y", startTimePtr)) {
 		fprintf(stderr, "ERROR %s: Failed to output time (errno %d: %s), exiting.\n", __func__, errno, strerror(errno));
 		return;
 	}

@@ -119,6 +119,7 @@ int main(int argc, char *argv[]) {
 					CLICleanup(eventCount, dateStr, startingPackets, multiMaxPackets, eventSeconds, config, outConfig, headerBuffer);
 					return 1;
 				}
+				// If the metadata is not yet set, see if we can parse a requested type from the output filename
 				if (config->metadata_config.metadataType == NO_META) config->metadata_config.metadataType = lofar_udp_metadata_parse_type_output(optarg);
 				outputProvided = 1;
 				break;
