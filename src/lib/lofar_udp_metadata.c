@@ -2166,3 +2166,21 @@ int32_t _doubleNotSet(double input, int8_t exception) {
 #include "./metadata/lofar_udp_metadata_GUPPI.c" // NOLINT(bugprone-suspicious-include)
 #include "./metadata/lofar_udp_metadata_DADA.c" // NOLINT(bugprone-suspicious-include)
 #include "./metadata/lofar_udp_metadata_SIGPROC.c" // NOLINT(bugprone-suspicious-include)
+
+/**
+ * Copyright (C) 2023 David McKenna
+ * This file is part of udpPacketManager <https://github.com/David-McKenna/udpPacketManager>.
+ *
+ * udpPacketManager is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * udpPacketManager is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with udpPacketManager.  If not, see <http://www.gnu.org/licenses/>.
+ **/
