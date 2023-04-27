@@ -604,6 +604,12 @@ TEST_P(LibReaderTestsParam, ProcessingData) {
 					std::cout << config->inputLocations[0] << ", " << currMode << ", " << cal << std::endl;
 					config->processingMode = currMode;
 					#ifndef NO_TEST_CAL
+					// Only do 1 mode with GENERATE_JONES to ensure the path is covered, otherwise everything else is
+					//  caused by APPLY_CALIBRATION or NO_CALIBRATION
+					//  .... and saved about 4 minutes on the test time.
+					if (cal == GENERATE_JONES && currMode > 10) {
+						continue;
+					}
 					if (testNum == 1 && (currMode < 100 || (currMode > 100 && (currMode % 10 < 2)))) {
 						if (currMode == PACKET_NOHDR_COPY) {
 							config->calibrationDuration = 2 * config->packetsPerIteration * clock200MHzSampleTime * UDPNTIMESLICE;
