@@ -1,5 +1,0 @@
-TODO:
-
-Better approach to out of order packets?
-Test common outputs against eachother (100 vs 150 vs 160, etc)
-HDF5 CLI
