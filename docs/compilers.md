@@ -17,13 +17,14 @@ To accellerate the data reforming process, we use both `parallel for` loops and 
 
 ### Observed performance
 
-The following tests were performed with GCC 10.3.0 and Clang 12.0.0 on Ubuntu 22.04 on an Intel Xeon Gold 6130 CPU @ 2.10GHz (16 core, 32 thread). We generated a Stokes I output for a 60-second observation, with the command
+The following tests were performed with GCC 10.3.0 and Clang 12.0.0 on Ubuntu 22.04 on an Intel Xeon Gold 6130 CPU @ 2.10GHz (16 core, 32 thread). We generated multiple different types of outputs for a 60-second observation, with the command
 ```shell
-lofar_udp_extractor -i ../20230418181951B0834+06/udp_1613[[port]].ucc1.2023-04-18T18\:20\:00.000.zst -p 100 -o ./debug_[[idx]] -T ${threads} | tee ${compiler}_T${threads}_${operation}.log
+lofar_udp_extractor -i ../20230418181951B0834+06/udp_1613[[port]].ucc1.2023-04-18T18\:20\:00.000.zst -p ${procmode} -o ./debug_[[idx]] -T ${threads} | tee ${compiler}_T${threads}_${procmode}
 ```
 
-Testing both compilers for 1, 2, 4, 8, 16 and 32 threads both with OpenMP tasks enabled and disabled, we generate the following table of execution speed (this is only the compute step, no I/O):
+Testing both compilers for 1, 2, 4, 8, 16 and 32 threads both with OpenMP tasks enabled and disabled, we generate the following figure of execution speed (this is only the compute step, no I/O):
 
+![](./compiler_perf.png)
 
-While the absolute values will change machine-to-machine (we are typically limited by the available memory bandwidth at high thread counts), this scaling has been observed on 3 different high-core-count machines. While some processing modes do not show the same scaling behaviour, it is present in the majority of the Stokes outputs. Consequently, we reccomend the use of the LLVM ecosystem for compiling this library.
+While the absolute values will change machine-to-machine (we are typically limited by the available memory bandwidth at high thread counts), the inability for GCC to scale to higher core counts without having performance regressions has been observed on 3 different high-core-count machines. While some processing modes do not show the same scaling behaviour, it is present in the majority of the Stokes outputs. Consequently, we reccomend the use of the LLVM ecosystem for compiling this library.
 
