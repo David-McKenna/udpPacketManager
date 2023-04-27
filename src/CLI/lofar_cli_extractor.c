@@ -73,8 +73,8 @@ int main(int argc, char *argv[]) {
 	int clock200MHz = 1;
 	FILE *eventsFilePtr;
 
-	lofar_udp_config *config = calloc(1, sizeof(lofar_udp_config));
-	(*config) = lofar_udp_config_default;
+	lofar_udp_config *config = lofar_udp_config_alloc();
+
 
 	lofar_udp_io_write_config *outConfig = lofar_udp_io_write_alloc();
 	(*outConfig) = lofar_udp_io_write_config_default;

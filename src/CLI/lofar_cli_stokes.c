@@ -231,15 +231,14 @@ int main(int argc, char *argv[]) {
 	int clock200MHz = 1;
 	FILE *eventsFilePtr;
 
-	lofar_udp_config *config = calloc(1, sizeof(lofar_udp_config));
-	lofar_udp_calibration *cal = calloc(1, sizeof(struct lofar_udp_calibration));
+	lofar_udp_config *config = lofar_udp_config_alloc();
 	lofar_udp_io_write_config *outConfig = lofar_udp_io_write_alloc();
 
 	int8_t *headerBuffer = NULL;
 
-	if (config == NULL || outConfig == NULL || cal == NULL) {
+	if (config == NULL || outConfig == NULL) {
 		fprintf(stderr, "ERROR: Failed to allocate memory for configuration structs (something has gone very wrong...), exiting.\n");
-		FREE_NOT_NULL(config); FREE_NOT_NULL(outConfig); FREE_NOT_NULL(cal);
+		FREE_NOT_NULL(config); FREE_NOT_NULL(outConfig);
 		return 1;
 	}
 
