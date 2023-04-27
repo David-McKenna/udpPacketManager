@@ -184,7 +184,7 @@ if __name__ == '__main__':
     ref = multiprocessing.shared_memory.SharedMemory(name = args.shm_key, create = False)
     assert(ref.size == args.shm_size)
     data = np.frombuffer(ref.buf, dtype = np.float32, count = args.shm_size // jointInvJones.dtype.itemsize)
-    if (data[0] * data[1] * 4 * 2) != (data.size - 2):
+    if (jointInvJones.shape[0] * jointInvJones.shape[1] * 4 * 2) != (data.size - 2):
         ts = int((data.size - 2) / 8 / jointInvJones.shape[1])
         print(f"dreamBeamJonesGenerator.py: Unexpected generated shape: Expected {(data.size - 2)} samples  ({ts} time samples), generated {jointInvJones.size} samples (({(jointInvJones.size) / 8 / jointInvJones.shape[1]} time samples), reducing output size.")
         jointInvJones = jointInvJones[:ts]
