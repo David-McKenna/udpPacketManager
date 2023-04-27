@@ -448,7 +448,9 @@ int main(int argc, char *argv[]) {
 		}
 	}
 
-	config->processingMode = 35;
+	// Pre-set processing mode
+	// TODO: Floating processing mode if chanellisation is disabled?
+	config->processingMode = TIME_MAJOR_ANT_POL_FLOAT;
 
 	if (flagged) {
 		CLICleanup(eventCount, dateStr, startingPackets, multiMaxPackets, eventSeconds, config, outConfig, intermediateX, intermediateY);

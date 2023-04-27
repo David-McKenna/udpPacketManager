@@ -14,6 +14,7 @@ While using the library, do be aware
 Future work should not break the existing load/process/output loop, and may consist of
 - Creating a wrapper python library to allow for easer interfacing within python scripts rather than requiring a C program (pybind11?)
 - Additional reader/writer format support
+  - Adding support for the [Zstandard seekable format](https://github.com/facebook/zstd/blob/dev/contrib/seekable_format/zstd_seekable_compression_format.md)  
 - Additional processing modes
 - Additional metadata support (FITS frames?)
 
