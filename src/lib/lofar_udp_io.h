@@ -47,7 +47,7 @@ void lofar_udp_io_write_cleanup(lofar_udp_io_write_config *config, int8_t outp, 
 // Setup functions
 int32_t _lofar_udp_io_read_setup_internal_lib_helper(lofar_udp_io_read_config *const input, const lofar_udp_config *config, lofar_udp_obs_meta *meta,
                                                  int8_t port);
-int32_t _lofar_udp_io_write_setup_helper(lofar_udp_io_write_config *config, const lofar_udp_obs_meta *meta, int32_t iter);
+int32_t _lofar_udp_io_write_setup_helper(lofar_udp_io_write_config *config, lofar_udp_reader *reader, int32_t iter);
 
 int32_t _lofar_udp_io_read_setup_FILE(lofar_udp_io_read_config *const input, const char *inputLocation, int8_t port);
 int32_t

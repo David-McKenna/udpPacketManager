@@ -262,22 +262,23 @@ int32_t lofar_udp_io_read_setup_helper(lofar_udp_io_read_config *input, int8_t *
 /**
  * @brief Setup a writer based on the processing information for the current reader
  * @param config Writer config
- * @param meta Reader processing config
+ * @param reader Reader processing config
  * @param iter Current output iteration
  *
  * @return 0: Success, -1: Failure
  */
-int32_t _lofar_udp_io_write_setup_helper(lofar_udp_io_write_config *config, const lofar_udp_obs_meta *meta, int32_t iter) {
-	if (config == NULL || meta == NULL) {
-		fprintf(stderr, "ERROR %s: passed null input configuration (onfig: %p, meta: %p), exiting.\n", __func__, config, meta);
+int32_t _lofar_udp_io_write_setup_helper(lofar_udp_io_write_config *config, lofar_udp_reader *reader, int32_t iter) {
+	if (config == NULL || reader == NULL) {
+		fprintf(stderr, "ERROR %s: passed null input configuration (onfig: %p, meta: %p), exiting.\n", __func__, config, reader);
 		return -1;
 	}
-	config->numOutputs = meta->numOutputs;
+	config->numOutputs = reader->meta->numOutputs;
+	reader->meta->packetsPerIteration = reader->packetsPerIteration;
 	for (int8_t outp = 0; outp < config->numOutputs; outp++) {
-		config->writeBufSize[outp] = meta->packetsPerIteration * meta->packetOutputLength[outp];
+		config->writeBufSize[outp] = reader->packetsPerIteration * reader->meta->packetOutputLength[outp];
 	}
 
-	config->firstPacket = meta->lastPacket;
+	config->firstPacket = reader->meta->lastPacket;
 
 	return lofar_udp_io_write_setup(config, iter);
 }

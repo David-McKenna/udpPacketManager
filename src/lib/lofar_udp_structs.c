@@ -36,7 +36,6 @@ const lofar_udp_io_read_config lofar_udp_io_read_config_default = {
 const lofar_udp_io_write_config lofar_udp_io_write_config_default = {
 	// Control options
 	.readerType = NO_ACTION,
-	.metadata = NULL,
 	.writeBufSize = { -1 }, // NEEDS FULL RUNTIME INITIALISATION
 	.progressWithExisting = 0,
 	.numOutputs = 0,
