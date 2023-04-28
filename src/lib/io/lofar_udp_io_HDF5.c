@@ -56,6 +56,7 @@ typedef enum bool_t {
 	TRUE = 1
 } bool_t;
 
+
 // Simplify attribute creation through key/value structs
 #define shortStrLen  64
 typedef struct strKeyStrVal {
@@ -76,13 +77,13 @@ typedef struct strKeyStrArrVal {
 
 typedef struct strKeyLongVal {
 	char key[shortStrLen];
-	long val;
+	int64_t val;
 } strKeyLongVal;
 
 typedef struct strKeyLongArrVal {
 	char key[shortStrLen];
 	uint32_t num;
-	long *const val;
+	int64_t *const val;
 } strKeyLongArrVal;
 
 typedef struct strKeyDoubleVal {
@@ -158,7 +159,7 @@ __attribute__((unused)) void _lofar_udp_io_read_cleanup_HDF5(__attribute__((unus
 __attribute__((unused)) int64_t
 _lofar_udp_io_read_temp_HDF5(__attribute__((unused)) void *outbuf, __attribute__((unused)) const int64_t size, __attribute__((unused)) const int8_t num, __attribute__((unused)) const char inputFile[],
                              __attribute__((unused)) const int8_t resetSeek) {
-	//long readlen = -1;
+	//int64_t readlen = -1;
 	return -1;
 }
 
@@ -213,16 +214,16 @@ int32_t _lofar_udp_io_write_setup_HDF5(lofar_udp_io_write_config *const config, 
 
 		config->hdf5Writer.initialised = 1;
 		VERBOSE(printf("HDF5: base groups were created.\n");)
-	} else {
-		VERBOSE(printf("HDF5: base groups were previously created.\n");)
 	}
+
+	// We can't initialise the datasets just yet as we don't know their shapes -- they'll be created when the metadata is written for the first time.
 
 	VERBOSE(printf("HDF5: Exiting file creation.\n"));
 	return 0;
 }
 
 
-int hdf5SetupStrAttrs(hid_t group, const strKeyStrVal attrs[], size_t numEntries) {
+int32_t hdf5SetupStrAttrs(hid_t group, const strKeyStrVal attrs[], size_t numEntries) {
 
 	VERBOSE(printf("Str attrs\n"));
 
@@ -237,7 +238,7 @@ int hdf5SetupStrAttrs(hid_t group, const strKeyStrVal attrs[], size_t numEntries
 	VERBOSE(printf("Begin Loop for %ld\n", numEntries));
 	for (size_t atIdx = 0; atIdx < numEntries; atIdx++) {
 		VERBOSE(printf("%s: %s (%ld)\n", attrs[atIdx].key, attrs[atIdx].val, strlen(attrs[atIdx].val)));
-		int strlenv = strlen(attrs[atIdx].val) + 1;
+		int32_t strlenv = strlen(attrs[atIdx].val) + 1;
 		VERBOSE(printf("strlenv: %d\n", strlenv));
 
 		hid_t attr;
@@ -276,7 +277,7 @@ int hdf5SetupStrAttrs(hid_t group, const strKeyStrVal attrs[], size_t numEntries
 	return 0;
 }
 
-int hdf5SetupStrPtrAttrs(hid_t group, const strKeyStrPtrVal attrs[], size_t numEntries) {
+int32_t hdf5SetupStrPtrAttrs(hid_t group, const strKeyStrPtrVal attrs[], size_t numEntries) {
 
 	VERBOSE(printf("Str attrs\n"));
 
@@ -291,7 +292,7 @@ int hdf5SetupStrPtrAttrs(hid_t group, const strKeyStrPtrVal attrs[], size_t numE
 	VERBOSE(printf("Begin Loop for %ld\n", numEntries));
 	for (size_t atIdx = 0; atIdx < numEntries; atIdx++) {
 		VERBOSE(printf("%s: %s (%ld)\n", attrs[atIdx].key, attrs[atIdx].val, strlen(attrs[atIdx].val)));
-		int strlenv = strlen(attrs[atIdx].val) + 1;
+		int32_t strlenv = strlen(attrs[atIdx].val) + 1;
 		VERBOSE(printf("strlenv: %d\n", strlenv));
 
 		hid_t attr;
@@ -330,7 +331,7 @@ int hdf5SetupStrPtrAttrs(hid_t group, const strKeyStrPtrVal attrs[], size_t numE
 	return 0;
 }
 
-int hdf5SetupStrArrayAttrs(hid_t group, const strKeyStrArrVal attrs[], size_t numEntries) {
+int32_t hdf5SetupStrArrayAttrs(hid_t group, const strKeyStrArrVal attrs[], size_t numEntries) {
 
 	VERBOSE(printf("Str array attrs\n"));
 	hid_t filetype;
@@ -375,8 +376,8 @@ int hdf5SetupStrArrayAttrs(hid_t group, const strKeyStrArrVal attrs[], size_t nu
 	return 0;
 }
 
-int hdf5SetupLongAttrs(hid_t group, const strKeyLongVal attrs[], size_t numEntries) {
-	VERBOSE(printf("long attrs\n"));
+int32_t hdf5SetupLongAttrs(hid_t group, const strKeyLongVal attrs[], size_t numEntries) {
+	VERBOSE(printf("Long attrs\n"));
 	hid_t attr;
 	herr_t status;
 	hsize_t dims[1] = { 1 };
@@ -386,12 +387,12 @@ int hdf5SetupLongAttrs(hid_t group, const strKeyLongVal attrs[], size_t numEntri
 	for (size_t atIdx = 0; atIdx < numEntries; atIdx++) {
 		VERBOSE(printf("%s: %ld\n", attrs[atIdx].key, attrs[atIdx].val));
 		if (H5Aexists(group, attrs[atIdx].key) == 0) {
-			H5_ERR_CHECK_RETURN(attr, H5Acreate(group, attrs[atIdx].key, H5T_NATIVE_LONG, space, H5P_DEFAULT, H5P_DEFAULT), "Failed to create long attr", -1);
+			H5_ERR_CHECK_RETURN(attr, H5Acreate(group, attrs[atIdx].key, H5T_NATIVE_INT64, space, H5P_DEFAULT, H5P_DEFAULT), "Failed to create int64_t attr", -1);
 		} else {
-			H5_ERR_CHECK_RETURN(attr, H5Aopen(group, attrs[atIdx].key, H5P_DEFAULT), "Failed to open long attr", -1);
+			H5_ERR_CHECK_RETURN(attr, H5Aopen(group, attrs[atIdx].key, H5P_DEFAULT), "Failed to open int64_t attr", -1);
 		}
 
-		H5_ERR_CHECK_RETURN(status, H5Awrite(attr, H5T_NATIVE_LONG, &(attrs[atIdx].val)), "Failed to set long attr", -1);
+		H5_ERR_CHECK_RETURN(status, H5Awrite(attr, H5T_NATIVE_INT64, &(attrs[atIdx].val)), "Failed to set int64_t attr", -1);
 		H5_ERR_CHECK(status, H5Aclose(attr));
 	}
 	H5_ERR_CHECK(status, H5Sclose(space));
@@ -399,8 +400,8 @@ int hdf5SetupLongAttrs(hid_t group, const strKeyLongVal attrs[], size_t numEntri
 	return 0;
 }
 
-__attribute__((unused)) int hdf5SetupLongArrayAttrs(hid_t group, const strKeyLongArrVal attrs[], size_t numEntries) {
-	VERBOSE(printf("long arr attrs\n"));
+__attribute__((unused)) int32_t hdf5SetupLongArrayAttrs(hid_t group, const strKeyLongArrVal attrs[], size_t numEntries) {
+	VERBOSE(printf("Long arr attrs\n"));
 
 	for (size_t atIdx = 0; atIdx < numEntries; atIdx++) {
 		if (attrs[atIdx].num < 1) continue;
@@ -413,13 +414,13 @@ __attribute__((unused)) int hdf5SetupLongArrayAttrs(hid_t group, const strKeyLon
 
 		VERBOSE(printf("%s[0]: %ld\n", attrs[atIdx].key, attrs[atIdx].val[0]));
 		if (H5Aexists(group, attrs[atIdx].key) == 0) {
-			H5_ERR_CHECK_RETURN(attr, H5Acreate(group, attrs[atIdx].key, H5T_NATIVE_LONG, space, H5P_DEFAULT, H5P_DEFAULT), "Failed to create long arr attr", -1);
+			H5_ERR_CHECK_RETURN(attr, H5Acreate(group, attrs[atIdx].key, H5T_NATIVE_INT64, space, H5P_DEFAULT, H5P_DEFAULT), "Failed to create int64_t arr attr", -1);
 		} else {
-			H5_ERR_CHECK_RETURN(attr, H5Aopen(group, attrs[atIdx].key, H5P_DEFAULT), "Failed to open long arr attr", -1);
+			H5_ERR_CHECK_RETURN(attr, H5Aopen(group, attrs[atIdx].key, H5P_DEFAULT), "Failed to open int64_t arr attr", -1);
 		}
 
 
-		if ((status = H5Awrite(attr, H5T_NATIVE_LONG, attrs[atIdx].val)) < 0) {
+		if ((status = H5Awrite(attr, H5T_NATIVE_INT64, attrs[atIdx].val)) < 0) {
 			H5Eprint(status, stderr);
 			fprintf(stderr, "ERROR %s: Failed to set long attr %s[0]: %ld, exiting.\n", __func__, attrs[atIdx].key, attrs[atIdx].val[0]);
 			return -1;
@@ -431,7 +432,7 @@ __attribute__((unused)) int hdf5SetupLongArrayAttrs(hid_t group, const strKeyLon
 	return 0;
 }
 
-int hdf5SetupDoubleAttrs(hid_t group, const strKeyDoubleVal attrs[], size_t numEntries) {
+int32_t hdf5SetupDoubleAttrs(hid_t group, const strKeyDoubleVal attrs[], size_t numEntries) {
 	VERBOSE(printf("Double attrs\n"));
 	hid_t attr;
 	herr_t status;
@@ -456,7 +457,7 @@ int hdf5SetupDoubleAttrs(hid_t group, const strKeyDoubleVal attrs[], size_t numE
 	return 0;
 }
 
-int hdf5SetupDoubleArrayAttrs(hid_t group, const strKeyDoubleArrVal attrs[], size_t numEntries) {
+int32_t hdf5SetupDoubleArrayAttrs(hid_t group, const strKeyDoubleArrVal attrs[], size_t numEntries) {
 	VERBOSE(printf("double arr attrs\n"));
 	herr_t status;
 
@@ -483,7 +484,7 @@ int hdf5SetupDoubleArrayAttrs(hid_t group, const strKeyDoubleArrVal attrs[], siz
 	return 0;
 }
 
-int hdf5SetupBoolAttrs(hid_t group, const strKeyBoolVal attrs[], size_t numEntries) {
+int32_t hdf5SetupBoolAttrs(hid_t group, const strKeyBoolVal attrs[], size_t numEntries) {
 	VERBOSE(printf("Bool attrs\n"));
 	hid_t attr;
 	herr_t status;
@@ -704,7 +705,7 @@ int64_t _lofar_udp_io_write_metadata_HDF5(lofar_udp_io_write_config *const confi
 				"/SUB_ARRAY_POINTING_000/PROCESS_HISTORY",
 				"/SUB_ARRAY_POINTING_000/BEAM_000/PROCESS_HISTORY"
 			};
-			int numGroups = sizeof(groups) / sizeof(groups[0]);
+			int32_t numGroups = sizeof(groups) / sizeof(groups[0]);
 
 			const strKeyStrVal processHistStrAttrs[] = {
 				{ "GROUPTYPE", "ProcessHistory" },
@@ -718,7 +719,7 @@ int64_t _lofar_udp_io_write_metadata_HDF5(lofar_udp_io_write_config *const confi
 				{ "PRESTO_LOG", FALSE },
 			};
 
-			for (int groupIdx = 0; groupIdx < numGroups; groupIdx++) {
+			for (int32_t groupIdx = 0; groupIdx < numGroups; groupIdx++) {
 				HDF_OPEN_GROUP(group, config->hdf5Writer.file, groups[groupIdx]);
 				H5G_SET_ATTRS(group, processHistStrAttrs, hdf5SetupStrAttrs);
 				H5G_SET_ATTRS(group, processHistoryBoolAttrs, hdf5SetupBoolAttrs);
@@ -1026,7 +1027,7 @@ int64_t _lofar_udp_io_write_metadata_HDF5(lofar_udp_io_write_config *const confi
 		hid_t prop;
 		H5_ERR_CHECK(prop, H5Pcreate(H5P_DATASET_CREATE));
 		hid_t dataspace;
-		int rank = 2;
+		int32_t rank = 2;
 		hsize_t maxdims[2] = { H5S_UNLIMITED, H5S_UNLIMITED };
 		hsize_t chunk_dims[2] = { 4096, 32 };
 		H5_ERR_CHECK(status, H5Pset_chunk(prop, rank, chunk_dims));
@@ -1038,14 +1039,14 @@ int64_t _lofar_udp_io_write_metadata_HDF5(lofar_udp_io_write_config *const confi
 			fprintf(stderr, "ERROR: Failed to register Bitshuffle HDF5 plugin.\n");
 		} else {
 
-			const unsigned int bitshuffleFlags[] = {
+			const uint32_t bitshuffleFlags[] = {
 				0, // Automatically determine shape of shuffle
 				BSHUF_H5_COMPRESS_ZSTD, // Use ZSTD as a post-shuffle compressor
-				1, // ZSTD compression level
+				config->zstdConfig.compressionLevel, // ZSTD compression level
 			};
 			size_t numFlags = VAR_ARR_SIZE(bitshuffleFlags);
 
-			if ((status = H5Pset_filter(prop, BSHUF_H5FILTER, H5Z_FLAG_OPTIONAL, numFlags, (const unsigned int *) bitshuffleFlags)) < 0) {
+			if ((status = H5Pset_filter(prop, BSHUF_H5FILTER, H5Z_FLAG_OPTIONAL, numFlags, (const uint32_t *) bitshuffleFlags)) < 0) {
 				H5Eprint(status, stderr);
 				fprintf(stderr, "ERROR: Failed to find default HDF5 compression plugin (BitShuffle, %d), falling back to no compression.\n", BSHUF_H5FILTER);
 			}
@@ -1062,7 +1063,7 @@ int64_t _lofar_udp_io_write_metadata_HDF5(lofar_udp_io_write_config *const confi
 		}
 		int8_t outputs = 0;
 		VERBOSE(printf("Loop\n"));
-		for (int i = 0; i < MAX_OUTPUT_DIMS; i++) {
+		for (int8_t i = 0; i < MAX_OUTPUT_DIMS; i++) {
 			if (metadata->upm_rel_outputs[i]) {
 				config->hdf5Writer.hdf5DSetWriter[outputs].dims[0] = 0;
 				config->hdf5Writer.hdf5DSetWriter[outputs].dims[1] = metadata->nchan;
@@ -1207,7 +1208,7 @@ void _lofar_udp_io_write_cleanup_HDF5(lofar_udp_io_write_config *const config, c
 		H5Dclose(config->hdf5Writer.hdf5DSetWriter[outp].dset);
 		config->hdf5Writer.hdf5DSetWriter[outp].dset = -1;
 	} else {
-		for (int out = 0; out < config->numOutputs; out++) {
+		for (int8_t out = 0; out < config->numOutputs; out++) {
 			H5Dclose(config->hdf5Writer.hdf5DSetWriter[out].dset);
 			config->hdf5Writer.hdf5DSetWriter[out].dset = -1;
 		}
@@ -1218,7 +1219,13 @@ void _lofar_udp_io_write_cleanup_HDF5(lofar_udp_io_write_config *const config, c
 	}
 }
 
-
+/**
+ * @brief Convert an RCU mode to a band string
+ *
+ * @param rcumode Active RCU mode
+ *
+ * @return Band string representation
+ */
 const char* get_rcumode_str(const int32_t rcumode) {
 	switch (rcumode) {
 		// Base values of bands
@@ -1242,6 +1249,7 @@ const char* get_rcumode_str(const int32_t rcumode) {
 	}
 }
 
+// Undefine all local macros
 #undef HDF_OPEN_GROUP
 #undef _H5_SET_ATTRS
 #undef H5G_SET_ATTRS
