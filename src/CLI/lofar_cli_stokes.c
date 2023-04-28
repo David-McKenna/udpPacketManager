@@ -52,12 +52,12 @@ void helpMessages() {
 
 }
 
-void CLICleanup(lofar_udp_config *config, lofar_udp_io_write_config *outConfig, fftwf_complex *X, fftwf_complex *Y) {
+void CLICleanup(lofar_udp_config *config, lofar_udp_io_write_config *outConfig, int8_t *header, fftwf_complex *X, fftwf_complex *Y) {
 
 	FREE_NOT_NULL(outConfig);
-	if (config != NULL) {
-		FREE_NOT_NULL(config);
-	}
+	FREE_NOT_NULL(config);
+	FREE_NOT_NULL(header);
+
 
 	if (X != NULL) {
 		fftwf_free(X);
@@ -231,10 +231,6 @@ int main(int argc, char *argv[]) {
 		return 1;
 	}
 
-	(*config) = lofar_udp_config_default;
-
-	(*outConfig) = lofar_udp_io_write_config_default;
-
 	// Set up reader loop variables
 	int loops = 0, localLoops = 0, returnValMeta = 0, returnVal;
 	long packetsProcessed = 0, packetsWritten = 0, eventPacketsLost[MAX_NUM_PORTS], packetsToWrite;
@@ -265,7 +261,7 @@ int main(int argc, char *argv[]) {
 			case 'i':
 				if (strncpy(inputFormat, optarg, DEF_STR_LEN - 1) != inputFormat) {
 					fprintf(stderr, "ERROR: Failed to store input data file format, exiting.\n");
-					CLICleanup(config, outConfig, intermediateX, intermediateY);
+					CLICleanup(config, outConfig, headerBuffer, intermediateX, intermediateY);
 					return 1;
 				}
 				inputProvided = 1;
@@ -275,7 +271,7 @@ int main(int argc, char *argv[]) {
 			case 'o':
 				if (lofar_udp_io_write_parse_optarg(outConfig, optarg) < 0) {
 					helpMessages();
-					CLICleanup(config, outConfig, intermediateX, intermediateY);
+					CLICleanup(config, outConfig, headerBuffer, intermediateX, intermediateY);
 					return 1;
 				}
 				if (config->metadata_config.metadataType == NO_META) config->metadata_config.metadataType = lofar_udp_metadata_parse_type_output(optarg);
@@ -294,7 +290,7 @@ int main(int argc, char *argv[]) {
 			case 'I':
 				if (strncpy(config->metadata_config.metadataLocation, optarg, DEF_STR_LEN) != config->metadata_config.metadataLocation) {
 					fprintf(stderr, "ERROR: Failed to copy metadata file location to config, exiting.\n");
-					CLICleanup(config, outConfig, intermediateX, intermediateY);
+					CLICleanup(config, outConfig, headerBuffer, intermediateX, intermediateY);
 					return 1;
 				}
 				break;
@@ -307,7 +303,7 @@ int main(int argc, char *argv[]) {
 			case 't':
 				if (strncpy(inputTime, optarg, 255) != inputTime) {
 					fprintf(stderr, "ERROR: Failed to copy start time from input, exiting.\n");
-					CLICleanup(config, outConfig, intermediateX, intermediateY);
+					CLICleanup(config, outConfig, headerBuffer, intermediateX, intermediateY);
 					return 1;
 				}
 				break;
@@ -325,7 +321,7 @@ int main(int argc, char *argv[]) {
 			case 'b':
 				if (sscanf(optarg, "%hd,%hd", &(config->beamletLimits[0]), &(config->beamletLimits[1])) < 0) {
 					fprintf(stderr, "ERROR: Failed to scan input beamlets, exiting.\n");
-					CLICleanup(config, outConfig, intermediateX, intermediateY);
+					CLICleanup(config, outConfig, headerBuffer, intermediateX, intermediateY);
 					return 1;
 				}
 				break;
@@ -376,7 +372,7 @@ int main(int argc, char *argv[]) {
 			case 'P':
 				if (numStokes > 0) {
 					fprintf(stderr, "ERROR: -P flag has been parsed more than once. Exiting.\n");
-					CLICleanup(config, outConfig, intermediateX, intermediateY);
+					CLICleanup(config, outConfig, headerBuffer, intermediateX, intermediateY);
 					return -1;
 				}
 				if (strchr(optarg, 'I') != NULL) {
@@ -420,7 +416,7 @@ int main(int argc, char *argv[]) {
 #pragma GCC diagnostic pop
 
 				helpMessages();
-				CLICleanup(config, outConfig, intermediateX, intermediateY);
+				CLICleanup(config, outConfig, headerBuffer, intermediateX, intermediateY);
 				return 1;
 
 		}
@@ -431,21 +427,21 @@ int main(int argc, char *argv[]) {
 	config->processingMode = TIME_MAJOR_ANT_POL_FLOAT;
 
 	if (flagged) {
-		CLICleanup(config, outConfig, intermediateX, intermediateY);
+		CLICleanup(config, outConfig, headerBuffer, intermediateX, intermediateY);
 		return 1;
 	}
 
 	if (!input) {
 		fprintf(stderr, "ERROR: No inputs provided, exiting.\n");
 		helpMessages();
-		CLICleanup(config, outConfig, intermediateX, intermediateY);
+		CLICleanup(config, outConfig, headerBuffer, intermediateX, intermediateY);
 		return 1;
 	}
 
 	if (!inputProvided) {
 		fprintf(stderr, "ERROR: An input was not provided, exiting.\n");
 		helpMessages();
-		CLICleanup(config, outConfig, intermediateX, intermediateY);
+		CLICleanup(config, outConfig, headerBuffer, intermediateX, intermediateY);
 		return 1;
 	}
 
@@ -457,7 +453,7 @@ int main(int argc, char *argv[]) {
 	if ((long) (channelisation * downsampling) != (config->packetsPerIteration * UDPNTIMESLICE)) {
 		fprintf(stderr, "ERROR: Number of samples needed per iterations for channelisation factor %ld and downsampling factor %ld (%ld) is larger than set number of packets per iteration (%ld), exiting.\n", channelisation, downsampling, channelisation * downsampling, config->packetsPerIteration);
 		helpMessages();
-		CLICleanup(config, outConfig, intermediateX, intermediateY);
+		CLICleanup(config, outConfig, headerBuffer, intermediateX, intermediateY);
 		return 1;
 	}
 
@@ -465,7 +461,7 @@ int main(int argc, char *argv[]) {
 	if (((long long) (channelisation * downsampling)) % config->packetsPerIteration != 0) {
 		fprintf(stderr, "ERROR: Number of packets per iteration is not evenly divisible by the number of samples needed to process at the given channelisation factor %ld and downsampling factor %ld (%ld, %ld remainder), exiting.\n", channelisation, downsampling, channelisation * downsampling, (channelisation * downsampling) % config->packetsPerIteration);
 		helpMessages();
-		CLICleanup(config, outConfig, intermediateX, intermediateY);
+		CLICleanup(config, outConfig, headerBuffer, intermediateX, intermediateY);
 		return 1;
 	}
 	*/
@@ -473,32 +469,32 @@ int main(int argc, char *argv[]) {
 	if (channelisation < 1 || ( channelisation > 1 && channelisation % 2) != 0) {
 		fprintf(stderr, "ERROR: Invalid channelisation factor (less than 1, non-factor of 2)\n");
 		helpMessages();
-		CLICleanup(config, outConfig, intermediateX, intermediateY);
+		CLICleanup(config, outConfig, headerBuffer, intermediateX, intermediateY);
 		return 1;
 	}
 
 	if (downsampling < 1) {
 		fprintf(stderr, "ERROR: Invalid downsampling factor (less than 1)\n");
 		helpMessages();
-		CLICleanup(config, outConfig, intermediateX, intermediateY);
+		CLICleanup(config, outConfig, headerBuffer, intermediateX, intermediateY);
 		return 1;
 	}
 
 	if (lofar_udp_io_read_parse_optarg(config, inputFormat) < 0) {
 		helpMessages();
-		CLICleanup(config, outConfig, intermediateX, intermediateY);
+		CLICleanup(config, outConfig, headerBuffer, intermediateX, intermediateY);
 		return 1;
 	}
 
 	if (!outputProvided) {
 		fprintf(stderr, "ERROR: An output was not provided, exiting.\n");
-		CLICleanup(config, outConfig, intermediateX, intermediateY);
+		CLICleanup(config, outConfig, headerBuffer, intermediateX, intermediateY);
 		return 1;
 	}
 
 	if (config->calibrateData != NO_CALIBRATION && strcmp(config->metadata_config.metadataLocation, "") == 0) {
 		fprintf(stderr, "ERROR: Data calibration was enabled, but metadata was not provided. Exiting.\n");
-		CLICleanup(config, outConfig, intermediateX, intermediateY);
+		CLICleanup(config, outConfig, headerBuffer, intermediateX, intermediateY);
 		return 1;
 	}
 
@@ -514,7 +510,7 @@ int main(int argc, char *argv[]) {
 
 		fprintf(stderr, "One or more inputs invalid or not fully initialised, exiting.\n");
 		helpMessages();
-		CLICleanup(config, outConfig, intermediateX, intermediateY);
+		CLICleanup(config, outConfig, headerBuffer, intermediateX, intermediateY);
 		return 1;
 	}
 
@@ -537,7 +533,7 @@ int main(int argc, char *argv[]) {
 		startingPacket = lofar_udp_time_get_packet_from_isot(inputTime, clock200MHz);
 		if (startingPacket == 1) {
 			helpMessages();
-			CLICleanup(config, outConfig, intermediateX, intermediateY);
+			CLICleanup(config, outConfig, headerBuffer, intermediateX, intermediateY);
 			return 1;
 		}
 	}
@@ -598,7 +594,7 @@ int main(int argc, char *argv[]) {
 	// Returns null on error, check
 	if (reader == NULL) {
 		fprintf(stderr, "Failed to generate reader. Exiting.\n");
-		CLICleanup(config, outConfig, intermediateX, intermediateY);
+		CLICleanup(config, outConfig, headerBuffer, intermediateX, intermediateY);
 		return 1;
 	}
 
@@ -606,7 +602,7 @@ int main(int argc, char *argv[]) {
 	if (((lofar_source_bytes *) &(reader->meta->inputData[0][1]))->clockBit != (unsigned int) clock200MHz) {
 		fprintf(stderr,
 		        "ERROR: The clock bit of the first packet does not match the clock state given when starting the CLI. Add or remove -c from your command. Exiting.\n");
-		CLICleanup(config, outConfig, intermediateX, intermediateY);
+		CLICleanup(config, outConfig, headerBuffer, intermediateX, intermediateY);
 		return 1;
 	}
 
@@ -630,7 +626,7 @@ int main(int argc, char *argv[]) {
 		intermediateY = fftwf_alloc_complex(nbin * nsub);
 		if (intermediateX == NULL || intermediateY == NULL) {
 			fprintf(stderr, "ERROR: Failed to allocate output FFTW buffers, exiting.\n");
-			CLICleanup(config, outConfig, intermediateX, intermediateY);
+			CLICleanup(config, outConfig, headerBuffer, intermediateX, intermediateY);
 			return -1;
 		}
 
@@ -674,7 +670,7 @@ int main(int argc, char *argv[]) {
 	if ((returnVal = _lofar_udp_io_write_setup_helper(outConfig, reader, 0)) < 0) {
 		fprintf(stderr, "ERROR: Failed to open an output file (%d, errno %d: %s), breaking.\n", returnVal, errno, strerror(errno));
 		returnValMeta = (returnValMeta < 0 && returnValMeta > -7) ? returnValMeta : -7;
-		CLICleanup(config, outConfig, headerBuffer);
+		CLICleanup(config, outConfig, headerBuffer, intermediateX, intermediateY);
 		return 1;
 	}
 
@@ -907,7 +903,7 @@ int main(int argc, char *argv[]) {
 	if (silent == 0) { printf("Reader cleanup performed successfully.\n"); }
 
 	// Free our malloc'd objects
-	CLICleanup(config, outConfig, intermediateX, intermediateY);
+	CLICleanup(config, outConfig, headerBuffer, intermediateX, intermediateY);
 
 	if (silent == 0) { printf("CLI memory cleaned up successfully. Exiting.\n"); }
 	return 0;

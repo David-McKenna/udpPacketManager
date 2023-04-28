@@ -40,8 +40,8 @@ void helpMessages() {
 
 void CLICleanup(lofar_udp_config *config, lofar_udp_io_write_config *outConfig, int8_t *headerBuffer) {
 
-	FREE_NOT_NULL(outConfig);
 	FREE_NOT_NULL(config);
+	FREE_NOT_NULL(outConfig);
 	FREE_NOT_NULL(headerBuffer);
 }
 
@@ -91,7 +91,7 @@ int main(int argc, char *argv[]) {
 			case 'o':
 				if (lofar_udp_io_write_parse_optarg(outConfig, optarg) < 0) {
 					helpMessages();
-					CLICleanup(nputOpt, optarg, endPtr);
+					CLICleanup(config, outConfig, headerBuffer);
 					return 1;
 				}
 				// If the metadata is not yet set, see if we can parse a requested type from the output filename
