@@ -1,11 +1,11 @@
 on:
   pull_request:
-    edited:
-      paths:
-        - 'src/**'
-        - 'tests/**'
-        - 'CMakeLists.txt'
-        - 'build*.sh'
+    paths-ignore:
+      - 'docs/**'
+      - 'paper/**'
+      - 'README.md'
+      - 'COPYING'
+      - '.gitignore'
 
 
 jobs:
