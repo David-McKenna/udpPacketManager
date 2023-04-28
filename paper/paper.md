@@ -15,6 +15,9 @@ authors:
   - name: 'Peter T. Gallagher'
     orcid: 0000-0001-9745-0400
     affiliation: 1
+  - name: 'Joe McCauley'
+    orcid: 0000-0003-4399-2233
+    affiliation: 2
 affiliations:
  - name: Dublin Institute for Advanced Studies, Ireland
    index: 1
@@ -31,13 +34,13 @@ they are delivered without the tooling nessasary to convert the raw
 data stream into standard formats that can be used by common 
 processing pipelines, or science-ready data products.
 
-`udpPacketManager` was developed with the intent of providing a 
-faster-than-realtime software package for converting raw data into 
-arbitrary data formats based on the needs of observers working with 
-the Irish LOFAR station (I-LOFAR), and stations across Europe. It 
-currently offers an open-source solution for both offline and 
-online (pre-) processing of telescope data into a wide variety of 
-formats.
+`udpPacketManager` is a C and C++ library that was developed with the 
+intent of providing a faster-than-realtime software package for 
+converting raw data into arbitrary data formats based on the needs 
+of observers working with the Irish LOFAR station (I-LOFAR), and 
+stations across Europe. It currently offers an open-source solution 
+for both offline and online (pre-) processing of telescope data into 
+a wide variety of formats.
 
 # Statement of need
 
@@ -48,9 +51,8 @@ information, typically followed by 7808 bytes of time-major
 beamformed voltage data, with 2 complex samples per antenna 
 polarisation, for 16 time samples across a variable number of 
 frequency samples [@cookbook, Table 6]. In order to convert these data 
-into a 
-usable format, the 4 ports must be combined, data integrity issues 
-(such as packet loss) must be identified and mitigated, and the 
+into a usable format, the 4 ports must be combined, data integrity 
+issues (such as packet loss) must be identified and mitigated, and the 
 beamformed samples must be unpacked and reordered following a set 
 specification in order to be processed efficiently.
 
@@ -64,17 +66,17 @@ were found not to be sufficiently flexible to account for percular
 ways of utilising the telescope hardware, such as supporting 
 multi-mode observations [@mckb357], nor work within some constraints 
 of the REALTA compute cluster [@realta]. Consequently, 
-`udpPacketManager` was 
-built to better facilitate observations with the telescope.
+`udpPacketManager` was built to better facilitate observations with 
+the telescope.
 
-The software has supported on-going observations of the Sun, 
-Pulsars and Rotating Radio Transients [@mckennaRRAT] in Ireland since 
-early 2020, alongside multi-site work with Breakthrough Listen in 
-the search for extraterrestrial life (SETI) in coordination with the 
-Sweedish LOFAR station at Onsala since 2021 [@johnsonSETI] and 
-observations of Jupiter in coordination with the French LOFAR 
-station and one of the German LOFAR stations, at Postdam, in 2022 
-[@louisJupiter].
+The software has supported ongoing observations of the Sun, 
+Pulsars and Rotating Radio Transients [@realta, @mckennaRRAT] in 
+Ireland since early 2020, alongside multi-site work with 
+Breakthrough Listen in the search for extraterrestrial life (SETI) 
+in coordination with the Sweedish LOFAR station at Onsala since 2021 
+[@johnsonSETI] and observations of Jupiter in coordination with the 
+French LOFAR station and one of the German LOFAR stations, at 
+Postdam, in 2022 [@louisJupiter].
 
 # Inputs, Outputs and Metadata
 
