@@ -86,10 +86,10 @@ int32_t _lofar_udp_calibration_find_script(const char jonesGeneratorName[], char
  */
 int32_t _lofar_udp_calibration_shmData_setup(shmData *sharedData) {
 	// Re-seed randomness based on the given time
-	srand(time(0));
+	srand((uint32_t) time(0));
 
 	// Fill the remaining characters in the string buffer with random ASCII letters for security
-	const int32_t shmNameLen = strnlen(sharedData->shmName, VAR_ARR_SIZE(sharedData->shmName)) + 1;
+	const int32_t shmNameLen = (int32_t) strnlen(sharedData->shmName, VAR_ARR_SIZE(sharedData->shmName)) + 1;
 	sharedData->shmName[shmNameLen - 1] = '_';
 	const int32_t shmNameLimit = VAR_ARR_SIZE(sharedData->shmName) - 1;
 	for (int32_t i =  shmNameLen; i < shmNameLimit; i++) {
@@ -177,7 +177,7 @@ int32_t _lofar_udp_calibration_spawn_python_script(const lofar_udp_reader *reade
 	// Build a list of comma separated subbands, in their offset beamlet order (accounting for rcumodes)
 	char calibrationSubbands[longestStr + 1];
 	snprintf(calibrationSubbands, longestStr, "%d", reader->metadata->subbands[reader->metadata->lowerBeamlet]);
-	int32_t strOffset = strnlen(calibrationSubbands, longestStr);
+	int32_t strOffset = (int32_t) strnlen(calibrationSubbands, longestStr);
 	for (int16_t sbb = reader->metadata->lowerBeamlet + 1; sbb < reader->metadata->upperBeamlet; sbb++) {
 		int16_t sub = reader->metadata->subbands[sbb];
 		// TODO: Better memory safety / raise errors if string is too small
@@ -232,8 +232,8 @@ int32_t _lofar_udp_calibration_spawn_python_script(const lofar_udp_reader *reade
 int32_t _lofar_udp_calibration_shmData_process(lofar_udp_reader *reader, shmData *sharedData, int32_t expectedBeamlets, int32_t expectedTimesamples) {
 	// Ensure the calibration strategy matches the number of subbands we are processing
 	// The first 8 bytes contain the number of written beamlets / time samples
-	int32_t writtenTimesamples = (((float *)sharedData->shmPtr)[0]);
-	int32_t writtenBeamlets = (((float *)sharedData->shmPtr)[1]);
+	int32_t writtenTimesamples = (int32_t) (((float *)sharedData->shmPtr)[0]);
+	int32_t writtenBeamlets = (int32_t) (((float *)sharedData->shmPtr)[1]);
 	if (expectedTimesamples != writtenTimesamples || expectedBeamlets != writtenBeamlets) {
 		fprintf(stderr, "ERROR: Mismatch in requested calibration data and provided calibration data (%d/%d, %d/%d), exiting.\n", writtenTimesamples, expectedTimesamples, writtenBeamlets, expectedBeamlets);
 		return -1;
@@ -355,7 +355,7 @@ int32_t _lofar_udp_reader_calibration_generate_data(lofar_udp_reader *reader) {
 	float integrationTime = (float) (reader->packetsPerIteration * UDPNTIMESLICE) *
 	                        (float) (clock200MHzSampleTime * reader->meta->clockBit +
 	                                 clock160MHzSampleTime * (1 - reader->meta->clockBit));
-	int32_t numTimesteps = (reader->calibration->calibrationDuration / integrationTime) + 1;
+	int32_t numTimesteps = ((int32_t) (reader->calibration->calibrationDuration / integrationTime)) + 1;
 	int64_t dataShmSize = (numTimesteps * reader->meta->totalProcBeamlets * JONESMATSIZE + 2) * sizeof(float); // Data + 2 validation ints
 
 	shmData sharedData = {

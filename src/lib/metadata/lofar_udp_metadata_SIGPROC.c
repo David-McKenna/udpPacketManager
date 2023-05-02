@@ -178,7 +178,7 @@ char* _writeKey_SIGPROC(char *buffer, int64_t *bufferLength, const char *name) {
 		return NULL;
 	}
 
-	int32_t len = strlen(name);
+	int32_t len = (int32_t) strlen(name);
 
 	if (len == 0) {
 		fprintf(stderr, "ERROR: Sigproc writer input string is empty, exiting.\n");

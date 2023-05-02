@@ -96,7 +96,7 @@ int32_t _doubleNotSet(double input, int8_t exception);
 int32_t _writeStr_DADA(char *header, const char *key, const char *value);
 int32_t _writeInt_DADA(char *header, const char *key, int32_t value);
 int32_t _writeLong_DADA(char *header, const char *key, int64_t value);
-__attribute__((unused)) int32_t _writeFloat_DADA(char *header, const char *key, float value, int32_t exception); // Not in spec
+__attribute__((unused)) int32_t _writeFloat_DADA(char *header, const char *key, float value, int8_t exception); // Not in spec
 int32_t _writeDouble_DADA(char *header, const char *key, double value, int8_t exception);
 
 // GUPPI buffer writers

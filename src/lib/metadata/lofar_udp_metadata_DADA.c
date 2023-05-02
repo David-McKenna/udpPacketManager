@@ -157,7 +157,7 @@ int64_t _lofar_udp_metadata_write_DADA(const lofar_udp_metadata *hdr, int8_t *co
 	returnVal += _writeLong_DADA(workingBuffer, "UPM_PKTPERITR", hdr->upm_pack_per_iter);
 	returnVal += _writeLong_DADA(workingBuffer, "UPM_PROCPKT", hdr->upm_processed_packets);
 	returnVal += _writeLong_DADA(workingBuffer, "UPM_DRPPKT", hdr->upm_dropped_packets);
-	returnVal += _writeInt_DADA(workingBuffer, "UPM_LSTDRPPKT", hdr->upm_last_dropped_packets);
+	returnVal += _writeLong_DADA(workingBuffer, "UPM_LSTDRPPKT", hdr->upm_last_dropped_packets);
 	returnVal += _writeInt_DADA(workingBuffer, "UPM_BITMODE", hdr->upm_input_bitmode);
 	returnVal += _writeInt_DADA(workingBuffer, "UPM_RCUCLOCK", hdr->upm_rcuclock);
 	returnVal += _writeInt_DADA(workingBuffer, "UPM_RAWBEAMLETS", hdr->upm_rawbeamlets);
@@ -258,7 +258,7 @@ int32_t _writeLong_DADA(char *header, const char *key, int64_t value) {
  *
  * @return 0: success, other: failure
  */
-__attribute__((unused)) int32_t _writeFloat_DADA(char *header, const char *key, float value, int32_t exception)  {
+__attribute__((unused)) int32_t _writeFloat_DADA(char *header, const char *key, float value, int8_t exception)  {
 	VERBOSE(printf("DADA HEADER %s: %s, %f\n", __func__, key, value));
 	if (key == NULL || _isEmpty(key)) {
 		fprintf(stderr, "ERROR: DADA key unset: %p: %f.\n", key, value);

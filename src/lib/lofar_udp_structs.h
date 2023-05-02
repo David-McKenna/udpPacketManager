@@ -84,7 +84,7 @@ typedef struct lofar_udp_obs_meta {
 
 	// Checks for data quality (reset on steps)
 	int8_t inputDataReady;
-	int8_t outputDataReady;
+	int64_t outputDataReady; // int64_t: Needs to be able to handle large negative values for out of order packets
 
 
 	// Track the packets, logging the beamlet counts and their metadata

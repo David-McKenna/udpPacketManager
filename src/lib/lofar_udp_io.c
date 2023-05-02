@@ -70,7 +70,7 @@ int32_t lofar_udp_io_write_setup(lofar_udp_io_write_config *config, int32_t iter
 		return -1;
 	}
 
-	if (config->numOutputs < 0 || config->numOutputs > MAX_OUTPUT_DIMS) {
+	if (config->numOutputs < 1 || config->numOutputs > MAX_OUTPUT_DIMS) {
 		fprintf(stderr, "ERROR %s: Invalid number of output writers (%d > %d), exiting.\n", __func__, config->numOutputs, MAX_OUTPUT_DIMS);
 		return -1;
 	}
@@ -163,7 +163,7 @@ int32_t _lofar_udp_io_read_setup_internal_lib_helper(lofar_udp_io_read_config *c
 	}
 
 	// Copy over the raw input locations
-	if (strcpy(input->inputLocations[port], config->inputLocations[port]) != input->inputLocations[port]) {
+	if (strncpy(input->inputLocations[port], config->inputLocations[port], DEF_STR_LEN) != input->inputLocations[port]) {
 		fprintf(stderr, "ERROR: Failed to copy input location to reader on port %d, exiting.\n", port);
 		return -1;
 	}
@@ -228,6 +228,11 @@ int32_t lofar_udp_io_read_setup_helper(lofar_udp_io_read_config *input, int8_t *
 
 	if (port < 0 || port >= MAX_NUM_PORTS) {
 		fprintf(stderr, "ERROR %s: Invalid port %d (>=%d), exiting.\n", __func__, port, MAX_NUM_PORTS);
+		return -1;
+	}
+
+	if (maxReadSize < 1) {
+		fprintf(stderr, "ERROR %s: maxReadSize is invalid (%ld < 1), exiting.\n", __func__, maxReadSize);
 		return -1;
 	}
 
@@ -460,7 +465,7 @@ int lofar_udp_io_parse_format(char *dest, const char format[], int32_t port, int
 		parseIdx = 0;
 	}
 
-	const int32_t formatStrLen = strnlen(format, DEF_STR_LEN);
+	const int32_t formatStrLen = (int32_t) strnlen(format, DEF_STR_LEN);
 	if (!formatStrLen) {
 		fprintf(stderr, "ERROR %s: Passed empty string, exiting.\n", __func__);
 		return -1;

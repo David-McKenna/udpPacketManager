@@ -3,8 +3,6 @@
 #include "lofar_udp_io.h"
 #include <cstdio>
 #include <iostream>
-//#include <filesystem>
-// Struct alloc functions
 
 TEST(LibIoTests, SetupUseCleanup) {
 

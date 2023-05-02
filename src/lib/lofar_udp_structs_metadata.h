@@ -186,7 +186,7 @@ typedef struct lofar_udp_metadata {
 	int32_t upm_reader;
 	processMode_t upm_procmode;
 	int8_t upm_replay;
-	int8_t upm_calibrated;
+	calibrate_t upm_calibrated;
 	int64_t upm_blocksize;
 	int64_t upm_pack_per_iter;
 	int64_t upm_processed_packets;

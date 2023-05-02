@@ -298,7 +298,7 @@ typedef struct __attribute__((__packed__)) lofar_source_bytes {
 #define LOFAR_UDP_TICKTOCK_MACRO
 
 #define CLICK(clock) clock_gettime(CLOCK_MONOTONIC_RAW, &(clock));
-#define TICKTOCK(tick, tock) (((double) ((tock).tv_nsec - (tick).tv_nsec) / 1000000000.0) + ((tock).tv_sec - (tick).tv_sec))
+#define TICKTOCK(tick, tock) (((double) ((tock).tv_nsec - (tick).tv_nsec) / 1000000000.0) + ((double) ((tock).tv_sec - (tick).tv_sec)))
 
 #endif // End of LOFAR_UDP_TICKTOCK_MACRO
 
@@ -362,6 +362,7 @@ extern "C" {
 void _lofar_udp_signal_handler(int signalnum);
 int _lofar_udp_prepare_signal_handler();
 int32_t internal_strtoi(char *str, char **endPtr);
+int8_t internal_strtoc(char *str, char **endPtr);
 
 // Allow C++ imports too
 #ifdef __cplusplus

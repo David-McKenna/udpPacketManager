@@ -89,6 +89,26 @@ int32_t internal_strtoi(char *str, char **endPtr) {
 	return (int32_t) intermediate;
 }
 
+/**
+ * @brief strtol, but for 8-bit ints
+ *
+ * @param str String to parse
+ * @param endPtr Working pointer, will be updated to first invalid character in string
+ *
+ * @return INT32_MAX: Failure, Other: success
+ */
+int8_t internal_strtoc(char *str, char **endPtr) {
+	int64_t intermediate = strtol(str, endPtr, 10);
+
+	if (intermediate < INT8_MIN || intermediate > INT8_MAX) {
+		*(endPtr) = str;
+		errno = ERANGE;
+		return INT8_MAX;
+	}
+
+	return (int8_t) intermediate;
+}
+
 
 /**
  * Copyright (C) 2023 David McKenna
