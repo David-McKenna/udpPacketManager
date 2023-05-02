@@ -31,10 +31,10 @@ bibliography: paper.bib
 
 International LOFAR stations are powerful radio telescopes, however 
 they are delivered without the tooling nessasary to convert the raw 
-data stream into standard formats that can be used by common 
+data stream into standard data formats that can be used by common 
 processing pipelines, or science-ready data products.
 
-`udpPacketManager` is a C and C++ library that was developed with the 
+`udpPacketManager` is a `C` and `C++` library that was developed with the 
 intent of providing a faster-than-realtime software package for 
 converting raw data into arbitrary data formats based on the needs 
 of observers working with the Irish LOFAR station (I-LOFAR), and 
@@ -70,7 +70,7 @@ of the REALTA compute cluster [@realta]. Consequently,
 the telescope.
 
 The software has supported ongoing observations of the Sun, 
-Pulsars and Rotating Radio Transients [@realta, @mckennaRRAT] in 
+Pulsars and Rotating Radio Transients [@realta; @mckennaRRAT] in 
 Ireland since early 2020, alongside multi-site work with 
 Breakthrough Listen in the search for extraterrestrial life (SETI) 
 in coordination with the Sweedish LOFAR station at Onsala since 2021 
@@ -88,7 +88,7 @@ allow for a greater than 2 times space-saving when handling raw
 voltages from LOFAR stations), `PSRDADA` ringbuffers for online 
 processing [@psrdada], and write-only to `HDF5` files that conform to 
 LOFAR ICD003 [@icd003]. These interfaces were also used to create 
-the associated ILTDada project [@iltdada], a UDP packet capture 
+the associated `ILTDada` project [@iltdada], a UDP packet capture 
 software that writes data to a `PSRDADA` ringbuffer for immediate 
 processing with this software.
 
