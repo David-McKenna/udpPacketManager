@@ -145,7 +145,7 @@ __attribute__((unused)) void _lofar_udp_io_read_cleanup_HDF5(__attribute__((unus
 }
 
 /**
- * @brief      Temporarily read in num bytes from a HDF5 file
+ * @brief      (NOT IMPLEMENTED) Temporarily read in num bytes from a HDF5 file
  *
  * @param      outbuf     The output buffer pointer
  * @param[in]  size       The size of words to read
@@ -222,9 +222,16 @@ int32_t _lofar_udp_io_write_setup_HDF5(lofar_udp_io_write_config *const config, 
 	return 0;
 }
 
-
-int32_t hdf5SetupStrAttrs(hid_t group, const strKeyStrVal attrs[], size_t numEntries) {
-
+/**
+ * @brief Set a number of string attributes on a HDF5 Group
+ *
+ * @param group Group reference
+ * @param attrs Array of attribute pairs
+ * @param numEntries Number of attributes on attrs
+ *
+ * @return 0: Success, <0: Failure
+ */
+int32_t hdf5SetupStrAttrs(const hid_t group, const strKeyStrVal attrs[], const size_t numEntries) {
 	VERBOSE(printf("Str attrs\n"));
 
 	hid_t filetype;
@@ -233,19 +240,22 @@ int32_t hdf5SetupStrAttrs(hid_t group, const strKeyStrVal attrs[], size_t numEnt
 	hsize_t dims[1] = { 0 };
 	hid_t space;
 
+	// Initialise an empty space reference (single value, not an array)
 	H5_ERR_CHECK(space, H5Screate_simple(0, dims, NULL));
 
 	VERBOSE(printf("Begin Loop for %ld\n", numEntries));
 	for (size_t atIdx = 0; atIdx < numEntries; atIdx++) {
 		VERBOSE(printf("%s: %s (%ld)\n", attrs[atIdx].key, attrs[atIdx].val, strlen(attrs[atIdx].val)));
-		int32_t strlenv = strlen(attrs[atIdx].val) + 1;
+		// Get the string length to determine the attribute length
+		// Add 1 for the null byte
+		const int32_t strlenv = (int32_t) strnlen(attrs[atIdx].val, shortStrLen) + 1;
 		VERBOSE(printf("strlenv: %d\n", strlenv));
 
-		hid_t attr;
-		H5_ERR_CHECK(filetype, H5Tcopy (H5T_FORTRAN_S1));
-		H5_ERR_CHECK(status, H5Tset_size (filetype, H5T_VARIABLE));
+		// Initialise the attribute variables
+		H5_ERR_CHECK(filetype, H5Tcopy(H5T_FORTRAN_S1));
+		H5_ERR_CHECK(status, H5Tset_size(filetype, H5T_VARIABLE));
 		H5_ERR_CHECK(memtype, H5Tcopy (H5T_C_S1));
-		H5_ERR_CHECK(status, H5Tset_size (memtype, H5T_VARIABLE));
+		H5_ERR_CHECK(status, H5Tset_size(memtype, H5T_VARIABLE));
 		H5_ERR_CHECK(status, H5Tset_size(filetype, strlenv - 1));
 		H5_ERR_CHECK(status, H5Tset_size(memtype, strlenv));
 
@@ -255,30 +265,40 @@ int32_t hdf5SetupStrAttrs(hid_t group, const strKeyStrVal attrs[], size_t numEnt
 			H5_ERR_CHECK_RETURN(status, H5Adelete(group, attrs[atIdx].key), "Failed to delete str attr", -1);
 		}
 
+		// Create the new attribute
+		hid_t attr;
 		VERBOSE(printf("attrs[%ld].key = %s, attrs[%ld].val = %s\n", atIdx, attrs[atIdx].key, atIdx, attrs[atIdx].val));
 		H5_ERR_CHECK_RETURN(attr, H5Acreate(group, attrs[atIdx].key, filetype, space, H5P_DEFAULT, H5P_DEFAULT), "Failed to create str attr", -1);
 
-
+		// Write the value to the new attribute
 		VERBOSE(printf("Write\n"));
 		H5_ERR_CHECK_RETURN(status, H5Awrite(attr, memtype, attrs[atIdx].val), "Failed to set str attr", -1);
 
-
+		// Cleanup the attribute
 		VERBOSE(printf("Close\n"));
 		H5_ERR_CHECK(status, H5Aclose(attr));
 		H5_ERR_CHECK(status, H5Tclose(filetype));
 		H5_ERR_CHECK(status, H5Tclose(memtype));
 	}
+
+	// Cleanup and exit
 	VERBOSE(printf("Str attrs end loop\n"));
-
 	H5_ERR_CHECK(status, H5Sclose(space));
-
 	VERBOSE(printf("Str attrs finished\n"));
 
 	return 0;
 }
 
-int32_t hdf5SetupStrPtrAttrs(hid_t group, const strKeyStrPtrVal attrs[], size_t numEntries) {
-
+/**
+ * @brief Set a number of string attributes on a HDF5 Group
+ *
+ * @param group Group reference
+ * @param attrs Array of attribute pairs
+ * @param numEntries Number of attributes on attrs
+ *
+ * @return 0: Success, <0: Failure
+ */
+int32_t hdf5SetupStrPtrAttrs(const hid_t group, const strKeyStrPtrVal attrs[], const size_t numEntries) {
 	VERBOSE(printf("Str attrs\n"));
 
 	hid_t filetype;
@@ -287,19 +307,22 @@ int32_t hdf5SetupStrPtrAttrs(hid_t group, const strKeyStrPtrVal attrs[], size_t 
 	hsize_t dims[1] = { 0 };
 	hid_t space;
 
+	// Initialise an empty space reference (single value, not an array)
 	H5_ERR_CHECK(space, H5Screate_simple(0, dims, NULL));
 
 	VERBOSE(printf("Begin Loop for %ld\n", numEntries));
 	for (size_t atIdx = 0; atIdx < numEntries; atIdx++) {
 		VERBOSE(printf("%s: %s (%ld)\n", attrs[atIdx].key, attrs[atIdx].val, strlen(attrs[atIdx].val)));
-		int32_t strlenv = strlen(attrs[atIdx].val) + 1;
+		// Get the string length to determine the attribute length
+		// Add 1 for the null byte
+		const int32_t strlenv = (int32_t) strlen(attrs[atIdx].val) + 1; // Can't use strnlen as we don't have limits on the input
 		VERBOSE(printf("strlenv: %d\n", strlenv));
 
-		hid_t attr;
+		// Initialise the attribute variables
 		H5_ERR_CHECK(filetype, H5Tcopy (H5T_FORTRAN_S1));
-		H5_ERR_CHECK(status, H5Tset_size (filetype, H5T_VARIABLE));
+		H5_ERR_CHECK(status, H5Tset_size(filetype, H5T_VARIABLE));
 		H5_ERR_CHECK(memtype, H5Tcopy (H5T_C_S1));
-		H5_ERR_CHECK(status, H5Tset_size (memtype, H5T_VARIABLE));
+		H5_ERR_CHECK(status, H5Tset_size(memtype, H5T_VARIABLE));
 		H5_ERR_CHECK(status, H5Tset_size(filetype, strlenv - 1));
 		H5_ERR_CHECK(status, H5Tset_size(memtype, strlenv));
 
@@ -309,60 +332,76 @@ int32_t hdf5SetupStrPtrAttrs(hid_t group, const strKeyStrPtrVal attrs[], size_t 
 			H5_ERR_CHECK_RETURN(status, H5Adelete(group, attrs[atIdx].key), "Failed to delete str attr", -1);
 		}
 
+		// Create the new attribute
+		hid_t attr;
 		VERBOSE(printf("attrs[%ld].key = %s, attrs[%ld].val = %s\n", atIdx, attrs[atIdx].key, atIdx, attrs[atIdx].val));
 		H5_ERR_CHECK_RETURN(attr, H5Acreate(group, attrs[atIdx].key, filetype, space, H5P_DEFAULT, H5P_DEFAULT), "Failed to create str attr", -1);
 
-
+		// Write the value to the new attribute
 		VERBOSE(printf("Write\n"));
 		H5_ERR_CHECK_RETURN(status, H5Awrite(attr, memtype, attrs[atIdx].val), "Failed to set str attr", -1);
 
-
+		// Cleanup the attribute
 		VERBOSE(printf("Close\n"));
 		H5_ERR_CHECK(status, H5Aclose(attr));
 		H5_ERR_CHECK(status, H5Tclose(filetype));
 		H5_ERR_CHECK(status, H5Tclose(memtype));
 	}
+
+	// Cleanup and exit
 	VERBOSE(printf("Str attrs end loop\n"));
-
 	H5_ERR_CHECK(status, H5Sclose(space));
-
 	VERBOSE(printf("Str attrs finished\n"));
 
 	return 0;
 }
 
+/**
+ * @brief Set a number of string array attributes on a HDF5 Group
+ *
+ * @param group Group reference
+ * @param attrs Array of attribute pairs
+ * @param numEntries Number of attributes on attrs
+ *
+ * @return 0: Success, <0: Failure
+ */
 int32_t hdf5SetupStrArrayAttrs(hid_t group, const strKeyStrArrVal attrs[], size_t numEntries) {
-
 	VERBOSE(printf("Str array attrs\n"));
+
 	hid_t filetype;
 	hid_t memtype;
 	herr_t status;
 
-	H5_ERR_CHECK(filetype, H5Tcopy(H5T_FORTRAN_S1));
-	H5_ERR_CHECK(status, H5Tset_size(filetype, H5T_VARIABLE));
-	H5_ERR_CHECK(memtype, H5Tcopy(H5T_C_S1));
-	H5_ERR_CHECK(status, H5Tset_size(memtype, H5T_VARIABLE));
 	for (size_t atIdx = 0; atIdx < numEntries; atIdx++) {
 		if (attrs[atIdx].num < 1) continue;
+		VERBOSE(printf("%s[0]: %s\n", attrs[atIdx].key, attrs[atIdx].val[0]));
 
-		hid_t attr;
+		H5_ERR_CHECK(filetype, H5Tcopy(H5T_FORTRAN_S1));
+		H5_ERR_CHECK(status, H5Tset_size(filetype, H5T_VARIABLE));
+		H5_ERR_CHECK(memtype, H5Tcopy(H5T_C_S1));
+		H5_ERR_CHECK(status, H5Tset_size(memtype, H5T_VARIABLE));
+
 		hsize_t dims[1] = { attrs[atIdx].num };
 		hid_t space;
 
-		VERBOSE(printf("%s[0]: %s\n", attrs[atIdx].key, attrs[atIdx].val[0]));
+		// Initialise a non-empty space variable for the array
 		H5_ERR_CHECK(space, H5Screate_simple(1, dims, NULL));
 
-
-
-		if (H5Aexists(group, attrs[atIdx].key) == 0) {
-			H5_ERR_CHECK_RETURN(attr, H5Acreate(group, attrs[atIdx].key, filetype, space, H5P_DEFAULT, H5P_DEFAULT), "Failed to create str arr attr", -1);
-		} else {
-			H5_ERR_CHECK_RETURN(attr, H5Aopen(group, attrs[atIdx].key, H5P_DEFAULT), "Failed to open str arr attr", -1);
+		if (H5Aexists(group, attrs[atIdx].key) != 0) {
+			// Cannot find documentation on modifying VLA string array attributes, taking the safe option:
+			//  - Delete the existing attribute and re-write
+			H5_ERR_CHECK_RETURN(status, H5Adelete(group, attrs[atIdx].key), "Failed to delete str arr attr", -1);
 		}
 
-		VERBOSE(printf("Write\n"));
-		H5_ERR_CHECK_RETURN(status, H5Awrite(attr, memtype, attrs[atIdx].key), "Failed to write str arr attr", -1);
+		// Create the attribute
+		hid_t attr;
+		H5_ERR_CHECK_RETURN(attr, H5Acreate(group, attrs[atIdx].key, filetype, space, H5P_DEFAULT, H5P_DEFAULT), "Failed to create str arr attr", -1);
 
+		// Write the attribute
+		VERBOSE(printf("Write\n"));
+		H5_ERR_CHECK_RETURN(status, H5Awrite(attr, memtype, attrs[atIdx].val), "Failed to write str arr attr", -1);
+
+		// Cleanup the attribute
 		VERBOSE(printf("Close\n"));
 		H5_ERR_CHECK(status, H5Aclose(attr));
 		H5_ERR_CHECK(status, H5Tclose(filetype));
@@ -370,18 +409,30 @@ int32_t hdf5SetupStrArrayAttrs(hid_t group, const strKeyStrArrVal attrs[], size_
 		H5_ERR_CHECK(status, H5Sclose(space));
 	}
 
-
+	// Nothing to cleanup -- exit
 	VERBOSE(printf("Str array attrs finished\n"));
 
 	return 0;
 }
 
+/**
+ * @brief Set a number of long attributes on a HDF5 Group
+ *
+ * @param group Group reference
+ * @param attrs Array of attribute pairs
+ * @param numEntries Number of attributes on attrs
+ *
+ * @return 0: Success, <0: Failure
+ */
 int32_t hdf5SetupLongAttrs(hid_t group, const strKeyLongVal attrs[], size_t numEntries) {
 	VERBOSE(printf("Long attrs\n"));
+
 	hid_t attr;
 	herr_t status;
 	hsize_t dims[1] = { 1 };
 	hid_t space;
+
+	// Initialise an empty space reference (single value, not an array)
 	H5_ERR_CHECK(space, H5Screate_simple(0, dims, NULL));
 
 	for (size_t atIdx = 0; atIdx < numEntries; atIdx++) {
@@ -400,6 +451,15 @@ int32_t hdf5SetupLongAttrs(hid_t group, const strKeyLongVal attrs[], size_t numE
 	return 0;
 }
 
+/**
+ * @brief Set a number of long array attributes on a HDF5 Group
+ *
+ * @param group Group reference
+ * @param attrs Array of attribute pairs
+ * @param numEntries Number of attributes on attrs
+ *
+ * @return 0: Success, <0: Failure
+ */
 __attribute__((unused)) int32_t hdf5SetupLongArrayAttrs(hid_t group, const strKeyLongArrVal attrs[], size_t numEntries) {
 	VERBOSE(printf("Long arr attrs\n"));
 
@@ -432,6 +492,15 @@ __attribute__((unused)) int32_t hdf5SetupLongArrayAttrs(hid_t group, const strKe
 	return 0;
 }
 
+/**
+ * @brief Set a number of double attributes on a HDF5 Group
+ *
+ * @param group Group reference
+ * @param attrs Array of attribute pairs
+ * @param numEntries Number of attributes on attrs
+ *
+ * @return 0: Success, <0: Failure
+ */
 int32_t hdf5SetupDoubleAttrs(hid_t group, const strKeyDoubleVal attrs[], size_t numEntries) {
 	VERBOSE(printf("Double attrs\n"));
 	hid_t attr;
@@ -439,6 +508,8 @@ int32_t hdf5SetupDoubleAttrs(hid_t group, const strKeyDoubleVal attrs[], size_t 
 
 	hsize_t dims[1] = { 1 };
 	hid_t space;
+
+	// Initialise an empty space reference (single value, not an array)
 	H5_ERR_CHECK(space, H5Screate_simple(0, dims, NULL));
 
 	for (size_t atIdx = 0; atIdx < numEntries; atIdx++) {
@@ -457,6 +528,15 @@ int32_t hdf5SetupDoubleAttrs(hid_t group, const strKeyDoubleVal attrs[], size_t 
 	return 0;
 }
 
+/**
+ * @brief Set a number of double array attributes on a HDF5 Group
+ *
+ * @param group Group reference
+ * @param attrs Array of attribute pairs
+ * @param numEntries Number of attributes on attrs
+ *
+ * @return 0: Success, <0: Failure
+ */
 int32_t hdf5SetupDoubleArrayAttrs(hid_t group, const strKeyDoubleArrVal attrs[], size_t numEntries) {
 	VERBOSE(printf("double arr attrs\n"));
 	herr_t status;
@@ -484,15 +564,27 @@ int32_t hdf5SetupDoubleArrayAttrs(hid_t group, const strKeyDoubleArrVal attrs[],
 	return 0;
 }
 
+/**
+ * @brief Set a number of bool attributes on a HDF5 Group
+ *
+ * @param group Group reference
+ * @param attrs Array of attribute pairs
+ * @param numEntries Number of attributes on attrs
+ *
+ * @return 0: Success, <0: Failure
+ */
 int32_t hdf5SetupBoolAttrs(hid_t group, const strKeyBoolVal attrs[], size_t numEntries) {
 	VERBOSE(printf("Bool attrs\n"));
+
 	hid_t attr;
 	herr_t status;
-
 	hsize_t dims[1] = { 1 };
 	hid_t space;
+
+	// Initialise an empty space reference (single value, not an array)
 	H5_ERR_CHECK(space, H5Screate_simple(0, dims, NULL));
 
+	// Register the bool enum with HDF5
 	bool_t tmpVal;
 	hid_t boolenum;
 	H5_ERR_CHECK(boolenum, H5Tcreate(H5T_ENUM, sizeof(bool_t)));
@@ -994,14 +1086,14 @@ int64_t _lofar_udp_io_write_metadata_HDF5(lofar_udp_io_write_config *const confi
 		char dtype[32] = "";
 		switch (metadata->nbit) {
 			case 8:
-				config->hdf5Writer.dtype = H5Tcopy(H5T_NATIVE_CHAR);
-				config->hdf5Writer.elementSize = sizeof(char);
+				config->hdf5Writer.dtype = H5Tcopy(H5T_NATIVE_INT8);
+				config->hdf5Writer.elementSize = sizeof(int8_t);
 				strncpy(dtype, "char", 31);
 				break;
 
 			case 16:
-				config->hdf5Writer.dtype = H5Tcopy(H5T_NATIVE_SHORT);
-				config->hdf5Writer.elementSize = sizeof(short);
+				config->hdf5Writer.dtype = H5Tcopy(H5T_NATIVE_INT16);
+				config->hdf5Writer.elementSize = sizeof(int16_t);
 				strncpy(dtype, "short", 31);
 				break;
 
@@ -1107,45 +1199,54 @@ int64_t _lofar_udp_io_write_metadata_HDF5(lofar_udp_io_write_config *const confi
 		}
 		config->hdf5Writer.metadataInitialised = 1;
 		VERBOSE(printf("Complete.\n"));
-	} else {
-		// Variables that be updated on every tick
-		// Maybe make this a configurable option? e.g., only update every N writes?
-		// Root group /
-
-		// TOTAL_INTEGRATION_TIME dbl
-		// OBSERVATION_END_MJD double
-		// EXPTIME_STOP_MJD double
-
-
-		HDF_OPEN_GROUP(group, config->hdf5Writer.file, "/");
-
-		const strKeyStrVal rootStrAttrs[] = {
-			{ "OBSERVATION_END_TAI", "NULL" }, // TODO
-			{ "OBSERVATION_END_UTC", "NULL" }, // TODO
-			{ "EXPTIME_STOP_TAI", "NULL" }, // TODO
-			{ "EXPTIME_STOP_UTC", "NULL" }, // TODO
-		};
-		H5G_SET_ATTRS(group, rootStrAttrs, hdf5SetupStrAttrs);
-
-		H5_ERR_CHECK(status, H5Gclose(group));
-
-		// /SUB_ARRAY_POINTING_000
-		HDF_OPEN_GROUP(group, config->hdf5Writer.file, "/SUB_ARRAY_POINTING_000");
-
-		const strKeyLongVal sap0LongAttrs[] = {
-			{ "NOF_SAMPLES", config->hdf5Writer.hdf5DSetWriter[0].dims[1] },
-		};
-		H5G_SET_ATTRS(group, sap0LongAttrs, hdf5SetupLongAttrs);
-
-		H5_ERR_CHECK(status, H5Gclose(group));
-
 	}
+
+	// Variables that should be updated on every tick
+	// Maybe make this a configurable option? e.g., only update every N writes?
+	// Root group /
+
+	// TOTAL_INTEGRATION_TIME dbl
+	// OBSERVATION_END_MJD double
+	// EXPTIME_STOP_MJD double
+
+
+	HDF_OPEN_GROUP(group, config->hdf5Writer.file, "/");
+
+	const strKeyStrVal rootStrAttrs[] = {
+		{ "OBSERVATION_END_TAI", "NULL" }, // TODO
+		{ "OBSERVATION_END_UTC", "NULL" }, // TODO
+		{ "EXPTIME_STOP_TAI", "NULL" }, // TODO
+		{ "EXPTIME_STOP_UTC", "NULL" }, // TODO
+	};
+	H5G_SET_ATTRS(group, rootStrAttrs, hdf5SetupStrAttrs);
+
+	const double integrationTime = ((double) (metadata->upm_processed_packets * UDPNTIMESLICE / metadata->upm_num_inputs)) * metadata->tsamp_raw;
+	const double endMjd = metadata->obs_mjd_start + integrationTime / 86400.0;
+	const strKeyDoubleVal rootDoubleAttrs[] = {
+		{"TOTAL_INTEGRATION_TIME", integrationTime},
+		{"OBSERVATION_END_MJD", endMjd},
+		{"EXPTIME_STOP_MJD", endMjd}
+	};
+	H5G_SET_ATTRS(group, rootDoubleAttrs, hdf5SetupDoubleAttrs);
+
+	H5_ERR_CHECK(status, H5Gclose(group));
+
+
+	// /SUB_ARRAY_POINTING_000
+	HDF_OPEN_GROUP(group, config->hdf5Writer.file, "/SUB_ARRAY_POINTING_000");
+
+	const strKeyLongVal sap0LongAttrs[] = {
+		{ "NOF_SAMPLES", config->hdf5Writer.hdf5DSetWriter[0].dims[1] },
+	};
+	H5G_SET_ATTRS(group, sap0LongAttrs, hdf5SetupLongAttrs);
+
+	H5_ERR_CHECK(status, H5Gclose(group));
 
 	return 0;
 }
 
 /**
- * @brief      Perform a data write for a HDf5 file
+ * @brief      Perform a data write for a HDF5 file
  *
  * @param[in]  config  The configuration
  * @param[in]  outp    The outp
@@ -1155,6 +1256,10 @@ int64_t _lofar_udp_io_write_metadata_HDF5(lofar_udp_io_write_config *const confi
  * @return  >=0: Number of bytes written, <0: Failure
  */
 int64_t _lofar_udp_io_write_HDF5(lofar_udp_io_write_config *const config, const int8_t outp, const int8_t *src, const int64_t nchars) {
+	if (!config->hdf5Writer.initialised || !config->hdf5Writer.metadataInitialised) {
+		fprintf(stderr, "ERROR %s: HDF5 writer not fully initialised (writer: %d, metadata: %d), exiting.\n", __func__, config->hdf5Writer.initialised, config->hdf5Writer.metadataInitialised);
+		return -1;
+	}
 	hsize_t offsets[2];
 	offsets[0] = config->hdf5Writer.hdf5DSetWriter[outp].dims[0];
 	offsets[1] = 0;

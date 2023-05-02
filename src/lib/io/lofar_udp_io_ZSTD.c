@@ -257,7 +257,7 @@ int64_t _lofar_udp_io_read_temp_ZSTD(void *outbuf, const int64_t size, const int
 
 	// Build the decompression stream
 	ZSTD_DStream *dstreamTmp = ZSTD_createDStream();
-	int readFactor = ((size * num) / ZSTD_DStreamInSize()) + 1;
+	int64_t readFactor = (int64_t) ((size * num) / ZSTD_DStreamInSize()) + 1;
 	size_t minRead = ZSTD_DStreamInSize() * readFactor;
 	size_t minOut = ZSTD_DStreamOutSize() * readFactor;
 	ZSTD_initDStream(dstreamTmp);
