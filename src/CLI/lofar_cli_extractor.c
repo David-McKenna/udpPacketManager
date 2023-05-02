@@ -5,34 +5,15 @@
 
 void helpMessages() {
 	printf("LOFAR UDP Data extractor (CLI v%s, lib v%s)\n\n", UPM_CLI_VERSION, UPM_VERSION);
-	printf("Usage: ./lofar_cli_extractor <flags>");
+	printf("Usage: lofar_cli_extractor <flags>");
 
 	printf("\n\n");
 
-	printf("-i: <format>	[OUTDATED] Input file name format (default: './%%d')\n");
-	printf("-o: <format>	[OUTDATED] Output file name format (provide %%d, %%s and %%ld to fill in output ID, date/time string and the starting packet number) (default: './output%%d_%%s_%%ld')\n");
-	printf("-m: <numPack>	Number of packets to process in each read request (default: 65536)\n");
-	printf("-M: <str>		Metadata format (SIGPROC, DADA, GUPPI, default: NONE)\n");
-	printf("-I: <str>		Input metadata file (default: '')\n");
-	printf("-u: <numPort>	Number of ports to combine (default: 4)\n");
-	printf("-n: <baseNum>	Base value to iterate when choosing ports (default: 0)\n");
-	printf("-b: <lo>,<hi>	Beamlets to extract from the input dataset. Lo is inclusive, hi is exclusive ( eg. 0,300 will return 300 beamlets, 0:299). (default: 0,0 === all)\n");
-	printf("-t: <timeStr>	String of the time of the first requested packet, format YYYY-MM-DDTHH:mm:ss (default: '')\n");
-	printf("-s: <numSec>	Maximum number of seconds of raw data to extract/process (default: all)\n");
-	printf("-S: <iters>     Break into a new file every N given iterations (default: infinite, never break)\n");
-	printf("-e: <fileName>	Specify a file of events to extract; newline separated start time and durations in seconds. Events must not overlap.\n");
-	printf("-p: <mode>		Processing mode, options listed below (default: 0)\n");
-	printf("-r:		Replay the previous packet when a dropped packet is detected (default: pad with 0 values)\n");
-	printf("-c:		Calibrate the data with the given strategy (default: disabled, eg 'HBA,12:499'). Will not run without -d\n");
-	printf("-d:		Calibrate the data with the given pointing (default: disabled, eg '0.1,0.2,J2000'). Will not run without -c\n");
-	printf("-z:		Change to the alternative clock used for modes 4/6 (160MHz clock) (default: False)\n");
-	printf("-q:		Enable silent mode for the CLI, don't print any information outside of library error messes (default: False)\n");
-	printf("-a: <args>		Call mockHeader with the specific flags to prefix output files with a header (default: False)\n");
-	printf("-f:		Append files if they already exist (default: False, exit if exists)\n");
-	printf("-T: <threads>	OpenMP Threads to use during processing (8+ highly recommended, default: %d)\n", OMP_THREADS);
+	sharedFlags();
 
-	VERBOSE(printf("-v:		Enable verbose output (default: False)\n");
-			printf("-V:		Enable highly verbose output (default: False)\n"));
+	//printf();
+	printf("-p: <mode>		Processing mode, options listed below (default: 0)\n");
+
 
 	processingModes();
 
@@ -52,9 +33,9 @@ int main(int argc, char *argv[]) {
 	int inputOpt, input = 0;
 	float seconds = 0.0f;
 	char inputTime[256] = "", stringBuff[128] = "", inputFormat[DEF_STR_LEN] = "";
-	int silent = 0, returnCounter = 0, inputProvided = 0, outputProvided = 0;
+	int silent = 0, inputProvided = 0, outputProvided = 0;
 	long maxPackets = -1, startingPacket = -1, splitEvery = LONG_MAX;
-	int clock200MHz = 1;
+	int8_t clock200MHz = 1;
 
 	lofar_udp_config *config = lofar_udp_config_alloc();
 	lofar_udp_io_write_config *outConfig = lofar_udp_io_write_alloc();
@@ -67,8 +48,9 @@ int main(int argc, char *argv[]) {
 	}
 
 	// Set up reader loop variables
-	int loops = 0, localLoops = 0, returnValMeta = 0, returnVal;
-	long packetsProcessed = 0, packetsWritten = 0, packetsToWrite;
+	int64_t loops = 0, localLoops = 0, returnValMeta = 0;
+	int64_t returnVal;
+	int64_t packetsProcessed = 0, packetsWritten = 0, packetsToWrite;
 
 	// Timing variables
 	double timing[TIMEARRLEN] = { 0. }, totalReadTime = 0., totalOpsTime = 0., totalWriteTime = 0., totalMetadataTime = 0.;
@@ -117,7 +99,7 @@ int main(int argc, char *argv[]) {
 				break;
 
 			case 'u':
-				config->numPorts = internal_strtoi(optarg, &endPtr);
+				config->numPorts = internal_strtoc(optarg, &endPtr);
 				if (checkOpt(inputOpt, optarg, endPtr)) { flagged = 1; }
 				break;
 
@@ -359,7 +341,7 @@ int main(int argc, char *argv[]) {
 	// Get the starting packet for output file names, fix the packets per iteration if we dropped packets on the last iter
 	startingPacket = reader->meta->leadingPacket;
 	if ((returnVal = _lofar_udp_io_write_setup_helper(outConfig, reader, 0)) < 0) {
-		fprintf(stderr, "ERROR: Failed to open an output file (%d, errno %d: %s), exiting.\n", returnVal, errno, strerror(errno));
+		fprintf(stderr, "ERROR: Failed to open an output file (%ld, errno %d: %s), exiting.\n", returnVal, errno, strerror(errno));
 		CLICleanup(config, outConfig, headerBuffer);
 		return 1;
 	}
@@ -379,7 +361,7 @@ int main(int argc, char *argv[]) {
 						timing[1];
 		} // _file_reader_step or _reader_reuse does first I/O operation; approximate the time here
 		if (silent == 0) {
-			printf("Read complete for operation %d after %f seconds (I/O: %lf, MemOps: %lf), return value: %d\n",
+			printf("Read complete for operation %ld after %f seconds (I/O: %lf, MemOps: %lf), return value: %ld\n",
 				   loops, TICKTOCK(tick0, tock0), timing[0], timing[1], returnVal);
 		}
 
@@ -392,10 +374,10 @@ int main(int argc, char *argv[]) {
 			packetsToWrite = maxPackets;
 		}
 
-		for (int out = 0; out < reader->meta->numOutputs; out++) {
+		for (int8_t out = 0; out < reader->meta->numOutputs; out++) {
 			CLICK(tick1);
 			if ((returnVal = lofar_udp_metadata_write_file(reader, outConfig, out, reader->metadata, headerBuffer, 4096 * 8, localLoops == 0)) < 0) {
-				fprintf(stderr, "ERROR: Failed to write header to output (%d, errno %d: %s), breaking.\n", returnVal, errno, strerror(errno));
+				fprintf(stderr, "ERROR: Failed to write header to output (%ld, errno %d: %s), breaking.\n", returnVal, errno, strerror(errno));
 				returnValMeta = (returnValMeta < 0 && returnValMeta > -4) ? returnValMeta : -4;
 				break;
 			}
@@ -422,13 +404,13 @@ int main(int argc, char *argv[]) {
 			if (!((localLoops + 1) % splitEvery)) {
 
 				// Close existing files
-				for (int outp = 0; outp < reader->meta->numOutputs; outp++) {
+				for (int8_t outp = 0; outp < reader->meta->numOutputs; outp++) {
 					lofar_udp_io_write_cleanup(outConfig, outp, 0);
 				}
 
 				// Open new files
-				if ((returnVal = _lofar_udp_io_write_setup_helper(outConfig, reader, localLoops / splitEvery)) < 0) {
-					fprintf(stderr, "ERROR: Failed to open new file are breakpoint reached (%d, errno %d: %s), breaking.\n", returnVal, errno, strerror(errno));
+				if ((returnVal = _lofar_udp_io_write_setup_helper(outConfig, reader, (int32_t) (localLoops / splitEvery))) < 0) {
+					fprintf(stderr, "ERROR: Failed to open new file are breakpoint reached (%ld, errno %d: %s), breaking.\n", returnVal, errno, strerror(errno));
 					returnValMeta = (returnValMeta < 0 && returnValMeta > -6) ? returnValMeta : -6;
 					break;
 				}
@@ -442,8 +424,8 @@ int main(int argc, char *argv[]) {
 		packetsProcessed += reader->meta->packetsPerIteration;
 
 		if (silent == 0) {
-			printf("Metadata processing for operation %d after %f seconds.\n", loops, timing[2]);
-			printf("Disk writes completed for operation %d after %f seconds.\n", loops, timing[3]);
+			printf("Metadata processing for operation %ld after %f seconds.\n", loops, timing[2]);
+			printf("Disk writes completed for operation %ld after %f seconds.\n", loops, timing[3]);
 
 			for (int idx = 0; idx < TIMEARRLEN; idx++) {
 				timing[idx] = 0.;
@@ -472,14 +454,14 @@ int main(int argc, char *argv[]) {
 			break;
 		}
 
-		for (int outp = 0; outp < reader->meta->numOutputs; outp++) {
+		for (int8_t outp = 0; outp < reader->meta->numOutputs; outp++) {
 			lofar_udp_io_write_cleanup(outConfig, outp, 1);
 		}
 
 		// returnVal below -1 indicates we will not be given data on the next iteration, so gracefully exit with the known reason
 		if (returnValMeta < -1) {
-			printf("We've hit a termination return value (%d, %s), exiting.\n", returnValMeta,
-			       exitReasons[abs(returnValMeta)]);
+			printf("We've hit a termination return value (%ld, %s), exiting.\n", returnValMeta,
+			       exitReasons[abs((int32_t) returnValMeta)]);
 			break;
 		}
 
@@ -492,14 +474,14 @@ int main(int argc, char *argv[]) {
 
 	// Print out a summary of the operations performed, this does not contain data read for seek operations
 	if (silent == 0) {
-		for (int port = 0; port < reader->meta->numPorts; port++)
+		for (int8_t port = 0; port < reader->meta->numPorts; port++)
 			totalPacketLength += reader->meta->portPacketLength[port];
-		for (int out = 0; out < reader->meta->numOutputs; out++)
+		for (int8_t out = 0; out < reader->meta->numOutputs; out++)
 			totalOutLength += reader->meta->packetOutputLength[out];
-		for (int port = 0; port < reader->meta->numPorts; port++)
+		for (int8_t port = 0; port < reader->meta->numPorts; port++)
 			droppedPackets += reader->meta->portTotalDroppedPackets[port];
 
-		printf("Reader loop exited (%d); overall process took %f seconds.\n", returnVal, TICKTOCK(tick, tock));
+		printf("Reader loop exited (%ld); overall process took %f seconds.\n", returnVal, TICKTOCK(tick, tock));
 		printf("We processed %ld packets, representing %.03lf seconds of data", packetsProcessed,
 			   (float) (reader->meta->numPorts * packetsProcessed * UDPNTIMESLICE) * 5.12e-6f);
 		if (reader->meta->numPorts > 1) {

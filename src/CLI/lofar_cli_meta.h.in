@@ -18,6 +18,7 @@ extern "C" {
 
 // Define prototypes
 void helpMessages(void);
+void sharedFlags(void);
 void processingModes(void);
 int checkOpt(int opt, char *inp, char *endPtr);
 
