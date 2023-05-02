@@ -266,7 +266,54 @@ TEST(LibIoTests, ConfigSetupHelper) {
 	//int lofar_udp_io_read_setup_helper(lofar_udp_io_read_config *input, const lofar_udp_config *config, const lofar_udp_obs_meta *meta,
 	//                                   int port);
 	//int lofar_udp_io_write_setup_helper(lofar_udp_io_write_config *config, const lofar_udp_obs_meta *meta, int iter);
-	EXPECT_NONFATAL_FAILURE(EXPECT_TRUE(false), "");
+	lofar_udp_io_read_config *input = lofar_udp_io_read_alloc();
+	EXPECT_EQ(-1, lofar_udp_io_read_setup(nullptr, 0));
+	EXPECT_EQ(-1, lofar_udp_io_read_setup(input, -1));
+	input->readerType = HDF5;
+	EXPECT_EQ(-1, lofar_udp_io_read_setup(input, 0));
+	free(input);
+
+	lofar_udp_io_write_config *output = lofar_udp_io_write_alloc();
+	EXPECT_EQ(-1, lofar_udp_io_write_setup(nullptr, 0));
+	EXPECT_EQ(-1, lofar_udp_io_write_setup(output, -1));
+	output->numOutputs = 0;
+	EXPECT_EQ(-1, lofar_udp_io_write_setup(output, 0));
+	output->numOutputs = 1;
+	output->readerType = DADA_ACTIVE;
+	EXPECT_EQ(-1, lofar_udp_io_write_setup(output, 1));
+	free(output);
+
+	//int32_t _lofar_udp_io_read_setup_internal_lib_helper(lofar_udp_io_read_config *const input, const lofar_udp_config *config, lofar_udp_obs_meta *meta,
+	//                                                     int8_t port);
+	input = lofar_udp_io_read_alloc();
+	lofar_udp_config *config = lofar_udp_config_alloc();
+	lofar_udp_obs_meta *meta = _lofar_udp_obs_meta_alloc();
+	EXPECT_EQ(-1, _lofar_udp_io_read_setup_internal_lib_helper(nullptr, nullptr, nullptr, 0));
+	EXPECT_EQ(-1, _lofar_udp_io_read_setup_internal_lib_helper(input, config, meta, -1));
+	EXPECT_EQ(-1, _lofar_udp_io_read_setup_internal_lib_helper(input, config, meta, 0));
+	input->readerType = NO_ACTION;
+	config->readerType = NO_ACTION;
+	EXPECT_EQ(-1, _lofar_udp_io_read_setup_internal_lib_helper(input, config, meta, 0));
+	input->readerType = NORMAL;
+	config->readerType = DADA_ACTIVE;
+	EXPECT_EQ(-1, _lofar_udp_io_read_setup_internal_lib_helper(input, config, meta, 0));
+	free(input);
+	free(meta);
+	lofar_udp_config_cleanup(config);
+
+
+	//lofar_udp_io_read_setup_helper(lofar_udp_io_read_config *input, int8_t **outputArr, int64_t maxReadSize, int8_t port)
+	input = lofar_udp_io_read_alloc();
+	int8_t **outputArr = (int8_t**) calloc(1, sizeof(int8_t *));
+	outputArr[0] = (int8_t*) calloc(1, sizeof(int8_t));
+	EXPECT_EQ(-1, lofar_udp_io_read_setup_helper(nullptr, nullptr, -1, 0));
+	input->readerType = NO_ACTION;
+	EXPECT_EQ(-1, lofar_udp_io_read_setup_helper(input, outputArr, -1, -1));
+	input->readerType = ZSTDCOMPRESSED;
+	EXPECT_EQ(-1, lofar_udp_io_read_setup_helper(input, outputArr, -1, 0));
+	free(outputArr[0]);
+	free(outputArr);
+	free(input);
 };
 
 TEST(LibIoTests, OptargParser) {
