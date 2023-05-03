@@ -100,8 +100,9 @@ int32_t lofar_udp_metadata_setup(lofar_udp_metadata *const metadata, const lofar
 	}
 
 	// If the output format isn't PSRDADA or HDF5, setup the target struct
-	const int guppiMode = TIME_MAJOR_FULL;
-	const int stokesMin = STOKES_I;
+	const processMode_t guppiMode = TIME_MAJOR_FULL;
+	const processMode_t stokesMin = STOKES_I;
+	const processMode_t hdf5StokesMax = STOKES_IV_DS16_REV;
 	switch(metadata->type) {
 		case GUPPI:
 			if (metadata->upm_procmode != guppiMode) {
@@ -111,14 +112,22 @@ int32_t lofar_udp_metadata_setup(lofar_udp_metadata *const metadata, const lofar
 
 		case SIGPROC:
 			if (metadata->upm_procmode < stokesMin) {
-				fprintf(stderr, "WARNING %s: Sigproc headers are intended to be attached to Stokes data (mode > %d, currently in %d).\n", __func__, stokesMin, metadata->upm_procmode);
+				fprintf(stderr, "WARNING %s: Sigproc headers are intended to be attached to Stokes data (mode >= %d, currently in %d).\n", __func__, stokesMin, metadata->upm_procmode);
 			}
 			return _lofar_udp_metadata_setup_SIGPROC(metadata);
 
 		// The DADA header/HDF5 metadata are formed from the reference metadata struct
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wimplicit-fallthrough"
+#pragma GCC diagnostic push
+		case HDF5_META:
+			if (metadata->upm_procmode < stokesMin || metadata->upm_procmode > hdf5StokesMax) {
+				fprintf(stderr, "ERROR %s: Requested HDF5 metadata, but processing mode is %d. The HDF5 writer only supports frequency-major data (between %d and %d), eixting.\n", __func__, metadata->upm_procmode, stokesMin, hdf5StokesMax);
+				return -1;
+			}
+#pragma GCC diagnostic pop
 		case DEFAULT_META:
 		case DADA:
-		case HDF5_META:
 			return 0;
 
 		// Shouldn't be reachable; we exit earlier if there's no metadata to process

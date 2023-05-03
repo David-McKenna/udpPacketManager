@@ -588,61 +588,78 @@ std::vector<O*> blindReformer(lofar_udp_reader *reader) {
 }
  */
 
-class LibReaderTestsParam : public testing::TestWithParam<calibrate_t> {};
+class LibReaderTestsParam : public testing::TestWithParam<std::tuple<processMode_t, calibrate_t, int32_t>> {};
 TEST_P(LibReaderTestsParam, ProcessingData) {
 	//lofar_udp_reader *reader = reader_setup(150);
 
 	{
 		SCOPED_TRACE("The big one");
-		std::vector<int32_t> flaggedTests = {0, 5, 6};
-		for (int32_t currMode : processingModes) {
-			//for (calibrate_t cal : std::vector<calibrate_t>{NO_CALIBRATION, GENERATE_JONES, APPLY_CALIBRATION})
-			{
-				calibrate_t cal = GetParam();
-				for (int32_t testNum = 0; testNum < numTests; testNum++) {
-					lofar_udp_config *config = config_setup(1, testNum, 4, INT32_MAX, cal);
-					std::cout << config->inputLocations[0] << ", " << currMode << ", " << cal << std::endl;
-					config->processingMode = currMode;
-					#ifndef NO_TEST_CAL
-					// Only do 1 mode with GENERATE_JONES to ensure the path is covered, otherwise everything else is
-					//  caused by APPLY_CALIBRATION or NO_CALIBRATION
-					//  .... and saved about 4 minutes on the test time.
-					if (cal == GENERATE_JONES && currMode > 10) {
-						continue;
-					}
-					if (testNum == 1 && (currMode < 100 || (currMode > 100 && (currMode % 10 < 2)))) {
-						if (currMode == PACKET_NOHDR_COPY) {
-							config->calibrationDuration = 2 * config->packetsPerIteration * clock200MHzSampleTime * UDPNTIMESLICE;
-						} else {
-							config->calibrationDuration = 0.1;
-						}
-						config->calibrateData = cal;
-					} else
-					#endif
-					{
-						config->calibrateData = NO_CALIBRATION;
-					}
-					lofar_udp_reader *reader = lofar_udp_reader_setup(config);
 
-					if (std::find(flaggedTests.begin(), flaggedTests.end(), testNum) != flaggedTests.end() || currMode == (int32_t) TEST_INVALID_MODE) {
-						EXPECT_EQ(reader, nullptr);
-						continue;
-					} else {
-						ASSERT_NE(reader, nullptr);
-					}
-					int returnv;
-					while ((returnv = lofar_udp_reader_step(reader)) < 1) {
-						//std::cout << std::to_string(returnv) << std::endl;
-						//std::cout << std::to_string(reader->meta->lastPacket) << std::endl;
-						EXPECT_NONFATAL_FAILURE(EXPECT_TRUE(false), "");
-					}
+		processMode_t currMode = std::get<0>(GetParam());
+		calibrate_t cal = std::get<1>(GetParam());
+		int32_t testNum = std::get<2>(GetParam());
+		lofar_udp_config *config = config_setup(1, testNum, 4, INT32_MAX, cal);
+		std::cout << config->inputLocations[0] << ", " << currMode << ", " << cal << std::endl;
+		config->processingMode = currMode;
+		#ifndef NO_TEST_CAL
+		// Only do 1 mode with GENERATE_JONES to ensure the path is covered, otherwise everything else is
+		//  caused by APPLY_CALIBRATION or NO_CALIBRATION
+		//  .... and saved about 4 minutes on the test time.
+		if (cal == GENERATE_JONES && currMode > 10) {
+			return;
+		}
+		if (testNum == 1 && (currMode < 100 || (currMode > 100 && (currMode % 10 < 2)))) {
+			if (currMode == PACKET_NOHDR_COPY) {
+				config->calibrationDuration = 2.0f * (float) clock200MHzSampleTime * (float) (UDPNTIMESLICE * config->packetsPerIteration);
+			} else {
+				config->calibrationDuration = 0.1f;
+			}
+			config->calibrateData = cal;
+		} else
+		#endif
+		{
+			config->calibrateData = NO_CALIBRATION;
+		}
+		lofar_udp_reader *reader = lofar_udp_reader_setup(config);
 
-					lofar_udp_reader_cleanup(reader);
-					lofar_udp_config_cleanup(config);
-				}
+		if (std::find(flaggedTests.begin(), flaggedTests.end(), testNum) != flaggedTests.end() || currMode == TEST_INVALID_MODE || currMode == UNSET_MODE) {
+			EXPECT_EQ(reader, nullptr);
+			return;
+		} else {
+			ASSERT_NE(reader, nullptr);
+		}
+		int returnv;
+		while ((returnv = lofar_udp_reader_step(reader)) < 1) {
+			//std::cout << std::to_string(returnv) << std::endl;
+			//std::cout << std::to_string(reader->meta->lastPacket) << std::endl;
+			EXPECT_NONFATAL_FAILURE(EXPECT_TRUE(false), "");
+		}
+
+		lofar_udp_reader_cleanup(reader);
+		lofar_udp_config_cleanup(config);
+	}
+
+};
+
+using ValuesContainer = std::vector<std::tuple<processMode_t, calibrate_t, int32_t>>;
+ValuesContainer makeTestMatrix(void) {
+	ValuesContainer testMatrix;
+
+	for (processMode_t currMode : processingModes) {
+		for (calibrate_t cal : std::vector<calibrate_t>{NO_CALIBRATION, GENERATE_JONES, APPLY_CALIBRATION}) {
+			for (int32_t testNum = 0; testNum < numTests; testNum++) {
+				testMatrix.emplace_back(currMode, cal, testNum);
 			}
 		}
 	}
+
+	return testMatrix;
+}
+
+INSTANTIATE_TEST_SUITE_P(CalibrationModes, LibReaderTestsParam, ::testing::ValuesIn(makeTestMatrix()));
+
+
+TEST(LibReaderTests, ReaderSupportFuncs) {
 
 	{
 		SCOPED_TRACE("lofar_udp_reader_calibration");
@@ -671,7 +688,6 @@ TEST_P(LibReaderTestsParam, ProcessingData) {
 
 };
 
-INSTANTIATE_TEST_SUITE_P(CalibrationModes, LibReaderTestsParam, ::testing::Values(NO_CALIBRATION, GENERATE_JONES, APPLY_CALIBRATION));
 
 TEST(LibReaderTests, ProcessingModes) {
 	{
@@ -766,16 +782,16 @@ TEST(LibReaderTests, ProcessingModes) {
 		// Never enter main processing loop
 		meta->numPorts = 0;
 
-		const int32_t fakeMode = TEST_INVALID_MODE;
-		std::vector<int32_t> localProcessingModes = processingModes;
+		const processMode_t fakeMode = TEST_INVALID_MODE;
+		std::vector<processMode_t> localProcessingModes = processingModes;
 		localProcessingModes.push_back(fakeMode);
-		for (int32_t bitmode : bitModes) {
+		for (int8_t bitmode : bitModes) {
 			for (calibrate_t calibration : calibrationModes) {
-				for (int32_t processing : localProcessingModes) {
+				for (processMode_t processing : localProcessingModes) {
 					meta->inputBitMode = bitmode;
 					meta->calibrateData = calibration;
 					meta->processingMode = (processMode_t) processing;
-					if (bitmode == invalidBitMode || calibration == invalidCalibration || processing == TEST_INVALID_MODE || (processing < 2 && calibration == APPLY_CALIBRATION)) {
+					if (bitmode == invalidBitMode || calibration == invalidCalibration || processing == TEST_INVALID_MODE || processing == UNSET_MODE || (processing < 2 && calibration == APPLY_CALIBRATION)) {
 						EXPECT_EQ(2, lofar_udp_cpp_loop_interface(meta));
 					} else {
 						EXPECT_EQ(1, lofar_udp_cpp_loop_interface(meta));

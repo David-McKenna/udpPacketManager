@@ -73,7 +73,7 @@ int64_t _lofar_udp_metadata_write_DADA(const lofar_udp_metadata *hdr, int8_t *co
 	returnVal += _writeInt_DADA(workingBuffer, "FILE_NUMBER", hdr->output_file_number / hdr->upm_num_inputs);
 	returnVal += _writeInt_DADA(workingBuffer, "RAW_FILE_NUMBER", hdr->output_file_number);
 
-	for (int port = 0; port < hdr->upm_num_inputs; port++) {
+	for (int8_t port = 0; port < hdr->upm_num_inputs; port++) {
 		// The buffer will likely run out before we get anywhere near a number large enough to fail this snprintf
 		if (snprintf(keyfmt, keyfmtLen - 1, "RAWFILE%d", port) < 0) {
 			fprintf(stderr, "ERROR %s: Failed to create key for raw file %d, exiting.\n", __func__, port);
@@ -166,7 +166,7 @@ int64_t _lofar_udp_metadata_write_DADA(const lofar_udp_metadata *hdr, int8_t *co
 
 	// ascii_header_set should overwrite values if they already exist, and the length -shouldn't- change between iterations given that the value is padded
 	// As a result, this should only change the buffer length for the first write to disk, assuming the buffer is re-used
-	returnVal += _writeLong_DADA(workingBuffer, "HDR_SIZE", (long) strnlen(workingBuffer, headerLength));
+	returnVal += _writeLong_DADA(workingBuffer, "HDR_SIZE", (int64_t) strnlen(workingBuffer, headerLength));
 
 	if (returnVal < 0) {
 		fprintf(stderr, "ERROR: %d errors occurred while preparing the header, exiting.\n", -1 * returnVal);
@@ -297,100 +297,6 @@ int32_t _writeDouble_DADA(char *header, const char *key, double value, int8_t ex
 	VERBOSE(fprintf(stderr, "ERROR %s: %s UNSET\n", __func__, key));
 	return 0;
 }
-
-
-// Old functions relating to parsing a DADA header, may be used with the recorder input in the future.
-/*
-int lofar_udp_dada_parse_header(lofar_udp_metadata *hdr, char *header);
-
-
- int lofar_udp_dada_parse_header(lofar_udp_metadata *hdr, char *header) {
-	if (isEmpty(header)) { return 0; }
-
-	int returnVal = 0;
-	returnVal += getDouble_DADA(header, "HDR_VERSION", &(hdr->hdr_version));
-	returnVal += getStr_DADA(header, "INSTRUMENT", &(hdr->instrument[0]));
-	returnVal += getStr_DADA(header, "TELESCOPE", &(hdr->telescope[0]));
-	returnVal += getStr_DADA(header, "RECEIVER", &(hdr->receiver[0]));
-	returnVal += getStr_DADA(header, "HOSTNAME", &(hdr->hostname[0]));
-	returnVal += getInt_DADA(header, "FILE_NUMBER", &(hdr->output_file_number));
-
-	returnVal += getStr_DADA(header, "SOURCE", &(hdr->source[0]));
-	returnVal += getStr_DADA(header, "RA", &(hdr->ra[0]));
-	returnVal += getStr_DADA(header, "DEC", &(hdr->dec[0]));
-	returnVal += getStr_DADA(header, "OBS_ID", &(hdr->obs_id[0]));
-	returnVal += getStr_DADA(header, "UTC_START", &(hdr->obs_utc_start[0]));
-	returnVal += getDouble_DADA(header, "MJD_START", &(hdr->obs_mjd_start));
-	returnVal += getLong_DADA(header, "OBS_OFFSET", &(hdr->obs_offset));
-	returnVal += getLong_DADA(header, "OBS_OVERLAP", &(hdr->obs_overlap));
-	returnVal += getStr_DADA(header, "BASIS", &(hdr->basis[0]));
-	returnVal += getStr_DADA(header, "MODE", &(hdr->mode[0]));
-
-	returnVal += getDouble_DADA(header, "FREQ", &(hdr->freq));
-	returnVal += getDouble_DADA(header, "BW", &(hdr->bw));
-	returnVal += getInt_DADA(header, "NCHAN", &(hdr->nchan));
-	returnVal += getInt_DADA(header, "NPOL", &(hdr->npol));
-	returnVal += getInt_DADA(header, "NBIT", &(hdr->nbit));
-	returnVal += getInt_DADA(header, "RESOLUTION", &(hdr->resolution));
-	returnVal += getInt_DADA(header, "NDIM", &(hdr->ndim));
-	returnVal += getDouble_DADA(header, "TSAMP", &(hdr->tsamp));
-	returnVal += getStr_DADA(header, "STATE", &(hdr->state[0]));
-
-	returnVal += getStr_DADA(header, "UPM_VERSION", &(hdr->upm_version[0]));
-	returnVal += getStr_DADA(header, "REC_VERSION", &(hdr->rec_version[0]));
-	returnVal += getInt_DADA(header, "UPM_READER", &(hdr->upm_reader));
-	returnVal += getInt_DADA(header, "UPM_MODE", &(hdr->upm_procmode));
-	returnVal += getInt_DADA(header, "UPM_REPLAY", &(hdr->upm_replay));
-	returnVal += getInt_DADA(header, "UPM_CALIBRATED", &(hdr->upm_calibrated));
-	returnVal += getInt_DADA(header, "UPM_BITMODE", &(hdr->upm_input_bitmode));
-	returnVal += getInt_DADA(header, "UPM_RAWBEAMLETS", &(hdr->upm_rawbeamlets));
-	returnVal += getInt_DADA(header, "UPM_UPPERBEAMLET", &(hdr->upm_upperbeam));
-	returnVal += getInt_DADA(header, "UPM_LOWERBEAMLET", &(hdr->upm_lowerbeam));
-
-	return returnVal;
-}
-
-
-int lofar_udp_dada_parse_multiple_headers(lofar_udp_metadata *output, char *header[MAX_NUM_PORTS], int numHeaders) {
-
-	// Parse the first header as a reference
-	lofar_udp_dada_parse_header(output, header[0]);
-
-	// Ensure parameters are the same between observations
-	for (int hdr = 1; hdr < numHeaders; hdr++) {}
-
-	// Combine variable parameters
-	for (int hdr = 0; hdr < numHeaders; hdr++) {}
-
-	// Cap variable components
-	for (int hdr = 0; hdr < numHeaders; hdr++) {}
-
-	return 0;
-}
-
-int getStr_DADA(char *header, const char *key, const char *value);
-int getInt_DADA(char *header, const char *key, const int *value);
-int getLong_DADA(char *header, const char *key, const long *value);
-int getDouble_DADA(char *header, const char *key, const double *value);
-
-int getStr_DADA(char *header, const char *key, const char *value) {
-	return ascii_header_get(header, key, "%s", value) > -1 ? 0 : -1;
-}
-
-int getInt_DADA(char *header, const char *key, const int *value) {
-	return (ascii_header_get(header, key, "%d", value) > -1) ? 0 : -1;
-}
-
-int getLong_DADA(char *header, const char *key, const long *value) {
-	return (ascii_header_get(header, key, "%ld", value) > -1) ? 0 : -1;
-}
-
-int getDouble_DADA(char *header, const char *key, const double *value) {
-	return ascii_header_get(header, key, "%lf", value) > -1 ? 0 : -1;
-}
-
-
-*/
 
 /**
  * Copyright (C) 2023 David McKenna

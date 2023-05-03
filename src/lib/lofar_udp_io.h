@@ -20,13 +20,15 @@
 extern "C" {
 #endif
 
-// optarg Parse functions
-int32_t lofar_udp_io_read_parse_optarg(lofar_udp_config *config, const char optargc[]);
+// optarg/file name Parse functions
+reader_t lofar_udp_io_parse_type_optarg(const char optargc[], char *fileFormat, int32_t *baseVal, int16_t *stepSize, int8_t *offsetVal);
+int32_t _lofar_udp_io_read_internal_lib_parse_optarg(lofar_udp_config *config, const char optargc[]);
 int32_t lofar_udp_io_write_parse_optarg(lofar_udp_io_write_config *config, const char optargc[]);
+int32_t lofar_udp_io_parse_format(char *dest, const char format[], int32_t port, int32_t iter, int32_t idx, int64_t pack);
 
 // Setup wrapper functions
 int32_t lofar_udp_io_read_setup_helper(lofar_udp_io_read_config *input, int8_t **outputArr, int64_t maxReadSize, int8_t port);
-
+int32_t lofar_udp_io_write_setup_helper(lofar_udp_io_write_config *config, int64_t outputLength[], int8_t numOutputs, int32_t iter, int64_t firstPacket);
 // Operate wrapper functions
 int64_t lofar_udp_io_read(lofar_udp_io_read_config *const input, int8_t port, int8_t *targetArray, int64_t nchars);
 int64_t lofar_udp_io_read_temp(const lofar_udp_config *config, int8_t port, int8_t *outbuf, int64_t size, int64_t num, int8_t resetSeek);
@@ -47,7 +49,7 @@ void lofar_udp_io_write_cleanup(lofar_udp_io_write_config *config, int8_t outp, 
 // Setup functions
 int32_t _lofar_udp_io_read_setup_internal_lib_helper(lofar_udp_io_read_config *const input, const lofar_udp_config *config, lofar_udp_obs_meta *meta,
                                                  int8_t port);
-int32_t _lofar_udp_io_write_setup_helper(lofar_udp_io_write_config *config, lofar_udp_reader *reader, int32_t iter);
+int32_t _lofar_udp_io_write_internal_lib_setup_helper(lofar_udp_io_write_config *config, lofar_udp_reader *reader, int32_t iter);
 
 int32_t _lofar_udp_io_read_setup_FILE(lofar_udp_io_read_config *const input, const char *inputLocation, int8_t port);
 int32_t

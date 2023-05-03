@@ -204,7 +204,7 @@ int main(int argc, char *argv[]) {
 		return 1;
 	}
 
-	if (lofar_udp_io_read_parse_optarg(config, inputFormat) < 0) {
+	if (_lofar_udp_io_read_internal_lib_parse_optarg(config, inputFormat) < 0) {
 		helpMessages();
 		CLICleanup(config, outConfig, headerBuffer);
 		return 1;
@@ -340,7 +340,7 @@ int main(int argc, char *argv[]) {
 
 	// Get the starting packet for output file names, fix the packets per iteration if we dropped packets on the last iter
 	startingPacket = reader->meta->leadingPacket;
-	if ((returnVal = _lofar_udp_io_write_setup_helper(outConfig, reader, 0)) < 0) {
+	if ((returnVal = _lofar_udp_io_write_internal_lib_setup_helper(outConfig, reader, 0)) < 0) {
 		fprintf(stderr, "ERROR: Failed to open an output file (%ld, errno %d: %s), exiting.\n", returnVal, errno, strerror(errno));
 		CLICleanup(config, outConfig, headerBuffer);
 		return 1;
@@ -409,7 +409,7 @@ int main(int argc, char *argv[]) {
 				}
 
 				// Open new files
-				if ((returnVal = _lofar_udp_io_write_setup_helper(outConfig, reader, (int32_t) (localLoops / splitEvery))) < 0) {
+				if ((returnVal = _lofar_udp_io_write_internal_lib_setup_helper(outConfig, reader, (int32_t) (localLoops / splitEvery))) < 0) {
 					fprintf(stderr, "ERROR: Failed to open new file are breakpoint reached (%ld, errno %d: %s), breaking.\n", returnVal, errno, strerror(errno));
 					returnValMeta = (returnValMeta < 0 && returnValMeta > -6) ? returnValMeta : -6;
 					break;

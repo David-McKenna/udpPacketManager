@@ -142,7 +142,10 @@ void _lofar_udp_io_read_cleanup_DADA(lofar_udp_io_read_config *const input, cons
 		return;
 	}
 	if (input->dadaReader[port] != NULL) {
+		// Cleanup PSRDADA leaks
 		FREE_NOT_NULL(input->dadaReader[port]->data_block->buf_ptrs);
+		FREE_NOT_NULL(input->dadaReader[port]->data_block->buf.shm_addr);
+		FREE_NOT_NULL(input->dadaReader[port]->header_block->shm_addr);
 		if (dada_hdu_disconnect(input->dadaReader[port]) < 0) {
 			fprintf(stderr, "ERROR: Failed to disconnect from PSRDADA buffer %d on port %d.\n", input->inputDadaKeys[port],
 					port);
@@ -468,10 +471,12 @@ void _lofar_udp_io_write_cleanup_DADA(lofar_udp_io_write_config *const config, c
 		if (config->dadaWriter[outp].hdu->data_block != NULL) {
 			_lofar_udp_io_cleanup_DADA_loop((ipcbuf_t *) config->dadaWriter[outp].hdu->data_block, &(config->dadaConfig.cleanup_timeout));
 			FREE_NOT_NULL(config->dadaWriter[outp].hdu->data_block->buf_ptrs); // Work around a bug in PSRDADA: free ipcio->buf_pts prior to destroying the ringbuffer to remove a memory leak
+			FREE_NOT_NULL(config->dadaWriter[outp].hdu->data_block->buf.shm_addr); // Work around a bug in PSRDADA: free ipcio->buf_pts prior to destroying the ringbuffer to remove a memory leak
 		}
 
 		if (config->dadaWriter[outp].hdu->header_block != NULL) {
 			_lofar_udp_io_cleanup_DADA_loop(config->dadaWriter[outp].hdu->header_block, &(config->dadaConfig.cleanup_timeout));
+			FREE_NOT_NULL(config->dadaWriter[outp].hdu->header_block->shm_addr); // Work around a bug in PSRDADA: free ipcio->buf_pts prior to destroying the ringbuffer to remove a memory leak
 		}
 
 		if (config->dadaWriter[outp].multilog != NULL) {

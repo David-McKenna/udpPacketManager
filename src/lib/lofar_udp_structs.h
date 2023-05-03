@@ -205,7 +205,7 @@ typedef struct lofar_udp_config {
 	//
 	// These can all be set by using the io_read_parse_optarg function
 	int32_t basePort;
-	int16_t offsetPortCount;
+	int8_t offsetPortCount;
 	int16_t stepSizePort;
 	int8_t numPorts;
 

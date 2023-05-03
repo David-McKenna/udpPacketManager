@@ -19,7 +19,7 @@ int32_t lofar_udp_io_read_setup(lofar_udp_io_read_config *input, int8_t port) {
 
 	if (port < 0 || port >= MAX_NUM_PORTS) {
 		fprintf(stderr, "ERROR %s: Invalid port %d (>=%d), exiting.\n", __func__, port, MAX_NUM_PORTS);
-		return -1;
+		return -2;
 	}
 
 	switch (input->readerType) {
@@ -67,17 +67,17 @@ int32_t lofar_udp_io_write_setup(lofar_udp_io_write_config *config, int32_t iter
 
 	if (iter < 0) {
 		fprintf(stderr, "ERROR %s: Invalid iteration %d (<0), exiting.\n", __func__, iter);
-		return -1;
+		return -2;
 	}
 
 	if (config->numOutputs < 1 || config->numOutputs > MAX_OUTPUT_DIMS) {
-		fprintf(stderr, "ERROR %s: Invalid number of output writers (%d > %d), exiting.\n", __func__, config->numOutputs, MAX_OUTPUT_DIMS);
-		return -1;
+		fprintf(stderr, "ERROR %s: Invalid number of output writers (0 > %d > %d), exiting.\n", __func__, config->numOutputs, MAX_OUTPUT_DIMS);
+		return -3;
 	}
 
 	if (config->readerType == DADA_ACTIVE && iter > 0) {
 		fprintf(stderr, "ERROR %s: DADA writer does not support multiple iterations, exiting.\n", __func__);
-		return -1;
+		return -4;
 	}
 
 	int returnVal = 0;
@@ -108,7 +108,7 @@ int32_t lofar_udp_io_write_setup(lofar_udp_io_write_config *config, int32_t iter
 		}
 	}
 
-	return returnVal < 1 ? returnVal : -1;
+	return returnVal < 1 ? returnVal : -5;
 }
 
 
@@ -216,18 +216,28 @@ int32_t _lofar_udp_io_read_setup_internal_lib_helper(lofar_udp_io_read_config *c
  * @return 0: Success, -1: Failure
  */
 int32_t lofar_udp_io_read_setup_helper(lofar_udp_io_read_config *input, int8_t **outputArr, int64_t maxReadSize, int8_t port) {
-	if (input == NULL || outputArr == NULL || outputArr[port] == NULL) {
-		fprintf(stderr, "ERROR %s: Input pointer is null (%p, %p, <remaining>), exiting.\n", __func__, input, outputArr);
-		return -1;
-	}
-	// If this is the first initialisation call, copy over the specified reader type
-	if (input->readerType == NO_ACTION) {
-		fprintf(stderr, "ERROR: Input reader configuration does not specify a reader type, exiting.\n");
+	if (port < 0 || port >= MAX_NUM_PORTS) {
+		fprintf(stderr, "ERROR %s: Invalid port %d (>=%d), exiting.\n", __func__, port, MAX_NUM_PORTS);
 		return -1;
 	}
 
-	if (port < 0 || port >= MAX_NUM_PORTS) {
-		fprintf(stderr, "ERROR %s: Invalid port %d (>=%d), exiting.\n", __func__, port, MAX_NUM_PORTS);
+	if (input == NULL || outputArr == NULL) {
+		fprintf(stderr, "ERROR %s: Input pointer is null (%p, %p), exiting.\n", __func__, input, outputArr);
+		return -1;
+	}
+
+	if (port != input->numInputs) {
+		fprintf(stderr, "ERROR %s: Input port/array is invalid (%d != %d), exiting.\n", __func__, port, input->numInputs);
+		return -1;
+	}
+	if (outputArr[port] == NULL) {
+		fprintf(stderr, "ERROR %s: Output array is null (port %d, %p), exiting.\n", __func__, port, outputArr[port]);
+		return -1;
+	}
+
+	// If this is the first initialisation call, copy over the specified reader type
+	if (input->readerType == NO_ACTION) {
+		fprintf(stderr, "ERROR: Input reader configuration does not specify a reader type, exiting.\n");
 		return -1;
 	}
 
@@ -265,6 +275,44 @@ int32_t lofar_udp_io_read_setup_helper(lofar_udp_io_read_config *input, int8_t *
 }
 
 /**
+ * @brief Helper function to initialsie a write config
+ * 
+ * @param config The writer struct
+ * @param outputLength Array of maximum write lengths, ignored if the first value is LONG_MIN
+ * @param numOutputs Number of outputs to be written
+ * @param iter The current iteration number
+ * @param firstPacket The first packet number ofr [[pack]] format replacement
+ * 
+ * @return 0: Success, <0: Failure
+ */
+int32_t lofar_udp_io_write_setup_helper(lofar_udp_io_write_config *config, int64_t outputLength[], int8_t numOutputs, int32_t iter, int64_t firstPacket) {
+	if (config == NULL || outputLength == NULL) {
+		fprintf(stderr, "ERROR %s: passed null input configuration (config: %p, outputLength: %p), exiting.\n", __func__, config, outputLength);
+		return -1;
+	}
+
+	if (numOutputs > MAX_OUTPUT_DIMS || numOutputs < 1) {
+		fprintf(stderr, "ERROR %s: Requested more output dimensions that allowed (%d vs %d), exiting.\n", __func__, numOutputs, MAX_OUTPUT_DIMS);
+		return -2;
+	}
+
+	config->numOutputs = numOutputs;
+	if (outputLength[0] != LONG_MIN) {
+		for (int8_t outp = 0; outp < config->numOutputs; outp++) {
+			if (outputLength[outp] < 1) {
+				fprintf(stderr, "ERROR %s: Output length for output %d is invalid (%ld), exiting.\n", __func__, outp, outputLength[outp]);
+				return -3;
+			}
+			config->writeBufSize[outp] = outputLength[outp];
+		}
+	}
+
+	config->firstPacket = firstPacket;
+
+	return lofar_udp_io_write_setup(config, iter);
+}
+
+/**
  * @brief Setup a writer based on the processing information for the current reader
  * @param config Writer config
  * @param reader Reader processing config
@@ -272,20 +320,26 @@ int32_t lofar_udp_io_read_setup_helper(lofar_udp_io_read_config *input, int8_t *
  *
  * @return 0: Success, -1: Failure
  */
-int32_t _lofar_udp_io_write_setup_helper(lofar_udp_io_write_config *config, lofar_udp_reader *reader, int32_t iter) {
+int32_t _lofar_udp_io_write_internal_lib_setup_helper(lofar_udp_io_write_config *config, lofar_udp_reader *reader, int32_t iter) {
 	if (config == NULL || reader == NULL) {
-		fprintf(stderr, "ERROR %s: passed null input configuration (onfig: %p, meta: %p), exiting.\n", __func__, config, reader);
+		fprintf(stderr, "ERROR %s: passed null input configuration (config: %p, meta: %p), exiting.\n", __func__, config, reader);
 		return -1;
 	}
-	config->numOutputs = reader->meta->numOutputs;
-	reader->meta->packetsPerIteration = reader->packetsPerIteration;
+
+	if (reader->packetsPerIteration < 1) {
+		fprintf(stderr, "ERROR %s: Input packetsPerIteration is not initialised (%ld), exiting.\n", __func__, reader->packetsPerIteration);
+		return -2;
+	}
 	for (int8_t outp = 0; outp < config->numOutputs; outp++) {
+		if (reader->meta->packetOutputLength[outp] < 1) {
+			fprintf(stderr, "ERROR %s: packetOutputLength[%d] is not initialised (%d), exiting.\n", __func__, outp, reader->meta->packetOutputLength[outp]);
+			return -3;
+		}
 		config->writeBufSize[outp] = reader->packetsPerIteration * reader->meta->packetOutputLength[outp];
 	}
+	int64_t fakeOutputLength[1] = { LONG_MIN };
 
-	config->firstPacket = reader->meta->lastPacket;
-
-	return lofar_udp_io_write_setup(config, iter);
+	return lofar_udp_io_write_setup_helper(config, fakeOutputLength, reader->meta->numOutputs, iter, reader->meta->lastPacket);
 }
 
 
@@ -377,23 +431,26 @@ void lofar_udp_io_write_cleanup(lofar_udp_io_write_config *config, int8_t outp, 
  *
  * @return    reader_t > NO_ACTION: success, NO_ACTION (-1): Failure
  */
-reader_t lofar_udp_io_parse_type_optarg(const char optargc[], char *fileFormat, int32_t *baseVal, int16_t *stepSize, int16_t *offsetVal) {
+reader_t lofar_udp_io_parse_type_optarg(const char *optargc, char *fileFormat, int32_t *baseVal, int16_t *stepSize, int8_t *offsetVal) {
+	reader_t reader = NO_ACTION;
 	if (optargc == NULL || fileFormat == NULL || baseVal == NULL || stepSize == NULL || offsetVal == NULL) {
 		fprintf(stderr, "ERROR %s: Passed null ptr (optargc: %p, fileFormat: %p, baseVal: %p, stepSize: %p, offsetVal: %p), exiting.\n", __func__, optargc, fileFormat, baseVal, stepSize, offsetVal);
-		return NO_ACTION;
+		return reader;
 	}
-	reader_t reader;
+	if (!strnlen(optargc, DEF_STR_LEN)) {
+		fprintf(stderr, "ERROR %s: Passed empty string, exiting.\n", __func__);
+		return -1;
+	}
 
 	if (strstr(optargc, "%") != NULL) {
 		fprintf(stderr, "\n\nWARNING: A %% was detected in your input, UPM v0.7+ no longer uses these for indexing.\n");
-		fprintf(stderr, "WARNING: Use [[port]], [[outp]], [[pack]] and [[iter]] instead, check the docs for more details.\n\n");
-		sleep(1);
+		fprintf(stderr, "WARNING: Use [[port]], [[idx]], [[pack]] and [[iter]] instead, check the docs for more details.\n\n");
 	}
 
 	VERBOSE(printf("a: %s: %d, %d, %d\n", __func__, *baseVal, *stepSize, *offsetVal));
 	// Check if we have a prefix name
 	if (optargc[4] == ':') {
-		sscanf(optargc, "%*[^:]:%[^,],%d,%hd,%hd", fileFormat, baseVal, stepSize, offsetVal);
+		sscanf(optargc, "%*[^:]:%[^,],%d,%hd,%hhd", fileFormat, baseVal, stepSize, offsetVal);
 		VERBOSE(printf("b: %s: %d, %d, %d\n", __func__, *baseVal, *stepSize, *offsetVal));
 
 
@@ -411,8 +468,9 @@ reader_t lofar_udp_io_parse_type_optarg(const char optargc[], char *fileFormat, 
 			// Unknown prefix
 			reader = NO_ACTION;
 		}
+	}
 	// Otherwise attempt to find a substring hint
-	} else {
+	if (reader == NO_ACTION) {
 		if (strstr(optargc, ".zst") != NULL) {
 			VERBOSE(printf("%s, COMPRESSED\n", optargc));
 			reader = ZSTDCOMPRESSED;
@@ -420,16 +478,14 @@ reader_t lofar_udp_io_parse_type_optarg(const char optargc[], char *fileFormat, 
 			VERBOSE(printf("%s, HDF5\n", optargc));
 			reader = HDF5;
 		} else {
+			fprintf(stderr, "WARNING %s: No filename hints found, assuming input is a normal file.\n", __func__);
 			reader = NORMAL;
 		}
-		sscanf(optargc, "%[^,],%d,%hd", fileFormat, baseVal, offsetVal);
+
+		// Consume base/offset vals if present
+		sscanf(optargc, "%[^,],%d,%hd,%hhd", fileFormat, baseVal, stepSize, offsetVal);
 		VERBOSE(printf("c: %s: %d, %d, %d\n", __func__, *baseVal, *stepSize, *offsetVal));
 
-	}
-
-	if (reader == NO_ACTION) {
-		fprintf(stderr, "ERROR: Failed to determine reader type for int '%s', exiting.\n", optargc);
-		return -1;
 	}
 
 	return reader;
@@ -447,7 +503,7 @@ reader_t lofar_udp_io_parse_type_optarg(const char optargc[], char *fileFormat, 
  *
  * @return     0: Success, <0: Failure
  */
-int lofar_udp_io_parse_format(char *dest, const char format[], int32_t port, int iter, int idx, long pack) {
+int32_t lofar_udp_io_parse_format(char *dest, const char format[], int32_t port, int32_t iter, int32_t idx, int64_t pack) {
 	if (dest == NULL || format == NULL) {
 		fprintf(stderr, "ERROR: Passed null input, (dest: %p, format: %p), exiting.\n", dest, format);
 		return -1;
@@ -455,13 +511,13 @@ int lofar_udp_io_parse_format(char *dest, const char format[], int32_t port, int
 
 	// We might not always want to parse port/etc, flag that for invalid values
 	int8_t parsePort = 1, parseIter = 1, parseIdx = 1;
-	if (port < 0 || port >= MAX_NUM_PORTS) {
+	if (port < 0) {
 		parsePort = 0;
 	}
 	if (iter < 0) {
 		parseIter = 0;
 	}
-	if (parseIdx < 0 || parseIdx > MAX_OUTPUT_DIMS) {
+	if (idx < 0) {
 		parseIdx = 0;
 	}
 
@@ -501,11 +557,11 @@ int lofar_udp_io_parse_format(char *dest, const char format[], int32_t port, int
 
 
 
-	char *startSubStr;
+	char *startSubStr, *workingPtr;
 	// Please don't ever bring up how disgusting this loop is.
 	// TODO: Macro-ify?
-	int notrigger = 1;
-	while (strstr(formatCopySrc, "[[")) {
+	int32_t notrigger = 1;
+	while ((workingPtr = strstr(formatCopySrc, "[["))) {
 		notrigger = notrigger ?: 1;
 		if ((startSubStr = strstr(formatCopySrc, "[[port]]"))) {
 			if (!parsePort) {
@@ -525,7 +581,7 @@ int lofar_udp_io_parse_format(char *dest, const char format[], int32_t port, int
 
 		if ((startSubStr = strstr(formatCopySrc, "[[iter]]"))) {
 			if (!parseIter) {
-				fprintf(stderr, "ERROR %s: Input string (%s) contains [[port]], but iter index is invalid (%d), exiting.\n", __func__, format, iter);
+				fprintf(stderr, "ERROR %s: Input string (%s) contains [[iter]], but iter index is invalid (%d), exiting.\n", __func__, format, iter);
 				FREE_NOT_NULL(formatCopyOne); FREE_NOT_NULL(formatCopyTwo); FREE_NOT_NULL(prefix); FREE_NOT_NULL(suffix);
 				return -1;
 			}
@@ -569,7 +625,11 @@ int lofar_udp_io_parse_format(char *dest, const char format[], int32_t port, int
 		// Break in the case of an infinite loop for a non-parsed [[keyword]]
 		if (notrigger != 0) {
 			if (notrigger != 1) {
-				fprintf(stderr, "WARNING %s: Failed to detect keyword in input format %s, but key [[ is still present.\n", __func__, formatCopySrc);
+				char *tmpwork;
+				if ((tmpwork = strstr(workingPtr, "]]"))) {
+					fprintf(stderr, "WARNING %s: Failed to detect keyword in input format %s, but unknown key %.*s is still present.\n", __func__,
+					        formatCopySrc, (int32_t) (tmpwork - workingPtr) + 2, workingPtr);
+				}
 				break;
 			} else {
 				notrigger += 1;
@@ -583,6 +643,8 @@ int lofar_udp_io_parse_format(char *dest, const char format[], int32_t port, int
 
 }
 
+// TODO: int32_t lofar_udp_io_read_parse_optarg(lofar_udp_io_read_config *config, const char optargc[])
+
 /**
  * @brief      { function_description }
  *
@@ -591,7 +653,7 @@ int lofar_udp_io_parse_format(char *dest, const char format[], int32_t port, int
  *
  * @return     0: Success, <0: Failure
  */
-int32_t lofar_udp_io_read_parse_optarg(lofar_udp_config *config, const char optargc[]) {
+int32_t _lofar_udp_io_read_internal_lib_parse_optarg(lofar_udp_config *config, const char optargc[]) {
 	if (config == NULL || optargc == NULL) {
 		fprintf(stderr, "ERROR %s: Input pointer is null (config: %p, optargc: %p), exiting.\n", __func__, config, optargc);
 		return -1;
@@ -603,7 +665,7 @@ int32_t lofar_udp_io_read_parse_optarg(lofar_udp_config *config, const char opta
 
 	if (config->readerType <= NO_ACTION) {
 		fprintf(stderr, "ERROR: Failed to parse input pattern (%s), exiting.\n", optargc);
-		return -1;
+		return -2;
 	}
 
 	switch (config->readerType) {
@@ -612,11 +674,11 @@ int32_t lofar_udp_io_read_parse_optarg(lofar_udp_config *config, const char opta
 		case ZSTDCOMPRESSED:
 		case ZSTDCOMPRESSED_INDIRECT:
 		case HDF5:
-			for (int i = 0; i < (MAX_NUM_PORTS - config->offsetPortCount); i++) {
+			for (int8_t i = 0; i < (MAX_NUM_PORTS - config->offsetPortCount); i++) {
 				int32_t port = (config->basePort + config->offsetPortCount * config->stepSizePort) + i * config->stepSizePort;
 
 				if (lofar_udp_io_parse_format(config->inputLocations[i], fileFormat, port, -1, i, -1) < 0) {
-					return -1;
+					return -3;
 				}
 
 				VERBOSE(printf("%s\n", config->inputLocations[i]));
@@ -624,44 +686,39 @@ int32_t lofar_udp_io_read_parse_optarg(lofar_udp_config *config, const char opta
 			break;
 
 		case DADA_ACTIVE:
-			// Swap values, default value is in the fileFormat for ringbuffers
-			if (config->basePort < IPC_PRIVATE || config->basePort > INT32_MAX) {
-				fprintf(stderr, "ERROR: Failed to parse PSRDADA keys correctly, exiting.\n");
-				return -1;
-			}
 			config->stepSizePort = (int16_t) config->basePort;
-
+			// Swap values, default value is in the fileFormat for ringbuffers
 			// Parse the base value from the input
 			char *endPtr;
 			config->basePort = internal_strtoi(fileFormat, &endPtr);
 			if (!(fileFormat != endPtr && *(endPtr) == '\0')) {
 				fprintf(stderr,"ERROR: Failed to parse base port number (%s), exiting.\n", fileFormat);
-				return -1;
+				return -4;
 			}
 
-			if (config->basePort < 1) {
-				fprintf(stderr,
-						"ERROR: Failed to parse PSRDADA default value (given %s, parsed %d, must be > 0), exiting.\n",
-						fileFormat, config->basePort);
+			if (config->basePort < IPC_PRIVATE || config->basePort > INT16_MAX) {
+				fprintf(stderr, "ERROR %s: Invalid base PSRDADA key provided (%d) correctly, exiting.\n", __func__, config->basePort);
+				return -5;
 			}
 
 			// Minimum offset between ringbuffers of 2 to account for header ringbuffers.
 			if (config->stepSizePort < 2 && config->stepSizePort > -2) {
 				if (config->stepSizePort == 0) config->stepSizePort = 1;
 				config->stepSizePort *= 2;
-				fprintf(stderr, "WARNING: Doubling ringbuffer offset to %d prevent overlaps with headers.\n",
+				fprintf(stderr, "WARNING %s: Doubling ringbuffer offset to %d prevent overlaps with headers.\n", __func__,
 						config->stepSizePort);
 			}
 
 			// Populate the dada keys
-			for (int i = 0; i < MAX_NUM_PORTS; i++) {
+			for (int8_t i = 0; i < (MAX_NUM_PORTS - config->offsetPortCount); i++) {
 				config->inputDadaKeys[i] = (config->basePort + config->offsetPortCount * config->stepSizePort) + i * config->stepSizePort;
 			}
 			break;
 
 		default:
+			__builtin_unreachable();
 			fprintf(stderr, "ERROR: Unhandled reader %d, exiting.\n", config->readerType);
-			return -1;
+			return -6;
 	}
 
 	return 0;
@@ -682,13 +739,13 @@ int32_t lofar_udp_io_write_parse_optarg(lofar_udp_io_write_config *config, const
 		return -1;
 	}
 
-	int16_t dummyInt = 0;
+	int8_t dummyInt = 0;
 	config->readerType = lofar_udp_io_parse_type_optarg(optargc, config->outputFormat, &(config->baseVal),
 	                                                    &(config->stepSize), &(dummyInt));
 
 	if (config->readerType <= NO_ACTION) {
 		fprintf(stderr, "ERROR: Failed to parse input pattern (%s), exiting.\n", optargc);
-		return -1;
+		return -2;
 	}
 
 	switch (config->readerType) {
@@ -701,36 +758,34 @@ int32_t lofar_udp_io_write_parse_optarg(lofar_udp_io_write_config *config, const
 			break;
 
 		case DADA_ACTIVE:
-			// Swap values, default value is in the output format for ringbuffers
-			if (config->baseVal < IPC_PRIVATE || config->baseVal > INT32_MAX) {
-				fprintf(stderr, "ERROR: Failed to parse PSRDADA keys correctly, exiting.\n");
-				return -1;
-			}
+
 			config->stepSize = (int16_t) config->baseVal;
+			// Swap values, default value is in the fileFormat for ringbuffers
+			// Parse the base value from the input
 			char *endPtr;
 			config->baseVal = internal_strtoi(config->outputFormat, &endPtr);
 			if (!(config->outputFormat != endPtr && *(endPtr) == '\0')) {
-				fprintf(stderr, "ERROR: Failed to parse base ringbuffer number (%s), exiting.\n", config->outputFormat);
-				return -1;
+				fprintf(stderr,"ERROR: Failed to parse base port number (%s), exiting.\n", config->outputFormat);
+				return -3;
 			}
 
-			if (config->baseVal < 1) {
-				fprintf(stderr,
-						"ERROR: Failed to parse PSRDADA default value (given %s, parsed %d, must be > 0), exiting.\n",
-						config->outputFormat, config->baseVal);
+			if (config->baseVal < IPC_PRIVATE || config->baseVal > INT16_MAX) {
+				fprintf(stderr, "ERROR %s: Invalid base PSRDADA key provided (%d) correctly, exiting.\n", __func__, config->baseVal);
+				return -4;
 			}
 
 			// Minimum offset between ringbuffers of 2 to account for header ringbuffers.
 			if (config->stepSize < 2 && config->stepSize > -2) {
+				if (config->stepSize == 0) config->stepSize = 1;
 				config->stepSize *= 2;
-				fprintf(stderr, "WARNING: Doubling ringbuffer offset to %d prevent overlaps with headers.\n",
-						config->stepSize);
+				fprintf(stderr, "WARNING %s: Doubling ringbuffer offset to %d prevent overlaps with headers.\n", __func__,
+				        config->stepSize);
 			}
 			break;
 
 		default:
 			fprintf(stderr, "ERROR: Unhandled reader %d, exiting.\n", config->readerType);
-			return -1;
+			return -5;
 	}
 
 	return 0;
@@ -757,6 +812,11 @@ int64_t lofar_udp_io_read(lofar_udp_io_read_config *const input, int8_t port, in
 		return 0;
 	}
 
+	if (port < 0 || port >= MAX_NUM_PORTS) {
+		fprintf(stderr, "ERROR: Invalid port index (%d)\n, exiting.", port);
+		return -1;
+	}
+
 	if (nchars > input->readBufSize[port]) {
 		fprintf(stderr, "ERROR: Request read of %ld is larger than buffer size %ld, exiting.\n", nchars, input->readBufSize[port]);
 		return -1;
@@ -764,11 +824,6 @@ int64_t lofar_udp_io_read(lofar_udp_io_read_config *const input, int8_t port, in
 
 	if (input == NULL || targetArray == NULL) {
 		fprintf(stderr, "ERROR: Inputs were nulled at some point, cannot read new data, exiting.\n");
-		return -1;
-	}
-
-	if (port < 0 || port >= MAX_NUM_PORTS) {
-		fprintf(stderr, "ERROR: Invalid port index (%d)\n, exiting.", port);
 		return -1;
 	}
 
@@ -818,13 +873,13 @@ int64_t lofar_udp_io_write(lofar_udp_io_write_config *const config, int8_t outp,
 		return 0;
 	}
 
-	if (config == NULL || src == NULL) {
-		fprintf(stderr, "ERROR: Target was nulled at some point, cannot write new data, exiting.\n");
+	if (outp < 0 || outp >= MAX_OUTPUT_DIMS) {
+		fprintf(stderr, "ERROR: Invalid port index (%d)\n, exiting.", outp);
 		return -1;
 	}
 
-	if (outp < 0 || outp >= MAX_OUTPUT_DIMS) {
-		fprintf(stderr, "ERROR: Invalid port index (%d)\n, exiting.", outp);
+	if (config == NULL || src == NULL) {
+		fprintf(stderr, "ERROR: Target was nulled at some point, cannot write new data, exiting.\n");
 		return -1;
 	}
 
@@ -871,21 +926,21 @@ int64_t lofar_udp_io_write_metadata(lofar_udp_io_write_config *const outConfig, 
 
 	if (outp < 0 || outp >= MAX_OUTPUT_DIMS) {
 		fprintf(stderr, "ERROR: Invalid port index (%d)\n, exiting.", outp);
-		return -1;
+		return -2;
 	}
 
 	if ((outConfig->readerType == HDF5 && metadata->type != HDF5_META)
 		|| (outConfig->readerType != HDF5 && metadata->type == HDF5_META)) {
 		fprintf(stderr, "ERROR %s: Only HDF5 metadata can only be written to a HDF5 output (outp: %d, meta: %d), exiting.\n", __func__, outConfig->readerType, metadata->type);
-		return -1;
+		return -3;
 	}
 
-	if (outConfig->readerType != HDF5 && headerBuffer == NULL) {
-		fprintf(stderr, "ERROR %s: Header buffer is null, exiting.\n", __func__);
-		return -1;
+	if (outConfig->readerType != HDF5 && (headerBuffer == NULL || headerLength < 1)) {
+		fprintf(stderr, "ERROR %s: Header buffer is null is unsized (%p, %ld), exiting.\n", __func__, headerBuffer, headerLength);
+		return -4;
 	}
 
-	ssize_t outputHeaderSize = (ssize_t) strnlen((const char *) headerBuffer, headerLength);
+	int64_t outputHeaderSize = (int64_t) strnlen((const char *) headerBuffer, headerLength);
 
 	switch (outConfig->readerType) {
 		// Normal file writes
@@ -931,12 +986,13 @@ lofar_udp_io_read_temp(const lofar_udp_config *config, int8_t port, int8_t *outb
 
 	if (port < 0 || port >= MAX_NUM_PORTS) {
 		fprintf(stderr, "ERROR: Invalid port index (%d)\n, exiting.", port);
-		return -1;
+		return -2;
 	}
 
 	if (num < 1 || size < 1) {
+		if (!(num *size)) return 0;
 		fprintf(stderr, "ERROR: Invalid number of elements to read (%ld * %ld), exiting.\n", num, size);
-		return -1;
+		return -3;
 	}
 
 	switch (config->readerType) {
@@ -988,12 +1044,6 @@ lofar_udp_io_read_temp(const lofar_udp_config *config, int8_t port, int8_t *outb
  */
 int64_t _lofar_udp_io_read_ZSTD_fix_buffer_size(int64_t bufferSize, int8_t deltaOnly) {
 	const int64_t zstdAlignedSize = ZSTD_DStreamOutSize(); // ~132kB
-	// This should be impossible; it should just be returning a header define, but check anyway.
-	if (zstdAlignedSize < 0) {
-		__builtin_unreachable();
-		fprintf(stderr, "ERROR %s: Zstandard library appears to be corrupted, got %ld as the frame length, exiting.\n", __func__, zstdAlignedSize);
-		return -1;
-	}
 
 	// Extreme edge case: add an extra frame of data encase we need a small partial read at the end of a frame.
 	// Only possible for very small packetsPerIteration, but it's still possible.
