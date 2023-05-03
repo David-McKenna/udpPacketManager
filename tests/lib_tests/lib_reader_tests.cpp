@@ -629,10 +629,19 @@ TEST_P(LibReaderTestsParam, ProcessingData) {
 			ASSERT_NE(reader, nullptr);
 		}
 		int returnv;
-		while ((returnv = lofar_udp_reader_step(reader)) < 1) {
-			//std::cout << std::to_string(returnv) << std::endl;
-			//std::cout << std::to_string(reader->meta->lastPacket) << std::endl;
-			EXPECT_NONFATAL_FAILURE(EXPECT_TRUE(false), "");
+		double timing[2];
+		if (currMode >= STOKES_I) {
+			while ((returnv = lofar_udp_reader_step_timed(reader, timing)) < 1) {
+				//std::cout << std::to_string(returnv) << std::endl;
+				//std::cout << std::to_string(reader->meta->lastPacket) << std::endl;
+				EXPECT_NONFATAL_FAILURE(EXPECT_TRUE(false), "");
+			}
+		} else {
+			while ((returnv = lofar_udp_reader_step(reader)) < 1) {
+				//std::cout << std::to_string(returnv) << std::endl;
+				//std::cout << std::to_string(reader->meta->lastPacket) << std::endl;
+				EXPECT_NONFATAL_FAILURE(EXPECT_TRUE(false), "");
+			}
 		}
 
 		lofar_udp_reader_cleanup(reader);

@@ -26,6 +26,31 @@ TEST(LibGenTests, interalStrtoi) {
 
 }
 
+TEST(LibGenTests, interalStrtoc) {
+	// int8_t internal_strtoc(char *str, char **endPtr)
+
+	const int32_t bufferLen = 64;
+	char *endPtr, *buffer = (char*) calloc(bufferLen, sizeof(char));
+
+	snprintf(buffer, bufferLen, "%ld", ((int64_t) INT8_MAX) * 2);
+	EXPECT_EQ(INT8_MAX, internal_strtoi(buffer, &endPtr));
+	EXPECT_EQ(endPtr, buffer);
+	snprintf(buffer, bufferLen, "%ld", ((int64_t) INT8_MIN) * 2);
+	EXPECT_EQ(INT8_MAX, internal_strtoi(buffer, &endPtr));
+	EXPECT_EQ(endPtr, buffer);
+
+	char *expectedEndPtr = buffer + snprintf(buffer, bufferLen, "%d", INT8_MAX - 1);
+	EXPECT_EQ(INT8_MAX - 1, internal_strtoi(buffer, &endPtr));
+	EXPECT_EQ(expectedEndPtr, endPtr);
+
+	expectedEndPtr = buffer + snprintf(buffer, bufferLen, "%d", INT8_MIN + 1);
+	EXPECT_EQ(INT8_MIN + 1, internal_strtoi(buffer, &endPtr));
+	EXPECT_EQ(expectedEndPtr, endPtr);
+
+	free(buffer);
+
+}
+
 TEST(LibSignalTests, SignalSetup) {
 	//int _lofar_udp_prepare_signal_handler()
 	EXPECT_EQ(0, _lofar_udp_prepare_signal_handler());

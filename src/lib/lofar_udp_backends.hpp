@@ -1530,9 +1530,8 @@ int32_t lofar_udp_raw_loop(lofar_udp_obs_meta *meta) {
 	// If needed, free the 4-bit workspace
 	if constexpr (state >= 4010) {
 		VERBOSE(if (verbose) { printf("freeing byteWorkspace data at %p\n", (void *) byteWorkspace[0]); });
-		free(byteWorkspace[0]);
-
-		free(byteWorkspace);
+		FREE_NOT_NULL(byteWorkspace[0]);
+		FREE_NOT_NULL(byteWorkspace);
 		VERBOSE(if (verbose) { printf("byteWorkspace free'd\n"); });
 	}
 

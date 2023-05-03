@@ -212,6 +212,11 @@ int32_t _lofar_udp_io_write_setup_HDF5(lofar_udp_io_write_config *const config, 
 			H5_ERR_CHECK_RETURN(status, H5Gclose(group), "Failed to close group", -1);
 		}
 
+		if (strncpy(config->outputLocations[0], h5Name, DEF_STR_LEN) != config->outputLocations[0]) {
+			fprintf(stderr, "ERROR: Failed to copy output file name to struct, exiting.\n");
+			return -1;
+		}
+
 		config->hdf5Writer.initialised = 1;
 		VERBOSE(printf("HDF5: base groups were created.\n");)
 	}
