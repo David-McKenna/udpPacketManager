@@ -22,4 +22,7 @@ add_custom_target(linkTestData
                   BYPRODUCTS ${CMAKE_CURRENT_BINARY_DIR}/lib_tests/referenceFiles
                   DEPENDS generateTestData)
 
+add_executable(example_processor ../docs/examples/example_processor.c)
+target_link_libraries(example_processor lofudpman)
+
 add_subdirectory(lib_tests)
