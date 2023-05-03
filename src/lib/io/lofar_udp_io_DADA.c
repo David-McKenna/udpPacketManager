@@ -457,50 +457,52 @@ void _lofar_udp_io_write_cleanup_DADA(lofar_udp_io_write_config *const config, c
 
 	// PSRDADA assumes we still have the header open for writing, doing this will silence an error
 	// ... but doing this causes the ringbuffer to not exist for the reader???
-	if (!ipcbuf_is_writer(config->dadaWriter[outp].hdu->header_block)) {
-		ipcbuf_lock_write(config->dadaWriter[outp].hdu->header_block);
-	}
-
-	// Unlock write permissions
-	dada_hdu_unlock_write(config->dadaWriter[outp].hdu);
-
-
-	// Close the ringbuffer instances
-	if (fullClean) {
-		// Wait for readers to finish up and exit, or timeout (ipcio_read can hang if it requests data past the EOD point)
-		if (config->dadaWriter[outp].hdu->data_block != NULL) {
-			_lofar_udp_io_cleanup_DADA_loop((ipcbuf_t *) config->dadaWriter[outp].hdu->data_block, &(config->dadaConfig.cleanup_timeout));
-			FREE_NOT_NULL(config->dadaWriter[outp].hdu->data_block->buf_ptrs); // Work around a bug in PSRDADA: free ipcio->buf_pts prior to destroying the ringbuffer to remove a memory leak
-			FREE_NOT_NULL(config->dadaWriter[outp].hdu->data_block->buf.shm_addr); // Work around a bug in PSRDADA: free ipcio->buf_pts prior to destroying the ringbuffer to remove a memory leak
+	if (config->dadaWriter[outp].hdu != NULL) {
+		if (!ipcbuf_is_writer(config->dadaWriter[outp].hdu->header_block)) {
+			ipcbuf_lock_write(config->dadaWriter[outp].hdu->header_block);
 		}
 
-		if (config->dadaWriter[outp].hdu->header_block != NULL) {
-			_lofar_udp_io_cleanup_DADA_loop(config->dadaWriter[outp].hdu->header_block, &(config->dadaConfig.cleanup_timeout));
-			FREE_NOT_NULL(config->dadaWriter[outp].hdu->header_block->shm_addr); // Work around a bug in PSRDADA: free ipcio->buf_pts prior to destroying the ringbuffer to remove a memory leak
+		// Unlock write permissions
+		dada_hdu_unlock_write(config->dadaWriter[outp].hdu);
+
+
+		// Close the ringbuffer instances
+		if (fullClean) {
+			// Wait for readers to finish up and exit, or timeout (ipcio_read can hang if it requests data past the EOD point)
+			if (config->dadaWriter[outp].hdu->data_block != NULL) {
+				_lofar_udp_io_cleanup_DADA_loop((ipcbuf_t *) config->dadaWriter[outp].hdu->data_block, &(config->dadaConfig.cleanup_timeout));
+				FREE_NOT_NULL(config->dadaWriter[outp].hdu->data_block->buf_ptrs); // Work around a bug in PSRDADA: free ipcio->buf_pts prior to destroying the ringbuffer to remove a memory leak
+				FREE_NOT_NULL(config->dadaWriter[outp].hdu->data_block->buf.shm_addr); // Work around a bug in PSRDADA: free ipcio->buf_pts prior to destroying the ringbuffer to remove a memory leak
+			}
+
+			if (config->dadaWriter[outp].hdu->header_block != NULL) {
+				_lofar_udp_io_cleanup_DADA_loop(config->dadaWriter[outp].hdu->header_block, &(config->dadaConfig.cleanup_timeout));
+				FREE_NOT_NULL(config->dadaWriter[outp].hdu->header_block->shm_addr); // Work around a bug in PSRDADA: free ipcio->buf_pts prior to destroying the ringbuffer to remove a memory leak
+			}
+
+			if (config->dadaWriter[outp].multilog != NULL) {
+				multilog_close(config->dadaWriter[outp].multilog);
+				config->dadaWriter[outp].multilog = NULL;
+			}
+
 		}
 
-		if (config->dadaWriter[outp].multilog != NULL) {
-			multilog_close(config->dadaWriter[outp].multilog);
-			config->dadaWriter[outp].multilog = NULL;
+		// Cleanup the writers
+		// Part of this is a hangover from before we used the HDU interface, but it still works perfectly well
+		if (config->dadaWriter[outp].hdu->data_block) {
+			ipcio_destroy(config->dadaWriter[outp].hdu->data_block);
 		}
-
+		FREE_NOT_NULL(config->dadaWriter[outp].hdu->data_block);
+		if (config->dadaWriter[outp].hdu->header_block) {
+			ipcbuf_destroy(config->dadaWriter[outp].hdu->header_block);
+		}
+		FREE_NOT_NULL(config->dadaWriter[outp].hdu->header_block);
+		if (config->dadaWriter[outp].hdu) {
+			dada_hdu_destroy(config->dadaWriter[outp].hdu);
+			config->dadaWriter[outp].hdu = NULL;
+		}
+		FREE_NOT_NULL(config->dadaWriter[outp].hdu);
 	}
-
-	// Cleanup the writers
-	// Part of this is a hangover from before we used the HDU interface, but it still works perfectly well
-	if (config->dadaWriter[outp].hdu->data_block) {
-		ipcio_destroy(config->dadaWriter[outp].hdu->data_block);
-	}
-	FREE_NOT_NULL(config->dadaWriter[outp].hdu->data_block);
-	if (config->dadaWriter[outp].hdu->header_block) {
-		ipcbuf_destroy(config->dadaWriter[outp].hdu->header_block);
-	}
-	FREE_NOT_NULL(config->dadaWriter[outp].hdu->header_block);
-	if (config->dadaWriter[outp].hdu) {
-		dada_hdu_destroy(config->dadaWriter[outp].hdu);
-		config->dadaWriter[outp].hdu = NULL;
-	}
-	FREE_NOT_NULL(config->dadaWriter[outp].hdu);
 
 #else
 	// If PSRDADA was disabled at compile time, error

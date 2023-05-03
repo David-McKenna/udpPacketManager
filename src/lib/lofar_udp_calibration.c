@@ -195,6 +195,7 @@ int32_t _lofar_udp_calibration_spawn_python_script(const lofar_udp_reader *reade
 		{char * const *tmpPtr = argv; while (*tmpPtr != NULL) {
 		printf("%s ", *tmpPtr); tmpPtr++;
 	}; printf("\n");});
+	UNUSED(numTimesteps);
 
 
 	// Spawn and check that the thread executes as expected

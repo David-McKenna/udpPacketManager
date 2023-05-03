@@ -349,74 +349,84 @@ int32_t _lofar_udp_io_write_internal_lib_setup_helper(lofar_udp_io_write_config 
  * @brief      Perform cleanup of allocated memory and open references for a reader struct
  *
  * @param      input      The input
- * @param[in]  port       The port
  */
-void lofar_udp_io_read_cleanup(lofar_udp_io_read_config *input, int8_t port) {
+void lofar_udp_io_read_cleanup(lofar_udp_io_read_config *input) {
 	if (input == NULL) {
 		return;
 	}
 
-	if (port < 0 || port >= MAX_NUM_PORTS) {
-		return;
+	const int8_t ports = input->numInputs;
+	for (int8_t port = 0; port < ports; port++) {
+		switch (input->readerType) {
+			// Normal files and FIFOs use the same interface
+			case NORMAL:
+			case FIFO:
+				_lofar_udp_io_read_cleanup_FILE(input, port);
+				break;
+
+			case ZSTDCOMPRESSED:
+			case ZSTDCOMPRESSED_INDIRECT:
+				_lofar_udp_io_read_cleanup_ZSTD(input, port);
+				break;
+
+			case DADA_ACTIVE:
+				_lofar_udp_io_read_cleanup_DADA(input, port);
+				break;
+
+			case HDF5:
+				_lofar_udp_io_read_cleanup_HDF5(input, port);
+				break;
+
+			default:
+				fprintf(stderr, "ERROR: Unknown reader (%d) provided, exiting.\n", input->readerType);
+				break;
+		}
 	}
 
-	switch (input->readerType) {
-		// Normal files and FIFOs use the same interface
-		case NORMAL:
-		case FIFO:
-			return _lofar_udp_io_read_cleanup_FILE(input, port);
-
-		case ZSTDCOMPRESSED:
-		case ZSTDCOMPRESSED_INDIRECT:
-			return _lofar_udp_io_read_cleanup_ZSTD(input, port);
-
-		case DADA_ACTIVE:
-			return _lofar_udp_io_read_cleanup_DADA(input, port);
-
-		case HDF5:
-			return _lofar_udp_io_read_cleanup_HDF5(input, port);
-
-		default:
-			fprintf(stderr, "ERROR: Unknown reader (%d) provided, exiting.\n", input->readerType);
-			return;
-	}
+	FREE_NOT_NULL(input);
 }
 
 /**
  * @brief      Perform cleanup of allocated memory and open references for a writer struct
  *
  * @param      config     The configuration
- * @param[in]  outp       The outp
- * @param[in]  fullClean  bool: Fully cleanup / close all references in the cases of shared memory writers
+ * @param[in]  fullClean  bool: Fully cleanup the allocated memory (including config) / close all references in the cases of shared memory writers
  */
-void lofar_udp_io_write_cleanup(lofar_udp_io_write_config *config, int8_t outp, int8_t fullClean) {
+void lofar_udp_io_write_cleanup(lofar_udp_io_write_config *config, int8_t fullClean) {
 	if (config == NULL) {
 		return;
 	}
 
-	if (outp < 0 || outp >= MAX_OUTPUT_DIMS) {
-		return;
+	const int8_t numOutputs = config->numOutputs;
+	for (int8_t outp = 0; outp < numOutputs; outp++) {
+		switch (config->readerType) {
+			// Normal files and FIFOs use the same interface
+			case NORMAL:
+			case FIFO:
+				_lofar_udp_io_write_cleanup_FILE(config, outp);
+				break;
+
+			case ZSTDCOMPRESSED:
+			case ZSTDCOMPRESSED_INDIRECT:
+				_lofar_udp_io_write_cleanup_ZSTD(config, outp, fullClean);
+				break;
+
+			case DADA_ACTIVE:
+				_lofar_udp_io_write_cleanup_DADA(config, outp, fullClean);
+				break;
+
+			case HDF5:
+				_lofar_udp_io_write_cleanup_HDF5(config, outp, fullClean);
+				break;
+
+			default:
+				fprintf(stderr, "ERROR: Unknown type (%d) provided, exiting.\n", config->readerType);
+				return;
+		}
 	}
 
-	switch (config->readerType) {
-		// Normal files and FIFOs use the same interface
-		case NORMAL:
-		case FIFO:
-			return _lofar_udp_io_write_cleanup_FILE(config, outp);
-
-		case ZSTDCOMPRESSED:
-		case ZSTDCOMPRESSED_INDIRECT:
-			return _lofar_udp_io_write_cleanup_ZSTD(config, outp, fullClean);
-
-		case DADA_ACTIVE:
-			return _lofar_udp_io_write_cleanup_DADA(config, outp, fullClean);
-
-		case HDF5:
-			return _lofar_udp_io_write_cleanup_HDF5(config, outp, fullClean);
-
-		default:
-			fprintf(stderr, "ERROR: Unknown type (%d) provided, exiting.\n", config->readerType);
-			return;
+	if (fullClean) {
+		FREE_NOT_NULL(config);
 	}
 }
 

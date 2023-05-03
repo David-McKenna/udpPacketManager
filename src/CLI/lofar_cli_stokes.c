@@ -777,9 +777,7 @@ int main(int argc, char *argv[]) {
 			if (!((localLoops + 1) % splitEvery)) {
 
 				// Close existing files
-				for (int8_t outp = 0; outp < reader->meta->numOutputs; outp++) {
-					lofar_udp_io_write_cleanup(outConfig, outp, 0);
-				}
+				lofar_udp_io_write_cleanup(outConfig, 0);
 
 				// Open new files
 				if ((returnVal = _lofar_udp_io_write_internal_lib_setup_helper(outConfig, reader, localLoops / splitEvery)) < 0) {
@@ -828,9 +826,7 @@ int main(int argc, char *argv[]) {
 			break;
 		}
 
-		for (int8_t outp = 0; outp < numStokes; outp++) {
-			lofar_udp_io_write_cleanup(outConfig, outp, 1);
-		}
+		lofar_udp_io_write_cleanup(outConfig, 1);
 
 		// returnVal below -1 indicates we will not be given data on the next iteration, so gracefully exit with the known reason
 		if (returnValMeta < -1) {

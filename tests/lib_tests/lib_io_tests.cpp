@@ -120,14 +120,12 @@ TEST(LibIoTests, SetupUseCleanup) {
 							close(syncPipe[0]);
 						}
 
-						for (int i = 0; i < testNumInputs; i++) {
-							lofar_udp_io_write_cleanup(writeConfig, i, 1);
-						}
+						lofar_udp_io_write_cleanup(writeConfig, 1);
+						writeConfig = NULL;
 
 
 						if (pid == 0) {
 							std::cout << "Write exit: " << returnVal  << std::endl;
-							free(writeConfig);
 							exit(returnVal == 0 ? EXIT_SUCCESS : EXIT_FAILURE);
 						}
 
@@ -218,8 +216,8 @@ TEST(LibIoTests, SetupUseCleanup) {
 
 					for (int i = 0; i < testNumInputs; i++) {
 						FREE_NOT_NULL(ptrBuffers[i]);
-						lofar_udp_io_read_cleanup(readConfig, i);
 					}
+					lofar_udp_io_read_cleanup(readConfig);
 					FREE_NOT_NULL(ptrBuffers);
 
 					if (type == DADA_ACTIVE || type == FIFO) {
@@ -231,9 +229,8 @@ TEST(LibIoTests, SetupUseCleanup) {
 						std::remove(readConfig->inputLocations[i]);
 					}
 
-					free(writeConfig);
-					free(readConfig);
 					free(testBuffer);
+					FREE_NOT_NULL(writeConfig);
 				}
 			}
 		}
@@ -271,9 +268,8 @@ TEST(LibIoTests, ConfigReadSetupHelper) {
 	EXPECT_EQ(-2, lofar_udp_io_read_setup(input, -1));
 	input->readerType = HDF5;
 	EXPECT_EQ(-1, lofar_udp_io_read_setup(input, 0));
-	lofar_udp_io_read_cleanup(input, -1);
-	lofar_udp_io_read_cleanup(nullptr, -1);
-	free(input);
+	lofar_udp_io_read_cleanup(input);
+	lofar_udp_io_read_cleanup(nullptr);
 
 	//int32_t _lofar_udp_io_read_setup_internal_lib_helper(lofar_udp_io_read_config *const input, const lofar_udp_config *config, lofar_udp_obs_meta *meta,
 	//                                                     int8_t port);
@@ -292,7 +288,6 @@ TEST(LibIoTests, ConfigReadSetupHelper) {
 
 	lofar_udp_config_cleanup(config);
 	free(meta);
-	free(input);
 
 	//lofar_udp_io_read_setup_helper(lofar_udp_io_read_config *input, int8_t **outputArr, int64_t maxReadSize, int8_t port)
 	input = lofar_udp_io_read_alloc();
@@ -309,7 +304,6 @@ TEST(LibIoTests, ConfigReadSetupHelper) {
 	EXPECT_EQ(-1, lofar_udp_io_read_setup_helper(input, outputArr, -1, 0));
 	free(outputArr[0]);
 	free(outputArr);
-	free(input);
 }
 
 TEST(LibIoTests, ConfigWriteSetupHelper) {
@@ -336,8 +330,8 @@ TEST(LibIoTests, ConfigWriteSetupHelper) {
 	for (int8_t outp = 0; outp < 4; outp++) rdr->meta->packetOutputLength[outp] = 64;
 	EXPECT_EQ(-2, _lofar_udp_io_write_internal_lib_setup_helper(output, rdr, -1));
 	for (int8_t outp = 0; outp < 4; outp++) EXPECT_EQ(rdr->packetsPerIteration * rdr->meta->packetOutputLength[outp], output->writeBufSize[outp]);
-	lofar_udp_io_write_cleanup(output, -1, 0);
-	lofar_udp_io_write_cleanup(nullptr, -1, 0);
+	lofar_udp_io_write_cleanup(output, 0);
+	lofar_udp_io_write_cleanup(nullptr, 0);
 
 	int64_t outputLength[4] = { LONG_MIN, 64, 64, 64 };
 	//lofar_udp_io_write_setup_helper(output, outputLength, 4, int32_t iter, int64_t firstPacket)

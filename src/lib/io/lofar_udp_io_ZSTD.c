@@ -363,7 +363,7 @@ int32_t _lofar_udp_io_write_setup_ZSTD(lofar_udp_io_write_config *const config, 
 			fprintf(stderr,
 					"ZSTD encountered an error while creating compression stream for [%d] (code %ld, %s), exiting.\n",
 					outp, zstdReturn, ZSTD_getErrorName(zstdReturn));
-			lofar_udp_io_write_cleanup(config, outp, 1);
+			lofar_udp_io_write_cleanup(config, 0);
 			return -1;
 		}
 

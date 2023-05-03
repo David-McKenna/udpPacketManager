@@ -33,18 +33,18 @@ TEST(LibGenTests, interalStrtoc) {
 	char *endPtr, *buffer = (char*) calloc(bufferLen, sizeof(char));
 
 	snprintf(buffer, bufferLen, "%ld", ((int64_t) INT8_MAX) * 2);
-	EXPECT_EQ(INT8_MAX, internal_strtoi(buffer, &endPtr));
+	EXPECT_EQ(INT8_MAX, internal_strtoc(buffer, &endPtr));
 	EXPECT_EQ(endPtr, buffer);
 	snprintf(buffer, bufferLen, "%ld", ((int64_t) INT8_MIN) * 2);
-	EXPECT_EQ(INT8_MAX, internal_strtoi(buffer, &endPtr));
+	EXPECT_EQ(INT8_MAX, internal_strtoc(buffer, &endPtr));
 	EXPECT_EQ(endPtr, buffer);
 
 	char *expectedEndPtr = buffer + snprintf(buffer, bufferLen, "%d", INT8_MAX - 1);
-	EXPECT_EQ(INT8_MAX - 1, internal_strtoi(buffer, &endPtr));
+	EXPECT_EQ(INT8_MAX - 1, internal_strtoc(buffer, &endPtr));
 	EXPECT_EQ(expectedEndPtr, endPtr);
 
 	expectedEndPtr = buffer + snprintf(buffer, bufferLen, "%d", INT8_MIN + 1);
-	EXPECT_EQ(INT8_MIN + 1, internal_strtoi(buffer, &endPtr));
+	EXPECT_EQ(INT8_MIN + 1, internal_strtoc(buffer, &endPtr));
 	EXPECT_EQ(expectedEndPtr, endPtr);
 
 	free(buffer);

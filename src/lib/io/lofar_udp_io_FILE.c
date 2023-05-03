@@ -158,7 +158,7 @@ int32_t _lofar_udp_io_write_setup_FILE(lofar_udp_io_write_config *const config, 
 
 	// Cleanup the struct if it is already initialised
 	if (config->outputFiles[outp] != NULL) {
-		lofar_udp_io_write_cleanup(config, outp, 1);
+		lofar_udp_io_write_cleanup(config, 0);
 	}
 
 	// Determine the output file name

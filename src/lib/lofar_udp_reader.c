@@ -1668,9 +1668,6 @@ void lofar_udp_reader_cleanup(lofar_udp_reader *reader) {
 				FREE_NOT_NULL(tmpPtr);
 				reader->meta->inputData[i] = NULL;
 			}
-			if (reader->input != NULL) {
-				lofar_udp_io_read_cleanup(reader->input, i);
-			}
 		}
 
 		// Cleanup Jones matrices if they are allocated
@@ -1688,7 +1685,8 @@ void lofar_udp_reader_cleanup(lofar_udp_reader *reader) {
 
 	// Free the reader
 	FREE_NOT_NULL(reader->meta);
-	FREE_NOT_NULL(reader->input);
+	lofar_udp_io_read_cleanup(reader->input);
+	reader->input = NULL;
 	FREE_NOT_NULL(reader->calibration);
 	FREE_NOT_NULL(reader);
 

@@ -40,8 +40,8 @@ int32_t lofar_udp_io_read_setup(lofar_udp_io_read_config *input, int8_t port);
 int32_t lofar_udp_io_write_setup(lofar_udp_io_write_config *config, int32_t iter);
 
 // Cleanup wrapper functions
-void lofar_udp_io_read_cleanup(lofar_udp_io_read_config *input, int8_t port);
-void lofar_udp_io_write_cleanup(lofar_udp_io_write_config *config, int8_t outp, int8_t fullClean);
+void lofar_udp_io_read_cleanup(lofar_udp_io_read_config *input);
+void lofar_udp_io_write_cleanup(lofar_udp_io_write_config *config, int8_t fullClean);
 
 
 
