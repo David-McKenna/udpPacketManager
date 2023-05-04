@@ -828,7 +828,7 @@ int64_t lofar_udp_io_read(lofar_udp_io_read_config *const input, int8_t port, in
 	}
 
 	if (nchars > input->readBufSize[port]) {
-		fprintf(stderr, "ERROR: Request read of %ld is larger than buffer size %ld, exiting.\n", nchars, input->readBufSize[port]);
+		fprintf(stderr, "ERROR: Requested read of %ld is larger than buffer size %ld, exiting.\n", nchars, input->readBufSize[port]);
 		return -1;
 	}
 

@@ -81,6 +81,7 @@ mv "${secondFile}_out" testCase6/"${secondFile}"
 
 
 # testCase 7: Target search packet is missing
+# TODO: Add packet target to test
 for fil in "${baseFiles[@]}"; do
   headPacket "${fil}" ${dropPackets}
   dropPacket "${fil}" $((dropPackets + 8))
@@ -88,6 +89,7 @@ for fil in "${baseFiles[@]}"; do
 done
 
 # testCase 8: Target search packet is missing (and not in the current or next iteration)
+# TODO: Add packet target to test
 for fil in "${baseFiles[@]}"; do
   headPacket "${fil}" ${dropPackets}
   dropPacket "${fil}" $((dropPackets + 33))

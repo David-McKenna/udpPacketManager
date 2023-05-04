@@ -102,7 +102,7 @@ static inline int64_t lofar_udp_time_get_packet_number(const int8_t *inputData) 
  * @return     The suggested sequence value
  */
 static inline int32_t lofar_udp_time_get_next_packet_sequence(const int8_t *inputData) {
-	return (*((int32_t *) &(inputData[CEP_HDR_SEQ_OFFSET])) + 16);
+	return (*((int32_t *) &(inputData[CEP_HDR_SEQ_OFFSET])) + UDPNTIMESLICE);
 }
 
 #ifdef __cplusplus

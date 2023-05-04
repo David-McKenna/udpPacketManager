@@ -316,14 +316,14 @@ extern "C" {
 
 // Helper functions to allocate and initialised structs
 // External
-lofar_udp_config *lofar_udp_config_alloc();
+lofar_udp_config *lofar_udp_config_alloc(void);
 void lofar_udp_config_cleanup(lofar_udp_config *config);
-lofar_udp_io_read_config *lofar_udp_io_read_alloc();
-lofar_udp_io_write_config *lofar_udp_io_write_alloc();
+lofar_udp_io_read_config *lofar_udp_io_read_alloc(void);
+lofar_udp_io_write_config *lofar_udp_io_write_alloc(void);
 
 // Internal
-lofar_udp_calibration *_lofar_udp_calibration_alloc();
-lofar_udp_obs_meta *_lofar_udp_obs_meta_alloc();
+lofar_udp_calibration *_lofar_udp_calibration_alloc(void);
+lofar_udp_obs_meta *_lofar_udp_obs_meta_alloc(void);
 lofar_udp_reader *_lofar_udp_reader_alloc(lofar_udp_obs_meta *meta); // Reminder that reader is always built AFTER meta parsing
 
 

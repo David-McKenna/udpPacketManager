@@ -1419,7 +1419,7 @@ int32_t lofar_udp_reader_step_timed(lofar_udp_reader *reader, double timing[2]) 
 
 	VERBOSE(
 		if (reader->meta->VERBOSE) {
-			printf("reader_step ready: %d, %d\n", reader->meta->inputDataReady, reader->meta->outputDataReady);
+			printf("reader_step ready: %d, %ld\n", reader->meta->inputDataReady, reader->meta->outputDataReady);
 		}
 	);
 
@@ -1441,7 +1441,7 @@ int32_t lofar_udp_reader_step_timed(lofar_udp_reader *reader, double timing[2]) 
 
 	VERBOSE(
 		if (reader->meta->VERBOSE) {
-			printf("reader_step ready2: %d, %d, %d\n", reader->meta->inputDataReady, reader->meta->outputDataReady,
+			printf("reader_step ready2: %d, %ld, %d\n", reader->meta->inputDataReady, reader->meta->outputDataReady,
 			   reader->meta->packetsPerIteration > 0);
 		}
 	);

@@ -61,7 +61,7 @@ When you're ready to request data, call `lofar_udp_reader_step` or
 0 on an unrecoverable error). The data will then be available at 
 `reader->meta->outputData[i]`, where `i` ranges from `0` to 
 `reader->meta->numOutputs - 1`. By default, the data is aligned for 
-SIMD operations with registers up to 512 bytes long.
+SIMD operations with registers up to 512 bits long.
 
 You may want to check `reader->meta->packetsPerIteration` to ensure it's
 as long as you expect -- this value may shrink if you have out of 

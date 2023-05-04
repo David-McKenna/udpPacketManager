@@ -359,8 +359,9 @@ typedef struct __attribute__((__packed__)) lofar_source_bytes {
 extern "C" {
 #endif
 
+void _lofar_udp_signal_handler_stack(int signalnum);
 void _lofar_udp_signal_handler(int signalnum);
-int _lofar_udp_prepare_signal_handler();
+int _lofar_udp_prepare_signal_handler(void);
 int32_t internal_strtoi(char *str, char **endPtr);
 int8_t internal_strtoc(char *str, char **endPtr);
 

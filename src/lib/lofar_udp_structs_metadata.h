@@ -220,9 +220,9 @@ extern const lofar_udp_metadata lofar_udp_metadata_default;
 extern "C" {
 #endif
 
-lofar_udp_metadata* lofar_udp_metadata_alloc();
+lofar_udp_metadata* lofar_udp_metadata_alloc(void);
 sigproc_hdr* sigproc_hdr_alloc(int32_t fchannels);
-guppi_hdr* guppi_hdr_alloc();
+guppi_hdr* guppi_hdr_alloc(void);
 
 void lofar_udp_metadata_cleanup(lofar_udp_metadata* hdr);
 void sigproc_hdr_cleanup(sigproc_hdr *hdr);
