@@ -216,10 +216,6 @@ int main(int argc, char *argv[]) {
 		return 1;
 	}
 
-	if (config->metadata_config.metadataType == NO_META && strnlen(config->metadata_config.metadataLocation, DEF_STR_LEN)) {
-		config->metadata_config.metadataType = lofar_udp_metadata_parse_type_output(outConfig->outputFormat);
-	}
-
 	if (config->calibrateData != NO_CALIBRATION && !strnlen(config->metadata_config.metadataLocation, DEF_STR_LEN)) {
 		fprintf(stderr, "ERROR: Data calibration was enabled, but metadata was not provided. Exiting.\n");
 		CLICleanup(config, outConfig, headerBuffer);

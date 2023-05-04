@@ -9,8 +9,14 @@ void handleData(int8_t **arr, int8_t numArrs, int32_t numBeamlets, int64_t numTi
 
 // Heavily based upon the sample in README_INTEGRATION.md, and README_io.md
 int main() {
-	// Setup the configuration struct
+	// Allocate the configuration structs
 	lofar_udp_config *readerConfig = lofar_udp_config_alloc();
+	lofar_udp_io_write_config *writer = lofar_udp_io_write_alloc();
+	int8_t *headerBuffer = (int8_t*) calloc(DEF_HDR_LEN, sizeof(int8_t));
+
+	if (readerConfig == NULL || writer == NULL || headerBuffer == NULL) {
+		return 1;
+	}
 
 	readerConfig->processingMode = STOKES_I; // Choose an output data product
 
@@ -37,27 +43,57 @@ int main() {
 
 	readerConfig->packetsReadMax = -1; // Process the file entirely
 
+	// Set-up an output writer
+
+
+	// Output format for a DADA ringbuffer, starting at key 16130 and increasing by 2 for each output
+	const char outputFormat[] = "DADA:16130,2";
+	if (lofar_udp_io_write_parse_optarg(writer, outputFormat) < 0) {
+		lofar_udp_config_cleanup(readerConfig);
+		lofar_udp_io_write_cleanup(writer, 1);
+		return 1;
+	}
+	// Produce matching metadata to our writer if we can determine a pattern
+	// Given the "DADA:" prefix, it will produce a DADA header
+	readerConfig->metadata_config.metadataType = lofar_udp_metadata_parse_type_output(outputFormat);
+	writer->progressWithExisting = 1; // Join / recreate a ringbuffer if it already exists on the given key
+
 	// Generate the reader object -- this is out main interface to the library
 	lofar_udp_reader *reader =  lofar_udp_reader_setup(readerConfig);
+	if (reader == NULL) {
+		lofar_udp_config_cleanup(readerConfig);
+		lofar_udp_io_write_cleanup(writer,1);
+		return 1;
+	}
 
-	// Set-up an output writer
-	lofar_udp_io_write_config *writer = lofar_udp_io_write_alloc();
-
-	// TODO: Configure writer
-
+	// Generate the writer object, use a helper function to initialise the config
+	if (_lofar_udp_io_write_internal_lib_setup_helper(writer, reader, 0) < 0) {
+		lofar_udp_config_cleanup(readerConfig);
+		lofar_udp_io_write_cleanup(writer, 1);
+		lofar_udp_reader_cleanup(reader);
+		return 1;
+	}
 
 	// Operate
+	int32_t localLoops = 0;
 	while (lofar_udp_reader_step(reader) <= 0) {
 		int64_t nsamps_processed = reader->meta->packetsPerIteration * UDPNTIMESLICE;
 		handleData(reader->meta->outputData, numPorts, reader->meta->totalProcBeamlets, nsamps_processed);
 
 		for (int8_t outp = 0; outp < writer->numOutputs; outp++) {
 			int64_t outputLength = reader->meta->packetsPerIteration * reader->meta->packetOutputLength[outp];
+
+			if (lofar_udp_metadata_write_file(reader, writer, outp, reader->metadata, headerBuffer, DEF_HDR_LEN, localLoops == 0) < 0) {
+				fprintf(stderr, "ERROR: Failed to write header to disk.\n");
+				break;
+			}
+
 			if (outputLength != lofar_udp_io_write(writer, outp, reader->meta->outputData[outp], outputLength)) {
 				fprintf(stderr, "ERROR: Failed to write out data.\n");
 				break;
 			}
 		}
+		localLoops++;
 	}
 
 
@@ -65,6 +101,7 @@ int main() {
 	lofar_udp_reader_cleanup(reader);
 	lofar_udp_config_cleanup(readerConfig);
 	lofar_udp_io_write_cleanup(writer, 1);
+	free(headerBuffer);
 }
 
 
