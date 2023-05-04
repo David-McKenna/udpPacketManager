@@ -33,13 +33,22 @@ set(UPM_CLI_VERSION 0.7)
 
 message("Building udpPacketManager Version ${PROJECT_VERSION}\n\n")
 
+set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -march=mative -O2 -ffast-math -fallow-store-data-races -fno-semantic-interposition")
+set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -march=native -O2 -ffast-math -fallow-store-data-races -fno-semantic-interposition")
 
-set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -Wconversion -Wno-sign-conversion -Wframe-larger-than=5000 -Wall -Wextra -g3")
-set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -Wconversion -Wno-sign-conversion -Wframe-larger-than=5000 -Wall -Wextra -g3")
-set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -fno-omit-frame-pointer -fsanitize=address -fsanitize-trap=undefined")
-set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -fno-omit-frame-pointer -fsanitize=address -fsanitize-trap=undefined")
-set(CMAKE_LINKER_FLAGS_DEBUG "${CMAKE_LINKER_FLAGS_DEBUG} -fno-omit-frame-pointer -fsanitize=address -fsanitize-trap=undefined")
+set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -Wstrict-prototypes -Wmissing-prototypes -Wframe-larger-than=4095 -Wshadow -Wconversion -Wno-sign-conversion -Wframe-larger-than=5000 -Wall -Wextra -g3")
+set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -Wstrict-prototypes -Wmissing-prototypes -Wframe-larger-than=4095 -Wshadow -Wconversion -Wno-sign-conversion -Wframe-larger-than=5000 -Wall -Wextra -g3")
+set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -fno-omit-frame-pointer -fsanitize=address")# -fanalyzer")
+set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -fno-omit-frame-pointer -fsanitize=address")# -fanalyzer")
 
+
+if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
+	set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -fsanitize-trap=undefined")
+	set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -fsanitize-trap=undefined")
+else()
+	set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -Wstack-usage=12287")
+	set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -Wstack-usage=12287")
+endif()
 # Ensure we have a modern python version available and prepare to install the latest build of dreamBeam
 # multiprocessing.shared_memory required >= 3.8
 find_package(Python3 3.8 COMPONENTS Interpreter REQUIRED)
