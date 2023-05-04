@@ -90,97 +90,92 @@ switch (calibrateData) {
 3. Create the task kernel in `[lofar_udp_backends.hpp](../src/lib/lofar_udp_backends.hpp)`, following the 
    format below. Have a look at the existing kernels and you'll 
    likely be able to find an input/output idx calculation that suits 
-   what you are doing.
-
-
-# TODO: Update to new format
+   what you are doing. Here's an annotated description of mode 30, the time-major single-output processing mode.
 
 ```
-template<typename I, typename O>
-static inline void udp_myNewKernel(params) {
-	// Define the expected base offset for the given packet
+// Types and per-mode optimisations should be used to initialise a template for optimal performance
+template<typename I, typename O, const int8_t calibrateData, ...>
+static inline void udp_myNewKernel(...) {
+	// Define the expected base offset for the given packet, these examples do not account for downsampling.
 	// 
-	// 1. 1:1 packets input to packet output offset. You probably want this one.
-	//	long outputPacketOffset = iLoop * packetOutputLength / sizeof(O);
+	// 1. Frequency major data, or 1:1 packets input to packet output offset.
+	//	 outputPacketOffset = iLoop * packetOutputLength / sizeof(O);
 	//
 	// 2. Time-major offset
-	//	long outputTimeIdx = iLoop * UDPNTIMESLICE / sizeof(O);
+	//	 outputTimeIdx = iLoop * UDPNTIMESLICE / sizeof(O);
+	const int64_t outputPacketOffset = iLoop * packetOutputLength / sizeof(O);
+	
+	// Optionally: define intermediate storage for calibrated voltages, this mode does not use them.
+	//O Xr[UDPNTIMESLICE], Xi[UDPNTIMESLICE], Yr[UDPNTIMESLICE], Yi[UDPNTIMESLICE]; 
+	
+	// Define a pointer to the Jones matrix for calibration
+	const float *beamletJones;
 
-	// Initialise other local variables
-	long tsInOffset, tsOutOffset;
+   // Iterate across the pre-configured beamlet lower/upper limits for the given port
+	for (int32_t beamlet = baseBeamlet; beamlet < upperBeamlet; beamlet++) {
+	    // Calculate the input frequency offset for the current beamlet (no changes for new modes)
+		const int64_t tsInOffsetBase = input_offset_index(lastInputPacketOffset, beamlet, timeStepSize);
+		
+		// Calculate the output offset for the first sample, we will iterate from there
+		//
+		// 1. Frequency Major base offset, reversed_ prefix will reverse the frequency order
+		//     tsOutOffsetBase = frequency_major_index(outputPacketOffset, beamlet, baseBeamlet, cumulativeBeamlets, UDPNPOL);
+		//     tsOutOffsetBase = reversed_frequency_major_index(outputPacketOffset, beamlet, baseBeamlet, cumulativeBeamlets, UDPNPOL);
+		//
+		// 2. Time Major base offset, takes a downsample factor as a template parameter
+		//     tsOutOffsetBase = time_major_index<DOWNSAMPLE_FAC>(beamlet, baseBeamlet, cumulativeBeamlets, packetsPerIteration, outputTimeIdx);
+		const int64_t tsOutOffsetBase = frequency_major_index(outputPacketOffset, beamlet, baseBeamlet, cumulativeBeamlets, UDPNPOL);
 
-	// Initialise variabled related to calibration, silence compiler warnings related to it for the non-calibrated calls.
-	#pragma GCC diagnostic push
-	#pragma GCC diagnostic ignored "-Wunused-variable"
-	#pragma GCC diagnostic ignored "-Wunused-but-set-variable"
-	#pragma GCC diagnostic push
-	#pragma GCC diagnostic push
-	O Xr, Xi, Yr, Yi;
-	float *beamletJones;
-	#pragma GCC diagnostic pop
-	#pragma GCC diagnostic pop
+        // Convert the input array to it's true byte type from int8_t as an array called castPtr, offset by tsInOffsetBase
+        // Initialises the beamletJones matrix for the current beamlet
+		TYPE_AND_CAL_SETUP(I, O);
 
-	...
+		// Macro to define an optimisation pragma based on the current compiler
+		LOOP_OPTIMISATION
+		
+		// Iterate across all time samples
+		for (int32_t ts = 0; ts < UDPNTIMESLICE; ts++) {
+		    // The input offset is standard, and does not change between processing modes.
+		    // We don't need to use tsInputOffsetBase here as it was used when initialising castPtr in TYPE_AND_CAL_SETUP
+			const int64_t tsInOffset = ts * UDPNPOL;
+			
+			// The output offset differs greatly depending on the processing mode, we will provide samples but your values 
+			//    will be highly dependant on your choice of processing scheme.
+			//
+			// 1. Frequeny Major iterations, 
+			//    - Frequency Major split across polarisation
+			//       tsOutOffset = tsOutOffsetBase + ts * totalBeamlets
+			//    - Frequency Major to a single output
+			//       tsOutOffset = tsOutOffsetBase + ts * (totalBeamlets * UDPNPOL)
+			//
+			// 2. Time Major iterations,
+			//    - Time major split across polarisation
+			//       tsOutOffset = tsOutOffsetBase + ts
+			//    - Time Major to a single output
+			//       tsOutOffset = tsOutOffsetBase + ts * UDPNPOL
+			//
+			// etc.
+			
+			const int64_t tsOutOffset = tsOutOffsetBase + ts * (totalBeamlets * UDPNPOL);
 
-
-	// Some compiler pragmas that were determined to give optimal performance through A/B testing GCC-9 and ICC-2021.2-beta
-	// Though the GCC-9 implementation is fast, this balloons the output archives to 80+MB, and icnreases compile time similarly.
-	#ifdef __INTEL_COMPILER
-	#pragma omp simd
-	#else
-	#pragma GCC unroll 61
-	#endif
-	for (int beamlet = baseBeamlet; beamlet < upperBeamlet; beamlet++) {
-		// Get the input data offset
-		tsInOffset = input_offset_index(long lastInputPacketOffset, int beamlet, int timeStepSize);
-
-		// Determine an output data offset, this heavily depends on the output ordering you're trying to achieve
-		// Here's some samples
-		// 1. Channel Major Data
-		//	Take the input data, order it such that we have sequential frequency samples beside eachother.
-		//	tsOutOffset = outputPacketOffset + beamlet - baseBeamlet + cumulativeBeamlets;
-
-		// 2. Time Major Data
-		//	Take the input data, order it such that we have sequentual time samples beside eachother, with each frequency channel separated by N time samples
-		//	tsOutOffset = 4 * (((beamlet - baseBeamlet + cumulativeBeamlets) * packetsPerIteration * UDPNTIMESLICE ) + outputTimeIdx);
-		// 3. Reversed-Order Channel Major Data
-		//	Perform #1, but reverse the channel order (for negative frequency ordering, needed by many filterbank/dedispersing programs)
-		//	tsOutOffset = outputPacketOffset + (totalBeamlets - 1 - beamlet + baseBeamlet - cumulativeBeamlets);
-
-		// The last two modes are now available via inline functions
-		// 		inline long frequency_major_index(long outputPacketOffset, int totalBeamlets, int beamlet, int baseBeamlet, int cumulativeBeamlets);
-		// 		inline long time_major_index(int beamlet, int baseBeamlet, int cumulativeBeamlets, long packetsPerIteration, long outputTimeIdx);
-
-
-		// If performing calibration, extract the Jones matrix for this frequency
-		if constexpr (calibrateData) {
-			beamletJones = &(jonesMatrix[(cumulativeBeamlets + beamlet - baseBeamlet) * JONESMATSIZE]);
-		}
-
-		#ifdef __INTEL_COMPILER
-		#pragma omp simd
-		#else
-		#pragma GCC unroll 16
-		#endif
-		for (int ts = 0; ts < UDPNTIMESLICE; ts++) {
-
-			// Setup two control flows, either calibrate the data, or read the data straight to the output indices.
+            // If calibration is enabled, we can either write directly to the output array, or to the intermediate buffers,
+            //    calibrateDataFunc<I, O>(&Xr[ts], &Xi[ts], &Yr[ts], &Yi[ts], beamletJones, castPtr, tsInOffset);
+            // which can then be used to calculate the output data instead of indexing into castPtr.
 			if constexpr (calibrateData) {
-				calibrateData<I, O>(&Xr, &Xi, &Yr, &Yi, beamletJones, inputPortData, tsInOffset, timeStepSize);
+			    // Move the output calibrated voltages directly into the output array
+				calibrateDataFunc<I, O>(&(outputData[0][tsOutOffset]),
+				                        &(outputData[0][tsOutOffset + 1]),
+				                        &(outputData[0][tsOutOffset + 2]),
+				                        &(outputData[0][tsOutOffset + 3]),
+				                        beamletJones, castPtr, tsInOffset);
 
-				outputData[0][tsOutOffset] = Xr; // Xr
-				...
+            // Otherwise, do a direct data copy following some known pattern
 			} else {
-				outputData[outputFileIdx][tsOutOffset] = *((I*) &(inputPortData[tsInOffset])); // Xr
-				...
+				outputData[0][tsOutOffset] = castPtr[tsInOffset]; // Xr
+				outputData[0][tsOutOffset + 1] = castPtr[tsInOffset + 1]; // Xi
+				outputData[0][tsOutOffset + 2] = castPtr[tsInOffset + 2]; // Yr
+				outputData[0][tsOutOffset + 3] = castPtr[tsInOffset + 3]; // Yi
 			}
-
-			// Update the input and output offsets for the next time iteration
-			// You probably want to use this input time offset to skip to the next time sample for the given beam
-			tsInOffset += stepsPerOutputFile * timeStepSize;
-
-			// Your output time offset can be extremely variable, but often is just some constant.
-			tsOutOffset += nextOffset;
 		}
 	}
 }

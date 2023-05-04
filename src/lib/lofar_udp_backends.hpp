@@ -68,7 +68,7 @@ static inline float stokesV(float Xr, float Xi, float Yr, float Yi) {
 #ifdef __cplusplus
 }
 
-#define CALIBRATE_SETUP(I,O) const I *castPtr = reinterpret_cast<const I*>(&(inputPortData[tsInOffsetBase])); \
+#define TYPE_AND_CAL_SETUP(I,O) const I *castPtr = reinterpret_cast<const I*>(&(inputPortData[tsInOffsetBase])); \
 if constexpr (calibrateData) { \
 	beamletJones = &(jonesMatrix[(beamlet - baseBeamlet) * JONESMATSIZE]); \
 } else {                                \
@@ -76,8 +76,8 @@ if constexpr (calibrateData) { \
 }
 
 #ifdef __clang__
-#define LOOP_OPTIMISATION _Pragma("clang loop vectorize(enable) interleave_count(UDPNTIMESLICE)")
-#define FALLBACK_LOOP_OPTIMISATION _Pragma("clang loop vectorize(enable)")
+#define LOOP_OPTIMISATION _Pragma("clang loop vectorize(enable)")
+#define FALLBACK_LOOP_OPTIMISATION _Pragma("clang loop unroll(enable)")
 #else
 #define LOOP_OPTIMISATION _Pragma("omp simd")
 #define FALLBACK_LOOP_OPTIMISATION LOOP_OPTIMISATION
@@ -153,6 +153,7 @@ static inline int64_t reversed_frequency_major_index(int64_t outputPacketOffset,
 template<const int32_t factor>
 static inline int64_t
 time_major_index(int32_t beamlet, int32_t baseBeamlet, int32_t cumulativeBeamlets, int64_t packetsPerIteration, int64_t outputTimeIdx) {
+	static_assert(factor <= UDPNTIMESLICE, "Downsampling factor much be less than or equal to UDPNTIMESLICE");
 	return (static_cast<int64_t>(beamlet - baseBeamlet + cumulativeBeamlets) * packetsPerIteration * static_cast<int64_t>(UDPNTIMESLICE / factor)) + outputTimeIdx;
 }
 
@@ -224,7 +225,7 @@ udp_copySplitPols(int64_t iLoop, const int8_t *inputPortData, O **outputData, in
 		const int64_t tsInOffsetBase = input_offset_index(lastInputPacketOffset, beamlet, timeStepSize);
 		const int64_t tsOutOffsetBase = frequency_major_index(outputPacketOffset, beamlet, baseBeamlet, cumulativeBeamlets,
 											UDPNTIMESLICE);
-		CALIBRATE_SETUP(I, O);
+		TYPE_AND_CAL_SETUP(I, O);
 
 		LOOP_OPTIMISATION
 		for (int32_t ts = 0; ts < UDPNTIMESLICE; ts++) {
@@ -262,7 +263,7 @@ udp_channelMajor(int64_t iLoop, const int8_t *inputPortData, O **outputData, int
 		const int64_t tsInOffsetBase = input_offset_index(lastInputPacketOffset, beamlet, timeStepSize);
 		const int64_t tsOutOffsetBase = frequency_major_index(outputPacketOffset, beamlet, baseBeamlet, cumulativeBeamlets, UDPNPOL);
 
-		CALIBRATE_SETUP(I, O);
+		TYPE_AND_CAL_SETUP(I, O);
 
 		// Clang fails to optimise this loop with the default configuration
 		// Future TODO: Determine why this fails optimisation
@@ -300,7 +301,7 @@ static inline void udp_channelMajorSplitPols(int64_t iLoop, const int8_t *inputP
 		const int64_t tsInOffsetBase = input_offset_index(lastInputPacketOffset, beamlet, timeStepSize);
 		const int64_t tsOutOffsetBase = frequency_major_index(outputPacketOffset, beamlet, baseBeamlet, cumulativeBeamlets, 1);
 
-		CALIBRATE_SETUP(I, O);
+		TYPE_AND_CAL_SETUP(I, O);
 
 		LOOP_OPTIMISATION
 		for (int32_t ts = 0; ts < UDPNTIMESLICE; ts++) {
@@ -337,7 +338,7 @@ static inline void udp_reversedChannelMajor(int64_t iLoop, const int8_t *inputPo
 		const int64_t tsOutOffsetBase = reversed_frequency_major_index(outputPacketOffset, totalBeamlets, beamlet, baseBeamlet,
 													 cumulativeBeamlets, UDPNPOL);
 
-		CALIBRATE_SETUP(I, O);
+		TYPE_AND_CAL_SETUP(I, O);
 
 		// Clang fails to optimise this loop with the default configuration
 		// Future TODO: Determine why this fails optimisation
@@ -377,7 +378,7 @@ udp_reversedChannelMajorSplitPols(int64_t iLoop, const int8_t *inputPortData, O 
 		const int64_t tsOutOffsetBase = reversed_frequency_major_index(outputPacketOffset, totalBeamlets, beamlet, baseBeamlet,
 													 cumulativeBeamlets, 1);
 
-		CALIBRATE_SETUP(I, O);
+		TYPE_AND_CAL_SETUP(I, O);
 
 		LOOP_OPTIMISATION
 		for (int32_t ts = 0; ts < UDPNTIMESLICE; ts++) {
@@ -414,7 +415,7 @@ static inline void udp_timeMajor(int64_t iLoop, const int8_t *inputPortData, O *
 		const int64_t tsOutOffsetBase =
 				UDPNPOL * time_major_index<1>(beamlet, baseBeamlet, cumulativeBeamlets, packetsPerIteration, outputTimeIdx);
 
-		CALIBRATE_SETUP(I, O);
+		TYPE_AND_CAL_SETUP(I, O);
 
 		LOOP_OPTIMISATION
 		for (int32_t ts = 0; ts < UDPNTIMESLICE; ts++) {
@@ -451,7 +452,7 @@ udp_timeMajorSplitPols(int64_t iLoop, const int8_t *inputPortData, O **outputDat
 		const int64_t tsInOffsetBase = input_offset_index(lastInputPacketOffset, beamlet, timeStepSize);
 		const int64_t tsOutOffsetBase = time_major_index<1>(beamlet, baseBeamlet, cumulativeBeamlets, packetsPerIteration, outputTimeIdx);
 
-		CALIBRATE_SETUP(I, O);
+		TYPE_AND_CAL_SETUP(I, O);
 
 		LOOP_OPTIMISATION
 		for (int32_t ts = 0; ts < UDPNTIMESLICE; ts++) {
@@ -491,7 +492,7 @@ udp_timeMajorAntPols(int64_t iLoop, const int8_t *inputPortData, O **outputData,
 		const int64_t tsOutOffsetBase =
 			(UDPNPOL / 2) * time_major_index<1>(beamlet, baseBeamlet, cumulativeBeamlets, packetsPerIteration, outputTimeIdx);
 
-		CALIBRATE_SETUP(I, O);
+		TYPE_AND_CAL_SETUP(I, O);
 
 		LOOP_OPTIMISATION
 		for (int32_t ts = 0; ts < UDPNTIMESLICE; ts++) {
@@ -570,7 +571,7 @@ udp_stokes(int64_t iLoop, const int8_t *inputPortData, O **outputData, int64_t l
 		const int64_t tsInOffsetBase = input_offset_index(lastInputPacketOffset, beamlet, timeStepSize);
 		const int64_t tsOutOffsetBase = outputTsOffsetBaseCalc<order, 1>(outputPacketOffset, totalBeamlets, beamlet, baseBeamlet, cumulativeBeamlets, packetsPerIteration);
 
-		CALIBRATE_SETUP(I, O);
+		TYPE_AND_CAL_SETUP(I, O);
 
 		LOOP_OPTIMISATION
 		for (int32_t ts = 0; ts < UDPNTIMESLICE; ts++) {
@@ -610,7 +611,7 @@ static inline void udp_stokesDecimation(int64_t iLoop, const int8_t *inputPortDa
 		const int64_t tsInOffsetBase = input_offset_index(lastInputPacketOffset, beamlet, timeStepSize);
 		const int64_t tsOutOffsetBase = outputTsOffsetBaseCalc<order, factor>(outputPacketOffset, totalBeamlets, beamlet, baseBeamlet, cumulativeBeamlets, packetsPerIteration);
 
-		CALIBRATE_SETUP(I, O);
+		TYPE_AND_CAL_SETUP(I, O);
 
 		tempVal = 0.0f;
 
@@ -656,7 +657,7 @@ udp_fullStokes(int64_t iLoop, const int8_t *inputPortData, O **outputData, int64
 		const int64_t tsInOffsetBase = input_offset_index(lastInputPacketOffset, beamlet, timeStepSize);
 		const int64_t tsOutOffsetBase = outputTsOffsetBaseCalc<order, 1>(outputPacketOffset, totalBeamlets, beamlet, baseBeamlet, cumulativeBeamlets, packetsPerIteration);
 
-		CALIBRATE_SETUP(I, O);
+		TYPE_AND_CAL_SETUP(I, O);
 
 		LOOP_OPTIMISATION
 		for (int32_t ts = 0; ts < UDPNTIMESLICE; ts++) {
@@ -710,7 +711,7 @@ static inline void udp_fullStokesDecimation(int64_t iLoop, const int8_t *inputPo
 		const int64_t tsInOffsetBase = input_offset_index(lastInputPacketOffset, beamlet, timeStepSize);
 		const int64_t tsOutOffsetBase = outputTsOffsetBaseCalc<order, factor>(outputPacketOffset, totalBeamlets, beamlet, baseBeamlet, cumulativeBeamlets, packetsPerIteration);
 
-		CALIBRATE_SETUP(I, O);
+		TYPE_AND_CAL_SETUP(I, O);
 
 		// Clang fails to optimise this loop with the default configuration
 		// Future TODO: Determine why this fails optimisation
@@ -779,7 +780,7 @@ udp_usefulStokes(int64_t iLoop, const int8_t *inputPortData, O **outputData, int
 		const int64_t tsInOffsetBase = input_offset_index(lastInputPacketOffset, beamlet, timeStepSize);
 		const int64_t tsOutOffsetBase = outputTsOffsetBaseCalc<order, 1>(outputPacketOffset, totalBeamlets, beamlet, baseBeamlet, cumulativeBeamlets, packetsPerIteration);
 
-		CALIBRATE_SETUP(I, O);
+		TYPE_AND_CAL_SETUP(I, O);
 
 		LOOP_OPTIMISATION
 		for (int32_t ts = 0; ts < UDPNTIMESLICE; ts++) {
@@ -822,7 +823,7 @@ static inline void udp_usefulStokesDecimation(int64_t iLoop, const int8_t *input
 		const int64_t tsInOffsetBase = input_offset_index(lastInputPacketOffset, beamlet, timeStepSize);
 		const int64_t tsOutOffsetBase = outputTsOffsetBaseCalc<order, factor>(outputPacketOffset, totalBeamlets, beamlet, baseBeamlet, cumulativeBeamlets, packetsPerIteration);
 
-		CALIBRATE_SETUP(I, O);
+		TYPE_AND_CAL_SETUP(I, O);
 
 		tempValI = 0.0f;
 		tempValV = 0.0f;
