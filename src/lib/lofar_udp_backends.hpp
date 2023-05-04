@@ -1022,6 +1022,18 @@ int32_t lofar_udp_raw_loop(lofar_udp_obs_meta *meta) {
 					   currentPortPacket, lastPortPacket + 1);
 			});
 
+			// If we are not using packet replays, reload the lastInputPacketOffset after a dropped packet
+			if (!replayDroppedPackets) {
+				if (inputPacketOffset < 0 && iLoop > 0) {
+					if constexpr (state == PACKET_FULL_COPY) {
+						inputPacketOffset = iWork * portPacketLength;
+					} else {
+						inputPacketOffset = iWork * portPacketLength + UDPHDRLEN;
+					}
+				}
+			}
+
+
 			// Check for packet loss by ensuring we have sequential packet numbers
 			if (currentPortPacket != (lastPortPacket + 1)) {
 				// Check if a packet is out of order; if so, drop the packet
@@ -1060,6 +1072,7 @@ int32_t lofar_udp_raw_loop(lofar_udp_obs_meta *meta) {
 				//	Increment the port counter for this operation
 				//	Increment the last packet offset, so it can be used again next time while including the new offset
 				//  Decrement the out-of-order packets, as we now have an extra packet in the buffer to fill the timeslot
+#pragma omp atomic write
 				packetLoss = -1;
 				currentPacketsDropped++;
 				lastPortPacket++;
@@ -1071,22 +1084,26 @@ int32_t lofar_udp_raw_loop(lofar_udp_obs_meta *meta) {
 				} else {
 					// Array should be 0 padded at the start; copy data from there.
 					inputPacketOffset = -2 * portPacketLength;
-					if constexpr (state == 0) {
+					if constexpr (state == PACKET_FULL_COPY) {
 						// Move the last header into place
-						memcpy(&(inputPortData[inputPacketOffset + 8]), &(inputPortData[lastInputPacketOffset + 8]), 8);
+						memset(&(inputPortData[inputPacketOffset]), 0, portPacketLength);
+						if (inputPacketOffset != lastInputPacketOffset) memmove(&(inputPortData[inputPacketOffset]), &(inputPortData[lastInputPacketOffset]), UDPHDRLEN);
 					}
 				}
 
-				if constexpr (state == 0) {
+				if constexpr (state == PACKET_FULL_COPY) {
 					// Increment the 'sequence' component of the header so that the packet number appears right in future packet reads
-					nextSequence = (int32_t) lofar_udp_time_get_next_packet_sequence(&(inputPortData[lastInputPacketOffset]));
-					memcpy(&(inputPortData[inputPacketOffset + 12]), &nextSequence, 4);
+					nextSequence = lofar_udp_time_get_next_packet_sequence(&(inputPortData[lastInputPacketOffset]));
+					*((int32_t*) &(inputPortData[inputPacketOffset + CEP_HDR_SEQ_OFFSET])) = nextSequence;
 					// The last bit of the 'source' short isn't used; leave a signature that this packet was modified
-					inputPortData[inputPacketOffset + CEP_HDR_SRC_OFFSET + 1] += 1;
+					((lofar_source_bytes *) &(inputPortData[inputPacketOffset + CEP_HDR_SRC_OFFSET]))->padding1 = 1;
+					lastInputPacketOffset = inputPacketOffset;
+				} else {
+					lastInputPacketOffset = inputPacketOffset + UDPHDRLEN;
 				}
 
 				VERBOSE(if (verbose >= 1) {
-					printf("Packet %ld on port %d is missing; padding.\n", lastPortPacket + 1, port);
+					printf("Packet %ld on port %d is missing, got %ld; padding.\n", lastPortPacket, port, currentPortPacket);
 				});
 
 			} else {
@@ -1098,10 +1115,9 @@ int32_t lofar_udp_raw_loop(lofar_udp_obs_meta *meta) {
 				//		Update the last legitimate packet number and array offset index
 				//		Get the next packet number for the next loop
 				//		Increment iWork (input data packet index) and determine the new input offset
-
 				lastPortPacket = currentPortPacket;
 
-				if constexpr (state == 0) {
+				if constexpr (state == PACKET_FULL_COPY) {
 					lastInputPacketOffset = inputPacketOffset;
 				} else {
 					lastInputPacketOffset = inputPacketOffset + UDPHDRLEN;
@@ -1113,7 +1129,7 @@ int32_t lofar_udp_raw_loop(lofar_udp_obs_meta *meta) {
 				// Ensure we don't attempt to access unallocated memory
 				if (iLoop != packetsPerIteration - 1) {
 					// Speedup: add 16 to the sequence, check if accurate. Doesn't work at rollover.
-					if constexpr (state == 0) {
+					if constexpr (state == PACKET_FULL_COPY) {
 						nextSequence = (*((uint32_t *) &(inputPortData[lastInputPacketOffset + CEP_HDR_SEQ_OFFSET]))) + UDPNTIMESLICE;
 					} else {
 						nextSequence = (*((uint32_t *) &(inputPortData[lastInputPacketOffset - (UDPHDRLEN - CEP_HDR_SEQ_OFFSET)]))) + UDPNTIMESLICE;
