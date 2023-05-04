@@ -444,8 +444,9 @@ TEST(LibReaderTests, PreprocessingReader) {
 };
 
 
-/*
+
 // Input orders
+/*
 const std::vector<processMode_t> inputsMatched = {PACKET_FULL_COPY, PACKET_NOHDR_COPY};
 const std::vector<processMode_t> inputsTsNpol = {PACKET_SPLIT_POL, BEAMLET_MAJOR_FULL, BEAMLET_MAJOR_SPLIT_POL,
 												 BEAMLET_MAJOR_SPLIT_POL, BEAMLET_MAJOR_FULL_REV, BEAMLET_MAJOR_SPLIT_POL_REV,
@@ -586,8 +587,60 @@ std::vector<O*> blindReformer(lofar_udp_reader *reader) {
 		}
 	}
 }
- */
+*/
 
+const int16_t packetLength = UDPHDRLEN + UDPMAXBEAM * 2 * UDPNTIMESLICE;
+typedef struct packets {
+					int8_t data[packetLength];
+} packets;
+static std::tuple<int, int, int, int> packetChecker(int64_t packetsPerBlock, int64_t lastPacket, int8_t **inputData, int8_t numInpPorts, int8_t **outputData, int8_t numOutputs) {
+	if (numInpPorts != numOutputs) return std::tuple<int, int, int, int>(-1, -1, -1, 0);
+	for (int8_t port = 0; port < numInpPorts; port++) {
+		int64_t parsedPackets = 0, workingPack = lastPacket - packetsPerBlock;
+		packets *inpPort = (packets*) inputData[port];
+		packets *outPort = (packets*) outputData[port];
+
+		for (int64_t packet = 0; packet < packetsPerBlock; packet++) {
+			int64_t delta = (workingPack + 1) - lofar_udp_time_get_packet_number(inpPort[parsedPackets].data);
+			if (packet == 0 || packet == (packetsPerBlock - 1) || delta) printf("%ld, %ld (%ld)\n", workingPack + 1, lofar_udp_time_get_packet_number(inpPort[parsedPackets].data), delta);
+			// If the current packet is the next input packet, ensure the output matches
+			if (!delta) {
+				if ((delta = memcmp(inpPort[parsedPackets].data, outPort[packet].data, packetLength))) {
+					// Check if it matches the manually dropped packet signature
+					*((int32_t*) &(inpPort[parsedPackets].data[CEP_HDR_SEQ_OFFSET])) += UDPNTIMESLICE;
+					((lofar_source_bytes *) &(inpPort[parsedPackets].data[CEP_HDR_SRC_OFFSET]))->padding1 = 1;
+					if ((delta = memcmp(inpPort[parsedPackets].data, outPort[packet].data, packetLength))) {
+						return std::tuple<int, int, int, int>(port, packet, 0, delta);
+					}
+				}
+				parsedPackets++;
+			// Otherwise, the output should be empty given replayLastPacket disabled
+			} else {
+				for (int16_t i = UDPHDRLEN; i < packetLength; i++) {
+					if (outPort[packet].data[i]) {
+						return std::tuple<int, int, int, int>(port, packet, 1, 0);
+					}
+				}
+			}
+			workingPack++;
+		}
+	}
+
+	return std::tuple<int, int, int, int>(0, 0, 0, 0);
+}
+
+const std::vector<int32_t> expectedIters = {
+	0, // Test case 0: No input
+	16, // Test case 1: Perfect
+	16, // Test case 2: Perfect
+	16, // Test case 3: 1 packet dropped
+	14, // Test case 4: 1 iteration dropped
+	0,  // Test case 5: Entire port dropped
+	0,  // Test case 6: Port misalignment, no common time
+	16, // Test case 7: Missing a target packet
+	16, // Test case 8: Missing a target packet, and 2 iterations after it
+	16, // Test case 9: All iters, lots of lost packets
+};
 class LibReaderTestsParam : public testing::TestWithParam<std::tuple<processMode_t, calibrate_t, int32_t>> {};
 TEST_P(LibReaderTestsParam, ProcessingData) {
 	//lofar_udp_reader *reader = reader_setup(150);
@@ -605,9 +658,6 @@ TEST_P(LibReaderTestsParam, ProcessingData) {
 		// Only do 1 mode with GENERATE_JONES to ensure the path is covered, otherwise everything else is
 		//  caused by APPLY_CALIBRATION or NO_CALIBRATION
 		//  .... and saved about 4 minutes on the test time.
-		if (cal == GENERATE_JONES && currMode > 10) {
-			return;
-		}
 		if (testNum == 1 && (currMode < 100 || (currMode > 100 && (currMode % 10 < 2)))) {
 			if (currMode == PACKET_NOHDR_COPY) {
 				config->calibrationDuration = 2.0f * (float) clock200MHzSampleTime * (float) (UDPNTIMESLICE * config->packetsPerIteration);
@@ -621,28 +671,41 @@ TEST_P(LibReaderTestsParam, ProcessingData) {
 			config->calibrateData = NO_CALIBRATION;
 		}
 		lofar_udp_reader *reader = lofar_udp_reader_setup(config);
-
 		if (std::find(flaggedTests.begin(), flaggedTests.end(), testNum) != flaggedTests.end() || currMode == TEST_INVALID_MODE || currMode == UNSET_MODE) {
 			EXPECT_EQ(reader, nullptr);
 			return;
 		} else {
 			ASSERT_NE(reader, nullptr);
 		}
-		int returnv;
+		printf("First LastPacket: %ld\n", reader->meta->lastPacket);
+
+		int returnv, iters = 0;
 		double timing[2];
-		if (currMode >= STOKES_I) {
+		int8_t *buffers[MAX_OUTPUT_DIMS];
+		for (int8_t outp = 0; outp < reader->meta->numOutputs; outp++)
+			buffers[outp] = (int8_t*) calloc(reader->packetsPerIteration * reader->meta->packetOutputLength[outp], sizeof(int8_t));
+
+		if (currMode != PACKET_FULL_COPY) {
 			while ((returnv = lofar_udp_reader_step_timed(reader, timing)) < 1) {
-				//std::cout << std::to_string(returnv) << std::endl;
-				//std::cout << std::to_string(reader->meta->lastPacket) << std::endl;
+				iters++;
+				//auto tupleReturn = reorderChecker();
 				EXPECT_NONFATAL_FAILURE(EXPECT_TRUE(false), "");
 			}
 		} else {
 			while ((returnv = lofar_udp_reader_step(reader)) < 1) {
-				//std::cout << std::to_string(returnv) << std::endl;
-				//std::cout << std::to_string(reader->meta->lastPacket) << std::endl;
-				EXPECT_NONFATAL_FAILURE(EXPECT_TRUE(false), "");
+				iters++;
+				printf("Iter %d\n", iters);
+				auto tupleReturn = packetChecker(reader->meta->packetsPerIteration, reader->meta->lastPacket, reader->meta->inputData, reader->meta->numPorts,
+				                                 reader->meta->outputData, reader->meta->numOutputs);
+				EXPECT_EQ(0, std::get<0>(tupleReturn)); // Port
+				EXPECT_EQ(0, std::get<1>(tupleReturn)); // Packet
+				EXPECT_EQ(0, std::get<2>(tupleReturn)); // Failure mode
+				EXPECT_EQ(0, std::get<3>(tupleReturn)); // Extra info
+				ASSERT_EQ(0, std::get<0>(tupleReturn) + std::get<1>(tupleReturn) + std::get<2>(tupleReturn) + std::get<3>(tupleReturn));
 			}
 		}
+		printf("Last returnv, iters: %d, %d\n", returnv, iters);
+		ASSERT_EQ(iters, expectedIters[testNum]);
 
 		lofar_udp_reader_cleanup(reader);
 		lofar_udp_config_cleanup(config);
@@ -650,12 +713,14 @@ TEST_P(LibReaderTestsParam, ProcessingData) {
 
 };
 
-using ValuesContainer = std::vector<std::tuple<processMode_t, calibrate_t, int32_t>>;
-ValuesContainer makeTestMatrix(void) {
-	ValuesContainer testMatrix;
+static std::vector<std::tuple<processMode_t, calibrate_t, int32_t>> makeTestMatrix(void) {
+	std::vector<std::tuple<processMode_t, calibrate_t, int32_t>> testMatrix;
 
 	for (processMode_t currMode : processingModes) {
 		for (calibrate_t cal : std::vector<calibrate_t>{NO_CALIBRATION, GENERATE_JONES, APPLY_CALIBRATION}) {
+			if (cal == GENERATE_JONES && currMode > 10) {
+				continue;
+			}
 			for (int32_t testNum = 0; testNum < numTests; testNum++) {
 				testMatrix.emplace_back(currMode, cal, testNum);
 			}
