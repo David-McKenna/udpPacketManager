@@ -14,7 +14,7 @@ TEST(LibMetadataTests, HelperFunctions) {
 		// metadata_t lofar_udp_metadata_parse_type_output(const char optargc[]);
 		// metadata_t lofar_udp_metadata_string_to_meta(const char input[]);
 		SCOPED_TRACE("lofar_udp_metadata_parse_type_output");
-		for (auto const [val, keys] : std::map<std::string, std::pair<metadata_t, metadata_t>>{
+		for (auto const &[val, keys] : std::map<std::string, std::pair<metadata_t, metadata_t>>{
 			{"", {NO_META, NO_META}},
 			{"no_hints_here", {NO_META, NO_META}},
 			{"GUPPI:test", {GUPPI, GUPPI}},
@@ -255,19 +255,19 @@ TEST(LibMetadataTests, InternalParsers) {
 	{
 		SCOPED_TRACE("_lofar_udp_metadata_get_clockmode");
 		// int lofar_udp_metadata_get_clockmode(int input);
-		for (auto [clock, modes] : std::map<int, std::vector<int>>{
+		for (auto [clock, modes] : std::map<int16_t, std::vector<int16_t>>{
 			{200, {1, 2, 3, 4, 5, 7, 10, 30, 110, 210}},
 			{160, {6, 170}},
 			{-1, {99}},
 		}) {
-			for (int mode : modes) {
+			for (int16_t mode : modes) {
 				EXPECT_EQ(clock, _lofar_udp_metadata_get_clockmode(mode));
 			}
 		}
 
 		SCOPED_TRACE("_lofar_udp_metadata_get_rcumode");
 		// int lofar_udp_metadata_get_rcumode(int input);
-		for (auto [rcu, modes] : std::map<int, std::vector<int>>{
+		for (auto [rcu, modes] : std::map<int16_t, std::vector<int16_t>>{
 			{-1, {-1, 1, 2, -10, 0, 99, 101, 120}},
 			//{1, {1}},
 			//{2, {2}},
@@ -277,7 +277,7 @@ TEST(LibMetadataTests, InternalParsers) {
 			{6, {6, 170}},
 			{7, {7, 210}},
 		}) {
-			for (int mode: modes) {
+			for (int16_t mode: modes) {
 				EXPECT_EQ(rcu, _lofar_udp_metadata_get_rcumode(mode));
 			}
 		}
@@ -286,7 +286,7 @@ TEST(LibMetadataTests, InternalParsers) {
 	{
 		SCOPED_TRACE("_lofar_udp_metadata_get_beamlets");
 		// int lofar_udp_metadata_get_beamlets(int bitmode);
-		for (int32_t bitMode: bitModes) {
+		for (int8_t bitMode: bitModes) {
 			if (bitMode != invalidBitMode) {
 				EXPECT_EQ(61 * 16 / bitMode, _lofar_udp_metadata_get_beamlets(bitMode));
 			} else {
@@ -344,12 +344,12 @@ TEST(LibMetadataTests, InternalParsers) {
 
 		SCOPED_TRACE("_lofar_udp_metadata_parse_pointing");
 		// int lofar_udp_metadata_parse_pointing(lofar_udp_metadata *metadata, const char inputStr[], int digi);
-		std::map<std::string, std::tuple<int, double, double, std::string, std::string, std::string>> inputs{
+		std::map<std::string, std::tuple<int8_t, double, double, std::string, std::string, std::string>> inputs{
 			std::make_pair("0,0,'J2000'", std::make_tuple(0, 0., 0., "00:00:00.0000", "00:00:00.0000", "J2000")),
 			std::make_pair("asdfjasdjfakjsdfj';#[];[]];[2.0, 1.0, \"SUN\"]dfljasldjfa", std::make_tuple(1, 2.0, 1.0, "07:38:21.9742", "57:17:44.8062", "SUN")),
 		};
 		for (auto [key, tup]: inputs) {
-			int digi = std::get<0>(tup);
+			int8_t digi = std::get<0>(tup);
 			EXPECT_EQ(0, _lofar_udp_metadata_parse_pointing(meta, key.c_str(), digi));
 			if (digi) {
 				EXPECT_EQ(meta->ra_rad, std::get<1>(tup));
@@ -464,7 +464,7 @@ TEST(LibMetadataTests, StructHandlers) {
 		EXPECT_EQ(-1, _lofar_udp_metadata_parse_input_file(metadata, ""));
 		EXPECT_EQ(-1, _lofar_udp_metadata_parse_input_file(metadata, "this_is_not_a_real_file"));
 		EXPECT_EQ(0, _lofar_udp_metadata_parse_input_file(metadata, metadataLocation[6].c_str()));
-		int32_t hold = metadata->nsubband;
+		int16_t hold = metadata->nsubband;
 		metadata->nsubband = -1;
 		int tmpSubbands[9] = {0, };
 		EXPECT_EQ(-1, _lofar_udp_metadata_update_frequencies(metadata, tmpSubbands));
@@ -704,12 +704,12 @@ TEST(LibMetadataTests, StructHandlers) {
 		metadata->type = DADA;
 		EXPECT_EQ(-1, lofar_udp_metadata_update(nullptr, metadata, 0));
 		EXPECT_EQ(0, lofar_udp_metadata_update(reader, nullptr, 0));
-		for (metadata_t meta : std::vector<metadata_t> {DADA, SIGPROC, GUPPI, (metadata_t) 111}) {
-			metadata->type = meta;
+		for (metadata_t metad : std::vector<metadata_t> { DADA, SIGPROC, GUPPI, (metadata_t) 111}) {
+			metadata->type = metad;
 			int32_t refIdx = metadata->output_file_number;
-			EXPECT_EQ(meta == (metadata_t) 111 ? -1 : 0, lofar_udp_metadata_update(reader, metadata, 0));
+			EXPECT_EQ(metad == (metadata_t) 111 ? -1 : 0, lofar_udp_metadata_update(reader, metadata, 0));
 			EXPECT_EQ(refIdx, metadata->output_file_number);
-			EXPECT_EQ(meta == (metadata_t) 111 ? -1 : 0, lofar_udp_metadata_update(reader, metadata, 1));
+			EXPECT_EQ(metad == (metadata_t) 111 ? -1 : 0, lofar_udp_metadata_update(reader, metadata, 1));
 			EXPECT_EQ(refIdx + 1, metadata->output_file_number);
 		}
 	}
@@ -831,7 +831,7 @@ TEST_F(LibMetadataTestInternalBufferBuilders, SigprocHeaderBuilders) {
 		ARR_INIT(expectedOutput, META_STR_LEN, '\0');
 		int64_t hdrBufLen = DEF_HDR_LEN;
 
-		int32_t outputLength = strnlen(testKey, META_STR_LEN);
+		int32_t outputLength = (int32_t) strnlen(testKey, META_STR_LEN);
 		memcpy(expectedOutput, &outputLength, sizeof(int32_t));
 		memcpy(expectedOutput + sizeof(int32_t), testKey, strlen(testKey) * sizeof(char));
 		outputLength += sizeof(int32_t);
@@ -843,11 +843,11 @@ TEST_F(LibMetadataTestInternalBufferBuilders, SigprocHeaderBuilders) {
 		EXPECT_EQ(nullptr, _writeKey_SIGPROC(headerBuffer, &hdrBufLen, ""));
 
 		// char* _writeStr_SIGPROC(char *buffer, const char *name, const char *value);
-		outputLength = strnlen(testKey, META_STR_LEN);
+		outputLength = (int32_t) strnlen(testKey, META_STR_LEN);
 		memcpy(expectedOutput, &outputLength, sizeof(int32_t));
 		memcpy(expectedOutput + sizeof(int32_t), testKey, strlen(testKey) * sizeof(char));
 		outputLength += sizeof(int32_t);
-		outputLength = strnlen(testVal, META_STR_LEN);
+		outputLength = (int32_t) strnlen(testVal, META_STR_LEN);
 		memcpy(expectedOutput + sizeof(int32_t) + strnlen(testKey, META_STR_LEN), &outputLength, sizeof(int32_t));
 		memcpy(expectedOutput + 2 * sizeof(int32_t) + strnlen(testKey, META_STR_LEN), testVal, strlen(testVal) * sizeof(char));
 		outputLength += 2 * sizeof(int32_t) + strnlen(testKey, META_STR_LEN);
@@ -860,7 +860,7 @@ TEST_F(LibMetadataTestInternalBufferBuilders, SigprocHeaderBuilders) {
 
 		// char* _writeInt_SIGPROC(char *buffer, const char *name, int32_t value);
 		int32_t testInt = 0xBAAAAAAD;
-		outputLength = strnlen(testKey, META_STR_LEN);
+		outputLength = (int32_t) strnlen(testKey, META_STR_LEN);
 		memcpy(expectedOutput, &outputLength, sizeof(int32_t));
 		memcpy(expectedOutput + sizeof(int32_t), testKey, strlen(testKey) * sizeof(char));
 		outputLength += sizeof(int32_t);
@@ -875,7 +875,7 @@ TEST_F(LibMetadataTestInternalBufferBuilders, SigprocHeaderBuilders) {
 
 		// char* _writeDouble_SIGPROC(char *buffer, const char *name, double value, int exception);
 		double testDbl = 19.16;
-		outputLength = strnlen(testKey, META_STR_LEN);
+		outputLength = (int32_t) strnlen(testKey, META_STR_LEN);
 		memcpy(expectedOutput, &outputLength, sizeof(int32_t));
 		memcpy(expectedOutput + sizeof(int32_t), testKey, strlen(testKey) * sizeof(char));
 		outputLength += sizeof(int32_t);
@@ -892,7 +892,7 @@ TEST_F(LibMetadataTestInternalBufferBuilders, SigprocHeaderBuilders) {
 
 		// __attribute__((unused)) char* _writeLong_SIGPROC(char *buffer, const char *name, int64_t value); // Not in spec
 		int64_t testLng = 0xBAAAAAAD;
-		outputLength = strnlen(testKey, META_STR_LEN);
+		outputLength = (int32_t) strnlen(testKey, META_STR_LEN);
 		memcpy(expectedOutput, &outputLength, sizeof(int32_t));
 		memcpy(expectedOutput + sizeof(int32_t), testKey, strlen(testKey) * sizeof(char));
 		outputLength += sizeof(int32_t);
@@ -907,7 +907,7 @@ TEST_F(LibMetadataTestInternalBufferBuilders, SigprocHeaderBuilders) {
 
 		// __attribute__((unused)) char* _writeFloat_SIGPROC(char *buffer, const char *name, float value, int exception); // Not in spec
 		float testFlt = 19.16f;
-		outputLength = strnlen(testKey, META_STR_LEN);
+		outputLength = (int32_t) strnlen(testKey, META_STR_LEN);
 		memcpy(expectedOutput, &outputLength, sizeof(int32_t));
 		memcpy(expectedOutput + sizeof(int32_t), testKey, strlen(testKey) * sizeof(char));
 		outputLength += sizeof(int32_t);
@@ -928,11 +928,11 @@ TEST_F(LibMetadataTestInternalBufferBuilders, SigprocHeaderBuilders) {
 
 		snprintf(testKey, META_STR_LEN, "HEADER_START");
 		snprintf(testVal, META_STR_LEN, "HEADER_END");
-		outputLength = strnlen(testKey, META_STR_LEN);
+		outputLength = (int32_t) strnlen(testKey, META_STR_LEN);
 		memcpy(expectedOutput, &outputLength, sizeof(int32_t));
 		memcpy(expectedOutput + sizeof(int32_t), testKey, strlen(testKey) * sizeof(char));
 		outputLength += sizeof(int32_t);
-		outputLength = strnlen(testVal, META_STR_LEN);
+		outputLength = (int32_t) strnlen(testVal, META_STR_LEN);
 		memcpy(expectedOutput + sizeof(int32_t) + strnlen(testKey, META_STR_LEN), &outputLength, sizeof(int32_t));
 		memcpy(expectedOutput + 2 * sizeof(int32_t) + strnlen(testKey, META_STR_LEN), testVal, strlen(testVal) * sizeof(char));
 		outputLength += 2 * sizeof(int32_t) + strnlen(testKey, META_STR_LEN);

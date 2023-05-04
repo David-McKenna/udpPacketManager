@@ -63,7 +63,7 @@ TEST(LibIoTests, SetupUseCleanup) {
 								ipcio_destroy(&tmp);
 							}
 						}
-						writeConfig->writeBufSize[i] = buffFact * testContents.length();
+						writeConfig->writeBufSize[i] = (int64_t) (buffFact * (float) testContents.length());
 						readConfig->readBufSize[i] = testContents.length();
 					}
 
@@ -135,7 +135,7 @@ TEST(LibIoTests, SetupUseCleanup) {
 					// int64_t lofar_udp_io_read_temp(const lofar_udp_config *config, int8_t port, int8_t *outbuf, size_t size, int64_t num, int resetSeek)
 					lofar_udp_config *config = lofar_udp_config_alloc();
 					config->readerType = type;
-					for (int i = 0; i < testNumInputs; i++) {
+					for (int8_t i = 0; i < testNumInputs; i++) {
 						if (type == DADA_ACTIVE) {
 							close(syncPipe[0]);
 							//usleep(5000);
@@ -173,7 +173,7 @@ TEST(LibIoTests, SetupUseCleanup) {
 
 					// Read test
 					int8_t **ptrBuffers = (int8_t**) calloc(testNumInputs, sizeof(int8_t*));
-					for (int i = 0; i < testNumInputs; i++) {
+					for (int8_t i = 0; i < testNumInputs; i++) {
 						// FIFO cannot be temp, wait for it to be available here
 						if (type == FIFO) {
 							//usleep(5000);
@@ -204,7 +204,7 @@ TEST(LibIoTests, SetupUseCleanup) {
 
 							// substr limit for readers that read in blocks (ZSTD)
 							EXPECT_EQ(testContents, std::string((char *) ptrBuffers[i], testContents.length()));
-							ARR_INIT(ptrBuffers[i], testContents.length(), '\0');
+							ARR_INIT(ptrBuffers[i], (int64_t) testContents.length(), '\0');
 
 						}
 					}
