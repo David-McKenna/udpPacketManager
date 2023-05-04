@@ -62,9 +62,9 @@ _lofar_udp_io_read_setup_ZSTD(lofar_udp_io_read_config *const input, const char 
 		return -1;
 	} else {
 		bufferSize += _lofar_udp_io_read_ZSTD_fix_buffer_size(bufferSize, 1);
+		VERBOSE(printf("reader_setup: expanding decompression buffer by %ld bytes\n",
+		               bufferSize - input->readBufSize[port]));
 	}
-	VERBOSE(printf("reader_setup: expanding decompression buffer by %ld bytes\n",
-	               bufferSize - input->readBufSize[port]));
 
 	input->decompressionTracker[port].pos = 0; // Initialisation for our step-by-step reader
 
@@ -103,12 +103,18 @@ int64_t _lofar_udp_io_read_ZSTD(lofar_udp_io_read_config *const input, int8_t po
 	size_t previousDecompressionPos;
 	size_t returnVal;
 
-	VERBOSE(printf("reader_nchars %d: start of ZSTD read loop, %ld, %ld, %ld, %ld, %ld\n", port, input->readingTracker[port].pos,
-	               input->readingTracker[port].size, input->decompressionTracker[port].pos, dataRead, nchars););
-
 	// Move the trailing end of the buffer to the start of the target read
 	int8_t *dest = input->decompressionTracker[port].dst;
 	dataRead = input->decompressionTracker[port].pos - input->zstdLastRead[port];
+
+	VERBOSE(printf("reader_nchars %d: start of ZSTD read loop, %ld, %ld, %ld, %ld, %ld\n",
+				   port,
+				   input->readingTracker[port].pos,
+	               input->readingTracker[port].size,
+				   input->decompressionTracker[port].pos,
+				   dataRead,
+				   nchars););
+
 	if (input->readerType == ZSTDCOMPRESSED) {
 		dest = targetArray;
 		int64_t ptrByteDifference = targetArray - (int8_t *) input->decompressionTracker[port].dst;
@@ -136,7 +142,7 @@ int64_t _lofar_udp_io_read_ZSTD(lofar_udp_io_read_config *const input, int8_t po
 		VERBOSE(printf("ZSTD READ%d, base offset: %ld\n", port, input->decompressionTracker[port].pos));
 	}
 
-	VERBOSE(printf("ZSTD Read: starting loop with %ld/%ld\n", dataRead, nchars));
+	VERBOSE(printf("ZSTD Read%hhd: starting loop with %ld/%ld\n", port, dataRead, nchars));
 
 	// Loop across while decompressing the data (zstd decompressed in frame iterations, so it may take a few iterations)
 	while (input->readingTracker[port].pos < input->readingTracker[port].size && dataRead < nchars) {
@@ -184,7 +190,7 @@ int64_t _lofar_udp_io_read_ZSTD(lofar_udp_io_read_config *const input, int8_t po
 		        errno, strerror(errno));
 	}
 	 */
-	input->zstdLastRead[port] = nchars;
+	input->zstdLastRead[port] = (dest - (int8_t*) input->decompressionTracker[port].dst) + nchars;
 
 	// Copy data for the indirect reader
 	if (input->readerType == ZSTDCOMPRESSED_INDIRECT) {
