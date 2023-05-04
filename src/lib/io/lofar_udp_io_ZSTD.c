@@ -174,9 +174,13 @@ int64_t _lofar_udp_io_read_ZSTD(lofar_udp_io_read_config *const input, int8_t po
 		}
 	}
 
-	VERBOSE(if (dataRead >= nchars) {
-		printf("Reader terminating: %ld read, %ld requested, overflow %ld\n", dataRead, nchars, dataRead - nchars);
-	});
+	VERBOSE(
+		printf("Reader terminating %hhd: %ld read, %ld requested, overflow %ld\n", port, dataRead, nchars, dataRead - nchars);
+	);
+
+	if (nchars > dataRead) {
+		nchars = dataRead;
+	}
 
 	// Completed or EOF: unmap used memory and return everything we read
 	// TODO: MADV_DONTNEED causes significant slow down for multi-hour observations, test performance of MADV_FREE
