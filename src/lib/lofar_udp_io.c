@@ -1055,9 +1055,9 @@ lofar_udp_io_read_temp(const lofar_udp_config *config, int8_t port, int8_t *outb
 int64_t _lofar_udp_io_read_ZSTD_fix_buffer_size(int64_t bufferSize, int8_t deltaOnly) {
 	const int64_t zstdAlignedSize = ZSTD_DStreamOutSize(); // ~132kB
 
-	// Extreme edge case: add an extra frame of data encase we need a small partial read at the end of a frame.
-	// Only possible for very small packetsPerIteration, but it's still possible.
-	const int64_t bufferMul = bufferSize / zstdAlignedSize + 1 * ((bufferSize % zstdAlignedSize) || (bufferSize == 0) ? 1 : 0);
+	// Expand the buffer up to the next page length
+	// Add an extra page for small reads when shifting packets for alignment / extreme packet loss
+	const int64_t bufferMul = bufferSize / zstdAlignedSize + 1 * ((bufferSize % zstdAlignedSize) > 0) + 1;
 	const int64_t newBufferSize = bufferMul * zstdAlignedSize;
 
 	if (deltaOnly) {

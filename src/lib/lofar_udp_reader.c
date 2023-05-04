@@ -641,8 +641,8 @@ int32_t _lofar_udp_skip_to_packet(lofar_udp_reader *reader) {
 			returnLen = lofar_udp_io_read(reader->input, port,
 										  &(reader->meta->inputData[port][reader->meta->inputDataOffset[port]]),
 										  nchars);
-			if (nchars > returnLen) {
-				fprintf(stderr, "Unable to read enough data to fill first buffer, exiting.\n");
+			if (nchars > returnLen || returnLen < 0) {
+				fprintf(stderr, "Unable to read enough data to fill first buffer (%ld/%ld), exiting.\n", returnLen, nchars);
 				return -1;
 			}
 		}

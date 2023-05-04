@@ -1473,7 +1473,7 @@ int32_t lofar_udp_raw_loop(lofar_udp_obs_meta *meta) {
 			{
 				if (currentOutOfOrderPackets < 0) {
 					fprintf(stderr, "WARNING (Port %d): %ld packets were out of the expected order.\n", port,
-					        currentOutOfOrderPackets);
+					        -1 * currentOutOfOrderPackets);
 				}
 				if (currentOutOfOrderPackets < meta->outputDataReady) {
 					meta->outputDataReady = currentOutOfOrderPackets;

@@ -118,6 +118,7 @@ int64_t _lofar_udp_io_read_ZSTD(lofar_udp_io_read_config *const input, int8_t po
 		}
 	}
 
+	// memmove as we can't use memcpy for the ZSTANDARD moe due to potential overlapping buffer components
 	if (memmove(dest, &(((int8_t *) input->decompressionTracker[port].dst)[input->zstdLastRead[port]]), dataRead) != dest) {
 		fprintf(stderr, "ERROR: Failed to copy end of ZSTD buffer, exiting.\n");
 		return -1;
