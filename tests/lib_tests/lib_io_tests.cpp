@@ -482,25 +482,25 @@ const std::vector<std::string> testOptargStrings = {
 };
 
 TEST(LibIoTests, OptargReaderParser) {
-	// _lofar_udp_io_read_internal_lib_parse_optarg(lofar_udp_config *config, const char optargc[])
+	// lofar_udp_io_read_parse_optarg(lofar_udp_config *config, const char optargc[])
 	lofar_udp_config *config = lofar_udp_config_alloc();
-	EXPECT_EQ(-1, _lofar_udp_io_read_internal_lib_parse_optarg(nullptr, nullptr));
+	EXPECT_EQ(-1, lofar_udp_io_read_parse_optarg(nullptr, nullptr));
 	config->numPorts = 2;
 
-	EXPECT_EQ(0, _lofar_udp_io_read_internal_lib_parse_optarg(config, testOptargStrings[0].c_str()));
+	EXPECT_EQ(0, lofar_udp_io_read_parse_optarg(config, testOptargStrings[0].c_str()));
 	EXPECT_EQ(std::string("ThisisAFile120"), std::string(config->inputLocations[0]));
 	EXPECT_EQ(100, config->basePort);
 	EXPECT_EQ(10, config->stepSizePort);
 	EXPECT_EQ(2, config->offsetPortCount);
-	EXPECT_EQ(0, _lofar_udp_io_read_internal_lib_parse_optarg(config, testOptargStrings[1].c_str()));
+	EXPECT_EQ(0, lofar_udp_io_read_parse_optarg(config, testOptargStrings[1].c_str()));
 	EXPECT_EQ(1020, config->inputDadaKeys[0]);
 	EXPECT_EQ(10, config->stepSizePort);
 	EXPECT_EQ(2, config->offsetPortCount);
 
-	EXPECT_EQ(0, _lofar_udp_io_read_internal_lib_parse_optarg(config, testOptargStrings[2].c_str()));
+	EXPECT_EQ(0, lofar_udp_io_read_parse_optarg(config, testOptargStrings[2].c_str()));
 	EXPECT_EQ(2, config->stepSizePort);
-	EXPECT_EQ(-5, _lofar_udp_io_read_internal_lib_parse_optarg(config, testOptargStrings[3].c_str()));
-	EXPECT_EQ(-4, _lofar_udp_io_read_internal_lib_parse_optarg(config, testOptargStrings[4].c_str()));
+	EXPECT_EQ(-5, lofar_udp_io_read_parse_optarg(config, testOptargStrings[3].c_str()));
+	EXPECT_EQ(-4, lofar_udp_io_read_parse_optarg(config, testOptargStrings[4].c_str()));
 
 	free(config);
 };

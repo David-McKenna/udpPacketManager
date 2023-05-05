@@ -204,7 +204,7 @@ int main(int argc, char *argv[]) {
 		return 1;
 	}
 
-	if (_lofar_udp_io_read_internal_lib_parse_optarg(config, inputFormat) < 0) {
+	if (lofar_udp_io_read_parse_optarg(config, inputFormat) < 0) {
 		helpMessages();
 		CLICleanup(config, outConfig, headerBuffer);
 		return 1;

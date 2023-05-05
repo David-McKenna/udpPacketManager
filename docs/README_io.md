@@ -24,16 +24,12 @@ the allocation fails.
 The struct should then be configured, with at least the following 
 members set:
 - readerType
+- \(inputLocations OR inputDadaKeys\)\[0:numInputs\]
 - numInputs
-- \(inputLocations OR inputDadaKeys\)\[0,numInputs\]
 
-Unlike the write interface, there current isn't a function for 
-parsing these variable directly from an input `optarg` into the 
-configuration struct, but th equivilent functionality as can be seen 
-for the writer struct can be replicated through the use of the 
-`lofar_udp_io_parse_type_optarg` function to get the readerType, and 
-`lofar_udp_io_parse_format` function to convert a file pattern 
-format (see [the CLI readme](README_CLI.md)) into file names.
+There is a function for parsing the first and second variables directly from an input `optarg` flag or char array into the 
+configuration struct, `lofar_udp_io_read_parse_optarg()`. This expects an input string following the conventions that are detailed in the [the 
+CLI readme](README_CLI.md).
 
 Additionally, we recommend preparing:
 - The maximum number of elements expected to be read per iteration
@@ -70,7 +66,58 @@ struct itself.
 ## Example Usage
 
 ```C
+int32_t myFunc(void) {
+	// `goto` use not recommended, used to keep example clean
+	const char inputFormat[] = "myInputFile_[[port]].zst,0,2";
+	const int32_t numInputs = 2;
+	int32_t returnVal = 0;
 
+	lofar_udp_io_read_config *reader = lofar_udp_io_read_alloc();
+	reader->numInputs = numInputs;
+
+	// Sets readerType, inputLocations, and associated base/offset/step values
+	if (lofar_udp_io_read_parse_optarg(reader, inputFormat) < 0) {
+		goto cleanup;
+	}
+
+	const int64_t numBytesPerRead = 2 << 20;
+	int8_t *readerBuffers[numInputs] = { NULL };
+	for (int32_t i = 0; i < numInputs; i++) {
+		readerBuffers[i] = (int8_t*) calloc(numBytesPerRead, sizeof(int8_t));
+		if (readerBuffers[i] == NULL) {
+			goto cleanup;
+		}
+
+		if (lofar_udp_io_read_setup_helper(reader, readerBuffers, numBytesPerRead, i) < 0) {
+			goto cleanup;
+		}
+	}
+
+
+	// Operate on the data while requesting it
+	int64_t lastBytesRead[numInputs] = { 0 };
+	while (returnVal == 0) {
+		for (int32_t i = 0; i < numInputs; i++) {
+			if ((lastBytesRead[i] = lofar_udp_io_read(reader, i, readerBuffers[i], numBytesPerRead)) < 0) {
+				returnVal = -1;
+			}
+		}
+		// Do something with data
+	}
+
+	returnVal = 0;
+
+
+	if (0) {
+		cleanup:
+		returnVal = 1;
+	}
+	lofar_udp_io_read_cleanup(reader);
+	for (int32_t i = 0; i < numInputs; i++) {
+		FREE_NOT_NULL(readerBuffers[i]);
+	}
+	return returnVal;
+}
 ```
 
 # `lofar_udp_io_write` Interface
@@ -85,6 +132,7 @@ members set:
 - readerType
 - outputFormat
 - progressWithExisting
+- Any additional configuration required for the specific writer (`zstdConfig`, `dadaConfig`)
 
 The first two of these can be parsed from a format string (see [the CLI readme](README_CLI.md) for formatting options) using the 
 `lofar_udp_io_write_parse_optarg()` function.
@@ -114,5 +162,51 @@ future iterations when it is set to 0, or will clear all open references, alloca
 ## Example Usage
 
 ```C
+int32_t myFunc(void) {
+	// `goto` use not recommended, used to keep example clean
+	const char outputFormat[] = "myOutputFile_[[port]].zst,0,2";
+	const int8_t numOutputs = 2;
+	int64_t numBytesPerWrite[numOutputs];
+	int32_t returnVal = 0;
 
+	lofar_udp_io_write_config *writer = lofar_udp_io_write_alloc();
+	writer->numOutputs = numOutputs;
+	writer->progressWithExisting = 0; // Don't proceed if the output already exists
+	writer->zstdConfig.compressionLevel = 3;
+	writer->zstdConfig.numThreads = 2;
+
+	// Sets readerType, inputLocations, and associated base/offset/step values
+	if (lofar_udp_io_write_parse_optarg(writer, outputFormat) < 0) {
+		goto cleanup;
+	}
+
+	for (int8_t i = 0; i < numOutputs; i++) {
+		numBytesPerWrite[i] = 2 << 20;
+	}
+
+	if (lofar_udp_io_write_setup_helper(writer, numBytesPerWrite, numOutputs, 0, 0) < 0) {
+		goto cleanup;
+	}
+
+	// Operate on the data while requesting it
+	while (returnVal == 0) {
+		// Request some data to write
+		int8_t **workingData = give_me_data(numOutputs, numBytesPerWrite);
+		for (int8_t i = 0; i < numOutputs; i++) {
+			if ((lofar_udp_io_write(writer, i, workingData[i], numBytesPerWrite[i])) < 0) {
+				returnVal = -1;
+			}
+		}
+	}
+
+	returnVal = 0;
+
+
+	if (0) {
+		cleanup:
+		returnVal = 1;
+	}
+	lofar_udp_io_write_cleanup(writer, 1);
+	return returnVal;
+}
 ```

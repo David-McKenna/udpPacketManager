@@ -25,7 +25,7 @@ int main() {
 	// char* array of input file pattern
 	char inputFileFormat[DEF_STR_LEN] = "udp_1613[[port]].ucc1.2022-06-29T01:30:00.000.zst";
 	// Parse the input format and set readerConfig->readerType based on the file string
-	if (_lofar_udp_io_read_internal_lib_parse_optarg(readerConfig, inputFileFormat) < 0) {
+	if (lofar_udp_io_read_parse_optarg(readerConfig, inputFileFormat) < 0) {
 		lofar_udp_config_cleanup(readerConfig);
 		return 1;
 	}

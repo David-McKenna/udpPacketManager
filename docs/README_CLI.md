@@ -15,11 +15,69 @@ data payload. These data streams can be raw files, FIFOs, compressed
 with [zstandard](https://github.com/facebook/zstd) (ending in *.zst*)
 or sourced from [PSRDADA](https://psrdada.sourceforge.net/) ringbuffers.
 
-Multiple ports of data can be combined at once by providing a *[[port]]* 
+Expected File Name Formats
+------------------------------
+
+We support iteration through multiple different files through the use of a stirng formatting system. Currently, this supports four different 
+values:
+- \[\[port\]\] (input only)
+  - Increases to handle a monotonic integer difference between input file names
+- \[\[idx\]\] (output only)
+  - Increases to handle a monotomic integer different output file names
+- \[\[iter\]\] (output only)
+  - Increases with iterations of the output, typically increasing, but the implementation is controlled by the user
+- \[\[pack\]\] (output only)
+  - Outputs a packet number, or a provided arbitrary number, in the parsed file name
+
+Provided they are suported by your processing method, each of these can be usedmultiple times in your format string, and they will all be 
+replaced.
+
+For increasing iteration values, the file name can be followed by up to 3 difference values. For both inputs and putputs, this can be two 
+values, represententing a base value and the incremental value added for each offset. The input value also has a third option to represent 
+an offset from the base value, for handling offsets into the metadata in the case that you wish to only partially process an observation. 
+
+### General Formatting
+
+All option can use the input format in order to determine prperties ofthe reader/writers objects. This is typcally performed through the use 
+of a 4 letter prefix before the path name, or the present of a file extension. As a result, all of these will result in the detection of 
+their respective readers/writers. If no patterns are present, we assume the file is a normal file.
+
+```bash
+"FILE:myfile.out" # Normal reader/writer
+"myfile.out" # Normal reader/writer
+"FIFO:myfile.out" # FIFO named pipe reader/writer
+"ZSTD:myfile.out" # Zstandard compressed file
+"myfile.zst" # Zstandard compressed file 
+"DADA:1000" # DADA ringbuffer
+"HDF5:myfile.out" # HDF5 
+"myfile.hdf5" # HDF5 
+"myfile.h5" # HDF5 
+```
+
+### Inputs 
+
+Multiple ports of data can be combined at once by providing a *\[\[port\]\]* 
 in the input file name. This will iterate over a specified number of 
 ports (controlled by the *-u* flag) and concatenate the beamlets 
 into a set output format, the options for which are described below.
 
+Consequently, the default input flag will look something akin to one of these inputs
+```bash
+-i "./udp_1613[[port]].ucc1.2020-02-22T10:30:00.000.zst" # Standard monotomic increasing of port from 0 - 3
+-i "./udp_1613[[port]].ucc1.2020-02-22T10:30:00.000.zst,3" # Base value of 3, increasing across 3-6 
+-i "./udp_1613[[port]].ucc1.2020-02-22T10:30:00.000.zst,3,2" # Base value of 3, increasing across 3, 5, 7, 9 
+-u 2 -i "./udp_1613[[port]].ucc1.2020-02-22T10:30:00.000.zst,0,1,2" # Base value of 2, iterating up to 3
+```
+
+### Outputs
+
+Multiple output ports of data can be handled by providing a *\[\[idx\]\]* in the output format name, which will then follow the same rules 
+with respect to increments and offsets as the input files do. The *\[\pack\]\]* stirng will be replaced with the packet number at the start 
+of a processing block. Additionally, if the CLI is set to split files, the writer will write a 4 character padded iteraiton count to 
+replace any *\[\[iter\]\]* variables.
+
+Other Flag Notes
+----------------
 Any times are handled in the ISOT format (YYYY-MM-DDTHH:mm:ss, 
 fractions of seconds are not supported) in UTC+0 (NOT effected by 
 local time zone, daylight savings, etc., unless your station clock has 

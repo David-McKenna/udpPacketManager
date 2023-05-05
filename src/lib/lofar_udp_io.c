@@ -466,10 +466,10 @@ reader_t lofar_udp_io_parse_type_optarg(const char *optargc, char *fileFormat, i
 
 		if (strstr(optargc, "FILE:") != NULL) {
 			reader = NORMAL;
-		} else if (strstr(optargc, "ZSTD:") != NULL) {
-			reader = ZSTDCOMPRESSED;
 		} else if (strstr(optargc, "FIFO:") != NULL) {
 			reader = FIFO;
+		} else if (strstr(optargc, "ZSTD:") != NULL) {
+			reader = ZSTDCOMPRESSED;
 		} else if (strstr(optargc, "DADA:") != NULL) {
 			reader = DADA_ACTIVE;
 		} else if (strstr(optargc, "HDF5:") != NULL) {
@@ -663,7 +663,7 @@ int32_t lofar_udp_io_parse_format(char *dest, const char format[], int32_t port,
  *
  * @return     0: Success, <0: Failure
  */
-int32_t _lofar_udp_io_read_internal_lib_parse_optarg(lofar_udp_config *config, const char optargc[]) {
+int32_t lofar_udp_io_read_parse_optarg(lofar_udp_config *config, const char optargc[]) {
 	if (config == NULL || optargc == NULL) {
 		fprintf(stderr, "ERROR %s: Input pointer is null (config: %p, optargc: %p), exiting.\n", __func__, config, optargc);
 		return -1;

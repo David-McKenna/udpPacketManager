@@ -22,7 +22,7 @@ extern "C" {
 
 // optarg/file name Parse functions
 reader_t lofar_udp_io_parse_type_optarg(const char optargc[], char *fileFormat, int32_t *baseVal, int16_t *stepSize, int8_t *offsetVal);
-int32_t _lofar_udp_io_read_internal_lib_parse_optarg(lofar_udp_config *config, const char optargc[]);
+int32_t lofar_udp_io_read_parse_optarg(lofar_udp_config *config, const char optargc[]);
 int32_t lofar_udp_io_write_parse_optarg(lofar_udp_io_write_config *config, const char optargc[]);
 int32_t lofar_udp_io_parse_format(char *dest, const char format[], int32_t port, int32_t iter, int32_t idx, int64_t pack);
 
