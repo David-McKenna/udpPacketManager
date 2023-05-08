@@ -47,6 +47,7 @@ int32_t _lofar_udp_metadata_get_station_name(int stationID, char *stationCode);
 //int lofar_udp_metadata_setup_DADA(lofar_udp_metadata *metadata); // Main setup call populates the DADA struct
 int32_t _lofar_udp_metadata_setup_GUPPI(lofar_udp_metadata *metadata);
 int32_t _lofar_udp_metadata_setup_SIGPROC(lofar_udp_metadata *metadata);
+int32_t _lofar_udp_metadata_setup_DADA(__attribute__((unused)) lofar_udp_metadata *metadata);
 
 int32_t _lofar_udp_metadata_update_BASE(const lofar_udp_reader *reader, lofar_udp_metadata *metadata, int8_t newObs);
 int32_t _lofar_udp_metadata_update_DADA(__attribute__((unused)) lofar_udp_metadata *const metadata, __attribute__((unused)) int8_t newObs);

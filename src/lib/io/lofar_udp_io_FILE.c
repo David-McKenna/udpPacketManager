@@ -128,7 +128,7 @@ int64_t _lofar_udp_io_read_temp_FILE(void *outbuf, const int64_t size, const int
  *
  * @return     0: Configuration can process, <0: Failure
  */
-int32_t _lofar_udp_io_write_FILE_setup_check_exists(const char filePath[], const int32_t appendMode) {
+static int32_t _lofar_udp_io_write_FILE_setup_check_exists(const char filePath[], const int32_t appendMode) {
 	if (appendMode == 1 && access(filePath, F_OK) == 0 && access(filePath, W_OK) != 0) {
 		fprintf(stderr, "ERROR: Unable to write to file at %s, exiting.\n", filePath);
 		return -1;
@@ -238,7 +238,7 @@ int64_t _lofar_udp_io_write_FILE(lofar_udp_io_write_config *const config, const 
  *
  * @return 0: Success, >0: (returnReaders) Success, <0: Failure
  */
-int64_t _check_FIFO_status(const lofar_udp_io_write_config *config, int8_t outp, const int8_t returnReaders) {
+static int64_t _check_FIFO_status(const lofar_udp_io_write_config *config, int8_t outp, const int8_t returnReaders) {
 	struct stat fifoStat;
 	if (config->readerType != FIFO) {
 		fprintf(stderr, "ERROR %s: Input config is not FIFO, exiting.\n", __func__);

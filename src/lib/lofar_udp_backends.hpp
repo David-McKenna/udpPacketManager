@@ -615,7 +615,7 @@ static inline void udp_stokesDecimation(int64_t iLoop, const int8_t *inputPortDa
 
 		tempVal = 0.0f;
 
-		LOOP_OPTIMISATION
+		FALLBACK_LOOP_OPTIMISATION
 		for (int32_t ts = 0; ts < static_cast<int32_t>(UDPNTIMESLICE / factor); ts++) {
 			const int64_t tsOutOffset = outputTsOffsetCalc<order>(tsOutOffsetBase, ts, totalBeamlets);
 
@@ -782,7 +782,7 @@ udp_usefulStokes(int64_t iLoop, const int8_t *inputPortData, O **outputData, int
 
 		TYPE_AND_CAL_SETUP(I, O);
 
-		LOOP_OPTIMISATION
+		FALLBACK_LOOP_OPTIMISATION
 		for (int32_t ts = 0; ts < UDPNTIMESLICE; ts++) {
 			const int64_t tsInOffset = ts * UDPNPOL;
 			const int64_t tsOutOffset = outputTsOffsetCalc<order>(tsOutOffsetBase, ts, totalBeamlets);
@@ -828,7 +828,7 @@ static inline void udp_usefulStokesDecimation(int64_t iLoop, const int8_t *input
 		tempValI = 0.0f;
 		tempValV = 0.0f;
 
-		LOOP_OPTIMISATION
+		FALLBACK_LOOP_OPTIMISATION
 		for (int32_t ts = 0; ts < static_cast<int32_t>(UDPNTIMESLICE / factor); ts++) {
 			const int64_t tsOutOffset = outputTsOffsetCalc<order>(tsOutOffsetBase, ts, totalBeamlets);
 			for (int32_t tss = 0; tss < factor; tss++) {

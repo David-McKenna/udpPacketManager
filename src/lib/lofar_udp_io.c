@@ -570,7 +570,7 @@ int32_t lofar_udp_io_parse_format(char *dest, const char format[], int32_t port,
 	char *startSubStr, *workingPtr;
 	// Please don't ever bring up how disgusting this loop is.
 	// TODO: Macro-ify?
-	int32_t notrigger = 1;
+	int32_t notrigger = 0;
 	while ((workingPtr = strstr(formatCopySrc, "[["))) {
 		notrigger = notrigger ?: 1;
 		if ((startSubStr = strstr(formatCopySrc, "[[port]]"))) {

@@ -30,11 +30,11 @@ void CLICleanup(lofar_udp_config *config, lofar_udp_io_write_config *outConfig, 
 int main(int argc, char *argv[]) {
 
 	// Set up input local variables
-	int inputOpt, input = 0;
+	int32_t inputOpt, input = 0;
 	float seconds = 0.0f;
 	char inputTime[256] = "", stringBuff[128] = "", inputFormat[DEF_STR_LEN] = "";
-	int silent = 0, inputProvided = 0, outputProvided = 0;
-	long maxPackets = -1, startingPacket = -1, splitEvery = LONG_MAX;
+	int8_t silent = 0, inputProvided = 0, outputProvided = 0;
+	int64_t maxPackets = LONG_MAX, startingPacket = -1, splitEvery = LONG_MAX;
 	int8_t clock200MHz = 1;
 
 	lofar_udp_config *config = lofar_udp_config_alloc();
@@ -57,7 +57,8 @@ int main(int argc, char *argv[]) {
 	struct timespec tick, tick0, tick1, tock, tock0, tock1;
 
 	// strtol / option checks
-	char *endPtr, flagged = 0;
+	char *endPtr;
+	int8_t flagged = 0;
 
 	// Standard ugly input flags parser
 	while ((inputOpt = getopt(argc, argv, "hzrqfvVi:o:m:M:I:u:t:s:S:e:p:a:n:b:ck:T:")) != -1) {
@@ -277,10 +278,10 @@ int main(int argc, char *argv[]) {
 
 
 	// If the largest requested data block is less than the packetsPerIteration input, lower the figure so we aren't doing unnecessary reads/writes
-	if (config->packetsPerIteration > maxPackets) {
+	if (maxPackets > 0 && config->packetsPerIteration > maxPackets) {
 		if (silent == 0) {
 			printf("Packet/Gulp is greater than the maximum packets requested, reducing from %ld to %ld.\n",
-				   config->packetsPerIteration, maxPackets);
+			       config->packetsPerIteration, maxPackets);
 		}
 		config->packetsPerIteration = maxPackets;
 	}
