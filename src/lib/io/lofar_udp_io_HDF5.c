@@ -236,7 +236,7 @@ int32_t _lofar_udp_io_write_setup_HDF5(lofar_udp_io_write_config *const config, 
  *
  * @return 0: Success, <0: Failure
  */
-int32_t hdf5SetupStrAttrs(const hid_t group, const strKeyStrVal attrs[], const size_t numEntries) {
+static int32_t hdf5SetupStrAttrs(const hid_t group, const strKeyStrVal attrs[], const size_t numEntries) {
 	VERBOSE(printf("Str attrs\n"));
 
 	hid_t filetype;
@@ -303,7 +303,7 @@ int32_t hdf5SetupStrAttrs(const hid_t group, const strKeyStrVal attrs[], const s
  *
  * @return 0: Success, <0: Failure
  */
-int32_t hdf5SetupStrPtrAttrs(const hid_t group, const strKeyStrPtrVal attrs[], const size_t numEntries) {
+static int32_t hdf5SetupStrPtrAttrs(const hid_t group, const strKeyStrPtrVal attrs[], const size_t numEntries) {
 	VERBOSE(printf("Str attrs\n"));
 
 	hid_t filetype;
@@ -370,7 +370,7 @@ int32_t hdf5SetupStrPtrAttrs(const hid_t group, const strKeyStrPtrVal attrs[], c
  *
  * @return 0: Success, <0: Failure
  */
-int32_t hdf5SetupStrArrayAttrs(hid_t group, const strKeyStrArrVal attrs[], size_t numEntries) {
+static int32_t hdf5SetupStrArrayAttrs(hid_t group, const strKeyStrArrVal attrs[], size_t numEntries) {
 	VERBOSE(printf("Str array attrs\n"));
 
 	hid_t filetype;
@@ -429,7 +429,7 @@ int32_t hdf5SetupStrArrayAttrs(hid_t group, const strKeyStrArrVal attrs[], size_
  *
  * @return 0: Success, <0: Failure
  */
-int32_t hdf5SetupLongAttrs(hid_t group, const strKeyLongVal attrs[], size_t numEntries) {
+static int32_t hdf5SetupLongAttrs(hid_t group, const strKeyLongVal attrs[], size_t numEntries) {
 	VERBOSE(printf("Long attrs\n"));
 
 	hid_t attr;
@@ -465,7 +465,7 @@ int32_t hdf5SetupLongAttrs(hid_t group, const strKeyLongVal attrs[], size_t numE
  *
  * @return 0: Success, <0: Failure
  */
-__attribute__((unused)) int32_t hdf5SetupLongArrayAttrs(hid_t group, const strKeyLongArrVal attrs[], size_t numEntries) {
+__attribute__((unused)) static int32_t hdf5SetupLongArrayAttrs(hid_t group, const strKeyLongArrVal attrs[], size_t numEntries) {
 	VERBOSE(printf("Long arr attrs\n"));
 
 	for (size_t atIdx = 0; atIdx < numEntries; atIdx++) {
@@ -506,7 +506,7 @@ __attribute__((unused)) int32_t hdf5SetupLongArrayAttrs(hid_t group, const strKe
  *
  * @return 0: Success, <0: Failure
  */
-int32_t hdf5SetupDoubleAttrs(hid_t group, const strKeyDoubleVal attrs[], size_t numEntries) {
+static int32_t hdf5SetupDoubleAttrs(hid_t group, const strKeyDoubleVal attrs[], size_t numEntries) {
 	VERBOSE(printf("Double attrs\n"));
 	hid_t attr;
 	herr_t status;
@@ -542,7 +542,7 @@ int32_t hdf5SetupDoubleAttrs(hid_t group, const strKeyDoubleVal attrs[], size_t 
  *
  * @return 0: Success, <0: Failure
  */
-int32_t hdf5SetupDoubleArrayAttrs(hid_t group, const strKeyDoubleArrVal attrs[], size_t numEntries) {
+static int32_t hdf5SetupDoubleArrayAttrs(hid_t group, const strKeyDoubleArrVal attrs[], size_t numEntries) {
 	VERBOSE(printf("double arr attrs\n"));
 	herr_t status;
 
@@ -578,7 +578,7 @@ int32_t hdf5SetupDoubleArrayAttrs(hid_t group, const strKeyDoubleArrVal attrs[],
  *
  * @return 0: Success, <0: Failure
  */
-int32_t hdf5SetupBoolAttrs(hid_t group, const strKeyBoolVal attrs[], size_t numEntries) {
+static int32_t hdf5SetupBoolAttrs(hid_t group, const strKeyBoolVal attrs[], size_t numEntries) {
 	VERBOSE(printf("Bool attrs\n"));
 
 	hid_t attr;

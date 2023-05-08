@@ -468,7 +468,7 @@ udp_timeMajorSplitPols(int64_t iLoop, const int8_t *inputPortData, O **outputDat
 			} else {
 				outputData[0][tsOutOffset] = castPtr[tsInOffset]; // Xr
 				outputData[1][tsOutOffset] = castPtr[tsInOffset + 1]; // Xi
-				outputData[1][tsOutOffset] = castPtr[tsInOffset + 2]; // Yr
+				outputData[2][tsOutOffset] = castPtr[tsInOffset + 2]; // Yr
 				outputData[3][tsOutOffset] = castPtr[tsInOffset + 3]; // Yi
 			}
 		}
@@ -991,7 +991,7 @@ int32_t lofar_udp_raw_loop(lofar_udp_obs_meta *meta) {
 		// Get the length of packets on the current port and reset the last packet variable encase
 		// 	there is packet loss on the first packet
 		const int32_t portPacketLength = meta->portPacketLength[port];
-		const int32_t packetOutputLength = meta->packetOutputLength[0];
+		const int32_t packetOutputLength = meta->packetOutputLength[0]; // All of these values should be the same, take the top value
 		const int32_t timeStepSize = sizeof(I) / sizeof(int8_t);
 		lastInputPacketOffset = (-2 + meta->replayDroppedPackets) *
 								portPacketLength;    // We request at least 2 packets are malloc'd before the array head pointer, so no SEGFAULTs here

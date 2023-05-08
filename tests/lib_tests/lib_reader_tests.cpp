@@ -7,6 +7,7 @@
 #include <regex>
 #include <valarray>
 #include <complex>
+#include <functional>
 
 #define MODIFY_AND_RESET(target, inter, val, execute) \
 	inter = target;                             \
@@ -446,31 +447,7 @@ TEST(LibReaderTests, PreprocessingReader) {
 
 
 // Input orders
-/*
 const std::vector<processMode_t> inputsMatched = {PACKET_FULL_COPY, PACKET_NOHDR_COPY};
-const std::vector<processMode_t> inputsTsNpol = {PACKET_SPLIT_POL, BEAMLET_MAJOR_FULL, BEAMLET_MAJOR_SPLIT_POL,
-												 BEAMLET_MAJOR_SPLIT_POL, BEAMLET_MAJOR_FULL_REV, BEAMLET_MAJOR_SPLIT_POL_REV,
-												 BEAMLET_MAJOR_SPLIT_POL_REV, TIME_MAJOR_FULL, TIME_MAJOR_SPLIT_POL,
-												 TIME_MAJOR_ANT_POL, TIME_MAJOR_ANT_POL_FLOAT, STOKES_I, STOKES_Q,
-												 STOKES_U, STOKES_V, STOKES_IQUV, STOKES_IV }; // Default
-const std::vector<processMode_t> inputTssTsFactorNpol = {STOKES_I_DS2, STOKES_Q_DS2, STOKES_U_DS2, STOKES_V_DS2,
-														 STOKES_IQUV_DS2, STOKES_IV_DS2, STOKES_I_DS4, STOKES_Q_DS4,
-														 STOKES_U_DS4, STOKES_V_DS4, STOKES_IQUV_DS4, STOKES_IV_DS4,
-														 STOKES_I_DS8, STOKES_Q_DS8, STOKES_U_DS8, STOKES_V_DS8,
-														 STOKES_IQUV_DS8, STOKES_IV_DS8, STOKES_I_DS16, STOKES_Q_DS16,
-														 STOKES_U_DS16, STOKES_V_DS16, STOKES_IQUV_DS16, STOKES_IV_DS16,
-														 STOKES_I_REV, STOKES_Q_REV, STOKES_U_REV, STOKES_V_REV,
-														 STOKES_IQUV_REV, STOKES_IV_REV, STOKES_I_DS2_REV, STOKES_Q_DS2_REV,
-														 STOKES_U_DS2_REV, STOKES_V_DS2_REV, STOKES_IQUV_DS2_REV,
-														 STOKES_IV_DS2_REV, STOKES_I_DS4_REV, STOKES_Q_DS4_REV,
-														 STOKES_U_DS4_REV, STOKES_V_DS4_REV, STOKES_IQUV_DS4_REV,
-														 STOKES_IV_DS4_REV, STOKES_I_DS8_REV, STOKES_Q_DS8_REV,
-														 STOKES_U_DS8_REV, STOKES_V_DS8_REV, STOKES_IQUV_DS8_REV,
-														 STOKES_IV_DS8_REV, STOKES_I_DS16_REV, STOKES_Q_DS16_REV,
-														 STOKES_U_DS16_REV, STOKES_V_DS16_REV, STOKES_IQUV_DS16_REV,
-														 STOKES_IV_DS16_REV};
-
-
 
 // Output sizes
 //const std::vector<processMode_t> outputsMatched = {PACKET_FULL_COPY, PACKET_NOHDR_COPY};
@@ -483,23 +460,29 @@ const std::vector<processMode_t> output1Arr = {BEAMLET_MAJOR_FULL, BEAMLET_MAJOR
 											   STOKES_U_DS2_REV, STOKES_V_DS2_REV, STOKES_I_DS4_REV, STOKES_Q_DS4_REV,
 											   STOKES_U_DS4_REV, STOKES_V_DS4_REV, STOKES_I_DS8_REV, STOKES_Q_DS8_REV,
 											   STOKES_U_DS8_REV, STOKES_V_DS8_REV, STOKES_I_DS16_REV, STOKES_Q_DS16_REV,
-											   STOKES_U_DS16_REV, STOKES_V_DS16_REV};
-const std::vector<processMode_t> output2Arr = {TIME_MAJOR_ANT_POL, TIME_MAJOR_ANT_POL_FLOAT, STOKES_IV_DS2,
+											   STOKES_U_DS16_REV, STOKES_V_DS16_REV, STOKES_I_TIME,
+											   STOKES_Q_TIME, STOKES_U_TIME, STOKES_V_TIME, STOKES_I_DS2_TIME, STOKES_Q_DS2_TIME,
+											   STOKES_U_DS2_TIME, STOKES_V_DS2_TIME, STOKES_I_DS4_TIME, STOKES_Q_DS4_TIME,
+											   STOKES_U_DS4_TIME, STOKES_V_DS4_TIME, STOKES_I_DS8_TIME, STOKES_Q_DS8_TIME,
+											   STOKES_U_DS8_TIME, STOKES_V_DS8_TIME, STOKES_I_DS16_TIME, STOKES_Q_DS16_TIME,
+											   STOKES_U_DS16_TIME, STOKES_V_DS16_TIME};
+const std::vector<processMode_t> output2Arr = {TIME_MAJOR_ANT_POL, TIME_MAJOR_ANT_POL_FLOAT, STOKES_IV, STOKES_IV_DS2,
 											   STOKES_IV_DS4, STOKES_IV_DS8, STOKES_IV_DS16, STOKES_IV_REV,
 											   STOKES_IV_DS2_REV, STOKES_IV_DS4_REV, STOKES_IV_DS8_REV,
-											   STOKES_IV_DS16_REV};
+											   STOKES_IV_DS16_REV, STOKES_IV_TIME, STOKES_IV_DS2_TIME, STOKES_IV_DS4_TIME,
+											   STOKES_IV_DS8_TIME, STOKES_IV_DS16_TIME};
 const std::vector<processMode_t> output4Arr = {PACKET_SPLIT_POL, BEAMLET_MAJOR_SPLIT_POL, BEAMLET_MAJOR_SPLIT_POL_REV,
 											   TIME_MAJOR_SPLIT_POL, STOKES_IQUV, STOKES_IQUV_DS2, STOKES_IQUV_DS4,
 											   STOKES_IQUV_DS8, STOKES_IQUV_DS16, STOKES_IQUV_REV, STOKES_IQUV_DS2_REV,
-											   STOKES_IQUV_DS4_REV, STOKES_IQUV_DS8_REV, STOKES_IQUV_DS16_REV};
+											   STOKES_IQUV_DS4_REV, STOKES_IQUV_DS8_REV, STOKES_IQUV_DS16_REV,
+											   STOKES_IQUV_TIME, STOKES_IQUV_DS2_TIME, STOKES_IQUV_DS4_TIME, STOKES_IQUV_DS8_TIME,
+											   STOKES_IQUV_DS16_TIME};
 
 // Output bases
 //const std::vector<processMode_t> ouputBaseMatched = {PACKET_FULL_COPY, PACKET_NOHDR_COPY};
 const std::vector<processMode_t> outputBaseFreqMajor = {PACKET_SPLIT_POL, BEAMLET_MAJOR_FULL, BEAMLET_MAJOR_SPLIT_POL};
 const std::vector<processMode_t> outputBaseRevFreqMajor = {BEAMLET_MAJOR_FULL_REV, BEAMLET_MAJOR_SPLIT_POL_REV};
-const std::vector<processMode_t> outputBaseNpolTimeMajor = {TIME_MAJOR_FULL};
-const std::vector<processMode_t> outputBaseAntMajor = {TIME_MAJOR_ANT_POL, TIME_MAJOR_ANT_POL_FLOAT};
-const std::vector<processMode_t> outputBaseTimeMajor = {TIME_MAJOR_SPLIT_POL};
+const std::vector<processMode_t> outputBaseTimeMajor = {TIME_MAJOR_FULL, TIME_MAJOR_ANT_POL, TIME_MAJOR_ANT_POL_FLOAT, TIME_MAJOR_SPLIT_POL};
 const std::vector<processMode_t> outputBaseStokesDeci = {STOKES_I, STOKES_Q, STOKES_U, STOKES_V, STOKES_IQUV,
 														 STOKES_IV, STOKES_I_DS2, STOKES_Q_DS2, STOKES_U_DS2,
 														 STOKES_V_DS2, STOKES_IQUV_DS2, STOKES_IV_DS2, STOKES_I_DS4,
@@ -516,14 +499,24 @@ const std::vector<processMode_t> outputBaseStokesDeci = {STOKES_I, STOKES_Q, STO
 														 STOKES_Q_DS8_REV, STOKES_U_DS8_REV, STOKES_V_DS8_REV,
 														 STOKES_IQUV_DS8_REV, STOKES_IV_DS8_REV, STOKES_I_DS16_REV,
 														 STOKES_Q_DS16_REV, STOKES_U_DS16_REV, STOKES_V_DS16_REV,
-														 STOKES_IQUV_DS16_REV, STOKES_IV_DS16_REV};
+														 STOKES_IQUV_DS16_REV, STOKES_IV_DS16_REV,
+														 STOKES_I_TIME, STOKES_Q_TIME, STOKES_U_TIME,
+														 STOKES_V_TIME, STOKES_IQUV_TIME, STOKES_IV_TIME, STOKES_I_DS2_TIME,
+														 STOKES_Q_DS2_TIME, STOKES_U_DS2_TIME, STOKES_V_DS2_TIME,
+														 STOKES_IQUV_DS2_TIME, STOKES_IV_DS2_TIME, STOKES_I_DS4_TIME,
+														 STOKES_Q_DS4_TIME, STOKES_U_DS4_TIME, STOKES_V_DS4_TIME,
+														 STOKES_IQUV_DS4_TIME, STOKES_IV_DS4_TIME, STOKES_I_DS8_TIME,
+														 STOKES_Q_DS8_TIME, STOKES_U_DS8_TIME, STOKES_V_DS8_TIME,
+														 STOKES_IQUV_DS8_TIME, STOKES_IV_DS8_TIME, STOKES_I_DS16_TIME,
+														 STOKES_Q_DS16_TIME, STOKES_U_DS16_TIME, STOKES_V_DS16_TIME,
+														 STOKES_IQUV_DS16_TIME, STOKES_IV_DS16_TIME};
 
 // Output offsets
 //const std::vector<processMode_t> outputOffsetMatches = {PACKET_FULL_COPY, PACKET_NOHDR_COPY};
-const std::vector<processMode_t> outputOffsetTs = {PACKET_SPLIT_POL};
+const std::vector<processMode_t> outputOffsetTs = {PACKET_SPLIT_POL, TIME_MAJOR_SPLIT_POL};
 const std::vector<processMode_t> outputOffstTsBeamPol = {BEAMLET_MAJOR_FULL, BEAMLET_MAJOR_FULL_REV};
 const std::vector<processMode_t> outputOffsetTsBeam = {BEAMLET_MAJOR_SPLIT_POL, BEAMLET_MAJOR_SPLIT_POL_REV};
-const std::vector<processMode_t> outputOffsetTsNpol = {TIME_MAJOR_FULL, TIME_MAJOR_SPLIT_POL};
+const std::vector<processMode_t> outputOffsetTsNpol = {TIME_MAJOR_FULL};
 const std::vector<processMode_t> outputOffsetTsAnt = {TIME_MAJOR_ANT_POL, TIME_MAJOR_ANT_POL_FLOAT};
 const std::vector<processMode_t> outputOffsetStokesDeci = {STOKES_I, STOKES_Q, STOKES_U, STOKES_V, STOKES_IQUV,
                                                            STOKES_IV, STOKES_I_DS2, STOKES_Q_DS2, STOKES_U_DS2,
@@ -541,58 +534,298 @@ const std::vector<processMode_t> outputOffsetStokesDeci = {STOKES_I, STOKES_Q, S
                                                            STOKES_Q_DS8_REV, STOKES_U_DS8_REV, STOKES_V_DS8_REV,
                                                            STOKES_IQUV_DS8_REV, STOKES_IV_DS8_REV, STOKES_I_DS16_REV,
                                                            STOKES_Q_DS16_REV, STOKES_U_DS16_REV, STOKES_V_DS16_REV,
-                                                           STOKES_IQUV_DS16_REV, STOKES_IV_DS16_REV};
+                                                           STOKES_IQUV_DS16_REV, STOKES_IV_DS16_REV,
+                                                           STOKES_I_TIME, STOKES_Q_TIME, STOKES_U_TIME,
+                                                           STOKES_V_TIME, STOKES_IQUV_TIME, STOKES_IV_TIME, STOKES_I_DS2_TIME,
+                                                           STOKES_Q_DS2_TIME, STOKES_U_DS2_TIME, STOKES_V_DS2_TIME,
+                                                           STOKES_IQUV_DS2_TIME, STOKES_IV_DS2_TIME, STOKES_I_DS4_TIME,
+                                                           STOKES_Q_DS4_TIME, STOKES_U_DS4_TIME, STOKES_V_DS4_TIME,
+                                                           STOKES_IQUV_DS4_TIME, STOKES_IV_DS4_TIME, STOKES_I_DS8_TIME,
+                                                           STOKES_Q_DS8_TIME, STOKES_U_DS8_TIME, STOKES_V_DS8_TIME,
+                                                           STOKES_IQUV_DS8_TIME, STOKES_IV_DS8_TIME, STOKES_I_DS16_TIME,
+                                                           STOKES_Q_DS16_TIME, STOKES_U_DS16_TIME, STOKES_V_DS16_TIME,
+                                                           STOKES_IQUV_DS16_TIME, STOKES_IV_DS16_TIME};
 
 
 #define VECTOR_CONTAINS(vector, findme) \
 	std::find(vector.begin(), vector.end(), (findme)) != vector.end()
 
-template<typename I, typename O>
-std::vector<O*> blindReformer(lofar_udp_reader *reader) {
-	std::vector<O*> outputs;
-	for (int16_t i = 0; i < reader->meta->numOutputs; i++) {
-		outputs.push_back(static_cast<O>(calloc(reader->meta->packetOutputLength[i] * reader->meta->packetsPerIteration, sizeof(int8_t))));
-	}
-
-	const int64_t headerOffset = UDPHDRLEN / sizeof(I);
-	for (int16_t port = 0; port < reader->meta->numPorts; port++) {
-		const int64_t packetLength = reader->meta->portPacketLength[port] / sizeof(I);
-
-		for (int64_t packet = 0; packet < reader->meta->packetsPerIteration; packet++) {
-			I *workingData = static_cast<I *>(reader->meta->inputData[port] + packetLength * packet);
-
-			int64_t inputOffset, outputOffset, inputStepSize, outputStepSize, outputPortStep;
-			int64_t reverseFrequency = 0;
-
-			if (VECTOR_CONTAINS(inputsMatched, reader->meta->processingMode)) {
-				const int64_t inputOffset = packet * packetLength + (reader->meta->processingMode == PACKET_NOHDR_COPY) * headerOffset;
-				const int64_t outputOffset = packet * (packetLength - (reader->meta->processingMode == PACKET_NOHDR_COPY) * headerOffset);
-				if (memcpy(outputs[port][outputOffset], workingData[inputOffset], packetLength * sizeof(I)) != outputs[port][outputOffset]) {
-					break;
-				}
-				continue;
-
-
-
-				continue;
-
-			// Time-major modes
-			} else if () {
-
-			} else {
-				std::cerr << "Unknown processing mode " << std::to_string(reader->meta->processingMode) << std::endl;
-				::testing::Test::HasFailure();
-			}
-
-		}
-	}
-}
-*/
-
 const int16_t packetLength = UDPHDRLEN + UDPMAXBEAM * 2 * UDPNTIMESLICE;
 typedef struct packets {
-					int8_t data[packetLength];
+	union {
+		int8_t data[packetLength];
+		struct {
+			int8_t udpHeader[UDPHDRLEN];
+			int8_t beamData[UDPMAXBEAM / 2][UDPNTIMESLICE][UDPNPOL];
+		};
+	};
 } packets;
+
+template <typename O>
+static std::tuple<int, int, int, int> processChecker(lofar_udp_reader *reader) {
+	if (8 != reader->meta->inputBitMode) {
+		return std::tuple<int, int, int, int>(-1, -1, -1, reader->meta->inputBitMode);
+	}
+
+	float outputArrStep;
+	std::function<int64_t(int64_t)> tsPolStepFunc;
+	if (VECTOR_CONTAINS(output1Arr, reader->meta->processingMode)) {
+		if (1 != reader->meta->numOutputs) {
+			return std::tuple<int, int, int, int>(-1, -1, -2, reader->meta->numOutputs);
+		}
+		outputArrStep = 0.0f;
+		tsPolStepFunc = [](int64_t pol) -> int64_t {
+			return pol;
+		};
+	} else if (VECTOR_CONTAINS(output2Arr, reader->meta->processingMode)) {
+		if (2 != reader->meta->numOutputs) {
+			return std::tuple<int, int, int, int>(-1, -1, -3, reader->meta->numOutputs);
+		}
+		outputArrStep = 0.5f;
+		tsPolStepFunc = [](int64_t pol) -> int64_t {
+			return pol % 2;
+		};
+	} else if (VECTOR_CONTAINS(output4Arr, reader->meta->processingMode)) {
+		if (4 != reader->meta->numOutputs) {
+			return std::tuple<int, int, int, int>(-1, -1, -4, reader->meta->numOutputs);
+		}
+		outputArrStep = 1.0f;
+		tsPolStepFunc = [](int64_t pol) -> int64_t {
+			return 0 * pol;
+		};
+	} else if (reader->meta->processingMode != PACKET_NOHDR_COPY) {
+		return std::tuple<int, int, int, int>(-1, -1, -5, reader->meta->processingMode);
+	}
+
+	float tsOutputStepVal;
+	if (VECTOR_CONTAINS(outputOffsetTs, reader->meta->processingMode)) {
+		tsOutputStepVal = 1;
+	} else if (VECTOR_CONTAINS(outputOffstTsBeamPol, reader->meta->processingMode)) {
+		tsOutputStepVal = reader->meta->totalProcBeamlets * UDPNPOL;
+	} else if (VECTOR_CONTAINS(outputOffsetTsBeam, reader->meta->processingMode)) {
+		tsOutputStepVal = reader->meta->totalProcBeamlets;
+	} else if (VECTOR_CONTAINS(outputOffsetTsNpol, reader->meta->processingMode)) {
+		tsOutputStepVal = UDPNPOL;
+	} else if (VECTOR_CONTAINS(outputOffsetTsAnt, reader->meta->processingMode)) {
+		tsOutputStepVal = (UDPNPOL / 2);
+	} else if (VECTOR_CONTAINS(outputOffsetStokesDeci, reader->meta->processingMode)) {
+		if (reader->meta->processingMode < STOKES_I_TIME) {
+			tsOutputStepVal = reader->meta->totalProcBeamlets;
+		} else {
+			tsOutputStepVal = 1;
+		}
+	} else if (reader->meta->processingMode != PACKET_NOHDR_COPY) {
+		return std::tuple<int, int, int, int>(-1, -1, -6, reader->meta->processingMode);
+	}
+
+	std::vector<O*> outputs;
+	std::vector<int8_t*> outputIdx;
+	for (int16_t i = 0; i < reader->meta->numOutputs; i++) {
+		outputs.push_back(static_cast<O*>(calloc(reader->meta->packetOutputLength[i] * reader->meta->packetsPerIteration, sizeof(int8_t))));
+		outputIdx.push_back(static_cast<int8_t*>(calloc(reader->meta->packetOutputLength[i] * reader->meta->packetsPerIteration / sizeof(O), sizeof(int8_t))));
+	}
+
+	std::vector<int8_t*> inputIdx;
+	for (int16_t i = 0; i < reader->meta->numPorts; i++) {
+		inputIdx.push_back(static_cast<int8_t*>(calloc((reader->meta->portPacketLength[i] - UDPHDRLEN) * reader->meta->packetsPerIteration, sizeof(int8_t))));
+	}
+
+
+	// Stokes Mode checks
+	int32_t baseMode = ((int32_t) reader->meta->processingMode) % 100;
+	int8_t deciFac = baseMode % 10;
+	baseMode -= deciFac;
+	deciFac = (int8_t) (1 << deciFac);
+
+	int8_t stokesIB = 0, stokesQB = 0, stokesUB = 0, stokesVB = 0;
+	if (baseMode == 0 || baseMode == 50 || baseMode == 60) {
+		stokesIB = 1;
+	}
+	if (baseMode == 10 || baseMode == 50) {
+		stokesQB = 1;
+	}
+	if (baseMode == 20 || baseMode == 50) {
+		stokesUB = 1;
+	}
+	if (baseMode == 30 || baseMode == 50 || baseMode == 60) {
+		stokesVB = 1;
+	}
+
+
+	for (int8_t port = 0; port < reader->meta->numPorts; port++) {
+		//const int64_t portPacketLength = reader->meta->portPacketLength[port];
+		const int64_t outputPacketLength = reader->meta->packetOutputLength[0];
+		packets *workingDataInput = (packets *) reader->meta->inputData[port];
+
+		int64_t scale;
+		std::function<int64_t(int64_t,int64_t)> tsOutputBeamFunc;
+		if (VECTOR_CONTAINS(outputBaseFreqMajor, reader->meta->processingMode)) {
+			scale = (reader->meta->processingMode == PACKET_SPLIT_POL) * UDPNTIMESLICE +
+			        (reader->meta->processingMode == BEAMLET_MAJOR_FULL) * UDPNPOL +
+			        (reader->meta->processingMode == BEAMLET_MAJOR_SPLIT_POL) * 1;
+			tsOutputBeamFunc = [cumulative = reader->meta->portCumulativeBeamlets[port], scale](int64_t base, int64_t beamlet) -> int64_t {
+				return base + (beamlet + cumulative) * scale;
+			};
+		} else if (VECTOR_CONTAINS(outputBaseRevFreqMajor, reader->meta->processingMode)) {
+			scale = (reader->meta->processingMode == BEAMLET_MAJOR_FULL_REV) * UDPNPOL +
+			        (reader->meta->processingMode == BEAMLET_MAJOR_SPLIT_POL_REV) * 1;
+			tsOutputBeamFunc = [cumulative = reader->meta->portCumulativeBeamlets[port], total = reader->meta->totalProcBeamlets, scale](int64_t base, int64_t beamlet) -> int64_t {
+				return base + (total - 1 - beamlet - cumulative) * scale;
+			};
+		} else if (VECTOR_CONTAINS(outputBaseTimeMajor, reader->meta->processingMode)) {
+			// return  + packet * UDPNTIMESLICE
+			scale = (reader->meta->processingMode == TIME_MAJOR_FULL) * UDPNPOL +
+				(reader->meta->processingMode == TIME_MAJOR_ANT_POL || reader->meta->processingMode == TIME_MAJOR_ANT_POL_FLOAT) * (UDPNPOL / 2) +
+				(reader->meta->processingMode == TIME_MAJOR_SPLIT_POL) * 1;
+			tsOutputBeamFunc = [packets = reader->meta->packetsPerIteration, cumulative = reader->meta->portCumulativeBeamlets[port], scale](int64_t packet, int64_t beamlet) -> int64_t {
+				return ((beamlet + cumulative) * (packets * UDPNTIMESLICE) + (packet)) * scale;
+			};
+		} else if (VECTOR_CONTAINS(outputBaseStokesDeci, reader->meta->processingMode)) {
+			scale = 1;
+			if (reader->meta->processingMode < STOKES_I_REV) {
+				tsOutputBeamFunc = [cumulative = reader->meta->portCumulativeBeamlets[port], scale](int64_t base, int64_t beamlet) -> int64_t {
+					return base + (beamlet + cumulative) * scale;
+				};
+			} else if (reader->meta->processingMode < STOKES_I_TIME) {
+				tsOutputBeamFunc = [cumulative = reader->meta->portCumulativeBeamlets[port], total = reader->meta->totalProcBeamlets, scale](int64_t base, int64_t beamlet) -> int64_t {
+					return base + (total - 1 - beamlet - cumulative) * scale;
+				};
+			} else {
+				tsOutputBeamFunc = [deciFac, packets = reader->meta->packetsPerIteration, cumulative = reader->meta->portCumulativeBeamlets[port], scale](int64_t packet, int64_t beamlet) -> int64_t {
+					return ((beamlet + cumulative) * (packets * UDPNTIMESLICE / deciFac) + (packet)) * scale;
+				};
+			}
+		} else if (reader->meta->processingMode > PACKET_NOHDR_COPY) {
+			return std::tuple<int, int, int, int>(-1, -1, -7, reader->meta->processingMode);
+		}
+
+
+		for (int64_t packet = 0; packet < reader->meta->packetsPerIteration; packet++) {
+			packets workingData = workingDataInput[packet];
+			int64_t inputOffset, outputOffset;
+
+			// Packet copy
+			if (VECTOR_CONTAINS(inputsMatched, reader->meta->processingMode)) {
+				inputOffset = (reader->meta->processingMode == PACKET_NOHDR_COPY) * UDPHDRLEN;
+				outputOffset = packet * reader->meta->packetOutputLength[port];
+				int64_t memcmpval;
+				if ((memcmpval = memcmp(&(reader->meta->outputData[port][outputOffset]), &(workingData.data[inputOffset]), reader->meta->packetOutputLength[port]))) {
+					return std::tuple<int, int, int, int>(port, packet, 1, memcmpval);
+				}
+				continue;
+			}
+
+			int64_t tsOutputBaseVal;
+			if (VECTOR_CONTAINS(outputBaseFreqMajor, reader->meta->processingMode)) {
+				tsOutputBaseVal = packet * outputPacketLength / sizeof(O);
+			} else if (VECTOR_CONTAINS(outputBaseRevFreqMajor, reader->meta->processingMode)) {
+				tsOutputBaseVal = packet * outputPacketLength / sizeof(O);
+			} else if (VECTOR_CONTAINS(outputBaseTimeMajor, reader->meta->processingMode)) {
+				tsOutputBaseVal = packet * UDPNTIMESLICE;
+			} else if (VECTOR_CONTAINS(outputBaseStokesDeci, reader->meta->processingMode) ){
+				if (reader->meta->processingMode < STOKES_I_TIME) {
+					tsOutputBaseVal = packet * outputPacketLength / sizeof(O);
+				} else {
+					tsOutputBaseVal = packet * UDPNTIMESLICE / deciFac;
+				}
+			} else {
+				return std::tuple<int, int, int, int>(-1, -1, -8, reader->meta->processingMode);
+			}
+
+
+			for (int16_t beamlet = 0; beamlet < reader->meta->upperBeamlets[port]; beamlet++) {
+				int64_t tsOutBase = tsOutputBeamFunc(tsOutputBaseVal, beamlet);
+
+				if (reader->meta->processingMode < STOKES_I) {
+					for (int16_t ts = 0; ts < UDPNTIMESLICE; ts++) {
+						int64_t tsOutOffset = tsOutBase + (int64_t) (ts * tsOutputStepVal);
+
+						for (int8_t pol = 0; pol < UDPNPOL; pol++) {
+							int64_t outIdx = tsOutOffset + tsPolStepFunc(pol);
+							int8_t outArr = (int8_t) (outputArrStep * pol);
+							outputs[outArr][outIdx] = workingData.beamData[beamlet][ts][pol];
+
+							inputIdx[port][packet * 7808 + beamlet * UDPNTIMESLICE * UDPNPOL + ts * UDPNPOL + pol] = 1;
+							outputIdx[(int8_t) (outputArrStep * pol)][outIdx] = 1;
+						}
+						while (0) {};
+					}
+				} else if constexpr (sizeof(O) == 4) {
+					for (int8_t tsD = 0; tsD < UDPNTIMESLICE / deciFac; tsD++) {
+						float stokesIV = 0, stokesQV = 0, stokesUV = 0, stokesVV = 0;
+						int64_t tsOutOffset = tsOutBase + (int64_t) (tsD * tsOutputStepVal);
+						for (int8_t dec = 0; dec < deciFac; dec++) {
+							int8_t ts = (int8_t) tsD * deciFac + dec;
+							for (int8_t pol = 0; pol < UDPNPOL; pol++)
+								inputIdx[port][packet * 7808 + beamlet * UDPNTIMESLICE * UDPNPOL + ts * UDPNPOL + pol] = 1;
+
+							if (stokesIB) stokesIV += stokesI(workingData.beamData[beamlet][ts][0], workingData.beamData[beamlet][ts][1], workingData.beamData[beamlet][ts][2], workingData.beamData[beamlet][ts][3]);
+							if (stokesQB) stokesQV += stokesQ(workingData.beamData[beamlet][ts][0], workingData.beamData[beamlet][ts][1], workingData.beamData[beamlet][ts][2], workingData.beamData[beamlet][ts][3]);
+							if (stokesUB) stokesUV += stokesU(workingData.beamData[beamlet][ts][0], workingData.beamData[beamlet][ts][1], workingData.beamData[beamlet][ts][2], workingData.beamData[beamlet][ts][3]);
+							if (stokesVB) stokesVV += stokesV(workingData.beamData[beamlet][ts][0], workingData.beamData[beamlet][ts][1], workingData.beamData[beamlet][ts][2], workingData.beamData[beamlet][ts][3]);
+						}
+						int32_t index = 0;
+						if (stokesIB) outputs[index++][tsOutOffset] = stokesIV;
+						if (stokesQB) outputs[index++][tsOutOffset] = stokesQV;
+						if (stokesUB) outputs[index++][tsOutOffset] = stokesUV;
+						if (stokesVB) outputs[index++][tsOutOffset] = stokesVV;
+
+						index = 0;
+						if (stokesIB) outputIdx[index++][tsOutOffset] = 1;
+						if (stokesQB) outputIdx[index++][tsOutOffset] = 1;
+						if (stokesUB) outputIdx[index++][tsOutOffset] = 1;
+						if (stokesVB) outputIdx[index++][tsOutOffset] = 1;
+					}
+				} else {
+					return std::tuple<int, int, int, int>(-1, -1, -9, -1);
+				}
+			}
+		}
+	}
+
+	if (VECTOR_CONTAINS(inputsMatched, reader->meta->processingMode)) {
+		return std::tuple<int, int, int, int>(0, 0, 0, 0);
+	}
+
+	for (int8_t port = 0; port < reader->meta->numPorts; port++) {
+		for (int64_t idx = 0; idx < reader->meta->packetsPerIteration * (reader->meta->portPacketLength[port] - UDPHDRLEN); idx++) {
+			if (!inputIdx[port][idx]) {
+				printf("In: %d %ld\n", port, idx);
+			}
+		}
+	}
+	for (int8_t port = 0; port < reader->meta->numOutputs; port++) {
+		for (int64_t idx = 0; idx < reader->meta->packetsPerIteration * reader->meta->packetOutputLength[port] / sizeof(O); idx++) {
+			if (!outputIdx[port][idx]) {
+				printf("Out: %d %ld\n", port, idx);
+			}
+		}
+	}
+
+
+	for (int8_t outp = 0; outp < reader->meta->numOutputs; outp++) {
+		int memcmpval = 0;
+		if ((memcmpval = memcmp(reader->meta->outputData[outp], outputs[outp], reader->meta->packetsPerIteration * reader->meta->packetOutputLength[outp]))) {
+			// Memcmp may fail as a result of ffast-math, do some manual checks.
+			for (int64_t i = 0; i < reader->meta->packetsPerIteration * reader->meta->packetOutputLength[outp] / sizeof(O); i++) {
+				if constexpr (sizeof(O) == 1) {
+					if (reader->meta->outputData[outp][i] != outputs[outp][i]) {
+						printf("%hhd, %ld: %hhd, %hhd\n", outp, i, reader->meta->outputData[outp][i], outputs[outp][i]);
+						return std::tuple<int, int, int, int>(outp, i, 2, memcmpval);
+					}
+				} else {
+					if (((float*) reader->meta->outputData[outp])[i] != outputs[outp][i]) {
+						printf("%hhd, %ld: %f, %f\n", outp, i, ((float *) reader->meta->outputData[outp])[i], outputs[outp][i]);
+						return std::tuple<int, int, int, int>(outp, i, 2, memcmpval);
+					}
+				}
+			}
+		}
+	}
+
+	return std::tuple<int, int, int, int>(0, 0, 0, 0);
+}
+
 static std::tuple<int, int, int, int> packetChecker(int64_t packetsPerBlock, int64_t lastPacket, int8_t **inputData, int8_t numInpPorts, int8_t **outputData, int8_t numOutputs) {
 	if (numInpPorts != numOutputs) return std::tuple<int, int, int, int>(-1, -1, -1, 0);
 	for (int8_t port = 0; port < numInpPorts; port++) {
@@ -641,6 +874,18 @@ const std::vector<int32_t> expectedIters = {
 	16, // Test case 8: Missing a target packet, and 2 iterations after it
 	16, // Test case 9: All iters, lots of lost packets
 };
+const std::vector<std::vector<int32_t>> expectedDroppedPackets = {
+	{0, 0, 0, 0}, // Test case 0: No lost packets (no ops)
+	{0, 0, 0, 0}, // Test case 1: No lost packets
+	{0, 0, 0, 0}, // Test case 2: No lost packets
+	{0, /*1*/ 0 , 0, 0}, // Test case 3: 1 lost packet, but it's at the tail so it's not used
+	{0, /*33*/ 0, 0, 0}, // Test case 4: 33 lost packets, but it's at the tail so it's not used
+	{0, 0, 0, 0}, // Test case 5: No lost packets (no ops)
+	{0, 0, 0, 0}, // Test case 6: No lost packets (no ops)
+	{8, 8, 8, 8}, // Test case 7: 8 lost packets on all ports
+	{33, 33, 33, 33}, // Test case 8: 33 lost packets on all ports
+	{0, 19, 38, 57}, // Test case 9: Variable loss per-port
+};
 class LibReaderTestsParam : public testing::TestWithParam<std::tuple<processMode_t, calibrate_t, int32_t>> {};
 TEST_P(LibReaderTestsParam, ProcessingData) {
 	//lofar_udp_reader *reader = reader_setup(150);
@@ -688,8 +933,23 @@ TEST_P(LibReaderTestsParam, ProcessingData) {
 		if (currMode != PACKET_FULL_COPY) {
 			while ((returnv = lofar_udp_reader_step_timed(reader, timing)) < 1) {
 				iters++;
-				//auto tupleReturn = reorderChecker();
-				EXPECT_NONFATAL_FAILURE(EXPECT_TRUE(false), "");
+				if (testNum == 1 && cal == NO_CALIBRATION) {
+					std::tuple<int, int, int, int> tupleReturn;
+					if (reader->meta->outputBitMode == 32) {
+						tupleReturn = processChecker<float>(reader);
+					} else if (reader->meta->outputBitMode == 8) {
+						tupleReturn = processChecker<int8_t>(reader);
+					} else {
+						ASSERT_TRUE(false);
+					}
+					EXPECT_EQ(0, std::get<0>(tupleReturn)); // Port
+					EXPECT_EQ(0, std::get<1>(tupleReturn)); // Packet
+					EXPECT_EQ(0, std::get<2>(tupleReturn)); // Failure mode
+					EXPECT_EQ(0, std::get<3>(tupleReturn)); // Extra info
+					//ASSERT_EQ(0, std::get<0>(tupleReturn) + std::get<1>(tupleReturn) + std::get<2>(tupleReturn) + std::get<3>(tupleReturn));
+				} else {
+					EXPECT_NONFATAL_FAILURE(EXPECT_TRUE(false), "");
+				}
 			}
 		} else {
 			while ((returnv = lofar_udp_reader_step(reader)) < 1) {
@@ -706,6 +966,9 @@ TEST_P(LibReaderTestsParam, ProcessingData) {
 		}
 		printf("Last returnv, iters: %d, %d\n", returnv, iters);
 		ASSERT_EQ(iters, expectedIters[testNum]);
+		for (int8_t port = 0; port < reader->meta->numPorts; port++) {
+			EXPECT_EQ(reader->meta->portTotalDroppedPackets[port], expectedDroppedPackets[testNum][port]);
+		}
 
 		lofar_udp_reader_cleanup(reader);
 		lofar_udp_config_cleanup(config);
