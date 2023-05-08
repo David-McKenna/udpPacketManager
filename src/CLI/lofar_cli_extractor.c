@@ -19,8 +19,7 @@ void helpMessages() {
 
 }
 
-void CLICleanup(lofar_udp_config *config, lofar_udp_io_write_config *outConfig, int8_t *headerBuffer) {
-
+static void CLICleanup(lofar_udp_config *config, lofar_udp_io_write_config *outConfig, int8_t *headerBuffer) {
 	FREE_NOT_NULL(config);
 	FREE_NOT_NULL(outConfig);
 	FREE_NOT_NULL(headerBuffer);
@@ -449,8 +448,6 @@ int main(int argc, char *argv[]) {
 			break;
 		}
 
-		lofar_udp_io_write_cleanup(outConfig, 1);
-
 		// returnVal below -1 indicates we will not be given data on the next iteration, so gracefully exit with the known reason
 		if (returnValMeta < -1) {
 			printf("We've hit a termination return value (%ld, %s), exiting.\n", returnValMeta,
@@ -462,8 +459,7 @@ int main(int argc, char *argv[]) {
 
 	CLICK(tock);
 
-	int droppedPackets = 0;
-	long totalPacketLength = 0, totalOutLength = 0;
+	int64_t droppedPackets = 0, totalPacketLength = 0, totalOutLength = 0;
 
 	// Print out a summary of the operations performed, this does not contain data read for seek operations
 	if (silent == 0) {
@@ -488,7 +484,7 @@ int main(int argc, char *argv[]) {
 		printf("Effective Read Speed:\t%3.01lf MB/s\t\tEffective Write Speed:\t%3.01lf MB/s\n", (double) (packetsProcessed * totalPacketLength) / 1e+6 / totalReadTime,
 		       (double) (packetsWritten * totalOutLength) / 1e+6 / totalWriteTime);
 		printf("Approximate Throughput:\t%3.01lf GB/s\n", (double) (reader->meta->numPorts * packetsProcessed * (totalPacketLength + totalOutLength)) / 1e+9 / totalOpsTime);
-		printf("A total of %d packets were missed during the observation.\n", droppedPackets);
+		printf("A total of %ld packets were missed during the observation.\n", droppedPackets);
 		printf("\n\nData processing finished. Cleaning up file and memory objects...\n");
 	}
 
@@ -497,6 +493,10 @@ int main(int argc, char *argv[]) {
 	// Clean-up the reader object, also closes the input files for us
 	lofar_udp_reader_cleanup(reader);
 	if (silent == 0) { printf("Reader cleanup performed successfully.\n"); }
+
+	// Cleanup the writer and close outputs
+	lofar_udp_io_write_cleanup(outConfig, 1);
+	outConfig = NULL;
 
 	// Free our malloc'd objects
 	CLICleanup(config, outConfig, headerBuffer);

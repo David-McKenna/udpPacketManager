@@ -183,26 +183,26 @@ message("")
 
 
 # Configure FFTW3 (w/ floats + omp support, optional)
-message("Configuring FFTW3 (static, floats, OpenMP support enabled)")
+#message("Configuring FFTW3 (static, floats, OpenMP support enabled)")
 ## CMake config is outdated as of FFTW3 3.3.10, manually building to get AVX-512 support for REALTA
 # I do not understand why, but the clean build process fails without the "echo $(pwd)" command.
-ExternalProject_ADD(internal_FFTW3F
-                    URL "https://www.fftw.org/fftw-3.3.10.tar.gz"
-                    URL_HASH "MD5=8ccbf6a5ea78a16dbc3e1306e234cc5c"
-                    CONFIGURE_COMMAND ./configure --disable-dependency-tracking --enable-float --enable-openmp --enable-static
-                    BUILD_COMMAND make -j4
-                    BUILD_IN_SOURCE TRUE
-                    INSTALL_COMMAND ""
-                    UPDATE_COMMAND ""
-)
-ExternalProject_Get_Property(internal_FFTW3F install_dir)
-set(fftw3f_INSTALL_DIR ${install_dir})
-add_library(libfftw3fomp STATIC IMPORTED)
-set_property(TARGET libfftw3fomp PROPERTY IMPORTED_LOCATION ${fftw3f_INSTALL_DIR}/src/internal_FFTW3F/threads/.libs/libfftw3f_omp.a)
-add_dependencies(libfftw3fomp internal_FFTW3F)
-add_library(libfftw3f STATIC IMPORTED)
-set_property(TARGET libfftw3f PROPERTY IMPORTED_LOCATION ${fftw3f_INSTALL_DIR}/src/internal_FFTW3F/.libs/libfftw3f.a)
-add_dependencies(libfftw3f internal_FFTW3F)
+#ExternalProject_ADD(internal_FFTW3F
+#                    URL "https://www.fftw.org/fftw-3.3.10.tar.gz"
+#                    URL_HASH "MD5=8ccbf6a5ea78a16dbc3e1306e234cc5c"
+#                    CONFIGURE_COMMAND ./configure --disable-dependency-tracking --enable-float --enable-openmp --enable-static
+#                    BUILD_COMMAND make -j4
+#                    BUILD_IN_SOURCE TRUE
+#                    INSTALL_COMMAND ""
+#                    UPDATE_COMMAND ""
+#)
+#ExternalProject_Get_Property(internal_FFTW3F install_dir)
+#set(fftw3f_INSTALL_DIR ${install_dir})
+#add_library(libfftw3fomp STATIC IMPORTED)
+#set_property(TARGET libfftw3fomp PROPERTY IMPORTED_LOCATION ${fftw3f_INSTALL_DIR}/src/internal_FFTW3F/threads/.libs/libfftw3f_omp.a)
+#add_dependencies(libfftw3fomp internal_FFTW3F)
+#add_library(libfftw3f STATIC IMPORTED)
+#set_property(TARGET libfftw3f PROPERTY IMPORTED_LOCATION ${fftw3f_INSTALL_DIR}/src/internal_FFTW3F/.libs/libfftw3f.a)
+#add_dependencies(libfftw3f internal_FFTW3F)
 message("")
 
 
@@ -238,7 +238,7 @@ add_library(lofudpman STATIC
             src/lib/lofar_udp_metadata.c
             src/lib/lofar_udp_time.c)
 
-add_dependencies(lofudpman libfftw3fomp libzstd_static libpsrdada libhdf5 libz libh5bshuf install_python_requirements) #yaml) #CSpice::cspice)
+add_dependencies(lofudpman libzstd_static libpsrdada libhdf5 libz libh5bshuf install_python_requirements) # libfftw3fomp) ##yaml) #CSpice::cspice)
 
 # Include all of our library headers
 target_include_directories(lofudpman PUBLIC
@@ -250,7 +250,7 @@ target_include_directories(lofudpman PUBLIC
 
 )
 # Include all of our dependency headers
-target_include_directories(lofudpman PUBLIC ${fftw3f_INSTALL_DIR}/src/internal_FFTW3F/api)
+#target_include_directories(lofudpman PUBLIC ${fftw3f_INSTALL_DIR}/src/internal_FFTW3F/api)
 target_include_directories(lofudpman PUBLIC ${hdf5_INSTALL_DIR}/src/internal_hdf5/src/ ${zlib_INSTALL_DIR}/src/internal_zlib/ ${bitshuffle_INSTALL_DIR}/src/internal_bitshuffle/src/)
 target_include_directories(lofudpman PUBLIC ${psrdada_INSTALL_DIR}/src/internal_PSRDADA/src/)
 target_include_directories(lofudpman PUBLIC ${zstd_SOURCE_DIR}/lib/)
@@ -258,7 +258,7 @@ target_include_directories(lofudpman PUBLIC ${zstd_SOURCE_DIR}/lib/)
 
 file(GLOB_RECURSE UDP_INCLUDE_FILES "${CMAKE_CURRENT_SOURCE_DIR}/src/*/*.h" "${CMAKE_CURRENT_SOURCE_DIR}/src/*/*.hpp" "${CMAKE_CURRENT_BINARY_DIR}/src/*/*.h" "${CMAKE_CURRENT_BINARY_DIR}/src/*/*.hpp")
 
-target_link_libraries(lofudpman PUBLIC libfftw3fomp libfftw3f)
+#target_link_libraries(lofudpman PUBLIC libfftw3fomp libfftw3f)
 target_link_libraries(lofudpman PUBLIC libhdf5 libz libh5bshuf ${CMAKE_DL_LIBS}) # Some cases need libdl for HDF5
 target_link_libraries(lofudpman PUBLIC libpsrdada)
 target_link_libraries(lofudpman PUBLIC libzstd_static)
@@ -283,9 +283,9 @@ target_link_libraries(lofudpman PUBLIC OpenMP::OpenMP_CXX OpenMP::OpenMP_C)
 
 # Setup the CLIs
 add_executable(lofar_udp_extractor src/CLI/lofar_cli_extractor.c)
-add_executable(lofar_stokes_extractor src/CLI/lofar_cli_stokes.c)
+#add_executable(lofar_stokes_extractor src/CLI/lofar_cli_stokes.c)
 target_link_libraries(lofar_udp_extractor PUBLIC lofudpman)
-target_link_libraries(lofar_stokes_extractor PUBLIC lofudpman)
+#target_link_libraries(lofar_stokes_extractor PUBLIC lofudpman)
 
 
 include(CMakePackageConfigHelpers)
@@ -296,7 +296,7 @@ write_basic_package_version_file(
 )
 
 # Install everything
-install(TARGETS lofudpman lofar_udp_extractor lofar_stokes_extractor
+install(TARGETS lofudpman lofar_udp_extractor #lofar_stokes_extractor
 		EXPORT lofudpman
 		LIBRARY DESTINATION lib
 		RUNTIME DESTINATION bin

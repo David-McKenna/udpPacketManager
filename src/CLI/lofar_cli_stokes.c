@@ -161,13 +161,12 @@ void temporalDownsample(float **data, size_t numOutputs, size_t nbin, size_t nch
 
 	VERBOSE(printf("Downsampling for: %zu, %zu, %zu\n", nchans, nbin, downsampleFactor));
 
-#pragma omp parallel for default(shared) private(accumulator, accumulations, inputIdx, outputIdx)
 	for (size_t output = 0; output < numOutputs; output++) {
+#pragma omp parallel for default(shared) private(accumulator, accumulations, inputIdx, outputIdx)
 		for (size_t sub = 0; sub < nchans; sub++) {
 			accumulations = 0;
 			accumulator = 0.0f;
 
-#pragma omp simd //nontemporal(data)
 			for (size_t sample = 0; sample < nbin; sample++) {
 				// Input is time major
 				//         curr   size per sample
@@ -552,8 +551,8 @@ int main(int argc, char *argv[]) {
 	if (fftwf_init_threads() == 0) {
 		fprintf(stderr, "ERROR: Failed to initialise multi-threaded FFTWF.\n");
 	}
-	fftwf_plan_with_nthreads(config->ompThreads);
 	omp_set_num_threads(config->ompThreads);
+	fftwf_plan_with_nthreads(omp_get_num_threads());
 
 
 
@@ -595,7 +594,7 @@ int main(int argc, char *argv[]) {
 	int32_t nsub = reader->meta->totalProcBeamlets;
 	int32_t nchan = reader->meta->totalProcBeamlets * channelisation;
 
-	int32_t nfft = nbin / (reader->packetsPerIteration * UDPNTIMESLICE);
+	int32_t nfft = (reader->packetsPerIteration * UDPNTIMESLICE) / nbin;
 
 	fftwf_complex * in1 = NULL;
 	fftwf_complex * in2 = NULL;
@@ -656,12 +655,13 @@ int main(int argc, char *argv[]) {
 	// lofar_udp_io_write_setup_helper(lofar_udp_io_write_config *config, int64_t outputLength[], int8_t numOutputs, int32_t iter, int64_t firstPacket)
 	for (int8_t i = 0; i < numStokes; i++) {
 		expectedWriteSize[i] = reader->packetsPerIteration * UDPNTIMESLICE * reader->meta->totalProcBeamlets / downsampling * sizeof(float);
-		if ((returnVal = lofar_udp_io_write_setup_helper(outConfig, expectedWriteSize, numStokes, i, startingPacket)) < 0) {
-			fprintf(stderr, "ERROR: Failed to open an output file (%ld, errno %d: %s), breaking.\n", returnVal, errno, strerror(errno));
-			returnValMeta = (returnValMeta < 0 && returnValMeta > -7) ? returnValMeta : -7;
-			CLICleanup(config, outConfig, headerBuffer, intermediateX, intermediateY);
-			return 1;
-		}
+	}
+
+	if ((returnVal = lofar_udp_io_write_setup_helper(outConfig, expectedWriteSize, numStokes, 0, startingPacket)) < 0) {
+		fprintf(stderr, "ERROR: Failed to open an output file (%ld, errno %d: %s), breaking.\n", returnVal, errno, strerror(errno));
+		returnValMeta = (returnValMeta < 0 && returnValMeta > -7) ? returnValMeta : -7;
+		CLICleanup(config, outConfig, headerBuffer, intermediateX, intermediateY);
+		return 1;
 	}
 
 
@@ -692,22 +692,22 @@ int main(int argc, char *argv[]) {
 			packetsToWrite = maxPackets;
 		}
 
-		printf("Begin channelisation %d %d %d\n", channelisation, spectralDownsample, downsampling);
+		printf("Begin channelisation %d %d %d %d (%d)\n", channelisation, spectralDownsample, downsampling, nfft, nfft * nbin);
 		// Perform channelisation, temporal downsampling as needed
 		if (channelisation > 1) {
 			CLICK(tickChan);
-			printf("Copy\n");
+			printf("Copy %ld\n", nbin * nsub * nfft * 2 * sizeof(float));
 			memcpy(in1, reader->meta->outputData[0], nbin * nsub * nfft * 2 * sizeof(float));
 			memcpy(in2, reader->meta->outputData[1], nbin * nsub * nfft * 2 * sizeof(float));
 			printf("Execute\n");
 			fftwf_execute(fftForwardX);
 			fftwf_execute(fftForwardY);
-			printf("Reorder\n");
+			printf("Reorder %ld\n", nbin * nfft * nsub);
 			reorderData(intermediateX, intermediateY, nbin * nfft, nsub);
 			//windowData();
-			printf("Reorder\n");
-
+			printf("Reorder %ld\n", mbin  * nfft * nsub * channelisation);
 			reorderData(intermediateX, intermediateY, mbin * nfft, nsub * channelisation);
+			printf("Cleanup %ld\n", nbin * nsub * nfft * 2);
 			ARR_INIT(((float *) in1),nbin * nsub * nfft * 2,0.0f);
 			ARR_INIT(((float *) in2),nbin * nsub * nfft * 2,0.0f);
 			printf("Execute\n");
@@ -776,13 +776,14 @@ int main(int argc, char *argv[]) {
 
 		if (splitEvery != LONG_MAX && returnValMeta > -2) {
 			if (!((localLoops + 1) % splitEvery)) {
-
+				if (!silent) printf("Hit splitting condition; closing writers and re-opening for iteration %d.\n", localLoops / splitEvery);
 				// Close existing files
 				lofar_udp_io_write_cleanup(outConfig, 0);
 
 				// Open new files
-				if ((returnVal = _lofar_udp_io_write_internal_lib_setup_helper(outConfig, reader, localLoops / splitEvery)) < 0) {
-					fprintf(stderr, "ERROR: Failed to open new file are breakpoint reached (%ld, errno %d: %s), breaking.\n", returnVal, errno, strerror(errno));
+				if ((returnVal = lofar_udp_io_write_setup_helper(outConfig, expectedWriteSize, numStokes, localLoops / splitEvery, reader->meta->lastPacket + 1)) < 0) {
+					fprintf(stderr, "ERROR: Failed to open new file are breakpoint reached (%ld, errno %d: %s), breaking.\n", returnVal, errno,
+					        strerror(errno));
 					returnValMeta = (returnValMeta < 0 && returnValMeta > -6) ? returnValMeta : -6;
 					break;
 				}
@@ -826,8 +827,6 @@ int main(int argc, char *argv[]) {
 		if (returnValMeta < -1) {
 			break;
 		}
-
-		lofar_udp_io_write_cleanup(outConfig, 1);
 
 		// returnVal below -1 indicates we will not be given data on the next iteration, so gracefully exit with the known reason
 		if (returnValMeta < -1) {
@@ -882,6 +881,10 @@ int main(int argc, char *argv[]) {
 	// Clean-up the reader object, also closes the input files for us
 	lofar_udp_reader_cleanup(reader);
 	if (silent == 0) { printf("Reader cleanup performed successfully.\n"); }
+
+	// Cleanup the writer object, close any outputs
+	lofar_udp_io_write_cleanup(outConfig, 1);
+	outConfig = NULL;
 
 	// Free our malloc'd objects
 	CLICleanup(config, outConfig, headerBuffer, intermediateX, intermediateY);
