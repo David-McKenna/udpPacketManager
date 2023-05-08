@@ -924,7 +924,7 @@ int64_t lofar_udp_io_write(lofar_udp_io_write_config *const config, int8_t outp,
  * @param outp Output file
  * @param metadata Metadata struct
  * @param headerBuffer  Metadata buffer
- * @param headerLength  Metadata buffer length
+ * @param headerLength  Metadata header length (to write)
  *
  * @return >0: Success, bytes written, <=0: Failure
  */
@@ -950,7 +950,6 @@ int64_t lofar_udp_io_write_metadata(lofar_udp_io_write_config *const outConfig, 
 		return -4;
 	}
 
-	int64_t outputHeaderSize = (int64_t) strnlen((const char *) headerBuffer, headerLength);
 
 	switch (outConfig->readerType) {
 		// Normal file writes
@@ -958,11 +957,11 @@ int64_t lofar_udp_io_write_metadata(lofar_udp_io_write_config *const outConfig, 
 		case FIFO:
 		case ZSTDCOMPRESSED:
 		case ZSTDCOMPRESSED_INDIRECT:
-			return lofar_udp_io_write(outConfig, outp, headerBuffer, outputHeaderSize);
+			return lofar_udp_io_write(outConfig, outp, headerBuffer, headerLength);
 
 		// Ringbuffer is offset by 1 from normal writes
 		case DADA_ACTIVE:
-			return _lofar_udp_io_write_DADA((ipcio_t*) outConfig->dadaWriter[outp].hdu->header_block, headerBuffer, outputHeaderSize, 1);
+			return _lofar_udp_io_write_DADA((ipcio_t*) outConfig->dadaWriter[outp].hdu->header_block, headerBuffer, headerLength, 1);
 
 		// HDF5 does its own thing
 		case HDF5:
