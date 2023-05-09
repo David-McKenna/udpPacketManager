@@ -30,7 +30,7 @@ bibliography: paper.bib
 # Summary
 
 International LOFAR stations are powerful radio telescopes, however 
-they are delivered without the tooling nessasary to convert the raw 
+they are delivered without the tooling nessasary to convert their raw 
 data stream into standard data formats that can be used by common 
 processing pipelines, or science-ready data products.
 
@@ -39,7 +39,7 @@ intent of providing a faster-than-realtime software package for
 converting raw data into arbitrary data formats based on the needs 
 of observers working with the Irish LOFAR station (I-LOFAR), and 
 stations across Europe. It currently offers an open-source solution 
-for both offline and online (pre-) processing of telescope data into 
+for both offline and online (pre-)processing of telescope data into 
 a wide variety of formats.
 
 # Statement of need
