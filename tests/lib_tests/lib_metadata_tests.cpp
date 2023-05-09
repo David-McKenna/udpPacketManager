@@ -180,7 +180,9 @@ TEST(LibMetadataTests, HelperFunctions) {
 		reference->bw = reference->subband_bw * reference->nsubband;
 		reference->freq_raw = 150.0;
 		reference->ftop = reference->freq_raw - reference->bw * 0.5;
+		reference->ftop_raw = reference->freq_raw - reference->bw * 0.5;
 		reference->fbottom = reference->freq_raw + reference->bw * 0.5;
+		reference->fbottom_raw = reference->freq_raw + reference->bw * 0.5;
 
 		config->externalChannelisation = 0;
 		config->externalDownsampling = 0;
@@ -192,46 +194,50 @@ TEST(LibMetadataTests, HelperFunctions) {
 		EXPECT_EQ(-1, _lofar_udp_metadata_handle_external_factors(nullptr, config));
 
 		EXPECT_EQ(0, _lofar_udp_metadata_handle_external_factors(metadata, config));
-		EXPECT_DOUBLE_EQ(reference->tsamp_raw, metadata->tsamp);
-		EXPECT_DOUBLE_EQ(reference->subband_bw, metadata->channel_bw);
+		EXPECT_FLOAT_EQ(reference->tsamp_raw, metadata->tsamp);
+		EXPECT_FLOAT_EQ(reference->subband_bw, metadata->channel_bw);
 
 		// (config->externalDownsampling > 1)
 		config->externalDownsampling = 8;
 		EXPECT_EQ(0, _lofar_udp_metadata_handle_external_factors(metadata, config));
-		EXPECT_DOUBLE_EQ(reference->tsamp_raw * config->externalDownsampling, metadata->tsamp);
-		EXPECT_DOUBLE_EQ(reference->subband_bw, metadata->channel_bw);
+		EXPECT_FLOAT_EQ(reference->tsamp_raw * config->externalDownsampling, metadata->tsamp);
+		EXPECT_FLOAT_EQ(reference->subband_bw, metadata->channel_bw);
 
 		// (config->externalChannelisation > 1)
 		config->externalDownsampling = 8;
 		config->externalChannelisation = 8;
 		EXPECT_EQ(0, _lofar_udp_metadata_handle_external_factors(metadata, config));
-		EXPECT_DOUBLE_EQ(reference->tsamp_raw * config->externalDownsampling * config->externalChannelisation, metadata->tsamp);
-		EXPECT_DOUBLE_EQ(reference->subband_bw / config->externalChannelisation, metadata->channel_bw);
+		EXPECT_FLOAT_EQ(reference->tsamp_raw * config->externalDownsampling * config->externalChannelisation, metadata->tsamp);
+		EXPECT_FLOAT_EQ(reference->subband_bw / config->externalChannelisation, metadata->channel_bw);
 		EXPECT_TRUE(reference->freq_raw != metadata->freq);
 		EXPECT_TRUE(reference->ftop != metadata->ftop);
-		EXPECT_DOUBLE_EQ(reference->ftop + metadata->channel_bw / 2, metadata->ftop);
+		EXPECT_FLOAT_EQ(reference->ftop + metadata->channel_bw / 2, metadata->ftop);
 		EXPECT_TRUE(reference->fbottom != metadata->fbottom);
-		EXPECT_DOUBLE_EQ(reference->fbottom + metadata->channel_bw / 2, metadata->fbottom);
+		EXPECT_FLOAT_EQ(reference->fbottom + metadata->channel_bw / 2, metadata->fbottom);
 
 
 		config->externalDownsampling = 9;
 		config->externalChannelisation = 9;
 		EXPECT_EQ(0, _lofar_udp_metadata_handle_external_factors(metadata, config));
-		EXPECT_DOUBLE_EQ(reference->tsamp_raw * config->externalDownsampling * config->externalChannelisation, metadata->tsamp);
-		EXPECT_DOUBLE_EQ(reference->subband_bw / config->externalChannelisation, metadata->channel_bw);
-		EXPECT_DOUBLE_EQ(reference->freq_raw, metadata->freq);
-		EXPECT_DOUBLE_EQ(reference->ftop, metadata->ftop);
-		EXPECT_DOUBLE_EQ(reference->fbottom, metadata->fbottom);
+		EXPECT_FLOAT_EQ(reference->tsamp_raw * config->externalDownsampling * config->externalChannelisation, metadata->tsamp);
+		EXPECT_FLOAT_EQ(reference->subband_bw / config->externalChannelisation, metadata->channel_bw);
+		EXPECT_FLOAT_EQ(reference->freq_raw, metadata->freq);
+		EXPECT_FLOAT_EQ(reference->ftop, metadata->ftop);
+		EXPECT_FLOAT_EQ(reference->fbottom, metadata->fbottom);
 
 		config->externalDownsampling = 3;
 		config->externalChannelisation = 3;
 		metadata->bw *= -1;
+		metadata->subband_bw *= -1;
+		double tmp = metadata->ftop_raw;
+		metadata->ftop_raw = metadata->fbottom_raw;
+		metadata->fbottom_raw = tmp;
 		EXPECT_EQ(0, _lofar_udp_metadata_handle_external_factors(metadata, config));
-		EXPECT_DOUBLE_EQ(reference->tsamp_raw * config->externalDownsampling * config->externalChannelisation, metadata->tsamp);
-		EXPECT_DOUBLE_EQ(-1 * reference->subband_bw / config->externalChannelisation, metadata->channel_bw);
-		EXPECT_DOUBLE_EQ(reference->freq_raw, metadata->freq);
-		EXPECT_DOUBLE_EQ(reference->fbottom, metadata->ftop);
-		EXPECT_DOUBLE_EQ(reference->ftop, metadata->fbottom);
+		EXPECT_FLOAT_EQ(reference->tsamp_raw * config->externalDownsampling * config->externalChannelisation, metadata->tsamp);
+		EXPECT_FLOAT_EQ((-1 * reference->subband_bw) / config->externalChannelisation, metadata->channel_bw);
+		EXPECT_FLOAT_EQ(reference->freq_raw, metadata->freq);
+		EXPECT_FLOAT_EQ(reference->fbottom_raw, metadata->ftop);
+		EXPECT_FLOAT_EQ(reference->ftop_raw, metadata->fbottom);
 
 
 		free(reference);
@@ -489,48 +495,48 @@ TEST(LibMetadataTests, StructHandlers) {
 		EXPECT_EQ(487, metadata->upm_upperbeam);
 		EXPECT_EQ(200, metadata->upm_rcuclock);
 		EXPECT_EQ(std::string(UPM_VERSION), std::string(metadata->upm_version));
-		EXPECT_DOUBLE_EQ(refBottomFreq + 100, metadata->fbottom);
-		EXPECT_DOUBLE_EQ(refFreq + 100, metadata->freq_raw);
-		EXPECT_DOUBLE_EQ(refTopFreq + 100, metadata->ftop);
-		EXPECT_DOUBLE_EQ(refBw, metadata->bw);
+		EXPECT_FLOAT_EQ(refBottomFreq + 100, metadata->fbottom);
+		EXPECT_FLOAT_EQ(refFreq + 100, metadata->freq_raw);
+		EXPECT_FLOAT_EQ(refTopFreq + 100, metadata->ftop);
+		EXPECT_FLOAT_EQ(refBw, metadata->bw);
 
 
 		*(metadata) = lofar_udp_metadata_default;
 		strncpy(config->metadataLocation, metadataLocation[1].c_str(), DEF_STR_LEN);
 		metadata->type = DADA;
 		EXPECT_EQ(0, lofar_udp_metadata_setup(metadata, nullptr, config));
-		EXPECT_DOUBLE_EQ(refBottomFreq, metadata->fbottom);
-		EXPECT_DOUBLE_EQ(refFreq, metadata->freq_raw);
-		EXPECT_DOUBLE_EQ(refTopFreq, metadata->ftop);
-		EXPECT_DOUBLE_EQ(refBw, metadata->bw);
+		EXPECT_FLOAT_EQ(refBottomFreq, metadata->fbottom);
+		EXPECT_FLOAT_EQ(refFreq, metadata->freq_raw);
+		EXPECT_FLOAT_EQ(refTopFreq, metadata->ftop);
+		EXPECT_FLOAT_EQ(refBw, metadata->bw);
 
 		*(metadata) = lofar_udp_metadata_default;
 		strncpy(config->metadataLocation, metadataLocation[3].c_str(), DEF_STR_LEN);
 		metadata->type = DADA;
 		EXPECT_EQ(0, lofar_udp_metadata_setup(metadata, nullptr, config));
-		EXPECT_DOUBLE_EQ(160.0 + 499.5 * 80 / 512.0, metadata->fbottom);
-		EXPECT_DOUBLE_EQ(160.0 + (11.5 + 499.5) * 0.5 * 80.0 / 512.0, metadata->freq_raw);
-		EXPECT_DOUBLE_EQ(160.0 + 11.5 * 80 / 512.0, metadata->ftop);
-		EXPECT_DOUBLE_EQ(488.0 * 80.0 / 512.0, metadata->bw);
+		EXPECT_FLOAT_EQ(160.0 + 499.5 * 80 / 512.0, metadata->fbottom);
+		EXPECT_FLOAT_EQ(160.0 + (11.5 + 499.5) * 0.5 * 80.0 / 512.0, metadata->freq_raw);
+		EXPECT_FLOAT_EQ(160.0 + 11.5 * 80 / 512.0, metadata->ftop);
+		EXPECT_FLOAT_EQ(488.0 * 80.0 / 512.0, metadata->bw);
 
 		*(metadata) = lofar_udp_metadata_default;
 		strncpy(config->metadataLocation, metadataLocation[4].c_str(), DEF_STR_LEN);
 		metadata->type = DADA;
 		EXPECT_EQ(0, lofar_udp_metadata_setup(metadata, nullptr, config));
-		EXPECT_DOUBLE_EQ(refBottomFreq + 200, metadata->fbottom);
-		EXPECT_DOUBLE_EQ(refFreq + 200, metadata->freq_raw);
-		EXPECT_DOUBLE_EQ(refTopFreq + 200, metadata->ftop);
-		EXPECT_DOUBLE_EQ(refBw, metadata->bw);
+		EXPECT_FLOAT_EQ(refBottomFreq + 200, metadata->fbottom);
+		EXPECT_FLOAT_EQ(refFreq + 200, metadata->freq_raw);
+		EXPECT_FLOAT_EQ(refTopFreq + 200, metadata->ftop);
+		EXPECT_FLOAT_EQ(refBw, metadata->bw);
 
 		*(metadata) = lofar_udp_metadata_default;
 		strncpy(config->metadataLocation, metadataLocation[5].c_str(), DEF_STR_LEN);
 		metadata->type = DADA;
 		EXPECT_EQ(0, lofar_udp_metadata_setup(metadata, nullptr, config));
 		EXPECT_EQ(std::string("beamctl --antennaset=HBA_JOINED --rcus=0:31,96:127 --rcumode=3 --beamlets=0:199 --subbands=54,56,58,60,62,64,66,68,70,72,74,76,78,80,82,84,86,88,90,92,94,96,98,100,102,104,106,108,110,112,114,116,118,120,122,124,126,128,130,132,134,136,138,140,142,144,146,148,150,152,154,156,158,160,162,164,166,168,170,172,174,176,178,180,182,184,186,188,190,192,194,196,198,200,202,204,206,208,210,212,214,216,218,220,222,224,226,228,230,232,234,236,238,240,242,244,246,248,250,252,254,256,258,260,262,264,266,268,270,272,274,276,278,280,282,284,286,288,290,292,294,296,298,300,302,304,306,308,310,312,314,316,318,320,322,324,326,328,330,332,334,336,338,340,342,344,346,348,350,352,354,356,358,360,362,364,366,368,370,372,374,376,378,380,382,384,386,388,390,392,394,396,398,400,402,404,406,408,410,412,414,416,418,420,422,424,426,428,430,432,434,436,438,440,442,444,446,448,450,452 --anadir=0.0,0.0,SUN --digdir=0.0,0.0,SUN &\tbeamctl --antennaset=HBA_JOINED --rcus=32:63,128:159 --rcumode=5  --beamlets=200:399 --subbands=54,56,58,60,62,64,66,68,70,72,74,76,78,80,82,84,86,88,90,92,94,96,98,100,102,104,106,108,110,112,114,116,118,120,122,124,126,128,130,132,134,136,138,140,142,144,146,148,150,152,154,156,158,160,162,164,166,168,170,172,174,176,178,180,182,184,186,188,190,192,194,196,198,200,202,204,206,208,210,212,214,216,218,220,222,224,226,228,230,232,234,236,238,240,242,244,246,248,250,252,254,256,258,260,262,264,266,268,270,272,274,276,278,280,282,284,286,288,290,292,294,296,298,300,302,304,306,308,310,312,314,316,318,320,322,324,326,328,330,332,334,336,338,340,342,344,346,348,350,352,354,356,358,360,362,364,366,368,370,372,374,376,378,380,382,384,386,388,390,392,394,396,398,400,402,404,406,408,410,412,414,416,418,420,422,424,426,428,430,432,434,436,438,440,442,444,446,448,450,452 --anadir=0.0,0.0,SUN --digdir=0.0,0.0,SUN &\tbeamctl --antennaset=HBA_JOINED --rcus=64:95,160:191 --rcumode=7  --beamlets=400:487 --subbands=54,56,58,60,62,64,66,68,70,72,74,76,78,80,82,84,86,88,90,92,94,96,98,100,102,104,106,108,110,112,114,116,118,120,122,124,126,128,130,132,134,136,138,140,142,144,146,148,150,152,154,156,158,160,162,164,166,168,170,172,174,176,178,180,182,184,186,188,190,192,194,196,198,200,202,204,206,208,210,212,214,216,218,220,222,224,226,228 --anadir=0.0,0.0,SUN --digdir=0.0,0.0,SUN &\t"), metadata->upm_beamctl);
-		EXPECT_DOUBLE_EQ(228.5 * 100.0 / 512.0 + 200.0, metadata->fbottom);
-		EXPECT_DOUBLE_EQ(122.51857069672131, metadata->freq_raw);
-		EXPECT_DOUBLE_EQ(53.5 * 100.0 / 512.0, metadata->ftop);
-		EXPECT_DOUBLE_EQ((228.5 - 53.5) * 100.0 / 512.0 + 200.0, metadata->bw);
+		EXPECT_FLOAT_EQ(228.5 * 100.0 / 512.0 + 200.0, metadata->fbottom);
+		EXPECT_FLOAT_EQ(122.51857069672131, metadata->freq_raw);
+		EXPECT_FLOAT_EQ(53.5 * 100.0 / 512.0, metadata->ftop);
+		EXPECT_FLOAT_EQ((228.5 - 53.5) * 100.0 / 512.0 + 200.0, metadata->bw);
 
 		std::cout << "Mark\n";
 		*(metadata) = lofar_udp_metadata_default;
@@ -579,14 +585,14 @@ TEST(LibMetadataTests, StructHandlers) {
 
 		EXPECT_EQ(0, lofar_udp_metadata_setup(metadata, reader, config));
 		EXPECT_EQ(1, metadata->upm_bandflip);
-		EXPECT_DOUBLE_EQ(-100.0 / 512.0, metadata->channel_bw);
-		EXPECT_DOUBLE_EQ(metadata->freq, metadata->freq_raw);
-		EXPECT_DOUBLE_EQ(metadata->bw, -1 * metadata->bw_raw);
-		EXPECT_DOUBLE_EQ(refBw, metadata->bw_raw);
-		EXPECT_DOUBLE_EQ(refBottomFreq, metadata->ftop);
-		EXPECT_DOUBLE_EQ(refBottomFreq, metadata->fbottom_raw);
-		EXPECT_DOUBLE_EQ(refTopFreq, metadata->fbottom);
-		EXPECT_DOUBLE_EQ(refTopFreq, metadata->ftop_raw);
+		EXPECT_FLOAT_EQ(-100.0 / 512.0, metadata->channel_bw);
+		EXPECT_FLOAT_EQ(metadata->freq, metadata->freq_raw);
+		EXPECT_FLOAT_EQ(metadata->bw, -1 * metadata->bw_raw);
+		EXPECT_FLOAT_EQ(refBw, metadata->bw_raw);
+		EXPECT_FLOAT_EQ(refBottomFreq, metadata->ftop);
+		EXPECT_FLOAT_EQ(refBottomFreq, metadata->fbottom_raw);
+		EXPECT_FLOAT_EQ(refTopFreq, metadata->fbottom);
+		EXPECT_FLOAT_EQ(refTopFreq, metadata->ftop_raw);
 
 		*(metadata) = lofar_udp_metadata_default;
 		strncpy(config->metadataLocation, metadataLocation[1].c_str(), DEF_STR_LEN);
@@ -595,14 +601,14 @@ TEST(LibMetadataTests, StructHandlers) {
 		config->externalDownsampling = 16;
 		EXPECT_EQ(0, lofar_udp_metadata_setup(metadata, reader, config));
 		EXPECT_EQ(1, metadata->upm_bandflip);
-		EXPECT_DOUBLE_EQ(-100.0 / 512.0 / (config->externalChannelisation), metadata->channel_bw);
-		EXPECT_DOUBLE_EQ(metadata->freq + metadata->channel_bw * 0.5, metadata->freq_raw);
-		EXPECT_DOUBLE_EQ(metadata->bw, -1 * metadata->bw_raw);
-		EXPECT_DOUBLE_EQ(refBw, metadata->bw_raw);
-		EXPECT_DOUBLE_EQ(refBottomFreq - metadata->channel_bw * 0.5, metadata->ftop);
-		EXPECT_DOUBLE_EQ(refBottomFreq, metadata->fbottom_raw);
-		EXPECT_DOUBLE_EQ(refTopFreq - metadata->channel_bw * 0.5, metadata->fbottom);
-		EXPECT_DOUBLE_EQ(refTopFreq, metadata->ftop_raw);
+		EXPECT_FLOAT_EQ(-100.0 / 512.0 / (config->externalChannelisation), metadata->channel_bw);
+		EXPECT_FLOAT_EQ(metadata->freq + metadata->channel_bw * 0.5, metadata->freq_raw);
+		EXPECT_FLOAT_EQ(metadata->bw, -1 * metadata->bw_raw);
+		EXPECT_FLOAT_EQ(refBw, metadata->bw_raw);
+		EXPECT_FLOAT_EQ(refBottomFreq - metadata->channel_bw * 0.5, metadata->ftop);
+		EXPECT_FLOAT_EQ(refBottomFreq, metadata->fbottom_raw);
+		EXPECT_FLOAT_EQ(refTopFreq - metadata->channel_bw * 0.5, metadata->fbottom);
+		EXPECT_FLOAT_EQ(refTopFreq, metadata->ftop_raw);
 
 		*(metadata) = lofar_udp_metadata_default;
 		strncpy(config->metadataLocation, metadataLocation[1].c_str(), DEF_STR_LEN);
@@ -611,14 +617,14 @@ TEST(LibMetadataTests, StructHandlers) {
 		config->externalDownsampling = 16;
 		EXPECT_EQ(0, lofar_udp_metadata_setup(metadata, reader, config));
 		EXPECT_EQ(1, metadata->upm_bandflip);
-		EXPECT_DOUBLE_EQ(-100.0 / 512.0 / (config->externalChannelisation), metadata->channel_bw);
-		EXPECT_DOUBLE_EQ(metadata->freq, metadata->freq_raw);
-		EXPECT_DOUBLE_EQ(metadata->bw, -1 * metadata->bw_raw);
-		EXPECT_DOUBLE_EQ(refBw, metadata->bw_raw);
-		EXPECT_DOUBLE_EQ(refBottomFreq, metadata->ftop);
-		EXPECT_DOUBLE_EQ(refBottomFreq, metadata->fbottom_raw);
-		EXPECT_DOUBLE_EQ(refTopFreq, metadata->fbottom);
-		EXPECT_DOUBLE_EQ(refTopFreq, metadata->ftop_raw);
+		EXPECT_FLOAT_EQ(-100.0 / 512.0 / (config->externalChannelisation), metadata->channel_bw);
+		EXPECT_FLOAT_EQ(metadata->freq, metadata->freq_raw);
+		EXPECT_FLOAT_EQ(metadata->bw, -1 * metadata->bw_raw);
+		EXPECT_FLOAT_EQ(refBw, metadata->bw_raw);
+		EXPECT_FLOAT_EQ(refBottomFreq, metadata->ftop);
+		EXPECT_FLOAT_EQ(refBottomFreq, metadata->fbottom_raw);
+		EXPECT_FLOAT_EQ(refTopFreq, metadata->fbottom);
+		EXPECT_FLOAT_EQ(refTopFreq, metadata->ftop_raw);
 
 		*(metadata) = lofar_udp_metadata_default;
 		strncpy(config->metadataLocation, metadataLocation[2].c_str(), DEF_STR_LEN);
@@ -628,14 +634,14 @@ TEST(LibMetadataTests, StructHandlers) {
 		reader->meta->processingMode = STOKES_I_DS16;
 		EXPECT_EQ(0, lofar_udp_metadata_setup(metadata, reader, config));
 		EXPECT_EQ(0, metadata->upm_bandflip);
-		EXPECT_DOUBLE_EQ(100.0 / 512.0 / (config->externalChannelisation), metadata->channel_bw);
-		EXPECT_DOUBLE_EQ(metadata->freq, metadata->freq_raw);
-		EXPECT_DOUBLE_EQ(metadata->bw, metadata->bw_raw);
-		EXPECT_DOUBLE_EQ(refBw, metadata->bw_raw);
-		EXPECT_DOUBLE_EQ(100 + refTopFreq, metadata->ftop_raw);
-		EXPECT_DOUBLE_EQ(100 + refTopFreq, metadata->ftop);
-		EXPECT_DOUBLE_EQ(100 + refBottomFreq, metadata->fbottom_raw);
-		EXPECT_DOUBLE_EQ(100 + refBottomFreq, metadata->fbottom);
+		EXPECT_FLOAT_EQ(100.0 / 512.0 / (config->externalChannelisation), metadata->channel_bw);
+		EXPECT_FLOAT_EQ(metadata->freq, metadata->freq_raw);
+		EXPECT_FLOAT_EQ(metadata->bw, metadata->bw_raw);
+		EXPECT_FLOAT_EQ(refBw, metadata->bw_raw);
+		EXPECT_FLOAT_EQ(100 + refTopFreq, metadata->ftop_raw);
+		EXPECT_FLOAT_EQ(100 + refTopFreq, metadata->ftop);
+		EXPECT_FLOAT_EQ(100 + refBottomFreq, metadata->fbottom_raw);
+		EXPECT_FLOAT_EQ(100 + refBottomFreq, metadata->fbottom);
 
 		metadata->subband_bw = 10;
 		EXPECT_EQ(-1, lofar_udp_metadata_setup(metadata, reader, config));
@@ -669,7 +675,7 @@ TEST(LibMetadataTests, StructHandlers) {
 
 		EXPECT_EQ(0, _lofar_udp_metadata_update_BASE(reader, metadata, 0));
 		EXPECT_EQ(0, strnlen(metadata->obs_utc_start, META_STR_LEN));
-		EXPECT_DOUBLE_EQ(-1.0, metadata->obs_mjd_start);
+		EXPECT_FLOAT_EQ(-1.0, metadata->obs_mjd_start);
 		EXPECT_EQ(daq, std::string(metadata->upm_daq));
 		EXPECT_EQ(testIter, metadata->upm_pack_per_iter);
 		EXPECT_EQ(testIter * testIter, metadata->upm_blocksize);
@@ -679,7 +685,7 @@ TEST(LibMetadataTests, StructHandlers) {
 
 		EXPECT_EQ(0, _lofar_udp_metadata_update_BASE(reader, metadata, 1));
 		EXPECT_EQ(std::string("2023-04-05T07:20:00.136489"), std::string(metadata->obs_utc_start));
-		EXPECT_DOUBLE_EQ(refMjdStart, metadata->obs_mjd_start);
+		EXPECT_FLOAT_EQ(refMjdStart, metadata->obs_mjd_start);
 		EXPECT_EQ(numTestInput * testIter, metadata->upm_processed_packets);
 		EXPECT_EQ(numTestInput * testIter, metadata->upm_dropped_packets);
 		EXPECT_EQ(daq, std::string(metadata->upm_daq));
@@ -713,7 +719,7 @@ TEST(LibMetadataTests, StructHandlers) {
 		EXPECT_EQ(metadata->upm_blocksize, metadata->output.guppi->blocsize);
 		EXPECT_EQ(daq, std::string(metadata->output.guppi->daqpulse));
 		EXPECT_EQ(numTestInput * testIter / testIter / numTestInput, metadata->output.guppi->dropblk);
-		EXPECT_DOUBLE_EQ(1.0, metadata->output.guppi->droptot);
+		EXPECT_FLOAT_EQ(1.0, metadata->output.guppi->droptot);
 		EXPECT_EQ(0, metadata->output.guppi->pktidx);
 		EXPECT_EQ((int) refMjdStart, metadata->output.guppi->stt_imjd);
 		EXPECT_EQ((int) ((refMjdStart - (int) refMjdStart) * 86400), metadata->output.guppi->stt_smjd);
@@ -1049,8 +1055,8 @@ TEST_F(LibMetadataTestInternalBufferBuilders, SigprocHeaderBuilders) {
 		double ra = raH * 1e4 + raM * 1e2 + raS + log10_reduce(raFrac);
 		double dec = decD * 1e4 - decM * 1e2 - decS - log10_reduce(decFrac);
 
-		EXPECT_DOUBLE_EQ(ra, _sigprocStr2Pointing(testKey));
-		EXPECT_DOUBLE_EQ(dec, _sigprocStr2Pointing(testVal));
+		EXPECT_FLOAT_EQ(ra, _sigprocStr2Pointing(testKey));
+		EXPECT_FLOAT_EQ(dec, _sigprocStr2Pointing(testVal));
 
 		snprintf(testKey, META_STR_LEN, "MYKEY");
 		snprintf(testVal, META_STR_LEN, "THISISMYVAL");
@@ -1131,13 +1137,27 @@ TEST_F(LibMetadataTestInternalBufferBuilders, DADAHeaderBuilders) {
 	snprintf(hdr->obs_utc_start, META_STR_LEN, "2023-03-03T03:03:03");
 	EXPECT_EQ(425, _lofar_udp_metadata_write_DADA(hdr, (int8_t*) headerBuffer, DEF_HDR_LEN));
 	printf("%s\n", headerBuffer);
-	EXPECT_EQ(3529520108236996014ul, hasher(headerBuffer));
+	// Potentially different outputs as a result of fast-math
+	std::vector<uint64_t> validHashes1 = {3529520108236996014ul, 10773676598623942701ul};
+	uint64_t hash1 = hasher(headerBuffer);
+	if (std::find(validHashes1.begin(), validHashes1.end(), hash1) != validHashes1.end()) {
+		EXPECT_EQ(0, 0);
+	} else {
+		EXPECT_EQ(-1, hash1);
+	}
 	hdr->upm_num_inputs = 4;
 	hdr->output_file_number = 1;
 	hdr->upm_num_outputs = 4;
 	EXPECT_EQ(504, _lofar_udp_metadata_write_DADA(hdr, (int8_t*) headerBuffer, DEF_HDR_LEN));
 	printf("%s\n", headerBuffer);
-	EXPECT_EQ(10862490972181063793ul, hasher(headerBuffer));
+	// Potentially different outputs as a result of fast-math
+	std::vector<uint64_t> validHashes2 = {10862490972181063793ul, 11992955372701578462ul};
+	uint64_t hash2 = hasher(headerBuffer);
+	if (std::find(validHashes2.begin(), validHashes2.end(), hash2) != validHashes2.end()) {
+		EXPECT_EQ(0, 0);
+	} else {
+		EXPECT_EQ(-1, hash2);
+	}
 }
 
 

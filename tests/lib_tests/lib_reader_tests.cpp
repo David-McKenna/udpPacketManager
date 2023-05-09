@@ -790,14 +790,14 @@ static std::tuple<int, int, int, int> processChecker(lofar_udp_reader *reader) {
 	for (int8_t port = 0; port < reader->meta->numPorts; port++) {
 		for (int64_t idx = 0; idx < reader->meta->packetsPerIteration * (reader->meta->portPacketLength[port] - UDPHDRLEN); idx++) {
 			if (!inputIdx[port][idx]) {
-				printf("In: %d %ld\n", port, idx);
+				printf("Input never read: %d %ld\n", port, idx);
 			}
 		}
 	}
 	for (int8_t port = 0; port < reader->meta->numOutputs; port++) {
 		for (int64_t idx = 0; idx < reader->meta->packetsPerIteration * reader->meta->packetOutputLength[port] / sizeof(O); idx++) {
 			if (!outputIdx[port][idx]) {
-				printf("Out: %d %ld\n", port, idx);
+				printf("Output never written: %d %ld\n", port, idx);
 			}
 		}
 	}
@@ -810,12 +810,12 @@ static std::tuple<int, int, int, int> processChecker(lofar_udp_reader *reader) {
 			for (int64_t i = 0; i < reader->meta->packetsPerIteration * reader->meta->packetOutputLength[outp] / sizeof(O); i++) {
 				if constexpr (sizeof(O) == 1) {
 					if (reader->meta->outputData[outp][i] != outputs[outp][i]) {
-						printf("%hhd, %ld: %hhd, %hhd\n", outp, i, reader->meta->outputData[outp][i], outputs[outp][i]);
+						//printf("%hhd, %ld: %hhd, %hhd\n", outp, i, reader->meta->outputData[outp][i], outputs[outp][i]);
 						return std::tuple<int, int, int, int>(outp, i, 2, memcmpval);
 					}
 				} else {
 					if (((float*) reader->meta->outputData[outp])[i] != outputs[outp][i]) {
-						printf("%hhd, %ld: %f, %f\n", outp, i, ((float *) reader->meta->outputData[outp])[i], outputs[outp][i]);
+						//printf("%hhd, %ld: %f, %f\n", outp, i, ((float *) reader->meta->outputData[outp])[i], outputs[outp][i]);
 						return std::tuple<int, int, int, int>(outp, i, 2, memcmpval);
 					}
 				}

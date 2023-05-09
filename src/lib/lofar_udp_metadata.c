@@ -717,7 +717,7 @@ int32_t _lofar_udp_metadata_parse_reader(lofar_udp_metadata *const metadata, con
 				if (warning != dataIncreasing) {
 					fprintf(stderr,
 					        "WARNING %s: Input metadata is not monotonically increasing or decreasing (as comparing beamlets (%hd and %hd). Metadata result may be incorrect.\n",
-					        __func__, beamlet, beamlet - 1);
+					        __func__, beamlet, ((int16_t) beamlet - 1));
 					warning = 0;
 				} else {
 					warning = 1;
@@ -2003,7 +2003,7 @@ int32_t _lofar_udp_metadata_handle_external_factors(lofar_udp_metadata *const me
 		double lowestFreq = highestFreq - (metadata->nchan * signCorrection * metadata->channel_bw);
 		metadata->freq = (highestFreq + lowestFreq) / 2;
 
-		if (signCorrection == 1.0) {
+		if (signCorrection > 0.0) {
 			metadata->ftop = lowestFreq;
 			metadata->fbottom = highestFreq;
 		} else {
