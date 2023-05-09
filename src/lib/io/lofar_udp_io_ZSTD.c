@@ -55,8 +55,8 @@ _lofar_udp_io_read_setup_ZSTD(lofar_udp_io_read_config *const input, const char 
 
 	// Setup the decompressed data buffer/struct
 	// If the size is pre-set, we have already resize the true buffer as required
-	int64_t bufferSize = input->decompressionTracker[port].size > 0 ?
-	                     input->decompressionTracker[port].size : input->readBufSize[port];
+	int64_t bufferSize = input->decompressionTracker[port].size != 0 ?
+	                     (int64_t) input->decompressionTracker[port].size : input->readBufSize[port];
 	if (bufferSize % ZSTD_DStreamOutSize() && !(input->readerType == ZSTDCOMPRESSED_INDIRECT)) {
 		fprintf(stderr, "ERROR %s: Zstandard buffer was not initialised correctly, exiting.\n", __func__);
 		return -1;

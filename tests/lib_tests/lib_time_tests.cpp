@@ -29,7 +29,7 @@ struct dummyHeader {
 	}
 
 	void setClock(int use200MHz) {
-		(*((lofar_source_bytes*) &(data[sourceBytesOffset]))).clockBit = use200MHz;
+		(*((lofar_source_bytes*) &(data[sourceBytesOffset]))).clockBit = use200MHz != 0;
 	}
 };
 
@@ -198,7 +198,7 @@ TEST(LibTimeTests, DerivedFromPackets) {
 
 		int32_t currStep = 0;
 		int64_t currPacket = 15625000000000;
-		while (currStep < max160MHzSteps * numSeconds / 16) {
+		while (currStep < (int32_t) (max160MHzSteps * numSeconds / 16)) {
 			EXPECT_EQ(currPacket, lofar_udp_time_get_packet_number(header160M.data));
 			sequence += 16;
 			EXPECT_EQ(sequence, lofar_udp_time_get_next_packet_sequence(header160M.data));
@@ -214,7 +214,7 @@ TEST(LibTimeTests, DerivedFromPackets) {
 		float sequenceFrac = 0;
 		currStep = 0;
 		currPacket = 19531250000000;
-		while (currStep < max200MHzSteps * numSeconds / 16) {
+		while (currStep < (int32_t) (max200MHzSteps * numSeconds / 16)) {
 			EXPECT_EQ(currPacket, lofar_udp_time_get_packet_number(header200M.data));
 			sequenceFrac += 16.0f;
 			EXPECT_EQ((int32_t) (sequenceFrac), lofar_udp_time_get_next_packet_sequence(header200M.data));

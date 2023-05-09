@@ -1,14 +1,14 @@
 #include "lofar_udp_reader.h"
 
 
-void handleData(int8_t **arr, int8_t numArrs, int32_t numBeamlets, int64_t numTimestamps) {
+static void handleData(int8_t **arr, int8_t numArrs, int32_t numBeamlets, int64_t numTimestamps) {
 	UNUSED(arr); UNUSED(numArrs); UNUSED(numBeamlets); UNUSED(numTimestamps);
 	// Do some kind of processing
 	return;
 }
 
 // Heavily based upon the sample in README_INTEGRATION.md, and README_io.md
-int main() {
+int main(int argc, char *argv[]) {
 	// Allocate the configuration structs
 	lofar_udp_config *readerConfig = lofar_udp_config_alloc();
 	lofar_udp_io_write_config *writer = lofar_udp_io_write_alloc();

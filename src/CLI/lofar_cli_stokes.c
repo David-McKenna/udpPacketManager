@@ -30,7 +30,7 @@ void helpMessages() {
 
 }
 
-void CLICleanup(lofar_udp_config *config, lofar_udp_io_write_config *outConfig, int8_t *header, fftwf_complex *X, fftwf_complex *Y) {
+static void CLICleanup(lofar_udp_config *config, lofar_udp_io_write_config *outConfig, int8_t *header, fftwf_complex *X, fftwf_complex *Y) {
 
 	FREE_NOT_NULL(outConfig);
 	FREE_NOT_NULL(config);
@@ -47,7 +47,7 @@ void CLICleanup(lofar_udp_config *config, lofar_udp_io_write_config *outConfig, 
 	}
 }
 
-void reorderData(fftwf_complex *x, fftwf_complex *y, size_t bins, size_t channels) {
+static void reorderData(fftwf_complex *x, fftwf_complex *y, size_t bins, size_t channels) {
 	fftwf_complex *data[] = { x, y };
 	fftwf_complex tmp;
 
@@ -75,7 +75,7 @@ void reorderData(fftwf_complex *x, fftwf_complex *y, size_t bins, size_t channel
 }
 
 
-void transposeDetect(fftwf_complex *X, fftwf_complex *Y, float **outputs, size_t mbin, size_t channelisation, size_t nsub, size_t channelDownsample, int stokesFlags) {
+static void transposeDetect(fftwf_complex *X, fftwf_complex *Y, float **outputs, size_t mbin, size_t channelisation, size_t nsub, size_t channelDownsample, int stokesFlags) {
 	float accumulator[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
 
 	if (channelDownsample < 1) {
@@ -148,7 +148,7 @@ void transposeDetect(fftwf_complex *X, fftwf_complex *Y, float **outputs, size_t
 	}
 }
 
-void temporalDownsample(float **data, size_t numOutputs, size_t nbin, size_t nchans, size_t downsampleFactor) {
+static void temporalDownsample(float **data, size_t numOutputs, size_t nbin, size_t nchans, size_t downsampleFactor) {
 
 	if (downsampleFactor < 2) {
 		// Nothing to do
@@ -594,7 +594,7 @@ int main(int argc, char *argv[]) {
 	int32_t nsub = reader->meta->totalProcBeamlets;
 	int32_t nchan = reader->meta->totalProcBeamlets * channelisation;
 
-	int32_t nfft = (reader->packetsPerIteration * UDPNTIMESLICE) / nbin;
+	int32_t nfft = (int32_t) ((reader->packetsPerIteration * UDPNTIMESLICE) / nbin);
 
 	fftwf_complex * in1 = NULL;
 	fftwf_complex * in2 = NULL;
@@ -665,7 +665,7 @@ int main(int argc, char *argv[]) {
 	}
 
 
-	VERBOSE(if (config->verbose) { printf("Beginning data extraction loop for event %d\n"); });
+	VERBOSE(if (config->verbose) { printf("Beginning data extraction loop.\n"); });
 	// While we receive new data for the current event,
 	while ((returnVal = lofar_udp_reader_step_timed(reader, timing)) < 1) {
 
@@ -702,12 +702,12 @@ int main(int argc, char *argv[]) {
 			printf("Execute\n");
 			fftwf_execute(fftForwardX);
 			fftwf_execute(fftForwardY);
-			printf("Reorder %ld\n", nbin * nfft * nsub);
+			printf("Reorder %ld\n", (int64_t) nbin * nfft * nsub);
 			reorderData(intermediateX, intermediateY, nbin * nfft, nsub);
 			//windowData();
-			printf("Reorder %ld\n", mbin  * nfft * nsub * channelisation);
+			printf("Reorder %ld\n", (int64_t) mbin  * nfft * nsub * channelisation);
 			reorderData(intermediateX, intermediateY, mbin * nfft, nsub * channelisation);
-			printf("Cleanup %ld\n", nbin * nsub * nfft * 2);
+			printf("Cleanup %ld\n", (int64_t) nbin * nsub * nfft * 2);
 			ARR_INIT(((float *) in1),nbin * nsub * nfft * 2,0.0f);
 			ARR_INIT(((float *) in2),nbin * nsub * nfft * 2,0.0f);
 			printf("Execute\n");
@@ -776,12 +776,12 @@ int main(int argc, char *argv[]) {
 
 		if (splitEvery != LONG_MAX && returnValMeta > -2) {
 			if (!((localLoops + 1) % splitEvery)) {
-				if (!silent) printf("Hit splitting condition; closing writers and re-opening for iteration %d.\n", localLoops / splitEvery);
+				if (!silent) printf("Hit splitting condition; closing writers and re-opening for iteration %ld.\n", localLoops / splitEvery);
 				// Close existing files
 				lofar_udp_io_write_cleanup(outConfig, 0);
 
 				// Open new files
-				if ((returnVal = lofar_udp_io_write_setup_helper(outConfig, expectedWriteSize, numStokes, localLoops / splitEvery, reader->meta->lastPacket + 1)) < 0) {
+				if ((returnVal = lofar_udp_io_write_setup_helper(outConfig, expectedWriteSize, numStokes, (int32_t) (localLoops / splitEvery), reader->meta->lastPacket + 1)) < 0) {
 					fprintf(stderr, "ERROR: Failed to open new file are breakpoint reached (%ld, errno %d: %s), breaking.\n", returnVal, errno,
 					        strerror(errno));
 					returnValMeta = (returnValMeta < 0 && returnValMeta > -6) ? returnValMeta : -6;

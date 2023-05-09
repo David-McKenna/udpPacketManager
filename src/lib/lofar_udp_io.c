@@ -999,7 +999,7 @@ lofar_udp_io_read_temp(const lofar_udp_config *config, int8_t port, int8_t *outb
 	}
 
 	if (num < 1 || size < 1) {
-		if (!(num *size)) return 0;
+		if ((num * size) == 0) return 0;
 		fprintf(stderr, "ERROR: Invalid number of elements to read (%ld * %ld), exiting.\n", num, size);
 		return -3;
 	}

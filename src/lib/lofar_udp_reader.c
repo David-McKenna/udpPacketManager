@@ -123,7 +123,7 @@ void _lofar_udp_parse_header_extract_metadata(const int8_t port, lofar_udp_obs_m
 
 		// Lower the total count of beamlets, while not modifying
 		// 	upperBeamlets
-		meta->totalProcBeamlets += meta->upperBeamlets[port] - beamletLimits[0];
+		meta->totalProcBeamlets += (int16_t) (meta->upperBeamlets[port] - beamletLimits[0]);
 	} else {
 		meta->baseBeamlets[port] = 0;
 		meta->totalProcBeamlets += meta->upperBeamlets[port];
@@ -212,7 +212,7 @@ int32_t _lofar_udp_parse_header_buffers(lofar_udp_obs_meta *meta, const int8_t h
 		// 4-bit: half the size per sample
 		// 16-bit: 2x the size per sample
 		bitMul = 1.0f + (-0.5f * (float) (meta->inputBitMode == 4)) + (float) (meta->inputBitMode == 16);
-		meta->portPacketLength[port] = ((UDPHDRLEN) + (meta->portRawBeamlets[port] * ((int16_t) (bitMul * UDPNTIMESLICE * UDPNPOL))));
+		meta->portPacketLength[port] = (int16_t) ((UDPHDRLEN) + (meta->portRawBeamlets[port] * ((int16_t) (bitMul * UDPNTIMESLICE * UDPNPOL))));
 		if (meta->portPacketLength[port] > MAXPKTLEN) {
 			fprintf(stderr, "ERROR %s: Packet of length %d on port %d is longer than maximum packet length %d, exiting.\n", __func__, meta->portPacketLength[port], port, MAXPKTLEN);
 			return -1;
@@ -338,7 +338,7 @@ int32_t _lofar_udp_setup_parse_headers(lofar_udp_config *config, lofar_udp_obs_m
 
 			// If we are dropping any ports, update numPorts
 			if ((lowerPort != 0) || ((upperPort + 1) != config->numPorts)) {
-				meta->numPorts = (upperPort + 1) - lowerPort;
+				meta->numPorts = (int8_t) ((upperPort + 1) - lowerPort);
 			}
 
 			VERBOSE(
