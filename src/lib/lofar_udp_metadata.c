@@ -343,9 +343,9 @@ lofar_udp_metadata_write_file(const lofar_udp_reader *reader, lofar_udp_io_write
 int64_t _lofar_udp_metadata_write_file_force(const lofar_udp_reader *reader, lofar_udp_io_write_config *const outConfig, const int8_t outp, lofar_udp_metadata *const metadata,
                                              int8_t *const headerBuffer, const int64_t headerBufferSize, const int8_t newObs, const int8_t force) {
 	int64_t returnVal = _lofar_udp_metadata_write_buffer_force(reader, metadata, headerBuffer, headerBufferSize, newObs, force);
-
+	VERBOSE(printf("%s: write_buffer: %ld\n", __func__, returnVal);)
 	if (returnVal > 0) {
-		return lofar_udp_io_write_metadata(outConfig, outp, metadata, headerBuffer, headerBufferSize);
+		return lofar_udp_io_write_metadata(outConfig, outp, metadata, headerBuffer, returnVal);
 	}
 
 	return returnVal;
@@ -414,6 +414,9 @@ int32_t _lofar_udp_metdata_setup_BASE(lofar_udp_metadata *const metadata) {
 	// By default, we don't know the expected bandwidth order, assume it matches the beamctl input
 	metadata->upm_bandflip = 0;
 
+	// Reset external factors
+	metadata->external_channelisation = 1;
+	metadata->external_downsampling = 1;
 
 	return 0;
 }
@@ -500,6 +503,29 @@ int32_t _lofar_udp_metadata_parse_input_file(lofar_udp_metadata *const metadata,
 	metadata->nsubband = (int16_t) beamctlData[8];
 	metadata->upm_upperbeam = (int16_t) beamctlData[7];
 	metadata->upm_rcuclock = _lofar_udp_metadata_get_clockmode((int16_t) beamctlData[0]);
+
+	int8_t flagNonMonotonic = 0;
+	// Ensure we have monotonic data for the limits, i.e. the highest/lower frequencies are the start/end subbands
+	// Internal order may be messed up, but will check and warn for that in _lofar_udp_metadata_parse_reader
+	if (metadata->subbands[metadata->upm_lowerbeam] > metadata->subbands[metadata->upm_upperbeam]) {
+		// Lower beam is greater than the upper beam, subbands are decreasing, lowerbeam should have maximum subband, upperbeam should have the minimum
+		if (metadata->subbands[metadata->upm_lowerbeam] != beamctlData[3] || metadata->subbands[metadata->upm_upperbeam] != beamctlData[1]) {
+			flagNonMonotonic = 1;
+		}
+		// Swap min/max variables to describe the true data order for the _update_frequencies call below
+		int32_t tmp = beamctlData[3];
+		beamctlData[3] = beamctlData[1];
+		beamctlData[1] = tmp;
+	} else {
+		// Lower beam is less than the upper beam, subbands are increasing, lowerbeam should have minimum subband, upperbeam should have the maximum
+		if (metadata->subbands[metadata->upm_lowerbeam] != beamctlData[1] || metadata->subbands[metadata->upm_upperbeam] != beamctlData[3]) {
+			flagNonMonotonic = 1;
+		}
+	}
+
+	if (flagNonMonotonic) {
+		fprintf(stderr, "WARNING %s: The limit subbands do not appear to be the maximum / minimum subbands for the input metadata. Band-limit derived metadata will be inaccurate.\n", __func__);
+	}
 
 	// Remaining few setup bits
 	if (strncpy(metadata->upm_version, UPM_VERSION, META_STR_LEN) != metadata->upm_version) {
@@ -648,10 +674,9 @@ int32_t _lofar_udp_metadata_parse_reader(lofar_udp_metadata *const metadata, con
 		               reader->meta->upperBeamlets[reader->meta->numPorts - 1])
 	    );
 		// Calculate the true beam limits from processing limitations
-		metadata->lowerBeamlet = (reader->input->offsetPortCount * beamletsPerPort) + reader->meta->baseBeamlets[0];
+		metadata->lowerBeamlet = (int16_t) (reader->input->offsetPortCount * beamletsPerPort) + reader->meta->baseBeamlets[0];
 		// Upper beamlet is exclusive in UPM, not inclusive like LOFAR inputs
-		metadata->upperBeamlet =
-			((reader->input->offsetPortCount + (reader->input->numInputs - 1)) * beamletsPerPort) + reader->meta->upperBeamlets[reader->meta->numPorts - 1];
+		metadata->upperBeamlet = (int16_t) ((reader->input->offsetPortCount + (reader->input->numInputs - 1)) * beamletsPerPort) + reader->meta->upperBeamlets[reader->meta->numPorts - 1];
 
 
 		// Sanity check the beamlet limits
@@ -662,20 +687,41 @@ int32_t _lofar_udp_metadata_parse_reader(lofar_udp_metadata *const metadata, con
 		}
 
 		int32_t subbandData[3] = { INT16_MAX, 0, -1 };
+		// Check if the order is increasing or decreasing
+		int8_t dataIncreasing = metadata->subbands[metadata->lowerBeamlet] > metadata->subbands[metadata->lowerBeamlet + 1] ? 0 : 1;
+		int8_t upper = 2, lower = 0, warning = 1;
+		if (!dataIncreasing) {
+			lower = 2;
+			upper = 0;
+		}
 		// Parse the new sub-set of beamlets
 		for (int16_t beamlet = metadata->lowerBeamlet; beamlet < metadata->upperBeamlet; beamlet++) {
 			// Edge case: undefined subband is used as a beamlet
-			VERBOSE(printf("Beamlet %d: Subband %d\n", beamlet, metadata->subbands[beamlet]));
+			VERBOSE(if (reader->meta->VERBOSE) printf("Beamlet %d: Subband %d\n", beamlet, metadata->subbands[beamlet]));
 			if (metadata->subbands[beamlet] != -1) {
-				if (metadata->subbands[beamlet] > subbandData[2]) {
-					subbandData[2] = metadata->subbands[beamlet];
+				if (metadata->subbands[beamlet] > subbandData[upper]) {
+					subbandData[upper] = metadata->subbands[beamlet];
 				}
 
-				if (metadata->subbands[beamlet] < subbandData[0]) {
-					subbandData[0] = metadata->subbands[beamlet];
+				if (metadata->subbands[beamlet] < subbandData[lower]) {
+					subbandData[lower] = metadata->subbands[beamlet];
 				}
 
 				subbandData[1] += metadata->subbands[beamlet];
+			} else {
+				fprintf(stderr, "WARNING %s: Beamlet %hd is set for processing, but we don't have any associated metadata.\n", __func__, beamlet);
+			}
+
+			if (warning && beamlet != metadata->lowerBeamlet) {
+				warning = dataIncreasing = metadata->subbands[beamlet] > metadata->subbands[beamlet + 1] ? 0 : 1;
+				if (warning != dataIncreasing) {
+					fprintf(stderr,
+					        "WARNING %s: Input metadata is not monotonically increasing or decreasing (as comparing beamlets (%hd and %hd). Metadata result may be incorrect.\n",
+					        __func__, beamlet, beamlet - 1);
+					warning = 0;
+				} else {
+					warning = 1;
+				}
 			}
 		}
 
@@ -1410,27 +1456,51 @@ int32_t _lofar_udp_metadata_update_frequencies(lofar_udp_metadata *const metadat
 
 	double meanSubband = (double) subbandData[1] / (double) metadata->nsubband;
 
-	VERBOSE(printf("SubbandData: %d, %d, %d\n", subbandData[0], subbandData[1], subbandData[2]));
+	// Assume increasing frequency for the following equations
+	if (metadata->subband_bw < 0) {
+		metadata->subband_bw *= -1.0;
+	}
 
 	// Convert subband data to frequency values
 	// These top and bottom variables need to be expanded by half a subband, as the subband number
 	//  represents the centre of the subband in our offset system
-	metadata->ftop = metadata->subband_bw * subbandData[0];
+	int8_t topIdx = 0, bottomIdx = 2;
+	metadata->ftop_raw = metadata->subband_bw * subbandData[topIdx];
+	metadata->fbottom_raw = metadata->subband_bw * subbandData[bottomIdx];
 	metadata->freq_raw = metadata->subband_bw * meanSubband;
-	metadata->fbottom = metadata->subband_bw * subbandData[2];
+	metadata->freq = metadata->subband_bw * meanSubband;
+
+	// If the processing modes flips the bandwidth, swap the indices for ftop and fbottom
+	if (metadata->upm_bandflip) {
+		topIdx = bottomIdx;
+		bottomIdx = 0;
+	}
+	metadata->ftop = metadata->subband_bw * subbandData[topIdx];
+	metadata->fbottom = metadata->subband_bw * subbandData[bottomIdx];
+
+	VERBOSE(printf("Postmod: %lf, %lf, %lf\n", metadata->ftop_raw, metadata->freq_raw, metadata->fbottom_raw));
 
 	// Define the observation bandwidth as the bandwidth between the centre of the top and bottom channels,
 	//  plus a subband to account for the expanded bandwidth from the centre to the edges of the band
+	VERBOSE(printf("Premod: %lf, %lf, %lf\n", metadata->ftop_raw, metadata->bw_raw, metadata->fbottom_raw));
+	metadata->bw_raw = (metadata->fbottom_raw - metadata->ftop_raw);
 	metadata->bw = (metadata->fbottom - metadata->ftop);
-	int8_t signCorrection = (metadata->bw > 0) ? 1 : -1;
-	if (metadata->upm_bandflip == (signCorrection == 1)) {
-		fprintf(stderr, "ERROR: Bandwidth has been flipped unexpectedly during setup, exiting.\n");
-		return -1;
-	}
+	VERBOSE(printf("Premod: %lf, %lf, %lf\n", metadata->ftop_raw, metadata->bw_raw, metadata->fbottom_raw));
+	double signCorrection = (metadata->bw_raw > 0) ? 1.0 : -1.0;
+	metadata->bw_raw += signCorrection * metadata->subband_bw;
+	metadata->ftop_raw -= signCorrection * 0.5 * metadata->subband_bw;
+	metadata->fbottom_raw += signCorrection * 0.5 * metadata->subband_bw;
 
+	signCorrection = (metadata->bw > 0) ? 1.0 : -1.0;
 	metadata->bw += signCorrection * metadata->subband_bw;
 	metadata->ftop -= signCorrection * 0.5 * metadata->subband_bw;
 	metadata->fbottom += signCorrection * 0.5 * metadata->subband_bw;
+	VERBOSE(printf("Postmod: %lf, %lf, %lf\n", metadata->ftop_raw, metadata->bw_raw, metadata->fbottom_raw));
+
+	// Apply the correct frequency order to the subband bandwidth
+	if (metadata->subband_bw > 0 && signCorrection < 1) {
+		metadata->subband_bw *= -1.0;
+	}
 
 	return 0;
 }
@@ -1484,22 +1554,6 @@ int32_t _lofar_udp_metadata_processing_mode_metadata(lofar_udp_metadata *const m
 		default:
 			fprintf(stderr,"ERROR %s: Unknown processing mode %d, exiting.\n", __func__, metadata->upm_procmode);
 			return -1;
-	}
-
-	// Account for frequency direction in the bandwidth parameters
-	if (metadata->upm_bandflip && metadata->fbottom > metadata->ftop) {
-		double tmp = metadata->ftop;
-		metadata->ftop = metadata->fbottom;
-		metadata->fbottom = tmp;
-		metadata->bw *= -1;
-	}
-
-	if (metadata->upm_bandflip && metadata->subband_bw > 0) {
-		metadata->subband_bw *= -1;
-	}
-
-	if (metadata->upm_bandflip && metadata->bw > 0) {
-		metadata->bw *= -1;
 	}
 
 	double samplingTime = metadata->upm_rcuclock == 200 ? clock200MHzSampleTime : clock160MHzSampleTime;
@@ -1924,25 +1978,20 @@ int32_t _lofar_udp_metadata_handle_external_factors(lofar_udp_metadata *const me
 		fprintf(stderr, "WARNING: While setting up downsampling, a mismatch was detected between the previous configuration and the current configuration (%d vs %d).\n", metadata->external_downsampling, config->externalDownsampling);
 	}
 
-	if (config->externalChannelisation > 1) {
-		metadata->external_channelisation = config->externalChannelisation;
-	}
-	if (config->externalDownsampling > 1) {
-		metadata->external_downsampling = config->externalDownsampling;
-	}
+	metadata->external_channelisation = config->externalChannelisation > 1 ? config->externalChannelisation : 1;
+	metadata->external_downsampling = config->externalDownsampling > 1 ? config->externalDownsampling : 1;
 
 	// Reset variables for the re-use case
 	metadata->tsamp = metadata->tsamp_raw;
 	metadata->channel_bw = metadata->subband_bw;
 	metadata->nchan = metadata->nsubband;
+	double signCorrection = metadata->bw > 0 ? 1.0 : -1.0;
 
 	if (metadata->external_channelisation > 1) {
 		// Apply relevant scaling
 		metadata->tsamp *= metadata->external_channelisation;
 		metadata->channel_bw /= metadata->external_channelisation;
 		metadata->nchan *= metadata->external_channelisation;
-
-		double signCorrection = metadata->bw > 0 ? 1.0 : -1.0;
 
 		// This is the correct way to account for channelisation with FFT on a PFB output
 		// It's messy, but accurate

@@ -226,7 +226,6 @@ TEST(LibMetadataTests, HelperFunctions) {
 		config->externalDownsampling = 3;
 		config->externalChannelisation = 3;
 		metadata->bw *= -1;
-		metadata->subband_bw *= -1;
 		EXPECT_EQ(0, _lofar_udp_metadata_handle_external_factors(metadata, config));
 		EXPECT_DOUBLE_EQ(reference->tsamp_raw * config->externalDownsampling * config->externalChannelisation, metadata->tsamp);
 		EXPECT_DOUBLE_EQ(-1 * reference->subband_bw / config->externalChannelisation, metadata->channel_bw);
@@ -409,18 +408,9 @@ TEST(LibMetadataTests, ParserGlue) {
 
 
 
-	// int lofar_udp_metadata_parse_input_file(lofar_udp_metadata *metadata, const char inputFile[]);
-	// int lofar_udp_metadata_parse_normal_file(lofar_udp_metadata *metadata, FILE *input, int *beamctlData);
-	// int lofar_udp_metadata_parse_yaml_file(lofar_udp_metadata *metadata, FILE *input, int *beamctlData);
-	// int lofar_udp_metadata_parse_reader(lofar_udp_metadata *metadata, const lofar_udp_reader *reader);
 	{
 		SCOPED_TRACE("lofar_udp_metadata_parse_reader");
-		lofar_udp_metadata *metadata = lofar_udp_metadata_alloc();
-		lofar_udp_obs_meta *meta = _lofar_udp_obs_meta_alloc();
-		lofar_udp_reader *reader = _lofar_udp_reader_alloc(meta);
-
 		EXPECT_EQ(-1, _lofar_udp_metadata_parse_reader(nullptr, nullptr));
-		EXPECT_NONFATAL_FAILURE(EXPECT_TRUE(false);, "");
 
 	}
 
@@ -466,11 +456,10 @@ TEST(LibMetadataTests, StructHandlers) {
 		EXPECT_EQ(0, _lofar_udp_metadata_parse_input_file(metadata, metadataLocation[6].c_str()));
 		int16_t hold = metadata->nsubband;
 		metadata->nsubband = -1;
-		int tmpSubbands[9] = {0, };
+		int tmpSubbands[9];
+		ARR_INIT(tmpSubbands, 9, 0);
 		EXPECT_EQ(-1, _lofar_udp_metadata_update_frequencies(metadata, tmpSubbands));
 		metadata->nsubband = hold;
-		metadata->upm_bandflip = 0;
-		EXPECT_EQ(-1, _lofar_udp_metadata_update_frequencies(metadata, tmpSubbands));
 		metadata->upm_bandflip = 1;
 		EXPECT_EQ(0, _lofar_udp_metadata_update_frequencies(metadata, tmpSubbands));
 
@@ -574,14 +563,14 @@ TEST(LibMetadataTests, StructHandlers) {
 		reader->meta->packetOutputLength[0] = 7824;
 		reader->meta->processingMode = STOKES_I_REV;
 		reader->meta->calibrateData = APPLY_CALIBRATION;
-		reader->input->numInputs = 4;
+		reader->input->numInputs = MAX_NUM_PORTS;
+		reader->meta->numPorts = MAX_NUM_PORTS;
 		reader->meta->numOutputs = 1;
 		reader->input->offsetPortCount = 0;
 		reader->meta->baseBeamlets[0] = 0;
-		reader->input->numInputs = 4;
-		reader->meta->upperBeamlets[reader->input->numInputs - 1] = 488;
+		ARR_INIT(reader->meta->upperBeamlets, MAX_NUM_PORTS, UDPMAXBEAM / 2);
 		reader->meta->totalProcBeamlets = 488;
-		reader->meta->inputData[0] = (int8_t*) calloc(16, sizeof(int8_t));
+		reader->meta->inputData[0] = (int8_t*) calloc(16 + PREBUFLEN, sizeof(int8_t)) + PREBUFLEN;
 		*((uint32_t *) &(reader->meta->inputData[CEP_HDR_TIME_OFFSET])) = (uint32_t) rand();
 		for (int i = 0; i < reader->input->numInputs; i++) {
 			std::string tmp = std::to_string(i);
@@ -589,6 +578,64 @@ TEST(LibMetadataTests, StructHandlers) {
 		}
 
 		EXPECT_EQ(0, lofar_udp_metadata_setup(metadata, reader, config));
+		EXPECT_EQ(1, metadata->upm_bandflip);
+		EXPECT_DOUBLE_EQ(-100.0 / 512.0, metadata->channel_bw);
+		EXPECT_DOUBLE_EQ(metadata->freq, metadata->freq_raw);
+		EXPECT_DOUBLE_EQ(metadata->bw, -1 * metadata->bw_raw);
+		EXPECT_DOUBLE_EQ(refBw, metadata->bw_raw);
+		EXPECT_DOUBLE_EQ(refBottomFreq, metadata->ftop);
+		EXPECT_DOUBLE_EQ(refBottomFreq, metadata->fbottom_raw);
+		EXPECT_DOUBLE_EQ(refTopFreq, metadata->fbottom);
+		EXPECT_DOUBLE_EQ(refTopFreq, metadata->ftop_raw);
+
+		*(metadata) = lofar_udp_metadata_default;
+		strncpy(config->metadataLocation, metadataLocation[1].c_str(), DEF_STR_LEN);
+		metadata->type = DADA;
+		config->externalChannelisation = 8;
+		config->externalDownsampling = 16;
+		EXPECT_EQ(0, lofar_udp_metadata_setup(metadata, reader, config));
+		EXPECT_EQ(1, metadata->upm_bandflip);
+		EXPECT_DOUBLE_EQ(-100.0 / 512.0 / (config->externalChannelisation), metadata->channel_bw);
+		EXPECT_DOUBLE_EQ(metadata->freq + metadata->channel_bw * 0.5, metadata->freq_raw);
+		EXPECT_DOUBLE_EQ(metadata->bw, -1 * metadata->bw_raw);
+		EXPECT_DOUBLE_EQ(refBw, metadata->bw_raw);
+		EXPECT_DOUBLE_EQ(refBottomFreq - metadata->channel_bw * 0.5, metadata->ftop);
+		EXPECT_DOUBLE_EQ(refBottomFreq, metadata->fbottom_raw);
+		EXPECT_DOUBLE_EQ(refTopFreq - metadata->channel_bw * 0.5, metadata->fbottom);
+		EXPECT_DOUBLE_EQ(refTopFreq, metadata->ftop_raw);
+
+		*(metadata) = lofar_udp_metadata_default;
+		strncpy(config->metadataLocation, metadataLocation[1].c_str(), DEF_STR_LEN);
+		metadata->type = DADA;
+		config->externalChannelisation = 9;
+		config->externalDownsampling = 16;
+		EXPECT_EQ(0, lofar_udp_metadata_setup(metadata, reader, config));
+		EXPECT_EQ(1, metadata->upm_bandflip);
+		EXPECT_DOUBLE_EQ(-100.0 / 512.0 / (config->externalChannelisation), metadata->channel_bw);
+		EXPECT_DOUBLE_EQ(metadata->freq, metadata->freq_raw);
+		EXPECT_DOUBLE_EQ(metadata->bw, -1 * metadata->bw_raw);
+		EXPECT_DOUBLE_EQ(refBw, metadata->bw_raw);
+		EXPECT_DOUBLE_EQ(refBottomFreq, metadata->ftop);
+		EXPECT_DOUBLE_EQ(refBottomFreq, metadata->fbottom_raw);
+		EXPECT_DOUBLE_EQ(refTopFreq, metadata->fbottom);
+		EXPECT_DOUBLE_EQ(refTopFreq, metadata->ftop_raw);
+
+		*(metadata) = lofar_udp_metadata_default;
+		strncpy(config->metadataLocation, metadataLocation[2].c_str(), DEF_STR_LEN);
+		metadata->type = DADA;
+		config->externalChannelisation = 9;
+		config->externalDownsampling = 16;
+		reader->meta->processingMode = STOKES_I_DS16;
+		EXPECT_EQ(0, lofar_udp_metadata_setup(metadata, reader, config));
+		EXPECT_EQ(0, metadata->upm_bandflip);
+		EXPECT_DOUBLE_EQ(100.0 / 512.0 / (config->externalChannelisation), metadata->channel_bw);
+		EXPECT_DOUBLE_EQ(metadata->freq, metadata->freq_raw);
+		EXPECT_DOUBLE_EQ(metadata->bw, metadata->bw_raw);
+		EXPECT_DOUBLE_EQ(refBw, metadata->bw_raw);
+		EXPECT_DOUBLE_EQ(100 + refTopFreq, metadata->ftop_raw);
+		EXPECT_DOUBLE_EQ(100 + refTopFreq, metadata->ftop);
+		EXPECT_DOUBLE_EQ(100 + refBottomFreq, metadata->fbottom_raw);
+		EXPECT_DOUBLE_EQ(100 + refBottomFreq, metadata->fbottom);
 
 		metadata->subband_bw = 10;
 		EXPECT_EQ(-1, lofar_udp_metadata_setup(metadata, reader, config));
@@ -850,7 +897,7 @@ TEST_F(LibMetadataTestInternalBufferBuilders, SigprocHeaderBuilders) {
 		outputLength = (int32_t) strnlen(testVal, META_STR_LEN);
 		memcpy(expectedOutput + sizeof(int32_t) + strnlen(testKey, META_STR_LEN), &outputLength, sizeof(int32_t));
 		memcpy(expectedOutput + 2 * sizeof(int32_t) + strnlen(testKey, META_STR_LEN), testVal, strlen(testVal) * sizeof(char));
-		outputLength += 2 * sizeof(int32_t) + strnlen(testKey, META_STR_LEN);
+		outputLength += 2 * (int32_t) sizeof(int32_t) + (int32_t) strnlen(testKey, META_STR_LEN);
 		EXPECT_EQ(headerBuffer + outputLength, _writeStr_SIGPROC(headerBuffer, DEF_HDR_LEN, testKey, testVal));
 
 		EXPECT_EQ(0, strncmp(headerBuffer, expectedOutput, outputLength));
@@ -859,7 +906,7 @@ TEST_F(LibMetadataTestInternalBufferBuilders, SigprocHeaderBuilders) {
 		EXPECT_EQ(headerBuffer, _writeStr_SIGPROC(headerBuffer, DEF_HDR_LEN, "", ""));
 
 		// char* _writeInt_SIGPROC(char *buffer, const char *name, int32_t value);
-		int32_t testInt = 0xBAAAAAAD;
+		testInt = 0xBAAAAAAD;
 		outputLength = (int32_t) strnlen(testKey, META_STR_LEN);
 		memcpy(expectedOutput, &outputLength, sizeof(int32_t));
 		memcpy(expectedOutput + sizeof(int32_t), testKey, strlen(testKey) * sizeof(char));
@@ -935,7 +982,7 @@ TEST_F(LibMetadataTestInternalBufferBuilders, SigprocHeaderBuilders) {
 		outputLength = (int32_t) strnlen(testVal, META_STR_LEN);
 		memcpy(expectedOutput + sizeof(int32_t) + strnlen(testKey, META_STR_LEN), &outputLength, sizeof(int32_t));
 		memcpy(expectedOutput + 2 * sizeof(int32_t) + strnlen(testKey, META_STR_LEN), testVal, strlen(testVal) * sizeof(char));
-		outputLength += 2 * sizeof(int32_t) + strnlen(testKey, META_STR_LEN);
+		outputLength += 2 * (int32_t) sizeof(int32_t) + (int32_t) strnlen(testKey, META_STR_LEN);
 
 		EXPECT_EQ(outputLength, _lofar_udp_metadata_write_SIGPROC(hdr, (int8_t*) headerBuffer, DEF_HDR_LEN));
 

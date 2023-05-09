@@ -154,9 +154,12 @@ typedef struct lofar_udp_metadata {
 	double freq_raw; // beamctl
 	double freq; // Derived
 	double bw; // beamctl
+	double bw_raw; // beamctl
 	double subband_bw; // beamctl
 	double channel_bw; // Derived
+	double ftop_raw; // beamctl
 	double ftop; // beamctl
+	double fbottom_raw; // beamctl
 	double fbottom; // beamctl
 	int16_t subbands[MAX_NUM_PORTS * UDPMAXBEAM];
 	int16_t lowerBeamlet;
