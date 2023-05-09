@@ -117,7 +117,7 @@ int64_t _lofar_udp_metadata_write_DADA(const lofar_udp_metadata *hdr, int8_t *co
 
 	returnVal += _writeDouble_DADA(workingBuffer, "FREQ", hdr->freq_raw, 0);
 	returnVal += _writeDouble_DADA(workingBuffer, "BW", hdr->bw, 1);
-	returnVal += _writeDouble_DADA(workingBuffer, "CHAN_BW", hdr->subband_bw, 1);
+	returnVal += _writeDouble_DADA(workingBuffer, "CHAN_BW", hdr->channel_bw, 1);
 	returnVal += _writeDouble_DADA(workingBuffer, "FTOP", hdr->ftop, 0);
 	returnVal += _writeDouble_DADA(workingBuffer, "FBOT", hdr->fbottom, 0);
 	returnVal += _writeInt_DADA(workingBuffer, "NCHAN", hdr->nchan);

@@ -971,8 +971,15 @@ TEST_F(LibMetadataTestInternalBufferBuilders, SigprocHeaderBuilders) {
 		snprintf(hdr_raw.rawdatafile, META_STR_LEN, "no_input");
 
 		ARR_INIT(headerBuffer, DEF_HDR_LEN, 0);
-		EXPECT_EQ(395, _lofar_udp_metadata_write_SIGPROC(&hdr_raw, (int8_t*) headerBuffer, DEF_HDR_LEN));
-		EXPECT_EQ(7406572685367788247l, hasher(headerBuffer));
+		int32_t expectedLen = 395;
+		EXPECT_EQ(expectedLen, _lofar_udp_metadata_write_SIGPROC(&hdr_raw, (int8_t*) headerBuffer, DEF_HDR_LEN));
+		// hash expects string-like input, so we can't have any null bytes. Replace them with 'a' instead.
+		for (int16_t i = 0; i < expectedLen; i++) {
+			if (headerBuffer[i] == '\0') {
+				headerBuffer[i] = 'a';
+			}
+		}
+		EXPECT_EQ(12557409009530283146ul, hasher(std::string(headerBuffer)));
 
 		// SigProc helpers
 		//int _sigprocStationID(int telescopeId);
