@@ -11,7 +11,7 @@ set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
 
 option(ALLOW_VERBOSE "Enable compile-time verbose mode" OFF)
-if (ALLOW_VERBOSE OR (CMAKE_BUILD_TYPE STREQUAL Debug))
+if (ALLOW_VERBOSE OR ("${CMAKE_BUILD_TYPE}" STREQUAL Debug))
 	set(ALLOW_VERBOSE ON)
 	set(CMAKE_VERBOSE_MAKEFILE ON)
 	message("Verbose mode enabled")
@@ -24,30 +24,33 @@ if (CMAKE_VERSION VERSION_GREATER_EQUAL "3.24")
 endif()
 
 # Describe the project
-project(udpPacketManager 	VERSION 0.7.0
+project(udpPacketManager 	VERSION 0.9.0
 							DESCRIPTION "C Library for handling CEP packet data from an international LOFAR station"
 							LANGUAGES C CXX
 )
 
-set(UPM_CLI_VERSION 0.7)
+set(UPM_CLI_VERSION 0.9)
 
 message("Building udpPacketManager Version ${PROJECT_VERSION}\n\n")
 
 set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -march=native -O2 -ffast-math -fno-semantic-interposition")
 set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -march=native -O2 -ffast-math -fno-semantic-interposition")
 
-set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -Wstrict-prototypes -Wmissing-prototypes -Wframe-larger-than=4095 -Wshadow -Wconversion -Wno-sign-conversion -Wframe-larger-than=5000 -Wall -Wextra -g3")
-set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -Wstrict-prototypes -Wmissing-prototypes -Wframe-larger-than=4095 -Wshadow -Wconversion -Wno-sign-conversion -Wframe-larger-than=5000 -Wall -Wextra -g3")
+set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -Wstrict-prototypes -Wmissing-prototypes -Wframe-larger-than=4095 -Wshadow -Wconversion -Wno-sign-conversion -Wall -Wextra -g3")
+set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -Wframe-larger-than=4095 -Wshadow -Wconversion -Wno-sign-conversion -Wall -Wextra -g3")
 set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -fno-omit-frame-pointer -fsanitize=address")# -fanalyzer")
 set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -fno-omit-frame-pointer -fsanitize=address")# -fanalyzer")
 
 
-if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
+if("${CMAKE_C_COMPILER_ID}" STREQUAL "Clang")
 	set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -fsanitize-trap=undefined")
 	set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -fsanitize-trap=undefined")
 else()
-	set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -fallow-store-data-races")
-	set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -fallow-store-data-races")
+	# Only GCC 10+ support allow-store-data-races
+	if ("${CMAKE_C_COMPILER_ID}" STREQUAL "GNU" AND CMAKE_C_COMPILER_VERSION VERSION_GREATER_EQUAL 10.0)
+		set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -fallow-store-data-races")
+		set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -fallow-store-data-races")
+	endif()
 	set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -Wstack-usage=12287")
 	set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -Wstack-usage=12287")
 endif()
@@ -183,26 +186,26 @@ message("")
 
 
 # Configure FFTW3 (w/ floats + omp support, optional)
-#message("Configuring FFTW3 (static, floats, OpenMP support enabled)")
+message("Configuring FFTW3 (static, floats, OpenMP support enabled)")
 ## CMake config is outdated as of FFTW3 3.3.10, manually building to get AVX-512 support for REALTA
 # I do not understand why, but the clean build process fails without the "echo $(pwd)" command.
-#ExternalProject_ADD(internal_FFTW3F
-#                    URL "https://www.fftw.org/fftw-3.3.10.tar.gz"
-#                    URL_HASH "MD5=8ccbf6a5ea78a16dbc3e1306e234cc5c"
-#                    CONFIGURE_COMMAND ./configure --disable-dependency-tracking --enable-float --enable-openmp --enable-static
-#                    BUILD_COMMAND make -j4
-#                    BUILD_IN_SOURCE TRUE
-#                    INSTALL_COMMAND ""
-#                    UPDATE_COMMAND ""
-#)
-#ExternalProject_Get_Property(internal_FFTW3F install_dir)
-#set(fftw3f_INSTALL_DIR ${install_dir})
-#add_library(libfftw3fomp STATIC IMPORTED)
-#set_property(TARGET libfftw3fomp PROPERTY IMPORTED_LOCATION ${fftw3f_INSTALL_DIR}/src/internal_FFTW3F/threads/.libs/libfftw3f_omp.a)
-#add_dependencies(libfftw3fomp internal_FFTW3F)
-#add_library(libfftw3f STATIC IMPORTED)
-#set_property(TARGET libfftw3f PROPERTY IMPORTED_LOCATION ${fftw3f_INSTALL_DIR}/src/internal_FFTW3F/.libs/libfftw3f.a)
-#add_dependencies(libfftw3f internal_FFTW3F)
+ExternalProject_ADD(internal_FFTW3F
+                    URL "https://www.fftw.org/fftw-3.3.10.tar.gz"
+                    URL_HASH "MD5=8ccbf6a5ea78a16dbc3e1306e234cc5c"
+                    CONFIGURE_COMMAND ./configure --disable-dependency-tracking --enable-float --enable-openmp --enable-static --enable-sse2 --enable-avx --enable-avx2 --enable-avx512 --enable-avx-128-fma
+                    BUILD_COMMAND make -j4
+                    BUILD_IN_SOURCE TRUE
+                    INSTALL_COMMAND ""
+                    UPDATE_COMMAND ""
+)
+ExternalProject_Get_Property(internal_FFTW3F install_dir)
+set(fftw3f_INSTALL_DIR ${install_dir})
+add_library(libfftw3f_omp STATIC IMPORTED)
+set_property(TARGET libfftw3f_omp PROPERTY IMPORTED_LOCATION ${fftw3f_INSTALL_DIR}/src/internal_FFTW3F/threads/.libs/libfftw3f_omp.a)
+add_dependencies(libfftw3f_omp internal_FFTW3F)
+add_library(libfftw3f STATIC IMPORTED)
+set_property(TARGET libfftw3f PROPERTY IMPORTED_LOCATION ${fftw3f_INSTALL_DIR}/src/internal_FFTW3F/.libs/libfftw3f.a)
+add_dependencies(libfftw3f internal_FFTW3F)
 message("")
 
 
@@ -250,7 +253,7 @@ target_include_directories(lofudpman PUBLIC
 
 )
 # Include all of our dependency headers
-#target_include_directories(lofudpman PUBLIC ${fftw3f_INSTALL_DIR}/src/internal_FFTW3F/api)
+target_include_directories(lofudpman PUBLIC ${fftw3f_INSTALL_DIR}/src/internal_FFTW3F/api)
 target_include_directories(lofudpman PUBLIC ${hdf5_INSTALL_DIR}/src/internal_hdf5/src/ ${zlib_INSTALL_DIR}/src/internal_zlib/ ${bitshuffle_INSTALL_DIR}/src/internal_bitshuffle/src/)
 target_include_directories(lofudpman PUBLIC ${psrdada_INSTALL_DIR}/src/internal_PSRDADA/src/)
 target_include_directories(lofudpman PUBLIC ${zstd_SOURCE_DIR}/lib/)
@@ -258,12 +261,14 @@ target_include_directories(lofudpman PUBLIC ${zstd_SOURCE_DIR}/lib/)
 
 file(GLOB_RECURSE UDP_INCLUDE_FILES "${CMAKE_CURRENT_SOURCE_DIR}/src/*/*.h" "${CMAKE_CURRENT_SOURCE_DIR}/src/*/*.hpp" "${CMAKE_CURRENT_BINARY_DIR}/src/*/*.h" "${CMAKE_CURRENT_BINARY_DIR}/src/*/*.hpp")
 
-#target_link_libraries(lofudpman PUBLIC libfftw3fomp libfftw3f)
+# FFTW requires a libm (math) link
+find_library(LIB_M m REQUIRED)
+target_link_libraries(lofudpman PUBLIC libfftw3f_omp libfftw3f ${LIB_M})
 target_link_libraries(lofudpman PUBLIC libhdf5 libz libh5bshuf ${CMAKE_DL_LIBS}) # Some cases need libdl for HDF5
 target_link_libraries(lofudpman PUBLIC libpsrdada)
 target_link_libraries(lofudpman PUBLIC libzstd_static)
 
-find_library(LIB_RT rt)
+find_library(LIB_RT rt REQUIRED) # Required for shmem functions
 target_link_libraries(lofudpman PUBLIC ${LIB_RT})
 #target_link_libraries(lofudpman PUBLIC yaml)
 
@@ -283,9 +288,9 @@ target_link_libraries(lofudpman PUBLIC OpenMP::OpenMP_CXX OpenMP::OpenMP_C)
 
 # Setup the CLIs
 add_executable(lofar_udp_extractor src/CLI/lofar_cli_extractor.c)
-#add_executable(lofar_stokes_extractor src/CLI/lofar_cli_stokes.c)
+add_executable(lofar_stokes_extractor src/CLI/lofar_cli_stokes.c)
 target_link_libraries(lofar_udp_extractor PUBLIC lofudpman)
-#target_link_libraries(lofar_stokes_extractor PUBLIC lofudpman)
+target_link_libraries(lofar_stokes_extractor PUBLIC lofudpman)
 
 
 include(CMakePackageConfigHelpers)
@@ -296,7 +301,7 @@ write_basic_package_version_file(
 )
 
 # Install everything
-install(TARGETS lofudpman lofar_udp_extractor #lofar_stokes_extractor
+install(TARGETS lofudpman lofar_udp_extractor lofar_stokes_extractor
 		EXPORT lofudpman
 		LIBRARY DESTINATION lib
 		RUNTIME DESTINATION bin
