@@ -1,0 +1,45 @@
+# A makefile to compile a static library for the bitshuffle code base, as it only offers compillation through a wheel install
+CMAKE_BASE_DIR ?= ../../../
+
+CFLAGS += -O3 -ffast-math -std=c99 -static -fno-strict-aliasing -fPIC -DZSTD_SUPPORT
+CFLAGS += -I./src -I./lz4 -I$(CMAKE_BASE_DIR)/_deps/zstd-src/lib/ -I$(CMAKE_BASE_DIR)/internal_hdf5-prefix/src/internal_hdf5/src/
+LFLAGS += -L$(CMAKE_BASE_DIR)/_deps/zstd-src/build/cmake -lzstd
+
+SRC_INP =  $(wildcard ./src/*.c)
+SRC_INP += $(wildcard ./lz4/*.c)
+SRC =  $(filter-out ./src/lzf_h5plugin.c,$(SRC_INP))
+
+OBJ =  $(SRC:.c=.o)
+
+LIB_NAME = libh5bshuf
+LIB_VER  = 0.4.2
+
+%.o: %.c
+	$(CC) -c $(CFLAGS) $< -o ./$@ $(LFLAGS)
+
+link: $(OBJ)
+	$(AR) rc $(LIB_NAME).a $(OBJ)
+	-ln -s $(LIB_NAME).a $(LIB_NAME).a.$(LIB_VER)
+
+clean:
+	-rm ./src/*.o ./lz4/*.o
+	-rm ./$(LIB_NAME).a ./$(LIB_NAME).a.$(LIB_VER)
+
+all: link
+
+
+# Copyright (C) 2023 David McKenna
+# This file is part of udpPacketManager <https://github.com/David-McKenna/udpPacketManager>.
+#
+# udpPacketManager is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# udpPacketManager is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with udpPacketManager.  If not, see <http://www.gnu.org/licenses/>.

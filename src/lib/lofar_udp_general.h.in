@@ -1,0 +1,391 @@
+#ifndef LOFAR_COMPILE_CONSTANTS
+#define LOFAR_COMPILE_CONSTANTS
+
+// Extended stdio functions
+#define __STDC_WANT_LIB_EXT1__ 1
+
+// strcasestr requirement
+#define _GNU_SOURCE 1
+
+// Library information
+#define UPM_VERSION_MAJOR @PROJECT_VERSION_MAJOR@
+#define UPM_VERSION_MINOR @PROJECT_VERSION_MINOR@
+#define UPM_VERSION_PATCH @PROJECT_VERSION_PATCH@
+#define UPM_VERSION "@PROJECT_VERSION@"
+#cmakedefine ALLOW_VERBOSE
+
+#ifndef LOFAR_UDP_VERBOSE_MACRO
+#define LOFAR_UDP_VERBOSE_MACRO
+
+#ifdef ALLOW_VERBOSE
+#define VERBOSE(MSG) MSG;
+#define VERBOSEP(...) printf("%s: %s", __func__, ##__VA_ARGS__);
+#else
+#define VERBOSE(MSG) while(0) {};
+#define VERBOSEP(...) while(0) {};
+#endif
+
+#endif // End of LOFAR_UDP_VERBOSE_MACRO
+
+#include <stdint.h>
+// Processing mode enums
+typedef enum {
+	UNSET_MODE = -1,
+	PACKET_FULL_COPY = 0,
+	PACKET_NOHDR_COPY = 1,
+	PACKET_SPLIT_POL = 2,
+	BEAMLET_MAJOR_FULL = 10,
+	BEAMLET_MAJOR_SPLIT_POL = 11,
+	BEAMLET_MAJOR_FULL_REV = 20,
+	BEAMLET_MAJOR_SPLIT_POL_REV = 21,
+	TIME_MAJOR_FULL = 30,
+	TIME_MAJOR_SPLIT_POL = 31,
+	TIME_MAJOR_ANT_POL = 32,
+	TIME_MAJOR_ANT_POL_FLOAT = 35,
+
+	TEST_INVALID_MODE = 66,
+
+	STOKES_I = 100,
+	STOKES_Q = 110,
+	STOKES_U = 120,
+	STOKES_V = 130,
+	STOKES_IQUV = 150,
+	STOKES_IV = 160,
+
+	STOKES_I_DS2 = 101,
+	STOKES_Q_DS2 = 111,
+	STOKES_U_DS2 = 121,
+	STOKES_V_DS2 = 131,
+	STOKES_IQUV_DS2 = 151,
+	STOKES_IV_DS2 = 161,
+
+	STOKES_I_DS4 = 102,
+	STOKES_Q_DS4 = 112,
+	STOKES_U_DS4 = 122,
+	STOKES_V_DS4 = 132,
+	STOKES_IQUV_DS4 = 152,
+	STOKES_IV_DS4 = 162,
+
+	STOKES_I_DS8 = 103,
+	STOKES_Q_DS8 = 113,
+	STOKES_U_DS8 = 123,
+	STOKES_V_DS8 = 133,
+	STOKES_IQUV_DS8 = 153,
+	STOKES_IV_DS8 = 163,
+
+	STOKES_I_DS16 = 104,
+	STOKES_Q_DS16 = 114,
+	STOKES_U_DS16 = 124,
+	STOKES_V_DS16 = 134,
+	STOKES_IQUV_DS16 = 154,
+	STOKES_IV_DS16 = 164,
+
+	STOKES_I_REV = 200,
+	STOKES_Q_REV = 210,
+	STOKES_U_REV = 220,
+	STOKES_V_REV = 230,
+	STOKES_IQUV_REV = 250,
+	STOKES_IV_REV = 260,
+
+	STOKES_I_DS2_REV = 201,
+	STOKES_Q_DS2_REV = 211,
+	STOKES_U_DS2_REV = 221,
+	STOKES_V_DS2_REV = 231,
+	STOKES_IQUV_DS2_REV = 251,
+	STOKES_IV_DS2_REV = 261,
+
+	STOKES_I_DS4_REV = 202,
+	STOKES_Q_DS4_REV = 212,
+	STOKES_U_DS4_REV = 222,
+	STOKES_V_DS4_REV = 232,
+	STOKES_IQUV_DS4_REV = 252,
+	STOKES_IV_DS4_REV = 262,
+
+	STOKES_I_DS8_REV = 203,
+	STOKES_Q_DS8_REV = 213,
+	STOKES_U_DS8_REV = 223,
+	STOKES_V_DS8_REV = 233,
+	STOKES_IQUV_DS8_REV = 253,
+	STOKES_IV_DS8_REV = 263,
+
+	STOKES_I_DS16_REV = 204,
+	STOKES_Q_DS16_REV = 214,
+	STOKES_U_DS16_REV = 224,
+	STOKES_V_DS16_REV = 234,
+	STOKES_IQUV_DS16_REV = 254,
+	STOKES_IV_DS16_REV = 264,
+
+	STOKES_I_TIME = 300,
+	STOKES_Q_TIME = 310,
+	STOKES_U_TIME = 320,
+	STOKES_V_TIME = 330,
+	STOKES_IQUV_TIME = 350,
+	STOKES_IV_TIME = 360,
+
+	STOKES_I_DS2_TIME = 301,
+	STOKES_Q_DS2_TIME = 311,
+	STOKES_U_DS2_TIME = 321,
+	STOKES_V_DS2_TIME = 331,
+	STOKES_IQUV_DS2_TIME = 351,
+	STOKES_IV_DS2_TIME = 361,
+
+	STOKES_I_DS4_TIME = 302,
+	STOKES_Q_DS4_TIME = 312,
+	STOKES_U_DS4_TIME = 322,
+	STOKES_V_DS4_TIME = 332,
+	STOKES_IQUV_DS4_TIME = 352,
+	STOKES_IV_DS4_TIME = 362,
+
+	STOKES_I_DS8_TIME = 303,
+	STOKES_Q_DS8_TIME = 313,
+	STOKES_U_DS8_TIME = 323,
+	STOKES_V_DS8_TIME = 333,
+	STOKES_IQUV_DS8_TIME = 353,
+	STOKES_IV_DS8_TIME = 363,
+
+	STOKES_I_DS16_TIME = 304,
+	STOKES_Q_DS16_TIME = 314,
+	STOKES_U_DS16_TIME = 324,
+	STOKES_V_DS16_TIME = 334,
+	STOKES_IQUV_DS16_TIME = 354,
+	STOKES_IV_DS16_TIME = 364,
+} processMode_t;
+
+// Internal references to output data's rough ordering
+typedef enum {
+	UNKNOWN = 0,
+	TIME_MAJOR = 1,
+	FREQUENCY_MAJOR = 2,
+	PACKET_MAJOR = 4
+} dataOrder_t;
+
+
+// Reader / writer enums
+typedef enum {
+	NO_ACTION = -1,
+	UNSET_READER = 0,
+	NORMAL = 1,
+	FIFO = 2,
+	ZSTDCOMPRESSED = 4,
+	ZSTDCOMPRESSED_INDIRECT = 5,
+	HDF5 = 8,
+	DADA_ACTIVE = 16,
+} reader_t;
+
+// Output metadata formats
+typedef enum {
+	NO_META = -1,
+	DEFAULT_META = 0,
+	GUPPI = 1,
+	DADA = 2,
+	SIGPROC = 4,
+	HDF5_META = 8, // Shared with reader_t enum
+
+} metadata_t;
+
+typedef enum {
+	NO_CALIBRATION = -1,
+	GENERATE_JONES = 0,
+	APPLY_CALIBRATION = 1
+} calibrate_t;
+
+// Jones matrix size for calibration
+#define JONESMATSIZE 8
+
+// I/O array sizes
+#define MAX_NUM_PORTS 4
+#define MAX_OUTPUT_DIMS 4
+
+// CEP packet reference values
+#define UDPHDRLEN 16
+#define UDPCURVER 3
+#define UDPMAXBEAM 244
+#define UDPMINBITMDE 4
+#define UDPNPOL 4
+#define UDPNTIMESLICE 16
+
+// Some compiler assumptions here...
+#define MAXPKTLEN \
+	UDPHDRLEN + UDPNPOL * UDPNTIMESLICE * (UDPMAXBEAM / (8 / UDPMINBITMDE))
+
+// Ensure alignment for upto AVX512 SIMD ops
+#define MEMALIGNMENT 64
+#define MEMMISALIGNMENT (MAXPKTLEN % MEMALIGNMENT)
+#if MEMMISALIGNMENT
+#define PREBUFLEN \
+	((((int32_t) (MEMALIGNMENT / MAXPKTLEN)) + 1) * MEMALIGNMENT)
+#else
+#define PREBUFLEN \
+	(2 * MAXPKTLEN)
+#endif
+
+// This may be the ugliest code in this repo. Also, why can't GCC just support _Static_asserts...
+#ifdef __clang__
+// Ugly hack to access sizeof
+// Any time we access this header through C++, it should be in an extern "C" block,
+//  Close the open block, run our assert, and re-open it.
+#ifdef _cplusplus
+}
+// Ugly hack to access sizeof
+template<typename T> constexpr int32_t typeSize() {
+	return sizeof(T);
+}
+
+_Static_assert(typeSize<int8_t>() == 1, "Require int8_t is 8bits long for above calculation.");
+extern "C" {
+#endif
+_Static_assert((PREBUFLEN % MEMALIGNMENT) == 0, "Ensure that MAXPKTLEN offsets will result in memaligned data");
+_Static_assert(PREBUFLEN > 2 * MAXPKTLEN, "Ensure that PREBUFLEN is long enough to support 2 packets");
+
+#endif
+
+// Timing values
+#define LFREPOCH 1199145600 // 2008-01-01 Unix time, sanity check
+#define RSPMAXSEQ 195313
+#define CLOCK200MHZ 195312.5
+#define CLOCK160MHZ 156250.0
+
+// Execution values
+#define DEF_STR_LEN 2048
+#define DEF_HDR_LEN 32768
+#define OMP_THREADS @OMP_THREADS@
+#define OMP_NESTED TRUE
+#define ZSTD_COMP_LEVEL @ZSTD_COMP_LEVEL@
+
+// Header component offsets
+#define CEP_HDR_RSP_VER_OFFSET 0
+#define CEP_HDR_SRC_OFFSET 1
+#define CEP_HDR_STN_ID_OFFSET 4
+#define CEP_HDR_NBEAM_OFFSET 6
+#define CEP_HDR_NTIMESLICE_OFFSET 7
+#define CEP_HDR_TIME_OFFSET 8
+#define CEP_HDR_SEQ_OFFSET 12
+
+#endif // End of LOFAR_COMPILE_CONSTANTS
+
+// Decode the 'two source' bytes in the CEP header
+#ifndef LOFAR_SOURCE_BYTE_STRUCT
+#define LOFAR_SOURCE_BYTE_STRUCT
+
+// For unpacking the header source bytes
+typedef struct __attribute__((__packed__)) lofar_source_bytes {
+	unsigned int rsp: 5;
+	unsigned int padding0: 1;
+	unsigned int errorBit: 1;
+	unsigned int clockBit: 1;
+	unsigned int bitMode: 2;
+	unsigned int padding1: 6;
+} lofar_source_bytes;
+
+#endif // End of LOFAR_SOURCE_BYTE_STRUCT
+
+
+// Slow stopping macro (enable from makefile)
+#ifndef LOFAR_SLEEP
+#define LOFAR_SLEEP
+
+#ifdef SLOWDOWN
+#define PAUSE sleep(1);
+#else
+#define PAUSE while(0) {};
+#endif
+
+#endif // End of LOFAR_SLEEP
+
+
+// Timing macro
+#ifndef LOFAR_UDP_TICKTOCK_MACRO
+#define LOFAR_UDP_TICKTOCK_MACRO
+
+#define CLICK(clock) clock_gettime(CLOCK_MONOTONIC_RAW, &(clock));
+#define TICKTOCK(tick, tock) (((double) ((tock).tv_nsec - (tick).tv_nsec) / 1000000000.0) + ((double) ((tock).tv_sec - (tick).tv_sec)))
+
+#endif // End of LOFAR_UDP_TICKTOCK_MACRO
+
+// Array initialisation macro
+#ifndef LOFAR_UDP_INIT_MACRO
+#define LOFAR_UDP_INIT_MACRO
+
+#define ARR_INIT(arr, entries, val) \
+	for (int64_t ARRIDX = 0; ARRIDX < (entries); ARRIDX++) { \
+		(arr)[ARRIDX] = val; \
+	}
+
+#define STR_INIT(arr, entries) \
+	for (int64_t ARRIDX = 0; ARRIDX < (entries); ARRIDX++) { \
+		(arr)[ARRIDX][0] = '\0'; \
+	}
+#endif // End of LOFAR_UDP_INIT_MACRO
+
+#ifndef LOFAR_UDP_GENERAL_H
+#define LOFAR_UDP_GENERAL_H
+
+#include <stddef.h>
+#include <stdio.h>
+#include <errno.h>
+#include <string.h>
+#include <stdlib.h>
+#include <signal.h>
+#include <limits.h>
+#include <execinfo.h>
+
+// Allocation check
+#define CHECK_ALLOC(alloced, returnVal, cleanup) if ((alloced) == NULL) { fprintf(stderr, "ERROR %s%d: Failed to allocate " #alloced", returning.\n", __FILE__, __LINE__); return returnVal; cleanup;}
+#define CHECK_ALLOC_NOCLEAN(alloced, returnVal) CHECK_ALLOC(alloced, returnVal, ;)
+
+#define STRUCT_COPY_INIT(structtype, variable, defaultstruct) \
+    _Static_assert(sizeof(structtype) == sizeof(defaultstruct), "Struct size mismatch"); \
+	*(variable) = defaultstruct;
+
+#define DEFAULT_STRUCT_ALLOC(structtype, variable, defaultstruct, cleanup, returnVal) \
+	_Static_assert(sizeof(structtype) == sizeof(defaultstruct), "Struct size mismatch");                                                                             \
+	structtype *(variable) = calloc(1, sizeof(structtype)); \
+	CHECK_ALLOC(variable, returnVal, cleanup);                            \
+	STRUCT_COPY_INIT(structtype, variable, defaultstruct);
+
+// Check variable array length
+#define VAR_ARR_SIZE(arrayName) \
+	(sizeof((arrayName)) / sizeof((arrayName)[0]))
+
+// Free if non-null macro
+#define FREE_NOT_NULL(x) if ((x) != NULL) { free((x)); (x) = NULL; }
+
+// Silence warnings about parameters not used in certain constexpr paths
+// https://stackoverflow.com/a/1486931
+#define UNUSED(expr) do { (void)(expr); } while (0);
+
+// Allow C++ imports too
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+void _lofar_udp_signal_handler_stack(int signalnum);
+void _lofar_udp_signal_handler(int signalnum);
+int _lofar_udp_prepare_signal_handler(void);
+int32_t internal_strtoi(char *str, char **endPtr);
+int8_t internal_strtoc(char *str, char **endPtr);
+
+// Allow C++ imports too
+#ifdef __cplusplus
+}
+#endif
+
+#endif // End of LOFAR_UDP_GENERAL_H
+
+/**
+ * Copyright (C) 2023 David McKenna
+ * This file is part of udpPacketManager <https://github.com/David-McKenna/udpPacketManager>.
+ *
+ * udpPacketManager is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * udpPacketManager is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with udpPacketManager.  If not, see <http://www.gnu.org/licenses/>.
+ **/

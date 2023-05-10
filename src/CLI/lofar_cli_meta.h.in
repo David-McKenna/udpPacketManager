@@ -1,0 +1,50 @@
+// XOPEN -> strptime requirement
+#define __USE_XOPEN 1
+
+#include "lofar_udp_reader.h"
+#include "lofar_udp_io.h"
+#include <time.h>
+
+
+#ifndef __LOFAR_CLI_META
+#define __LOFAR_CLI_META
+
+#define UPM_CLI_VERSION "@UPM_CLI_VERSION@"
+
+// Allow C++ imports too
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+// Define prototypes
+void helpMessages(void);
+void sharedFlags(void);
+void processingModes(void);
+int checkOpt(int opt, char *inp, char *endPtr);
+
+// Exit reasons, 0, 1 aren't handled, only defined up to 3
+extern const char exitReasons[8][DEF_STR_LEN];
+
+
+#ifdef __cplusplus // End extern C
+}
+#endif
+#endif
+
+/**
+ * Copyright (C) 2023 David McKenna
+ * This file is part of udpPacketManager <https://github.com/David-McKenna/udpPacketManager>.
+ *
+ * udpPacketManager is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * udpPacketManager is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with udpPacketManager.  If not, see <http://www.gnu.org/licenses/>.
+ **/
