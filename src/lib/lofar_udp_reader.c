@@ -1265,7 +1265,7 @@ lofar_udp_reader *lofar_udp_reader_setup(lofar_udp_config *config) {
 	if (config->calibrateData > NO_CALIBRATION) {
 		reader->calibration = _lofar_udp_calibration_alloc();
 		reader->calibration->calibrationDuration = config->calibrationDuration;
-		if (_lofar_udp_reader_calibration_generate_data(reader) > 0) {
+		if (_lofar_udp_reader_calibration_generate_data(reader)) {
 			lofar_udp_reader_cleanup(reader);
 			return NULL;
 		}
