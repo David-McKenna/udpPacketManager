@@ -2,14 +2,21 @@ udpPacketManager
 ================
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.4249771.svg)](https://doi.org/10.5281/zenodo.4249771)
 
-udpPacketManager is a C library developed to handle reading and processing CEP packet streams from international LOFAR stations. It is used at the Irish LOFAR station (I-LOFAR, [lofar.ie](https://lofar.ie)) for online data processing in conjunction with [ILTDada](https://github.com/David-McKenna/ILTDada) for online data reduction to Stokes parameter science ready data products, or intermediate voltage formats for use with other software packages.
+udpPacketManager is a C library developed to handle reading and processing CEP packet streams from international LOFAR stations. It is used 
+at the Irish LOFAR station (I-LOFAR, [lofar.ie](https://lofar.ie)) for online data processing in conjunction with 
+[ILTDada](https://github.com/David-McKenna/ILTDada) for online data reduction to Stokes parameter science ready data products, or 
+intermediate voltage formats for use with other software packages.
 
-This library allows for entire, partial beamlet extraction and processing of LOFAR CEP packet streams, re-aligning data to account for packet loss or misalignment on the first packet, to produce one of several data products, ranging from raw voltages (reordered or not) to a fully calibrated Stokes vector output.
+This library allows for entire, partial beamlet extraction and processing of LOFAR CEP packet streams, re-aligning data to account for 
+packet loss or misalignment on the first packet, to produce one of several data products, ranging from raw voltages (reordered or not) to a 
+fully calibrated Stokes vector output.
 
 Caveats & TODOs
 -------
 While using the library, do be aware
-- CEP packets that are recorded out of order may cause issues, the best way to handle them has not been determined, so they are currently dropped. This may cause some time-major formats to change shape (though at least in our experience, packets are more likely to be lost, no packets in 2022 were received out of order at IE613).
+- CEP packets that are recorded out of order may cause issues, the best way to handle them has not been determined, so they are currently 
+  dropped. This may cause some time-major formats to change shape (though at least in our experience, packets are more likely to be lost,  
+  no packets in 2022 were received out of order at IE613).
 
 Future work should not break the existing load/process/output loop, and may consist of
 - Creating a wrapper python library to allow for easer interfacing within python scripts rather than requiring a C program (pybind11?)
@@ -54,7 +61,10 @@ Our CMake configuration will automatically compile several dependencies (though 
   - dreamBeam
   - lofarantpos
 
-While we aim to have maximum support for common compilers, during the development of the library we have noted that the LLVM (`clang`) implementation of OpenMP, `libomp` tasks has significant performance benefits as compared to the GCC `libgomp` library bundled with GCC, especially for higher core count machines. As a result, we strongly recommend using a `clang` compiler when using the library for online processing of observations. Further details of this behaviour can be found in **[compilers.md](docs/compilers.md)**.
+While we aim to have maximum support for common compilers, during the development of the library we have noted that the LLVM (`clang`) 
+implementation of OpenMP, `libomp`, has significant performance benefits as compared to the GCC `libgomp` library bundled with GCC, 
+especially for higher core count machines. As a result, we strongly recommend using a `clang` compiler when using the library for online 
+processing of observations. Further details of this behaviour can be found in **[compilers.md](docs/compilers.md)**.
 
 Building and Installing the Library
 -----------------------------------
@@ -73,18 +83,19 @@ ctest -V .
 ```
 We provide these commands wrapped in a script at **[build.sh](build.sh)**
 
-### Calibration Installation Notes
-If you are also installing the required components for polarmetric calibrations you may receive several errors from casacore regarding missing ephemeris, leap second catalogues, etc., which can be fixed by following [this help guide from the NRAO](https://casaguides.nrao.edu/index.php?title=Fixing_out_of_date_TAI_UTC_tables_%28missing_information_on_leap_seconds%29).
+Further Calibration Installation Notes
+--------------------------------------
+You may receive several errors from casacore regarding missing ephemeris, leap second catalogues, etc. when calibration is enabled. These 
+can be resolved by following 
+[this help guide from the NRAO](https://casaguides.nrao.edu/index.php?title=Fixing_out_of_date_TAI_UTC_tables_%28missing_information_on_leap_seconds%29).
 
 Usage
 -----
-
-A quick-start guide on how to integrate the software in your project is provided in the **[
-integration](docs/README_INTEGRATION.md)** readme file, and example implementations can be found in the provided CLIs, for example **[
-lofar_cli_stokes.c](src/CLI/lofar_cli_stokes.c)**, or a simplified implementation can be found in **[example_processor.c](docs/examples/example_processor.c)**.
+A quick-start guide on how to integrate the software in your project is provided in the **[integration](docs/README_INTEGRATION.md)** readme 
+file, and  example implementations can be found in the provided CLIs, for example **[lofar_cli_stokes.c](src/CLI/lofar_cli_stokes.c)**, or 
+a simplified implementation can be found in **[example_processor.c](docs/examples/example_processor.c)**.
 
 Other documentation can be found in the [docs/](docs) folder.
-
 
 Contributing
 ------------
