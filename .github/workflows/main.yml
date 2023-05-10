@@ -1,7 +1,14 @@
 on:
   push:
+    paths-ignore:
+      - 'docs/**'
+      - 'paper/**'
+      - 'README.md'
+      - 'COPYING'
+      - '.gitignore'
     branches:
       - main
+
   pull_request:
       types: [ready_for_review]
   pull_request_review:
@@ -13,12 +20,11 @@ on:
         default: "Manual Trigger"
 
 jobs:
-  build_gcc_old:
+  build_and_test_gcc_old:
     runs-on: ubuntu-18.04
     name: Build & Test GCC
-    strategy:
-      matrix:
-        ver: [7, 8]
+    env:
+      COMPILER_VERS: 7 8
     steps:
       - name: Checkout
         uses: actions/checkout@v3
@@ -30,22 +36,22 @@ jobs:
           curl -sSL https://bootstrap.pypa.io/get-pip.py -o get-pip.py
           python3 get-pip.py
           python3 -m pip install cmake
-          sudo apt-get install -y gcc-${{ matrix.ver }} g++-${{ matrix.ver }}
       - name: Build
         env:
-          CC: gcc-${{ matrix.ver }}
-          CXX: g++-${{ matrix.ver }}
           NO_TEST_CAL: ON
         run: |
-          sudo bash build.sh 1
+          for ver in ${COMPILER_VERS}; do
+            sudo apt-get install -y gcc-${ver} g++-${ver};
+            sudo CC=gcc-${ver} CXX=g++-${ver} bash build.sh 1; 
+            sudo apt-get remove -y gcc-${ver} g++-${ver};
+          done;
           
 
   build_and_test_gcc:
     name: Build & Test GCC
     runs-on: ubuntu-22.04
-    strategy:
-      matrix:
-        ver: [9, 10, 11, 12]
+    env:
+      COMPILER_VERS: 9 10 11 12
     steps:
       - name: Checkout
         uses: actions/checkout@v3
@@ -56,24 +62,24 @@ jobs:
           curl -sSL https://bootstrap.pypa.io/get-pip.py -o get-pip.py
           python3 get-pip.py
           python3 -m pip install cmake
-          sudo apt-get install -y gcc-${{ matrix.ver }} g++-${{ matrix.ver }}
-      - name: Build
-        env:
-          CC: gcc-${{ matrix.ver }}
-          CXX: g++-${{ matrix.ver }}
-        run: |
-          if [ ${{ matrix.ver }} -eq 15 ]; then \
-            sudo bash build.sh 1; \
-          else \
-            NO_CAL_TEST=ON sudo bash build.sh 1; \
-          fi;
 
-  build_clang_old:
+      - name: Build
+        run: |
+          for ver in ${COMPILER_VERS}; do
+            sudo apt-get install -y gcc-${ver} g++-${ver};
+            if [ ${ver} -eq 12 ]; then \
+              sudo CC=gcc-${ver} CXX=g++-${ver} bash build.sh 1; \
+            else \
+              sudo CC=gcc-${ver} CXX=g++-${ver} NO_CAL_TEST=ON bash build.sh 1; \
+            fi;
+            sudo apt-get remove -y gcc-${ver} g++-${ver};
+          done;
+
+  build_and_test_clang_old:
     runs-on: ubuntu-18.04
     name: Build & Test clang
-    strategy:
-      matrix:
-        ver: [7, 8, 9]
+    env:
+      COMPILER_VERS: 7 8 9
     steps:
       - name: Checkout
         uses: actions/checkout@v3
@@ -85,21 +91,21 @@ jobs:
           curl -sSL https://bootstrap.pypa.io/get-pip.py -o get-pip.py
           python3 get-pip.py
           python3 -m pip install cmake
-          sudo apt-get install -y clang-${{ matrix.ver }} clang++-${{ matrix.ver }} libomp5-${{ matrix.ver }} libomp-${{ matrix.ver }}-dev
       - name: Build
         env:
-          CC: clang-${{ matrix.ver }}
-          CXX: clang++-${{ matrix.ver }}
           NO_TEST_CAL: ON
         run: |
-          sudo bash build.sh 1
+          for ver in ${COMPILER_VERS}; do
+            sudo apt-get install -y clang-${ver} clang++-${ver} libomp5-${ver} libomp-${ver}-dev;
+            sudo CC=clang-${ver} CXX=clang++-${ver} bash build.sh 1; 
+            sudo apt-get remove -y clang-${ver} clang++-${ver} libomp5-${ver} libomp-${ver}-dev;
+          done;
 
   build_and_test_clang:
     name: Build & Test clang
     runs-on: ubuntu-22.04
-    strategy:
-      matrix:
-        ver: [11, 12, 13, 14, 15]
+    env:
+      COMPILER_VERS: 11 12 13 14 15
     steps:
       - name: Checkout
         uses: actions/checkout@v3
@@ -110,14 +116,14 @@ jobs:
           curl -sSL https://bootstrap.pypa.io/get-pip.py -o get-pip.py
           python3 get-pip.py
           python3 -m pip install cmake
-          sudo apt-get install -y clang-${{ matrix.ver }} clang++-${{ matrix.ver }} libomp5-${{ matrix.ver }} libomp-${{ matrix.ver }}-dev
       - name: Build, Install & Sometimes Test
-        env:
-          CC: clang-${{ matrix.ver }}
-          CXX: clang++-${{ matrix.ver }}
         run: |
-          if [ ${{ matrix.ver }} -eq 15 ]; then \
-            sudo bash build.sh 1; \
-          else \
-            NO_CAL_TEST=ON sudo bash build.sh 1; \
-          fi;
+          for ver in ${COMPILER_VERS}; do
+            sudo apt-get install -y clang-${ver} clang++-${ver} libomp5-${ver} libomp-${ver}-dev; 
+            if [ ${ver} -eq 15 ]; then \
+              sudo CC=clang-${ver} CXX=clang++-${ver} bash build.sh 1; \
+            else \
+              sudo CC=clang-${ver} CXX=clang++-${ver} NO_CAL_TEST=ON bash build.sh 1; \
+            fi;
+           sudo apt-get remove -y clang-${ver} clang++-${ver} libomp5-${ver} libomp-${ver}-dev;
+          done;

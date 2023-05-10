@@ -33,8 +33,8 @@ set(UPM_CLI_VERSION 0.9)
 
 message("Building udpPacketManager Version ${PROJECT_VERSION}\n\n")
 
-set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -march=native -O2 -ffast-math -fno-semantic-interposition")
-set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -march=native -O2 -ffast-math -fno-semantic-interposition")
+set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -march=native -O2 -ffast-math")
+set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -march=native -O2 -ffast-math")
 
 set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -Wstrict-prototypes -Wmissing-prototypes -Wframe-larger-than=4095 -Wshadow -Wconversion -Wno-sign-conversion -Wall -Wextra -g3")
 set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -Wframe-larger-than=4095 -Wshadow -Wconversion -Wno-sign-conversion -Wall -Wextra -g3")
@@ -43,27 +43,31 @@ set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -fno-omit-frame-pointer -fsa
 
 
 if("${CMAKE_C_COMPILER_ID}" STREQUAL "Clang")
+	if (${CMAKE_C_COMPILER_VERSION} VERSION_GREATER_EQUAL 13.0)
+		set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -fno-semantic-interposition")
+		set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -fno-semantic-interposition")
+	endif()
 	set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -fsanitize-trap=undefined")
 	set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -fsanitize-trap=undefined")
 else()
-	# Only GCC 10+ support allow-store-data-races
-	if ("${CMAKE_C_COMPILER_ID}" STREQUAL "GNU" AND CMAKE_C_COMPILER_VERSION VERSION_GREATER_EQUAL 10.0)
+	# Only add GCC 10+ support for allow-store-data-races
+	if ("${CMAKE_C_COMPILER_ID}" STREQUAL "GNU" AND ${CMAKE_C_COMPILER_VERSION} VERSION_GREATER_EQUAL 10.0)
 		set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -fallow-store-data-races")
 		set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -fallow-store-data-races")
 	endif()
+	set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -fno-semantic-interposition")
+	set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -fno-semantic-interposition")
 	set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -Wstack-usage=12287")
 	set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -Wstack-usage=12287")
 endif()
 # Ensure we have a modern python version available and prepare to install the latest build of dreamBeam
-# multiprocessing.shared_memory required >= 3.8
+# multiprocessing.shared_memory requires >= 3.8
 find_package(Python3 3.8 COMPONENTS Interpreter REQUIRED)
 
 add_custom_command(OUTPUT pip_installed
                    COMMAND ${Python3_EXECUTABLE} -m pip install astropy lofarantpos git+https://github.com/2baOrNot2ba/AntPat git+https://github.com/David-McKenna/dreamBeam.git@fc7d0a6
                    COMMAND ${CMAKE_COMMAND} -E touch ${CMAKE_CURRENT_BINARY_DIR}/pip_installed
-
 )
-
 add_custom_target(install_python_requirements
                   DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/pip_installed
 )
