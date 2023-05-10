@@ -1,0 +1,118 @@
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+      types: [ready_for_review]
+  pull_request_review:
+      types: [submitted]
+
+jobs:
+  build_gcc_old:
+    runs-on: ubuntu-18.04
+    name: Build & Test GCC
+    strategy:
+      matrix:
+        ver: [7, 8]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+      - name: Prep Environment
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y curl csh git python3.8
+          update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.8 2
+          curl -sSL https://bootstrap.pypa.io/get-pip.py -o get-pip.py
+          python3 get-pip.py
+          python3 -m pip install cmake
+          sudo apt-get install -y gcc-${{ matrix.ver }} g++-${{ matrix.ver }}
+      - name: Build
+        env:
+          CC: gcc-${{ matrix.ver }}
+          CXX: g++-${{ matrix.ver }}
+          NO_TEST_CAL: ON
+        run: |
+          bash build.sh 1
+          
+
+  build_and_test_gcc:
+    name: Build & Test GCC
+    runs-on: ubuntu-22.04
+    strategy:
+      matrix:
+        ver: [9, 10, 11, 12]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+      - name: Prep Environment
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y curl csh git python3
+          curl -sSL https://bootstrap.pypa.io/get-pip.py -o get-pip.py
+          python3 get-pip.py
+          python3 -m pip install cmake
+          sudo apt-get install -y gcc-${{ matrix.ver }} g++-${{ matrix.ver }}
+      - name: Build
+        env:
+          CC: gcc-${{ matrix.ver }}
+          CXX: g++-${{ matrix.ver }}
+        run: |
+          if [ ${{ matrix.ver }} -eq 15 ]; then \
+            bash install.sh 1; \
+          else; \
+            NO_CAL_TEST=ON bash install.sh 1; \
+          fi;
+
+  build_clang_old:
+    runs-on: ubuntu-18.04
+    name: Build & Test clang
+    strategy:
+      matrix:
+        ver: [7, 8, 9]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+      - name: Prep Environment
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y curl csh git python3.8
+          update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.8 2
+          curl -sSL https://bootstrap.pypa.io/get-pip.py -o get-pip.py
+          python3 get-pip.py
+          python3 -m pip install cmake
+          sudo apt-get install -y clang-${{ matrix.ver }} clang++-${{ matrix.ver }} libomp5 libomp-dev
+      - name: Build
+        env:
+          CC: clang-${{ matrix.ver }}
+          CXX: clang++-${{ matrix.ver }}
+          NO_TEST_CAL: ON
+        run: |
+          bash build.sh 1
+
+  build_and_test_clang:
+    name: Build & Test clang
+    runs-on: ubuntu-22.04
+    strategy:
+      matrix:
+        ver: [11, 12, 13, 14, 15]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+      - name: Prep Environment
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y curl csh git python3
+          curl -sSL https://bootstrap.pypa.io/get-pip.py -o get-pip.py
+          python3 get-pip.py
+          python3 -m pip install cmake
+          sudo apt-get install -y clang-${{ matrix.ver }} clang++-${{ matrix.ver }} libomp5 libomp-dev
+      - name: Build, Install & Sometimes Test
+        env:
+          CC: clang-${{ matrix.ver }}
+          CXX: clang++-${{ matrix.ver }}
+        run: |
+          if [ ${{ matrix.ver }} -eq 15 ]; then \
+            bash install.sh 1; \
+          else; \
+            NO_CAL_TEST=ON bash install.sh 1; \
+          fi;

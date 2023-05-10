@@ -1,0 +1,20 @@
+on:
+  pull_request:
+    paths-ignore:
+      - 'docs/**'
+      - 'paper/**'
+      - 'README.md'
+      - 'COPYING'
+      - '.gitignore'
+
+
+jobs:
+
+  build_container:
+    name: Docker Build & Test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+      - name: Docker Build Step
+        run: docker build . --file src/docker/Dockerfile
