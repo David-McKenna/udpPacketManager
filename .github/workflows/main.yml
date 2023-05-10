@@ -6,6 +6,11 @@ on:
       types: [ready_for_review]
   pull_request_review:
       types: [submitted]
+  workflow_dispatch:
+    inputs:
+      name:
+        description: "Reason"
+        default: "Manual Trigger"
 
 jobs:
   build_gcc_old:
@@ -58,9 +63,9 @@ jobs:
           CXX: g++-${{ matrix.ver }}
         run: |
           if [ ${{ matrix.ver }} -eq 15 ]; then \
-            bash install.sh 1; \
-          else; \
-            NO_CAL_TEST=ON bash install.sh 1; \
+            bash build.sh 1; \
+          else \
+            NO_CAL_TEST=ON bash build.sh 1; \
           fi;
 
   build_clang_old:
@@ -80,7 +85,7 @@ jobs:
           curl -sSL https://bootstrap.pypa.io/get-pip.py -o get-pip.py
           python3 get-pip.py
           python3 -m pip install cmake
-          sudo apt-get install -y clang-${{ matrix.ver }} clang++-${{ matrix.ver }} libomp5 libomp-dev
+          sudo apt-get install -y clang-${{ matrix.ver }} clang++-${{ matrix.ver }} libomp5-${{ matrix.ver }} libomp-${{ matrix.ver }}-dev
       - name: Build
         env:
           CC: clang-${{ matrix.ver }}
@@ -105,14 +110,14 @@ jobs:
           curl -sSL https://bootstrap.pypa.io/get-pip.py -o get-pip.py
           python3 get-pip.py
           python3 -m pip install cmake
-          sudo apt-get install -y clang-${{ matrix.ver }} clang++-${{ matrix.ver }} libomp5 libomp-dev
+          sudo apt-get install -y clang-${{ matrix.ver }} clang++-${{ matrix.ver }} libomp5-${{ matrix.ver }} libomp-${{ matrix.ver }}-dev
       - name: Build, Install & Sometimes Test
         env:
           CC: clang-${{ matrix.ver }}
           CXX: clang++-${{ matrix.ver }}
         run: |
           if [ ${{ matrix.ver }} -eq 15 ]; then \
-            bash install.sh 1; \
-          else; \
-            NO_CAL_TEST=ON bash install.sh 1; \
+            bash build.sh 1; \
+          else \
+            NO_CAL_TEST=ON bash build.sh 1; \
           fi;
