@@ -85,6 +85,15 @@ lofar_cli_stokes.c](src/CLI/lofar_cli_stokes.c)**, or a simplified implementatio
 
 Other documentation can be found in the [docs/](docs) folder.
 
+
+Contributing
+------------
+
+Issues and pull requests are welcomed through GitHub to report or resolve issues with the software, or if you wish to request/add additional 
+functionality. All contributions are expected to follow the code of conduct laid out in the 
+[Contributor Covenant 2.0](https://www.contributor-covenant.org/version/2/0/code_of_conduct/). Any contributions submitted will be licensed under 
+the GPLv3.
+
 Funding
 -------
 This project was written while the author was receiving funding from the Irish Research Council's Government of Ireland
