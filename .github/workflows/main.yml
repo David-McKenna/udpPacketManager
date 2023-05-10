@@ -37,7 +37,7 @@ jobs:
           CXX: g++-${{ matrix.ver }}
           NO_TEST_CAL: ON
         run: |
-          bash build.sh 1
+          sudo bash build.sh 1
           
 
   build_and_test_gcc:
@@ -63,9 +63,9 @@ jobs:
           CXX: g++-${{ matrix.ver }}
         run: |
           if [ ${{ matrix.ver }} -eq 15 ]; then \
-            bash build.sh 1; \
+            sudo bash build.sh 1; \
           else \
-            NO_CAL_TEST=ON bash build.sh 1; \
+            NO_CAL_TEST=ON sudo bash build.sh 1; \
           fi;
 
   build_clang_old:
@@ -92,7 +92,7 @@ jobs:
           CXX: clang++-${{ matrix.ver }}
           NO_TEST_CAL: ON
         run: |
-          bash build.sh 1
+          sudo bash build.sh 1
 
   build_and_test_clang:
     name: Build & Test clang
@@ -117,7 +117,7 @@ jobs:
           CXX: clang++-${{ matrix.ver }}
         run: |
           if [ ${{ matrix.ver }} -eq 15 ]; then \
-            bash build.sh 1; \
+            sudo bash build.sh 1; \
           else \
-            NO_CAL_TEST=ON bash build.sh 1; \
+            NO_CAL_TEST=ON sudo bash build.sh 1; \
           fi;
