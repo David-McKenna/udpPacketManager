@@ -22,7 +22,7 @@ on:
 jobs:
   build_and_test_gcc_old:
     runs-on: ubuntu-20.04
-    name: Build & Test GCC
+    name: Build & Test GCC (20.04)
     env:
       COMPILER_VERS: 7 8
     steps:
@@ -32,10 +32,10 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y curl csh git python3.8
-          update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.8 2
+          sudo update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.8 2
           curl -sSL https://bootstrap.pypa.io/get-pip.py -o get-pip.py
-          python3 get-pip.py
-          python3 -m pip install cmake
+          sudo python3 get-pip.py
+          sudo python3 -m pip install cmake
       - name: Build
         env:
           NO_TEST_CAL: ON
@@ -48,7 +48,7 @@ jobs:
           
 
   build_and_test_gcc:
-    name: Build & Test GCC
+    name: Build & Test GCC (22.04)
     runs-on: ubuntu-22.04
     env:
       COMPILER_VERS: 9 10 11 12
@@ -77,7 +77,7 @@ jobs:
 
   build_and_test_clang_old:
     runs-on: ubuntu-20.04
-    name: Build & Test clang
+    name: Build & Test clang (20.04)
     env:
       COMPILER_VERS: 7 8 9
     steps:
@@ -87,10 +87,10 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y curl csh git python3.8
-          update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.8 2
+          sudo update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.8 2
           curl -sSL https://bootstrap.pypa.io/get-pip.py -o get-pip.py
-          python3 get-pip.py
-          python3 -m pip install cmake
+          sudo python3 get-pip.py
+          sudo python3 -m pip install cmake
       - name: Build
         env:
           NO_TEST_CAL: ON
@@ -102,7 +102,7 @@ jobs:
           done;
 
   build_and_test_clang:
-    name: Build & Test clang
+    name: Build & Test clang (22.04)
     runs-on: ubuntu-22.04
     env:
       COMPILER_VERS: 11 12 13 14 15
