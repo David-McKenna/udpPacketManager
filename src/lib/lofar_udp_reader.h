@@ -34,7 +34,6 @@ void lofar_udp_reader_cleanup(lofar_udp_reader *reader);
 // Internal functions
 void _lofar_udp_parse_header_extract_metadata(int8_t port, lofar_udp_obs_meta *meta, const int8_t header[16], const int16_t beamletLimits[2]);
 void _lofar_udp_reader_config_patch(lofar_udp_config *config);
-int32_t _lofar_udp_reader_malformed_header_checks(const int8_t header[16]);
 int32_t _lofar_udp_parse_header_buffers(lofar_udp_obs_meta *meta, const int8_t header[4][16], const int16_t beamletLimits[2]);
 int32_t _lofar_udp_setup_parse_headers(lofar_udp_config *config, lofar_udp_obs_meta *meta, int8_t inputHeaders[MAX_NUM_PORTS][UDPHDRLEN]);
 int32_t _lofar_udp_skip_to_packet(lofar_udp_reader *reader);

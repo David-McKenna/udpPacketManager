@@ -953,7 +953,7 @@ int32_t lofar_udp_raw_loop(lofar_udp_obs_meta *meta) {
 
 		VERBOSE(if (verbose) { printf("Port: %d on thread %d\n", port, omp_get_thread_num()); });
 
-		int64_t lastPortPacket, currentPortPacket, inputPacketOffset, lastInputPacketOffset, iWork, iLoop;
+		int64_t lastPortPacket, currentPortPacket, inputPacketOffset, lastInputPacketOffset, iWork, iLoop, iOffset;
 
 		// Reset the dropped packets counter
 		meta->portLastDroppedPackets[port] = 0;
@@ -994,7 +994,7 @@ int32_t lofar_udp_raw_loop(lofar_udp_obs_meta *meta) {
 		// Get the length of packets on the current port and reset the last packet variable encase
 		// 	there is packet loss on the first packet
 		const int32_t portPacketLength = meta->portPacketLength[port];
-		const int32_t packetOutputLength = meta->packetOutputLength[0]; // All of these values should be the same, take the top value
+		const int32_t packetOutputLength = meta->packetOutputLength[port]; // All of these values should be the same, take the top value
 		const int32_t timeStepSize = sizeof(I) / sizeof(int8_t);
 		lastInputPacketOffset = (-2 + meta->replayDroppedPackets) *
 								portPacketLength;    // We request at least 2 packets are malloc'd before the array head pointer, so no SEGFAULTs here
@@ -1005,10 +1005,11 @@ int32_t lofar_udp_raw_loop(lofar_udp_obs_meta *meta) {
 		});
 		// iWork -- input data offset calculations (account for dropped packets)
 		// iLoop -- output data offsets
+		// iOffset -- offset from perfect alignment from malformed packets
 		// These are the same if there is no packet loss.
 		//
-		// Reset iWork, inputPacketOffset, read in the first packet's number.
-		iWork = 0, inputPacketOffset = 0;
+		// Reset iWork, inputPacketOffset, iOffset, read in the first packet's number.
+		iWork = 0, inputPacketOffset = 0, iOffset = 0;
 		currentPortPacket = lofar_udp_time_get_packet_number(&(inputPortData[inputPacketOffset]));
 
 		VERBOSE(if (verbose) {
@@ -1029,14 +1030,12 @@ int32_t lofar_udp_raw_loop(lofar_udp_obs_meta *meta) {
 			if (!replayDroppedPackets) {
 				if (inputPacketOffset < 0 && iLoop > 0) {
 					if constexpr (state == PACKET_FULL_COPY) {
-						inputPacketOffset = iWork * portPacketLength;
+						inputPacketOffset = iWork * portPacketLength+ iOffset;
 					} else {
-						inputPacketOffset = iWork * portPacketLength + UDPHDRLEN;
+						inputPacketOffset = iWork * portPacketLength + UDPHDRLEN + iOffset;
 					}
 				}
 			}
-
-
 
 			// Check for packet loss by ensuring we have sequential packet numbers
 
@@ -1058,7 +1057,8 @@ int32_t lofar_udp_raw_loop(lofar_udp_obs_meta *meta) {
 				currentPacketsDropped--;
 				// Increment the out of order packets (we save it off as a negative value)
 				currentOutOfOrderPackets--;
-
+#pragma omp atomic write
+				packetLoss = -1;
 				iWork++;
 				/* UNTESTED, removed: // TODO: If the out of order packet is within the processing window, use it
 				if (!malformedPacket) {
@@ -1069,7 +1069,13 @@ int32_t lofar_udp_raw_loop(lofar_udp_obs_meta *meta) {
 				}
 				*/
 				if (iWork != packetsPerIteration) {
-					inputPacketOffset = iWork * portPacketLength;
+					// To handle the malformed packet case, directly read the number of beamlets from the header
+					int64_t newOffset = UDPHDRLEN + (int64_t) ((uint8_t) (inputPortData[inputPacketOffset + CEP_HDR_NBEAM_OFFSET])) * inputPortData[inputPacketOffset + CEP_HDR_NTIMESLICE_OFFSET];
+					while (_lofar_udp_malformed_header_checks(&(inputPortData[inputPacketOffset + newOffset])) && newOffset < portPacketLength) {
+						newOffset += 1;
+					}
+					inputPacketOffset += newOffset;
+					iOffset = inputPacketOffset % portPacketLength;
 					currentPortPacket = lofar_udp_time_get_packet_number(&(inputPortData[inputPacketOffset]));
 				}
 				continue;
@@ -1139,7 +1145,7 @@ int32_t lofar_udp_raw_loop(lofar_udp_obs_meta *meta) {
 				}
 
 				iWork++;
-				inputPacketOffset = iWork * portPacketLength;
+				inputPacketOffset += portPacketLength;
 
 				// Ensure we don't attempt to access unallocated memory
 				if (iLoop != packetsPerIteration - 1) {

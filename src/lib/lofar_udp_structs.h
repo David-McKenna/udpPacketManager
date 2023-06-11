@@ -325,6 +325,7 @@ lofar_udp_io_write_config *lofar_udp_io_write_alloc(void);
 lofar_udp_calibration *_lofar_udp_calibration_alloc(void);
 lofar_udp_obs_meta *_lofar_udp_obs_meta_alloc(void);
 lofar_udp_reader *_lofar_udp_reader_alloc(lofar_udp_obs_meta *meta); // Reminder that reader is always built AFTER meta parsing
+int32_t _lofar_udp_malformed_header_checks(const int8_t header[16]);
 
 
 

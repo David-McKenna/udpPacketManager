@@ -257,6 +257,75 @@ void lofar_udp_config_cleanup(lofar_udp_config *config) {
 	FREE_NOT_NULL(config);
 }
 
+/**
+ * @brief 			Check input header data for malformed variables
+ *
+ * @param header[in] 	16-byte CEP Header
+ *
+ * @return 0: success, other: failure
+ */
+int32_t _lofar_udp_malformed_header_checks(const int8_t header[16]) {
+	lofar_source_bytes *source = (lofar_source_bytes *) &(header[CEP_HDR_SRC_OFFSET]);
+
+	VERBOSE(
+		printf("RSP: %d\n", source->rsp);
+        printf("Padding0: %d\n", source->padding0);
+        printf("ERRORBIT: %d\n", source->errorBit);
+        printf("CLOCK: %d\n", source->clockBit);
+        printf("bitMode: %d\n", source->bitMode);
+        printf("padding1: %d\n\n", source->padding1);
+	);
+
+	if ((uint8_t) header[CEP_HDR_RSP_VER_OFFSET] < UDPCURVER) {
+		fprintf(stderr, "Input header appears malformed (RSP Version less than 3, %d), exiting.\n", (int) header[CEP_HDR_RSP_VER_OFFSET]);
+		return -1;
+	}
+
+	if (*((int32_t *) &(header[CEP_HDR_TIME_OFFSET])) < LFREPOCH) {
+		fprintf(stderr, "Input header appears malformed (data timestamp before 2008, %u), exiting.\n", *((uint32_t *) &(header[CEP_HDR_TIME_OFFSET])));
+		return -1;
+	}
+
+	if (*((int32_t *) &(header[CEP_HDR_SEQ_OFFSET])) > RSPMAXSEQ) {
+		fprintf(stderr,
+		        "Input header appears malformed (sequence higher than 200MHz clock maximum, %d), exiting.\n", *((uint32_t *) &(header[CEP_HDR_SEQ_OFFSET])));
+		return -1;
+	}
+
+	if ((uint8_t) header[CEP_HDR_NBEAM_OFFSET] > UDPMAXBEAM) {
+		fprintf(stderr,
+		        "Input header appears malformed (more than UDPMAXBEAM beamlets on a port, %d), exiting.\n",
+		        header[CEP_HDR_NBEAM_OFFSET]);
+		return -1;
+	}
+
+	if ((uint8_t) header[CEP_HDR_NTIMESLICE_OFFSET] != UDPNTIMESLICE) {
+		fprintf(stderr,
+		        "Input header appears malformed (time slices are %d, not UDPNTIMESLICE), exiting.\n",
+		        header[CEP_HDR_NTIMESLICE_OFFSET]);
+		return -1;
+	}
+
+	if (source->padding0 != (uint32_t) 0) {
+		fprintf(stderr, "Input header appears malformed (padding bit (0) is set), exiting.\n");
+		return -1;
+	} else if (source->errorBit != (uint32_t) 0) {
+		fprintf(stderr, "Input header appears malformed (error bit is set), exiting.\n");
+		return -1;
+	} else if (source->bitMode == (uint32_t) 3) {
+		fprintf(stderr, "Input header appears malformed (BM of 3 doesn't exist), exiting.\n");
+		return -1;
+	} else if (source->padding1 > (uint32_t) 1) {
+		fprintf(stderr, "Input header appears malformed (padding bits (1) are set), exiting.\n");
+		return -1;
+	} else if (source->padding1 == (uint32_t) 1) {
+		fprintf(stderr,
+		        "Input header appears malformed (our replay packet warning bit is set), continuing with caution...\n");
+	}
+
+	return 0;
+
+}
 
 /**
  * Copyright (C) 2023 David McKenna

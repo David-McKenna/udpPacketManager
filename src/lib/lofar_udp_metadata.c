@@ -224,7 +224,7 @@ int32_t _lofar_udp_metadata_update_BASE(const lofar_udp_reader *reader, lofar_ud
 
 	lofar_udp_time_get_daq(reader, metadata->upm_daq, VAR_ARR_SIZE(metadata->upm_daq));
 	metadata->upm_pack_per_iter = reader->meta->packetsPerIteration;
-	metadata->upm_blocksize = metadata->upm_pack_per_iter * reader->meta->packetOutputLength[0];
+	metadata->upm_blocksize = metadata->upm_pack_per_iter * reader->meta->packetOutputLength;
 	metadata->upm_processed_packets += metadata->upm_pack_per_iter * metadata->upm_num_inputs;
 
 	metadata->upm_last_dropped_packets = 0;
@@ -717,7 +717,7 @@ int32_t _lofar_udp_metadata_parse_reader(lofar_udp_metadata *const metadata, con
 				if (warning != dataIncreasing) {
 					fprintf(stderr,
 					        "WARNING %s: Input metadata is not monotonically increasing or decreasing (as comparing beamlets (%hd and %hd). Metadata result may be incorrect.\n",
-					        __func__, beamlet, ((int16_t) beamlet - 1));
+					        __func__, beamlet, (int16_t) (beamlet - 1));
 					warning = 0;
 				} else {
 					warning = 1;
@@ -733,7 +733,7 @@ int32_t _lofar_udp_metadata_parse_reader(lofar_udp_metadata *const metadata, con
 		metadata->upm_reader = reader->input->readerType;
 		metadata->upm_replay = reader->meta->replayDroppedPackets;
 		metadata->upm_pack_per_iter = reader->packetsPerIteration;
-		metadata->upm_blocksize = metadata->upm_pack_per_iter * reader->meta->packetOutputLength[0];
+		metadata->upm_blocksize = metadata->upm_pack_per_iter * reader->meta->packetOutputLength;
 		metadata->upm_procmode = reader->meta->processingMode;
 		metadata->upm_input_bitmode = reader->meta->inputBitMode;
 		metadata->upm_calibrated = reader->meta->calibrateData;

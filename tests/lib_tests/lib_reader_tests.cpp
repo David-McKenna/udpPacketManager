@@ -182,41 +182,43 @@ TEST(LibReaderTests, PreprocessingRawData) {
 	source->padding1 = 0;
 
 	{
-		SCOPED_TRACE("_lofar_udp_reader_malformed_header_checks");
-		EXPECT_EQ(0, _lofar_udp_reader_malformed_header_checks(header));
+		SCOPED_TRACE("_lofar_udp_malformed_header_checks");
+		EXPECT_EQ(0, _lofar_udp_malformed_header_checks(header));
 
 		// ((uint8_t) header[CEP_HDR_RSP_VER_OFFSET] < UDPCURVER)
-		MODIFY_AND_RESET(header[CEP_HDR_RSP_VER_OFFSET], tmpVal, (uint8_t) UDPCURVER - 1, EXPECT_EQ(-1, _lofar_udp_reader_malformed_header_checks(header)););
+		MODIFY_AND_RESET(header[CEP_HDR_RSP_VER_OFFSET], tmpVal, (uint8_t) UDPCURVER - 1, EXPECT_EQ(-1, _lofar_udp_malformed_header_checks(header)););
 
 		// (*((int32_t *) &(header[CEP_HDR_TIME_OFFSET])) < LFREPOCH)
-		MODIFY_AND_RESET(*((int32_t *) &(header[CEP_HDR_TIME_OFFSET])), tmpVal, LFREPOCH - 1, EXPECT_EQ(-1, _lofar_udp_reader_malformed_header_checks(header)););
+		MODIFY_AND_RESET(*((int32_t *) &(header[CEP_HDR_TIME_OFFSET])), tmpVal, LFREPOCH - 1, EXPECT_EQ(-1, _lofar_udp_malformed_header_checks(header)););
 
 		// (*((int32_t *) &(header[CEP_HDR_SEQ_OFFSET])) > RSPMAXSEQ)
-		MODIFY_AND_RESET(*((int32_t *) &(header[CEP_HDR_SEQ_OFFSET])), tmpVal, RSPMAXSEQ + 1, EXPECT_EQ(-1, _lofar_udp_reader_malformed_header_checks(header)););
+		MODIFY_AND_RESET(*((int32_t *) &(header[CEP_HDR_SEQ_OFFSET])), tmpVal, RSPMAXSEQ + 1, EXPECT_EQ(-1, _lofar_udp_malformed_header_checks(header)););
 
 		// ((uint8_t) header[CEP_HDR_NBEAM_OFFSET] > UDPMAXBEAM)
-		MODIFY_AND_RESET(*((uint8_t*) &header[CEP_HDR_NBEAM_OFFSET]), *((uint8_t*) &tmpVal), (uint8_t) UDPMAXBEAM + 1, EXPECT_EQ(-1, _lofar_udp_reader_malformed_header_checks(header)););
+		MODIFY_AND_RESET(*((uint8_t*) &header[CEP_HDR_NBEAM_OFFSET]), *((uint8_t*) &tmpVal), (uint8_t) UDPMAXBEAM + 1, EXPECT_EQ(-1,
+		                                                                                                                         _lofar_udp_malformed_header_checks(
+			                                                                                                                         header)););
 
 		// ((uint8_t) header[CEP_HDR_NTIMESLICE_OFFSET] != UDPNTIMESLICE)
 		MODIFY_AND_RESET(header[CEP_HDR_NTIMESLICE_OFFSET], tmpVal, (uint8_t) UDPNTIMESLICE - 1,
-		                 EXPECT_EQ(-1, _lofar_udp_reader_malformed_header_checks(header)););
+		                 EXPECT_EQ(-1, _lofar_udp_malformed_header_checks(header)););
 
 		// (source->padding0 != (uint32_t) 0)
-		MODIFY_AND_RESET(source->padding0, tmpVal, (uint8_t) 1, EXPECT_EQ(-1, _lofar_udp_reader_malformed_header_checks(header)););
+		MODIFY_AND_RESET(source->padding0, tmpVal, (uint8_t) 1, EXPECT_EQ(-1, _lofar_udp_malformed_header_checks(header)););
 
 		// (source->errorBit != (uint32_t) 0)
-		MODIFY_AND_RESET(source->errorBit, tmpVal, (uint8_t) 1, EXPECT_EQ(-1, _lofar_udp_reader_malformed_header_checks(header)););
+		MODIFY_AND_RESET(source->errorBit, tmpVal, (uint8_t) 1, EXPECT_EQ(-1, _lofar_udp_malformed_header_checks(header)););
 
 		// (source->bitMode == (uint32_t) 3)
-		MODIFY_AND_RESET(source->bitMode, tmpVal, (uint8_t) 3, EXPECT_EQ(-1, _lofar_udp_reader_malformed_header_checks(header)););
+		MODIFY_AND_RESET(source->bitMode, tmpVal, (uint8_t) 3, EXPECT_EQ(-1, _lofar_udp_malformed_header_checks(header)););
 
 		// (source->padding1 > (uint32_t) 1)
-		MODIFY_AND_RESET(source->padding1, tmpVal, (uint32_t) 2, EXPECT_EQ(-1, _lofar_udp_reader_malformed_header_checks(header)););
+		MODIFY_AND_RESET(source->padding1, tmpVal, (uint32_t) 2, EXPECT_EQ(-1, _lofar_udp_malformed_header_checks(header)););
 
 		// (source->padding1 == (uint32_t) 1)
-		MODIFY_AND_RESET(source->padding1, tmpVal, (uint32_t) 1, EXPECT_EQ(0, _lofar_udp_reader_malformed_header_checks(header)););
+		MODIFY_AND_RESET(source->padding1, tmpVal, (uint32_t) 1, EXPECT_EQ(0, _lofar_udp_malformed_header_checks(header)););
 
-		EXPECT_EQ(0, _lofar_udp_reader_malformed_header_checks(header));
+		EXPECT_EQ(0, _lofar_udp_malformed_header_checks(header));
 	}
 
 	//int lofar_udp_parse_headers(lofar_udp_obs_meta *meta, const int8_t header[MAX_NUM_PORTS][UDPHDRLEN], const int16_t beamletLimits[2])
