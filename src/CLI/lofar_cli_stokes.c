@@ -74,8 +74,38 @@ CLICleanup(lofar_udp_config *config, lofar_udp_io_write_config *outConfig, int8_
 	}
 }
 
-static void windowGenerator(fftwf_complex *const chirpFunc, float coherentDM, float fbottom, float subbandbw, int32_t mbin, int32_t nsub, int32_t chanFac) {
-	const float dmFactConst = 2.0 * M_PI * coherentDM / dmPhaseConst;
+#pragma omp declare simd
+static inline void calibrateDataFunc(float *X, float *Y, const float *beamletJones, const int8_t **inputs,
+                                     const int64_t baseOffset) {
+	*(X) = calibrateSample(beamletJones[0], inputs[0][baseOffset], \
+                            -1.0f * beamletJones[1], inputs[0][baseOffset + 1], \
+                            beamletJones[2], inputs[1][baseOffset], \
+                            -1.0f * beamletJones[3], inputs[1][baseOffset + 1]);
+
+	*(&(X[1])) = calibrateSample(beamletJones[0], inputs[0][baseOffset + 1], \
+                            beamletJones[1], inputs[0][baseOffset], \
+                            beamletJones[2], inputs[1][baseOffset + 1], \
+                            beamletJones[3], inputs[1][baseOffset]);
+
+	*(Y) = calibrateSample(beamletJones[4], inputs[0][baseOffset], \
+                            -1.0f * beamletJones[5], inputs[0][baseOffset + 1], \
+                            beamletJones[6], inputs[1][baseOffset], \
+                            -1.0f * beamletJones[7], inputs[1][baseOffset + 1]);
+
+	*(&(X[1])) = calibrateSample(beamletJones[4], inputs[0][baseOffset + 1], \
+                            beamletJones[5], inputs[0][baseOffset], \
+                            beamletJones[6], inputs[1][baseOffset + 1], \
+                            beamletJones[7], inputs[1][baseOffset]);
+}
+
+static void windowGenerator(fftwf_complex *const chirpFunc, float coherentDM, float fbottom, float subbandbw, int32_t mbin, int32_t nsub, int32_t chanFac, window_t window) {
+	float dmFactConst;
+	if (window & COHERENT_DEDISP) {
+		dmFactConst = 2.0 * M_PI * coherentDM / dmPhaseConst;
+		window ^= 1; // Remove contribution
+	} else {
+		dmFactConst = 0;
+	}
 	const float chanbw = subbandbw / chanFac;
 	for (int32_t subband = 0; subband < nsub; subband++) {
 		const float subbandFreq = fbottom + subband * subbandbw + 0.5 * subbandbw;
@@ -86,14 +116,31 @@ static void windowGenerator(fftwf_complex *const chirpFunc, float coherentDM, fl
 
 				// Frequency in FFT space
 				const float binFreq = chanbw * ((float) bin / (float) mbin) + 0.5 * (chanbw / mbin - chanbw);
+				float taperScale;
 
-				// Attempting to maintain similarity to CDMT, which is based upon
-				// Eq. 1 https://articles.adsabs.harvard.edu/pdf/2006ChJAS...6b..53L
-				const float phase = -1.0f * binFreq * binFreq * dmPhaseConst / ((channelFreq + binFreq) + channelFreq * channelFreq);
-				const float taperScale = 1.0f / sqrt(1.0f + pow(binFreq / (0.47 * chanbw), 80.0f));
 
-				chirpFunc[fftSpaceIdx][0] = cos(phase) * taperScale;
-				chirpFunc[fftSpaceIdx][1] = sin(phase) * taperScale;
+				switch (window) {
+					case PSR_STANDARD:
+						taperScale = 1.0f / sqrt(1.0f + pow(binFreq / (0.47 * chanbw), 80.0f));
+						break;
+
+					case BOXCAR:
+						taperScale = 1;
+						break;
+
+					default:
+						break;
+				}
+
+
+				if (dmFactConst) {
+					const float phase = -1.0f * binFreq * binFreq * dmPhaseConst / ((channelFreq + binFreq) + channelFreq * channelFreq);
+					chirpFunc[fftSpaceIdx][0] = cos(phase) * taperScale;
+					chirpFunc[fftSpaceIdx][1] = cos(phase) * taperScale;
+				} else {
+					chirpFunc[fftSpaceIdx][0] = taperScale;
+					chirpFunc[fftSpaceIdx][1] = taperScale;
+				}
 			}
 		}
 	}
@@ -108,6 +155,7 @@ static void windowData(fftwf_complex *const x, fftwf_complex *const y, const fft
 
 #pragma omp parallel for default(shared) shared(workingPtr)
 		for (size_t fft = 0; fft < nfft; fft++) {
+			#pragma omp simd
 			for (size_t sample = 0; sample < nx; sample++) {
 				const size_t inputIdx = sample + fft * nx;
 
@@ -119,7 +167,7 @@ static void windowData(fftwf_complex *const x, fftwf_complex *const y, const fft
 	}
 }
 
-static void overlapAndPad(fftwf_complex *output, int8_t *input, int32_t nbin, int32_t noverlap, int32_t nsub, int32_t nfft) {
+static void overlapAndPad(fftwf_complex *const outputs[2], const int8_t **inputs, const float *beamletJones, int32_t nbin, int32_t noverlap, int32_t nsub, int32_t nfft) {
 	#pragma omp parallel for default(shared)
 	for (int32_t sub = 0; sub < nsub; sub++) {
 		const size_t baseIndexInput = sub * (nbin - 2 * noverlap) * nfft;
@@ -131,15 +179,20 @@ static void overlapAndPad(fftwf_complex *output, int8_t *input, int32_t nbin, in
 			for (int32_t bin = binStart; bin < nbin; bin++) {
 				const size_t outputIndex = baseIndexOutput + fft * nbin + bin;
 				const size_t inputIndex = 2 * (baseIndexInput + fft * (nbin - 2 * noverlap) + bin - binStart);
-				//if (sub < 3) printf("%zu %zu\n", inputIndex / 2, outputIndex);
-				output[outputIndex][0] = (float) input[inputIndex];
-				output[outputIndex][1] = (float) input[inputIndex + 1];
+				if (beamletJones) {
+					calibrateDataFunc(outputs[0][outputIndex], outputs[1][outputIndex], beamletJones, inputs, inputIndex);
+				} else {
+					outputs[0][outputIndex][0] = (float) inputs[0][inputIndex];
+					outputs[0][outputIndex][1] = (float) inputs[0][inputIndex + 1];
+					outputs[1][outputIndex][0] = (float) inputs[1][inputIndex];
+					outputs[1][outputIndex][1] = (float) inputs[1][inputIndex + 1];
+				}
 			}
 		}
 	}
 }
 
-static void padNextIteration(fftwf_complex *output, int8_t *input, int32_t nbin, int32_t noverlap, int32_t nsub, int32_t nfft) {
+static void padNextIteration(fftwf_complex *outputs[2], const int8_t **inputs, const float *beamletJones, int32_t nbin, int32_t noverlap, int32_t nsub, int32_t nfft) {
 	// First iteration: reflection padding
 	if (nfft < 0) {
 		nfft *= -1;
@@ -152,8 +205,14 @@ static void padNextIteration(fftwf_complex *output, int8_t *input, int32_t nbin,
 			for (int32_t bin = 0; bin < 2 * noverlap; bin++) {
 				const size_t inputIndex = 2 * (baseIndexInput - bin);
 				const size_t outputIndex = baseIndexOutput + bin;
-				output[outputIndex][0] = (float) input[inputIndex];
-				output[outputIndex][1] = (float) input[inputIndex + 1];
+				if (beamletJones) {
+					calibrateDataFunc(outputs[0][outputIndex], outputs[1][outputIndex], beamletJones, inputs, inputIndex);
+				} else {
+					outputs[0][outputIndex][0] = (float) inputs[0][inputIndex];
+					outputs[0][outputIndex][1] = (float) inputs[0][inputIndex + 1];
+					outputs[1][outputIndex][0] = (float) inputs[1][inputIndex];
+					outputs[1][outputIndex][1] = (float) inputs[1][inputIndex + 1];
+				}
 			}
 		}
 	// Otherwise: nomal padding
@@ -167,8 +226,14 @@ static void padNextIteration(fftwf_complex *output, int8_t *input, int32_t nbin,
 			for (int32_t bin = 0; bin < 2 * noverlap; bin++) {
 				const size_t inputIndex = 2 * (baseIndexInput + bin);
 				const size_t outputIndex = baseIndexOutput + bin;
-				output[outputIndex][0] = (float) input[inputIndex];
-				output[outputIndex][1] = (float) input[inputIndex + 1];
+				if (beamletJones) {
+					calibrateDataFunc(outputs[0][outputIndex], outputs[1][outputIndex], beamletJones, inputs, inputIndex);
+				} else {
+					outputs[0][outputIndex][0] = (float) inputs[0][inputIndex];
+					outputs[0][outputIndex][1] = (float) inputs[0][inputIndex + 1];
+					outputs[1][outputIndex][0] = (float) inputs[1][inputIndex];
+					outputs[1][outputIndex][1] = (float) inputs[1][inputIndex + 1];
+				}
 			}
 		}
 	}
@@ -322,11 +387,12 @@ int main(int argc, char *argv[]) {
 
 	// Set up input local variables
 	int32_t inputOpt, input = 0;
-	float seconds = 0.0f;
+	float seconds = 0.0f, coherentDM = 0.0f;
 	char inputTime[256] = "", stringBuff[128] = "", inputFormat[DEF_STR_LEN] = "";
 	int32_t silent = 0, inputProvided = 0, outputProvided = 0;
 	int64_t maxPackets = LONG_MAX, startingPacket = -1, splitEvery = LONG_MAX;
 	int8_t clock200MHz = 1;
+	window_t window = NO_WINDOW;
 
 	lofar_udp_config *config = lofar_udp_config_alloc();
 	lofar_udp_io_write_config *outConfig = lofar_udp_io_write_alloc();
@@ -760,6 +826,8 @@ int main(int argc, char *argv[]) {
 	in1 = fftwf_alloc_complex(nbin * nsub * nfft);
 	in2 = fftwf_alloc_complex(nbin * nsub * nfft);
 
+	fftwf_complex *inFFTArrs[2] = { in1, in2 };
+
 	if (in1 == NULL || in2 == NULL) {
 		fprintf(stderr, "ERROR: Failed to allocate input FFTW buffers, exiting.\n");
 		CLICleanup(config, outConfig, headerBuffer, intermediateX, intermediateY, in1, in2, chirpData);
@@ -786,7 +854,7 @@ int main(int argc, char *argv[]) {
 		fftBackwardY = fftwf_plan_many_dft(1, &mbin, nchan * nfft, intermediateY, &mbin, 1, mbin, in2, &mbin, 1, mbin, FFTW_BACKWARD, FFTW_ESTIMATE_PATIENT | FFTW_ALLOW_LARGE_GENERIC | FFTW_DESTROY_INPUT);
 
 		//static void windowGenerator(fftwf_complex *const chirpFunc, float coherentDM, float fbottom, float subbandbw, int32_t mbin, int32_t nsub, int32_t chanFac)
-		windowGenerator(chirpData, coherentDM, reader->metadata->ftop_raw, reader->metadata->subband_bw, mbin, nsub, channelisation);
+		windowGenerator(chirpData, coherentDM, reader->metadata->ftop_raw, reader->metadata->subband_bw, mbin, nsub, channelisation, window);
 	}
 
 	float *outputStokes[MAX_OUTPUT_DIMS];
@@ -863,14 +931,13 @@ int main(int argc, char *argv[]) {
 
 		printf("Begin channelisation %d %d %d %d %d %d %d (%d)\n", channelisation, spectralDownsample, downsampling, nfft, nbin, noverlap, mbin, nfft * nbin);
 		// Perform channelisation, temporal downsampling as needed
+		float *beamletJones = (reader->meta->calibrateData == GENERATE_JONES) ? reader->meta->jonesMatrices[reader->meta->calibrationStep] : NULL;
 		if (channelisation > 1) {
 			CLICK(tickChan);
 			if (localLoops == 0) {
-				padNextIteration(in1, reader->meta->outputData[0], nbin, noverlap, nsub, -1 * nfft);
-				padNextIteration(in2, reader->meta->outputData[1], nbin, noverlap, nsub, -1 * nfft);
+				padNextIteration(inFFTArrs, (const int8_t **) reader->meta->outputData, beamletJones, nbin, noverlap, nsub, -1 * nfft);
 			}
-			overlapAndPad(in1, reader->meta->outputData[0], nbin, noverlap, nsub, nfft);
-			overlapAndPad(in2, reader->meta->outputData[1], nbin, noverlap, nsub, nfft);
+			overlapAndPad(inFFTArrs, (const int8_t **) reader->meta->outputData, beamletJones, nbin, noverlap, nsub, nfft);
 			fftwf_execute(fftForwardX);
 			fftwf_execute(fftForwardY);
 			reorderData(intermediateX, intermediateY, nbin, nsub * nfft);
@@ -883,12 +950,10 @@ int main(int argc, char *argv[]) {
 			totalChanTime += timing[4];
 			CLICK(tickDetect);
 			transposeDetect(in1, in2, outputStokes, mbin, noverlap, nfft, channelisation, nsub, spectralDownsample, stokesParameters);
-			padNextIteration(in1, reader->meta->outputData[0], nbin, noverlap, nsub, nfft);
-			padNextIteration(in2, reader->meta->outputData[1], nbin, noverlap, nsub, nfft);
+			padNextIteration(inFFTArrs, (const int8_t **) reader->meta->outputData, beamletJones, nbin, noverlap, nsub, nfft);
 		} else {
 			CLICK(tickDetect);
-			overlapAndPad(in1, reader->meta->outputData[0], reader->meta->packetsPerIteration * UDPNTIMESLICE, 0, nsub, 1);
-			overlapAndPad(in2, reader->meta->outputData[1], reader->meta->packetsPerIteration * UDPNTIMESLICE, 0, nsub, 1);
+			overlapAndPad(inFFTArrs, (const int8_t **) reader->meta->outputData, beamletJones, reader->meta->packetsPerIteration * UDPNTIMESLICE, 0, nsub, 1);
 			transposeDetect(in1, in2, outputStokes, reader->meta->packetsPerIteration * UDPNTIMESLICE, 0, 1, 1, nsub, 1, stokesParameters);
 		}
 		//ARR_INIT(((float *) intermediateX), (int64_t) nbin * nsub * nfft * 2,0.0f);
