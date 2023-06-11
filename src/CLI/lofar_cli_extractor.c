@@ -13,6 +13,7 @@ void helpMessages() {
 
 	//printf();
 	printf("-p: <mode>		Processing mode, options listed below (default: 0)\n");
+	printf("-m: <numPack>	Number of packets to process in each read request (default: 65536)\n");
 
 
 	processingModes();
@@ -60,25 +61,21 @@ int main(int argc, char *argv[]) {
 	int8_t flagged = 0;
 
 	// Standard ugly input flags parser
-	while ((inputOpt = getopt(argc, argv, "hzrqfvVi:o:m:M:I:u:t:s:S:e:p:a:n:b:ck:T:")) != -1) {
+	while ((inputOpt = getopt(argc, argv, "hrqfvVi:o:m:M:I:u:t:s:S:e:p:a:n:b:ck:T:")) != -1) {
 		input = 1;
 		switch (inputOpt) {
 
 			case 'i':
-				strncpy(inputFormat, optarg, DEF_STR_LEN - 1);
-				inputProvided = 1;
+				parseInput(inputFormat, optarg, &inputProvided);
 				break;
 
 
 			case 'o':
-				if (lofar_udp_io_write_parse_optarg(outConfig, optarg) < 0) {
+				if (parseOutput(outConfig, config, optarg, &outputProvided) < 0) {
 					helpMessages();
 					CLICleanup(config, outConfig, headerBuffer);
 					return 1;
 				}
-				// If the metadata is not yet set, see if we can parse a requested type from the output filename
-				if (config->metadata_config.metadataType == NO_META) config->metadata_config.metadataType = lofar_udp_metadata_parse_type_output(optarg);
-				outputProvided = 1;
 				break;
 
 			case 'm':
@@ -132,10 +129,6 @@ int main(int argc, char *argv[]) {
 
 			case 'c':
 				config->calibrateData = APPLY_CALIBRATION;
-				break;
-
-			case 'z':
-				clock200MHz = 0;
 				break;
 
 			case 'q':

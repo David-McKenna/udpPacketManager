@@ -20,16 +20,31 @@ typedef enum stokes_t {
 	STOKESV = 8
 } stokes_t;
 
+typedef enum window_t {
+	// Eq. 1 https://articles.adsabs.harvard.edu/pdf/2006ChJAS...6b..53L
+	NO_WINDOW = 0,
+	COHERENT_DEDISP = 1,
+	PSR_STANDARD = 2,
+	BOXCAR = 4,
+
+} window_t;
+
 void helpMessages() {
 	printf("LOFAR Stokes extractor (CLI v%s, lib v%s)\n\n", UPM_CLI_VERSION, UPM_VERSION);
 	printf("Usage: lofar_cli_stokes <flags>");
 
+	helpMessages();
 	printf("\n\n");
 
 
-	printf("-C: <factor>    Channelisation factor to apply when processing data (default: disabled == 1)\n");
+	printf("-C <factor>     Channelisation factor to apply when processing data (default: disabled == 1)\n");
 	printf("-d <factor>     Temporal downsampling to apply when processing data (default: disabled == 1)\n");
-	printf("-D              Apply temporal downsampling to spectral data (slower, but higher quality (default: disabled)\n");
+	printf("-B <binFactor>  The count of FFT bins as a factor of the channelisation factor (default: 8, minimum: 3)\n");
+	printf("-N <factor>     The number of FFTs per channel to perform per iteration (default: 512)\n");
+	printf("-F              Apply temporal downsampling to spectral data (slower, but higher quality (default: disabled)\n");
+	printf("-D <dm>         Apply coherent dedispersion to the data (default: false; 0 pc/cc)\n");
+	printf("-W              Window function to apply to the data (defulat: PSR_STANDARD)\n");
+
 
 }
 
@@ -339,7 +354,7 @@ int main(int argc, char *argv[]) {
 	int8_t flagged = 0;
 
 	// FFTW strategy
-	int32_t channelisation = 1, downsampling = 1, spectralDownsample = 0;
+	int32_t channelisation = 1, downsampling = 1, spectralDownsample = 0, nfactor = 8, nforward = 512;
 	fftwf_complex *intermediateX = NULL;
 	fftwf_complex *intermediateY = NULL;
 	fftwf_complex * in1 = NULL;
@@ -352,7 +367,7 @@ int main(int argc, char *argv[]) {
 	int8_t stokesParameters = 0, numStokes = 0;
 
 	// Standard ugly input flags parser
-	while ((inputOpt = getopt(argc, argv, "rzqfvVDhi:o:m:M:I:u:t:s:S:b:C:d:P:T:")) != -1) {
+	while ((inputOpt = getopt(argc, argv, "crzqfvVFhD:i:o:m:M:I:u:t:s:S:b:C:d:P:T:B:N:")) != -1) {
 		input = 1;
 		switch (inputOpt) {
 
@@ -374,11 +389,6 @@ int main(int argc, char *argv[]) {
 				}
 				if (config->metadata_config.metadataType == NO_META) config->metadata_config.metadataType = lofar_udp_metadata_parse_type_output(optarg);
 				outputProvided = 1;
-				break;
-
-			case 'm':
-				config->packetsPerIteration = strtol(optarg, &endPtr, 10);
-				if (checkOpt(inputOpt, optarg, endPtr)) { flagged = 1; }
 				break;
 
 			case 'M':
@@ -428,6 +438,10 @@ int main(int argc, char *argv[]) {
 				config->replayDroppedPackets = 1;
 				break;
 
+			case 'c':
+				config->calibrateData = GENERATE_JONES;
+				break;
+
 			case 'C':
 				channelisation = internal_strtoi(optarg, &endPtr);
 				if (checkOpt(inputOpt, optarg, endPtr)) { flagged = 1; }
@@ -436,10 +450,6 @@ int main(int argc, char *argv[]) {
 			case 'd':
 				downsampling = internal_strtoi(optarg, &endPtr);
 				if (checkOpt(inputOpt, optarg, endPtr)) { flagged = 1; }
-				break;
-
-			case 'z':
-				clock200MHz = 0;
 				break;
 
 			case 'q':
@@ -463,8 +473,29 @@ int main(int argc, char *argv[]) {
 				if (checkOpt(inputOpt, optarg, endPtr)) { flagged = 1; }
 				break;
 
-			case 'D':
+			case 'B':
+				nfactor = internal_strtoi(optarg, &endPtr);
+				if (checkOpt(inputOpt, optarg, endPtr)) { flagged = 1; }
+				if (!flagged && nfactor < 3) {
+					fprintf(stderr, "ERROR: nfactor must be at least 3 due to FFT overlaps. Exiting.\n");
+					CLICleanup(config, outConfig, headerBuffer, intermediateX, intermediateY, in1, in2, chirpData);
+					return 1;
+				}
+				break;
+
+			case 'N':
+				nforward = internal_strtoi(optarg, &endPtr);
+				if (checkOpt(inputOpt, optarg, endPtr)) { flagged = 1; }
+				break;
+
+			case 'F':
 				spectralDownsample = 1;
+				break;
+
+			case 'D':
+				coherentDM = strtof(optarg, &endPtr);
+				window |= 1;
+				if (checkOpt(inputOpt, optarg, endPtr)) { flagged = 1; }
 				break;
 
 			case 'P':
@@ -555,12 +586,20 @@ int main(int argc, char *argv[]) {
 	// TODO: Support non non-even channelisation
 	// TODO: Should I just automate these parameters based on the input channelisation/downsampling requirements?
 	const int32_t noverlap = 2 * channelisation;
-	const int32_t nbin = 512 > (8 * channelisation) ? 512 : (8 * channelisation);
+	const int32_t nbin = nfactor * channelisation;
 	const int32_t nbin_valid = nbin - 2 * noverlap;
+
+	if (nbin_valid * nforward % UDPNTIMESLICE) {
+		fprintf(stderr, "WARNING: Increasing nforward from %d to ", nforward);
+		nforward += (UDPNTIMESLICE - (nforward % UDPNTIMESLICE));
+		fprintf(stderr, "%d to ensure data can be loaded correctly.\n", nforward);
+	}
+	config->packetsPerIteration = nbin_valid * nforward / UDPNTIMESLICE;
 
 	if (channelisation > 1) {
 		printf("%d, %d, %d, %ld, %ld\n", nbin, noverlap, nbin_valid, config->packetsPerIteration * UDPNTIMESLICE,
 		       (config->packetsPerIteration * UDPNTIMESLICE) % nbin_valid);
+		// Should no longer be needed; keeping for debug purposes; remove before release
 		int32_t invalidation = (config->packetsPerIteration * UDPNTIMESLICE) % nbin_valid;
 		if (invalidation) {
 			fprintf(stderr, "WARNING: Reducing packets per iteration by %d to attempt to align with FFT boundaries.\n", invalidation / UDPNTIMESLICE);
@@ -747,7 +786,7 @@ int main(int argc, char *argv[]) {
 		fftBackwardY = fftwf_plan_many_dft(1, &mbin, nchan * nfft, intermediateY, &mbin, 1, mbin, in2, &mbin, 1, mbin, FFTW_BACKWARD, FFTW_ESTIMATE_PATIENT | FFTW_ALLOW_LARGE_GENERIC | FFTW_DESTROY_INPUT);
 
 		//static void windowGenerator(fftwf_complex *const chirpFunc, float coherentDM, float fbottom, float subbandbw, int32_t mbin, int32_t nsub, int32_t chanFac)
-		windowGenerator(chirpData, 0.0f, reader->metadata->ftop_raw, reader->metadata->subband_bw, mbin, nsub, channelisation);
+		windowGenerator(chirpData, coherentDM, reader->metadata->ftop_raw, reader->metadata->subband_bw, mbin, nsub, channelisation);
 	}
 
 	float *outputStokes[MAX_OUTPUT_DIMS];
