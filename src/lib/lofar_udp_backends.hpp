@@ -972,6 +972,8 @@ int32_t lofar_udp_raw_loop(lofar_udp_obs_meta *meta) {
 		const int32_t cumulativeBeamlets = meta->portCumulativeBeamlets[port];
 		const int32_t totalBeamlets = meta->totalProcBeamlets;
 
+		const int32_t portRawBeamlets = meta->portRawBeamlets[port];
+
 
 		// Select Jones Matrix if performing Calibration
 		float *jonesMatrix = nullptr;
@@ -1035,39 +1037,51 @@ int32_t lofar_udp_raw_loop(lofar_udp_obs_meta *meta) {
 			}
 
 
+
 			// Check for packet loss by ensuring we have sequential packet numbers
-			if (currentPortPacket != (lastPortPacket + 1)) {
+
+			// Check for "old" out-of-order packets or malformed headers
+			const int8_t malformedPacket = (((uint8_t) (inputPortData[inputPacketOffset + CEP_HDR_NBEAM_OFFSET])) != portRawBeamlets)
+			                               + (inputPortData[inputPacketOffset + CEP_HDR_NTIMESLICE_OFFSET] != UDPNTIMESLICE);
+			if (currentPortPacket < lastPortPacket || malformedPacket) {
 				// Check if a packet is out of order; if so, drop the packet
 				// TODO: Better future option: check if the packet is in this block, copy and overwrite padded packed instead
 				VERBOSE(if (verbose == 2) {
 					printf("Port %d, Packet %ld (%ld / %ld) is not the expected packet, %ld.\n", port, currentPortPacket, iLoop, packetsPerIteration - 1,
 					       lastPortPacket + 1);
 				});
-				if (currentPortPacket < lastPortPacket) {
-					VERBOSE(if (verbose >= 1) {
-						printf("Packet %ld on port %d is out of order; dropping.\n", currentPortPacket, port);
-					});
-					// Dropped packet -> index not processed -> effectively an 'added' packet, decrement the dropped packet count
-					// 	so that we don't include an extra packet in shift operations
-					currentPacketsDropped--;
-					// Increment the out of order packets (we save it off as a negative value)
-					currentOutOfOrderPackets--;
+				VERBOSE(if (verbose >= 1) {
+					printf("Dropping Packet %ld on port %d (malformed %d).\n", currentPortPacket, port, malformedPacket);
+				});
+				// Dropped packet -> index not processed -> effectively an 'added' packet, decrement the dropped packet count
+				// 	so that we don't include an extra packet in shift operations
+				currentPacketsDropped--;
+				// Increment the out of order packets (we save it off as a negative value)
+				currentOutOfOrderPackets--;
 
-					iWork++;
-					/* UNTESTED, removed: // TODO: If the out of order packet is within the processing window, use it
-					if ((currentPortPacket > reader->meta->lastPacket + 1) && (currentPortPacket < reader->meta->lastPacket + reader->packetsPerIteration)) {
+				iWork++;
+				/* UNTESTED, removed: // TODO: If the out of order packet is within the processing window, use it
+				if (!malformedPacket) {
+				    if ((currentPortPacket > reader->meta->lastPacket + 1) && (currentPortPacket < reader->meta->lastPacket + reader->packetsPerIteration)) {
 						lastInputPacketOffset = (currentPortPacket - (reader->meta->lastPacket + 1)) * portPacketLength;
 						iLoopCache = (currentPortPacket - (reader->meta->lastPacket + 1));
 					}
-					*/
-					if (iWork != packetsPerIteration) {
-						inputPacketOffset = iWork * portPacketLength;
-						currentPortPacket = lofar_udp_time_get_packet_number(&(inputPortData[inputPacketOffset]));
-					}
-					continue;
-
 				}
+				*/
+				if (iWork != packetsPerIteration) {
+					inputPacketOffset = iWork * portPacketLength;
+					currentPortPacket = lofar_udp_time_get_packet_number(&(inputPortData[inputPacketOffset]));
+				}
+				continue;
 
+			}
+
+			// Next packet indexis larger than expected -> we have missed packets
+			if (currentPortPacket != (lastPortPacket + 1)) {
+				VERBOSE(if (verbose == 2) {
+					printf("Port %d, Packet %ld (%ld / %ld) is not the expected packet, %ld.\n", port, currentPortPacket, iLoop, packetsPerIteration - 1,
+					       lastPortPacket + 1);
+				});
 				// Packet dropped:
 				//  Trip the return int
 				//	Increment the port counter for this operation
@@ -1147,9 +1161,7 @@ int32_t lofar_udp_raw_loop(lofar_udp_obs_meta *meta) {
 
 
 			// Use firstprivate to lock the variables into the task, while the main loop continues to update them
-#ifdef __clang__
 #pragma omp task default(shared) firstprivate(iLoop, lastInputPacketOffset, inputPortData, port) shared(outputData)
-#endif
 			{
 
 				// Unpack 4-bit data into an array of int8_t, so it can be processed the same way we process 8-bit data
