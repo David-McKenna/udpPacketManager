@@ -16,9 +16,8 @@ void sharedFlags(void) {
 	printf("-o: <format>	Output file name format\n");
 	printf("-f:		        Append output files if they already exist (default: Exit if exists)\n");
 	printf("-I: <str>		Input metadata file (default: '')\n");
-	printf("-c:		        Calibrate the data with the given strategy (default: disabled, eg 'HBA,12:499'). Will not run without -d\n");
-	printf("-M: <str>		Override output metadata format\n");
-	printf("-m: <numPack>	Number of packets to process in each read request (default: 65536)\n");
+	printf("-c:		        Calibrate the data from input metadata (default: false)\n");
+	printf("-M: <str>		Override output metadata format (default none, options SIGPROC, GUPPI, DADA, HDF5)\n");
 	printf("-u: <numPort>	Number of ports to combine (default: 4)\n");
 	printf("-n: <baseNum>	Base value to iterate when choosing ports (default: 0)\n");
 	printf("-b: <lo>,<hi>	Beamlets to extract from the input dataset. Lo is inclusive, hi is exclusive ( eg. 0,300 will return 300 beamlets, 0:299). (default: 0,0 === all)\n");
@@ -61,17 +60,34 @@ void processingModes(void) {
 
 	printf("Stokes outputs can be decimated in orders of 2, up to 16x by adjusting the last digit of their processing mode.\n");
 	printf("This is handled in orders of two, so 101 will give a Stokes I with 2x decimation, 102, will give 4x, 103 will give 8x and 104 will give 16x.\n\n");
-	printf("Similarly, by default the beamlet order is reversed (negative frequency offset). By adding 100 to each Stokes output, e.g. changing mode 104 to 204,"
-		"the frequency order will be changed to be increasing (positive frequency offset, matching the telescope configuration).\n");
+	printf("Similarly, by default the data order is beamlet-major, increasing frequency. By adding 100 to each Stokes output, e.g. changing mode 104 to 204,"
+		"the frequency order will be changed to be decreasing (negative frequency offset). By adding 200, e.g. 121 to 321, the outputwill be changed to time-major, increasing frequency.\n");
 }
 
-int checkOpt(int opt, char* inp, char* endPtr) {
+int8_t checkOpt(int opt, const char *inp, const char *endPtr) {
 	if (inp != endPtr && *(endPtr) == '\0') {
 		return 0;
 	}
 
 	fprintf(stderr, "ERROR: Failed to parse flag %c with value %s (errno %d: %s), exiting.\n", opt, inp, errno, strerror(errno));
 	return 1;
+}
+
+void parseInput(char *inputFormat, const char *optargvar, int8_t *inputProvided) {
+	strncpy(inputFormat, optargvar, DEF_STR_LEN - 1);
+	*inputProvided = 1;
+}
+
+int8_t parseOutput(lofar_udp_io_write_config *outConfig, lofar_udp_config *config, const char *optargvar, int8_t *outputProvided) {
+	if (lofar_udp_io_write_parse_optarg(outConfig, optargvar) < 0) {
+		helpMessages();
+		return -1;
+	}
+	// If the metadata is not yet set, see if we can parse a requested type from the output filename
+	if (config->metadata_config.metadataType == NO_META) config->metadata_config.metadataType = lofar_udp_metadata_parse_type_output(optarg);
+	*outputProvided = 1;
+
+	return 0;
 }
 
 /**
