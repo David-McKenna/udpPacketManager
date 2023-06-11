@@ -33,12 +33,13 @@ extern const int8_t bitmodeConversion[256][2];
 
 // Declare the function to calculate a calibrated sample
 // Calculates one output component of:
-// [(x_1, y_1i), (x_2, y_2i)] . [(s_1, s_2i)] = J . (X,Y).T
-// [(x_3, y_3i), (x_4, y_4i)]   [(s_3, s_4i)]
+// [(x_1 + y_1i), (x_2 + y_2i)] . [(s_1, s_2i)] = J . (X,Y).T
+// [(x_3 + y_3i), (x_4 + y_4i)]   [(s_3, s_4i)]
 //
 // ===
 // [(x_1 * s_1 - y_1 * s_2 + x_2 * s_3 - y_2 * s_4), i (x_1 * s_2 + y_1 * s_1 + x_2 * s_4 + y_2 * s_3)] = (X_r, X_i)
 // [(x_3 * s_1 - y_3 * s_2 + x_4 * s_3 - y_4 * s_4), i (x_3 * s_2 + y_3 * s_1 + x_4 * s_4 + y_4 * s_3)] = (Y_r, Y_i)
+
 #pragma omp declare simd
 static inline float calibrateSample(float c_1, float c_2, float c_3, float c_4, float c_5, float c_6, float c_7, float c_8) {
 	return (c_1 * c_2) + (c_3 * c_4) + (c_5 * c_6) + (c_7 * c_8);
