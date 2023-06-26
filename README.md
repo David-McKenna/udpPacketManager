@@ -96,11 +96,17 @@ can be resolved by following
 
 Docker Image
 ------------
-A Dockerfile is provided in **[src/docker/Dockerfile](src/docker/Dockerfile)** while can be used to build a Docker container that contains the 
+A Dockerfile is provided in **[src/docker/Dockerfile](src/docker/Dockerfile)**, and can be used to build a Docker container that contains the 
 latest build of the software, or as a reference for installing the software on a minimal Ubuntu image. 
 
 Like all Docker containers, the **[docker2singularity](https://github.com/singularityhub/docker2singularity)** image can be used to convert it
 into a singularity containter for a safer way to provide the software to users.
+
+```shell
+# From the root directory of this repo,
+docker build -t udppacketmanager/latest . --file src/docker/Dockerfile
+docker run -v /var/run/docker.sock:/var/run/docker.sock -v /tmp/test:/output --privileged -t --rm quay.io/singularity/docker2singularity udppacketmanager/latest
+```
 
 Usage
 -----
