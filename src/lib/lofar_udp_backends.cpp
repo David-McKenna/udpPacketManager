@@ -29,7 +29,7 @@ int32_t lofar_udp_cpp_loop_interface(lofar_udp_obs_meta *meta) {
 	// 		What is out input bit mode?
 	// 		What is our processing mode?
 	// The target template is then used to process the data.
-	// See docs/newProcessingMode.md for more details
+	// See docs/NEW_PROCESSING_MODE.md for more details
 	switch (calibrateData) {
 		case APPLY_CALIBRATION:
 			// Bit-mode dependant inputs

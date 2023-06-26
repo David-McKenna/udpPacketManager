@@ -2,33 +2,33 @@ Adding New Processing Modes
 ---------
 
 1. Add a named enum for the processing mode as a `processMode_t` in
-   `[lofar_udp_general.h]](../src/lib/lofar_udp_general.h.in)`, and to 
+   `[lofar_udp_general.h]](../src/lib/lofar_udp_general.h.in)`, and to
    the list of testables modes in
    `[lib_reference_files.hpp](../tests/lib_tests/lib_reference_files.hpp)`
    in order to makeit pass through the standard battery of tests.
 
 2. Create the CPP/C bridge `if--else` statements in
-   `[lofar_udp_backends.cpp](../src/lib/lofar_udp_backends.cpp)`, 
-   the main function is called `int32_t 
-   lofar_udp_cpp_loop_interface(lofar_udp_obs_meta *meta)`. You will 
-   need to pick both a processing mode int enum (any value greater 
-   than 0 and not in use by other modes) and an output data format. 
-   -- You will need to add the statement 6 times in total: with / 
-   without calibration (of disable calibration as an option) and for 
-   the 3 input bit modes, 4, 8 and 16. -- Calibration takes a 1 when 
-   enabled, 0 when disabled. -- Input type is always signed char for 
-   4-bit and 8-bit inputs, 16-bit takes signed short as the input. 
-   -- For copy methods, the output datatype should be the same as 
-   the input. Though you can change it, eg to convert to float by 
-   using float as the output datatype. Be sure to account for this 
-   later on when calculating output sizes. -- The 4-bit processing 
-   enum is (almost) always 4000 larger than the default enum, to 
-   signal to the processing loop that the data packet needs to have 
-   the bits upacked before proceeding. If you have a processing mode 
-   that just performs a type independant data move, e.g. 
+   `[lofar_udp_backends.cpp](../src/lib/lofar_udp_backends.cpp)`,
+   the main function is called `int32_t
+   lofar_udp_cpp_loop_interface(lofar_udp_obs_meta *meta)`. You will
+   need to pick both a processing mode int enum (any value greater
+   than 0 and not in use by other modes) and an output data format.
+   -- You will need to add the statement 6 times in total: with /
+   without calibration (of disable calibration as an option) and for
+   the 3 input bit modes, 4, 8 and 16. -- Calibration takes a 1 when
+   enabled, 0 when disabled. -- Input type is always signed char for
+   4-bit and 8-bit inputs, 16-bit takes signed short as the input.
+   -- For copy methods, the output datatype should be the same as
+   the input. Though you can change it, eg to convert to float by
+   using float as the output datatype. Be sure to account for this
+   later on when calculating output sizes. -- The 4-bit processing
+   enum is (almost) always 4000 larger than the default enum, to
+   signal to the processing loop that the data packet needs to have
+   the bits unpacked before proceeding. If you have a processing mode
+   that just performs a type independent data move, e.g.
    memcpy an entire packet, this change is not needed.
 
-  Here's an example of what mode 30, the time-majour single output 
+  Here's an example of what mode 30, the time-major single output
   looks like in the function.
 
 ```
@@ -83,13 +83,13 @@ switch (calibrateData) {
 }
 ```
 
-   If you miss a case, the default cases should raise an error when the 
-   tests are run, allowing you to indentify which case is missing 
-   and add it.
+  If you miss a case, the default cases should raise an error when the
+  tests are run, allowing you to identify which case is missing
+  and add it.
 
-3. Create the task kernel in `[lofar_udp_backends.hpp](../src/lib/lofar_udp_backends.hpp)`, following the 
-   format below. Have a look at the existing kernels and you'll 
-   likely be able to find an input/output idx calculation that suits 
+3. Create the task kernel in `[lofar_udp_backends.hpp](../src/lib/lofar_udp_backends.hpp)`, following the
+   format below. Have a look at the existing kernels and you'll
+   likely be able to find an input/output index calculation that suits
    what you are doing. Here's an annotated description of mode 30, the time-major single-output processing mode.
 
 ```
@@ -181,7 +181,7 @@ static inline void udp_myNewKernel(...) {
 }
 ```
 
-4. Include the kernel in the switch statement of `int32_t 
+4. Include the kernel in the switch statement of `int32_t
    lofar_udp_raw_loop(lofar_udp_obs_meta *meta)` in `
    [lofar_udp_backends.hpp](../src/lib/lofar_udp_backends.hpp)`
 
@@ -193,35 +193,35 @@ else if constexpr (trueState == KERNEL_ENUM_VAL) {
 
 ```
 
-5. Go to `[lofar_udp_reader.c](../src/lib/lofar_udp_reader.c)` and find 
+5. Go to `[lofar_udp_reader.c](../src/lib/lofar_udp_reader.c)` and find
    the `int32_t _lofar_udp_setup_processing(lofar_udp_obs_meta *meta)` function. You will
-   need to add your mode to two switch statements here. One is a simple fall-through to check that the mode is defned.
+   need to add your mode to two switch statements here. One is a simple fall-through to check that the mode is defined.
    For the second, you'll need to determine the input / output data sizes and add your processing mode to the second
-   switch statement. If adding a completely new calculation, be sure to add a `break;` statement afterward, as the
-   compiler warning is disabled for this switch statement. In the 
+   switch statement. If adding a completely new calculation, be sure to add a `break;` statement afterwards, as the
+   compiler warning is disabled for this switch statement. In the
    case of a re-ordering operation, you will just need to
    define the number of output arrays.
 
-6. Go to `[lofar_udp_metadata.c](../src/lib/lofar_udp_metadata.c)`. 
-   You will need to add your processing mode to 6 switches in the 
-   function `int32_t _lofar_udp_metadata_processing_mode_metadata(lofar_udp_metadata 
-   *const metadata)` in order to correctly generate metadata for 
+6. Go to `[lofar_udp_metadata.c](../src/lib/lofar_udp_metadata.c)`.
+   You will need to add your processing mode to 6 switches in the
+   function `int32_t _lofar_udp_metadata_processing_mode_metadata(lofar_udp_metadata
+   *const metadata)` in order to correctly generate metadata for
    your output, you will need to know/create:
-     - Frequency ordering
-     - String representation of data
-     - Data dimensions & polarisations
-     - Output array selection
-     - Output data type (voltage/detected)
-     - Output bit size
+   - Frequency ordering
+   - String representation of data
+   - Data dimensions & polarisations
+   - Output array selection
+   - Output data type (voltage/detected)
+   - Output bit size
 
-7. Add documentation to `[README_CLI.md](./README_CLI.md)` and 
-   `[lofar_cli_meta.c](../src/CLI/lofar_cli_meta.c)`. to describe 
+7. Add documentation to `[README_CLI.md](./README_CLI.md)` and
+   `[lofar_cli_meta.c](../src/CLI/lofar_cli_meta.c)`. to describe
    your processing mode.
 
 8. Update the tests in `[lib_reader_tests.cpp](..
-   /tests/lib_tests/lib_reader_tests.cpp)` to have an independant 
+   /tests/lib_tests/lib_reader_tests.cpp)` to have an independent
    way of validating the output is as expected.
 
 9. Update the Metadata tests in `[lib_metadata_tests.cpp](..
-   /tests/lib_tests/lib_metadata_tests.cpp)` to account for the 
+   /tests/lib_tests/lib_metadata_tests.cpp)` to account for the
    specifics of your processing mode.

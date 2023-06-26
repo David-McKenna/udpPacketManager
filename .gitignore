@@ -17,3 +17,7 @@ build*/*
 # Templated files
 src/lib/lofar_udp_general.h
 src/CLI/lofar_cli_meta.h
+
+
+# mkdocs
+site/**
