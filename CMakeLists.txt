@@ -173,7 +173,7 @@ message("")
 message ("Configuring PSRDADA")
 # Find the PSRDADA libraries on the system (or set NODADA if not found)
 ExternalProject_Add(internal_PSRDADA
-                    GIT_REPOSITORY https://git.code.sf.net/p/psrdada/code
+                    GIT_REPOSITORY git://git.code.sf.net/p/psrdada/code
                     GIT_TAG ba2b88
                     BUILD_IN_SOURCE TRUE
                     CONFIGURE_COMMAND ./bootstrap && ./configure --with-cuda-dir=no && cd 3rdparty && make libtimers.la # libtimers fails to compile during normal step with older Make versions
