@@ -65,7 +65,7 @@ endif()
 find_package(Python3 3.8 COMPONENTS Interpreter REQUIRED)
 
 add_custom_command(OUTPUT pip_installed
-                   COMMAND ${Python3_EXECUTABLE} -m pip install astropy lofarantpos git+https://github.com/2baOrNot2ba/AntPat git+https://github.com/David-McKenna/dreamBeam.git@fc7d0a6
+                   COMMAND ${Python3_EXECUTABLE} -m pip install -r ${CMAKE_CURRENT_SOURCE_DIR}/requirements.txt
                    COMMAND ${CMAKE_COMMAND} -E touch ${CMAKE_CURRENT_BINARY_DIR}/pip_installed
 )
 add_custom_target(install_python_requirements

@@ -1,0 +1,4 @@
+astropy
+lofarantpos
+git+https://github.com/2baOrNot2ba/AntPat
+git+https://github.com/David-McKenna/dreamBeam.git@fc7d0a6
