@@ -291,8 +291,8 @@ target_link_libraries(lofudpman PUBLIC OpenMP::OpenMP_CXX OpenMP::OpenMP_C)
 
 
 # Setup the CLIs
-add_executable(lofar_udp_extractor src/CLI/lofar_cli_extractor.c)
-add_executable(lofar_stokes_extractor src/CLI/lofar_cli_stokes.c)
+add_executable(lofar_udp_extractor ${CMAKE_CURRENT_SOURCE_DIR}/src/CLI/lofar_cli_extractor.c)
+add_executable(lofar_stokes_extractor ${CMAKE_CURRENT_SOURCE_DIR}/src/CLI/lofar_cli_stokes.c)
 target_link_libraries(lofar_udp_extractor PUBLIC lofudpman)
 target_link_libraries(lofar_stokes_extractor PUBLIC lofudpman)
 
@@ -311,7 +311,7 @@ install(TARGETS lofudpman lofar_udp_extractor lofar_stokes_extractor
 		RUNTIME DESTINATION bin
 )
 install(FILES ${UDP_INCLUDE_FILES} DESTINATION include)
-install(PROGRAMS src/misc/dreamBeamJonesGenerator.py DESTINATION bin)
+install(PROGRAMS ${CMAKE_CURRENT_SOURCE_DIR}/src/misc/dreamBeamJonesGenerator.py DESTINATION bin)
 
 # Add the tests directory
 enable_testing()
