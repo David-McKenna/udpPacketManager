@@ -65,7 +65,7 @@ endif()
 find_package(Python3 3.8 COMPONENTS Interpreter REQUIRED)
 
 add_custom_command(OUTPUT pip_installed
-                   COMMAND ${Python3_EXECUTABLE} -m pip install astropy lofarantpos git+https://github.com/2baOrNot2ba/AntPat git+https://github.com/David-McKenna/dreamBeam.git@fc7d0a6
+                   COMMAND ${Python3_EXECUTABLE} -m pip install -r ${CMAKE_CURRENT_SOURCE_DIR}/requirements.txt
                    COMMAND ${CMAKE_COMMAND} -E touch ${CMAKE_CURRENT_BINARY_DIR}/pip_installed
 )
 add_custom_target(install_python_requirements
@@ -173,7 +173,7 @@ message("")
 message ("Configuring PSRDADA")
 # Find the PSRDADA libraries on the system (or set NODADA if not found)
 ExternalProject_Add(internal_PSRDADA
-                    GIT_REPOSITORY https://git.code.sf.net/p/psrdada/code
+                    GIT_REPOSITORY git://git.code.sf.net/p/psrdada/code
                     GIT_TAG ba2b88
                     BUILD_IN_SOURCE TRUE
                     CONFIGURE_COMMAND ./bootstrap && ./configure --with-cuda-dir=no && cd 3rdparty && make libtimers.la # libtimers fails to compile during normal step with older Make versions
@@ -291,8 +291,8 @@ target_link_libraries(lofudpman PUBLIC OpenMP::OpenMP_CXX OpenMP::OpenMP_C)
 
 
 # Setup the CLIs
-add_executable(lofar_udp_extractor src/CLI/lofar_cli_extractor.c)
-add_executable(lofar_stokes_extractor src/CLI/lofar_cli_stokes.c)
+add_executable(lofar_udp_extractor ${CMAKE_CURRENT_SOURCE_DIR}/src/CLI/lofar_cli_extractor.c)
+add_executable(lofar_stokes_extractor ${CMAKE_CURRENT_SOURCE_DIR}/src/CLI/lofar_cli_stokes.c)
 target_link_libraries(lofar_udp_extractor PUBLIC lofudpman)
 target_link_libraries(lofar_stokes_extractor PUBLIC lofudpman)
 
@@ -311,7 +311,7 @@ install(TARGETS lofudpman lofar_udp_extractor lofar_stokes_extractor
 		RUNTIME DESTINATION bin
 )
 install(FILES ${UDP_INCLUDE_FILES} DESTINATION include)
-install(PROGRAMS src/misc/dreamBeamJonesGenerator.py DESTINATION bin)
+install(PROGRAMS ${CMAKE_CURRENT_SOURCE_DIR}/src/misc/dreamBeamJonesGenerator.py DESTINATION bin)
 
 # Add the tests directory
 enable_testing()
