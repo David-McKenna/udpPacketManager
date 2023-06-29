@@ -835,7 +835,7 @@ static std::tuple<int, int, int, int> packetChecker(int64_t packetsPerBlock, int
 
 		for (int64_t packet = 0; packet < packetsPerBlock; packet++) {
 			int64_t delta = (workingPack + 1) - lofar_udp_time_get_packet_number(inpPort[parsedPackets].data);
-			if (packet == 0 || packet == (packetsPerBlock - 1) || delta) printf("%ld, %ld (%ld)\n", workingPack + 1, lofar_udp_time_get_packet_number(inpPort[parsedPackets].data), delta);
+			//if (packet == 0 || packet == (packetsPerBlock - 1) || delta) printf("%ld, %ld (%ld)\n", workingPack + 1, lofar_udp_time_get_packet_number(inpPort[parsedPackets].data), delta);
 			// If the current packet is the next input packet, ensure the output matches
 			if (!delta) {
 				if ((delta = memcmp(inpPort[parsedPackets].data, outPort[packet].data, packetLength))) {
@@ -922,7 +922,7 @@ TEST_P(LibReaderTestsParam, ProcessingData) {
 		} else {
 			ASSERT_NE(reader, nullptr);
 		}
-		printf("First LastPacket: %ld\n", reader->meta->lastPacket);
+		//printf("First LastPacket: %ld\n", reader->meta->lastPacket);
 
 		int returnv, iters = 0;
 		double timing[2];
@@ -954,7 +954,7 @@ TEST_P(LibReaderTestsParam, ProcessingData) {
 		} else {
 			while ((returnv = lofar_udp_reader_step(reader)) < 1) {
 				iters++;
-				printf("Iter %d\n", iters);
+				//printf("Iter %d\n", iters);
 				auto tupleReturn = packetChecker(reader->meta->packetsPerIteration, reader->meta->lastPacket, reader->meta->inputData, reader->meta->numPorts,
 				                                 reader->meta->outputData, reader->meta->numOutputs);
 				EXPECT_EQ(0, std::get<0>(tupleReturn)); // Port
@@ -964,7 +964,14 @@ TEST_P(LibReaderTestsParam, ProcessingData) {
 				ASSERT_EQ(0, std::get<0>(tupleReturn) + std::get<1>(tupleReturn) + std::get<2>(tupleReturn) + std::get<3>(tupleReturn));
 			}
 		}
-		printf("Last returnv, iters: %d, %d\n", returnv, iters);
+
+		if ((reader->meta->calibrateData < APPLY_CALIBRATION || currMode < PACKET_SPLIT_POL) && currMode < STOKES_I && currMode != TIME_MAJOR_ANT_POL_FLOAT) {
+			ASSERT_EQ(reader->metadata->nbit, reader->meta->inputBitMode);
+		} else {
+			ASSERT_EQ(reader->metadata->nbit, reader->meta->outputBitMode * -1);
+		}
+
+		//printf("Last returnv, iters: %d, %d\n", returnv, iters);
 		ASSERT_EQ(iters, expectedIters[testNum]);
 		for (int8_t port = 0; port < reader->meta->numPorts; port++) {
 			EXPECT_EQ(reader->meta->portTotalDroppedPackets[port], expectedDroppedPackets[testNum][port]);

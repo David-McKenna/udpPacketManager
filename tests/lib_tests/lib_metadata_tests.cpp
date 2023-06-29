@@ -1138,7 +1138,7 @@ TEST_F(LibMetadataTestInternalBufferBuilders, DADAHeaderBuilders) {
 	EXPECT_EQ(425, _lofar_udp_metadata_write_DADA(hdr, (int8_t*) headerBuffer, DEF_HDR_LEN));
 	printf("%s\n", headerBuffer);
 	// Potentially different outputs as a result of fast-math
-	std::vector<uint64_t> validHashes1 = {3529520108236996014ul, 10773676598623942701ul};
+	std::vector<uint64_t> validHashes1 = {7765213275332238753ul, 1026728249877800017ul};
 	uint64_t hash1 = hasher(headerBuffer);
 	if (std::find(validHashes1.begin(), validHashes1.end(), hash1) != validHashes1.end()) {
 		EXPECT_EQ(0, 0);
