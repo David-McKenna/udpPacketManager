@@ -1916,7 +1916,7 @@ int32_t _lofar_udp_metadata_processing_mode_metadata(lofar_udp_metadata *const m
 		case BEAMLET_MAJOR_FULL_REV ... BEAMLET_MAJOR_SPLIT_POL_REV:
 		case TIME_MAJOR_FULL ... TIME_MAJOR_ANT_POL:
 			// Calibrated samples are always floats
-			if (metadata->upm_calibrated) {
+			if (metadata->upm_calibrated >= APPLY_CALIBRATION) {
 				metadata->nbit = -32;
 			} else {
 				metadata->nbit = metadata->upm_input_bitmode == 4 ? 8 : metadata->upm_input_bitmode;
