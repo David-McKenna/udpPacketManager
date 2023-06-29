@@ -63,7 +63,7 @@ int64_t _lofar_udp_metadata_write_DADA(const lofar_udp_metadata *hdr, int8_t *co
 	returnVal += _writeDouble_DADA(workingBuffer, "HDR_VERSION", hdr->hdr_version, 0);
 	// Lovely chicken and the egg problem, we'll update it again later.
 	returnVal += _writeLong_DADA(workingBuffer, "HDR_SIZE", (int64_t) strnlen(workingBuffer, headerLength));
-	returnVal += _writeStr_DADA(workingBuffer, "INSTRUMENT", "CASPSR"); // TODO: ANYTHING ELSE, psrchive exits early if the machine isn't recognised.
+	returnVal += _writeStr_DADA(workingBuffer, "INSTRUMENT", "LOFAR");
 	returnVal += _writeStr_DADA(workingBuffer, "TELESCOPE", hdr->telescope);
 	returnVal += _writeInt_DADA(workingBuffer, "TELESCOPE_RSP", hdr->telescope_rsp_id);
 	returnVal += _writeStr_DADA(workingBuffer, "RECEIVER", hdr->receiver);

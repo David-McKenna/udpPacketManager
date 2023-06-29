@@ -8,7 +8,6 @@ on:
       - '.gitignore'
     branches:
       - main
-
   pull_request:
       types: [ready_for_review]
   pull_request_review:
@@ -37,12 +36,14 @@ jobs:
           sudo python3 get-pip.py
           sudo python3 -m pip install cmake
       - name: Build
-        env:
-          NO_TEST_CAL: ON
         run: |
           for ver in ${COMPILER_VERS}; do
             sudo apt-get install -y gcc-${ver} g++-${ver};
-            sudo CC=gcc-${ver} CXX=g++-${ver} bash build.sh 1; 
+            if [ ${ver} -eq 7 ]; then \
+              sudo CC=gcc-${ver} CXX=g++-${ver} bash build.sh 1; \
+            else \
+              sudo CC=gcc-${ver} CXX=g++-${ver} NO_CAL_TEST=ON bash build.sh; \
+            fi;
             sudo apt-get remove -y gcc-${ver} g++-${ver};
           done;
           
@@ -70,7 +71,7 @@ jobs:
             if [ ${ver} -eq 12 ]; then \
               sudo CC=gcc-${ver} CXX=g++-${ver} bash build.sh 1; \
             else \
-              sudo CC=gcc-${ver} CXX=g++-${ver} NO_CAL_TEST=ON bash build.sh 1; \
+              sudo CC=gcc-${ver} CXX=g++-${ver} NO_CAL_TEST=ON bash build.sh; \
             fi;
             sudo apt-get remove -y gcc-${ver} g++-${ver};
           done;
@@ -92,12 +93,14 @@ jobs:
           sudo python3 get-pip.py
           sudo python3 -m pip install cmake
       - name: Build
-        env:
-          NO_TEST_CAL: ON
         run: |
           for ver in ${COMPILER_VERS}; do
             sudo apt-get install -y clang-${ver} clang++-${ver} libomp5-${ver} libomp-${ver}-dev;
-            sudo CC=clang-${ver} CXX=clang++-${ver} bash build.sh 1; 
+            if [ ${ver} -eq 7 ]; then \
+              sudo CC=clang-${ver} CXX=clang++-${ver} bash build.sh 1; \
+            else \
+              sudo CC=clang-${ver} CXX=clang++-${ver} NO_CAL_TEST=ON bash build.sh; \
+            fi;
             sudo apt-get remove -y clang-${ver} clang++-${ver} libomp5-${ver} libomp-${ver}-dev;
           done;
 
@@ -123,7 +126,7 @@ jobs:
             if [ ${ver} -eq 15 ]; then \
               sudo CC=clang-${ver} CXX=clang++-${ver} bash build.sh 1; \
             else \
-              sudo CC=clang-${ver} CXX=clang++-${ver} NO_CAL_TEST=ON bash build.sh 1; \
+              sudo CC=clang-${ver} CXX=clang++-${ver} NO_CAL_TEST=ON bash build.sh; \
             fi;
            sudo apt-get remove -y clang-${ver} clang++-${ver} libomp5-${ver} libomp-${ver}-dev;
           done;

@@ -745,7 +745,7 @@ int32_t _lofar_udp_setup_processing(lofar_udp_obs_meta *meta) {
 #pragma GCC diagnostic ignored "-Wimplicit-fallthrough"
 #pragma GCC diagnostic push
 		case PACKET_FULL_COPY ... PACKET_NOHDR_COPY:
-			if (meta->calibrateData > GENERATE_JONES) {
+			if (meta->calibrateData >= APPLY_CALIBRATION) {
 				fprintf(stderr, "WARNING: Modes 0 and 1 cannot be calibrated as they are copying full packets, we will generate calibration tables but not apply them, continuing.\n");
 				meta->calibrateData = GENERATE_JONES;
 			}
@@ -1057,7 +1057,7 @@ void _lofar_udp_reader_config_patch(lofar_udp_config *config) {
 
 	if (config->metadata_config.metadataType == NO_META && strnlen(config->metadata_config.metadataLocation, DEF_STR_LEN)) {
 		// Notify on metadata status change if we do not have an immediate use for the data (might still want it at execution time)
-		if (!config->calibrateData) {
+		if (config->calibrateData > NO_CALIBRATION) {
 			fprintf(stderr, "WARNING: Metadata location is defined as %s, but metadata type is NO_META, changing metadata to DEFAULT_META.\n",
 			        config->metadata_config.metadataLocation);
 		}
