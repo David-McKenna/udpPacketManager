@@ -192,7 +192,7 @@ static inline void calibrateDataFunc(O *Xr, O *Xi, O *Yr, O *Yi, const float *be
 
 // All of our processing modes
 // This is going to take a while
-// See docs/newProcessingMode.md for documentation of the structure of these kernels
+// See docs/NEW_PROCESSING_MODE.md for documentation of the structure of these kernels
 
 // Copy: No change, packet goes in, packet goes out, missing packets are inserted through the configured padding scheme.
 template<typename I, typename O>

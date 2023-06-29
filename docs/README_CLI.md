@@ -4,41 +4,41 @@ The [*lofar_udp_extractor*](../src/CLI/lofar_cli_extractor.c) utility can be use
 beamformed observations from international stations. This file is a 
 basic guide on how to use the main CLI. A second CLI, 
 [*lofar_stokes_extractor*](../src/CLI/lofar_cli_extractor.c) focuses 
-on building on the potential Stokes vector data
+on building on the potential Stokes vector data, for science-ready outputs.
 
 
 Expected Input Data Format
 ---------------------
 The expected recording format consists of the last 16-bytes of the 
 header (all ethernet/udp frames removed) followed by a *N* byte 
-data payload. These data streams can be raw files, FIFOs, compressed
+data payload (typically 7808). These data streams can be raw files, FIFOs (Unix named pipes), compressed
 with [zstandard](https://github.com/facebook/zstd) (ending in *.zst*)
 or sourced from [PSRDADA](https://psrdada.sourceforge.net/) ringbuffers.
 
 Expected File Name Formats
 ------------------------------
 
-We support iteration through multiple different files through the use of a stirng formatting system. Currently, this supports four different 
+We support iteration through multiple different files through the use of a string formatting system. Currently, this supports four different 
 values:
 - \[\[port\]\] (input only)
   - Increases to handle a monotonic integer difference between input file names
 - \[\[idx\]\] (output only)
-  - Increases to handle a monotomic integer different output file names
+  - Increases to handle a monotonic integer different output file names
 - \[\[iter\]\] (output only)
   - Increases with iterations of the output, typically increasing, but the implementation is controlled by the user
 - \[\[pack\]\] (output only)
   - Outputs a packet number, or a provided arbitrary number, in the parsed file name
 
-Provided they are suported by your processing method, each of these can be usedmultiple times in your format string, and they will all be 
-replaced.
+Provided they are supported by your processing method, each of these can be used multiple times in your format string, and they will all be 
+replaced. 
 
-For increasing iteration values, the file name can be followed by up to 3 difference values. For both inputs and putputs, this can be two 
-values, represententing a base value and the incremental value added for each offset. The input value also has a third option to represent 
+For increasing iteration values, the file name can be followed by up to 3 difference values. For both inputs and outputs, this can be two 
+values, representing a base value and the incremental value added for each offset. The input value also has a third option to represent 
 an offset from the base value, for handling offsets into the metadata in the case that you wish to only partially process an observation. 
 
 ### General Formatting
 
-All option can use the input format in order to determine prperties ofthe reader/writers objects. This is typcally performed through the use 
+All option can use the input format in order to determine properties of the reader/writers objects. This is typically performed through the use 
 of a 4 letter prefix before the path name, or the present of a file extension. As a result, all of these will result in the detection of 
 their respective readers/writers. If no patterns are present, we assume the file is a normal file.
 
@@ -63,7 +63,7 @@ into a set output format, the options for which are described below.
 
 Consequently, the default input flag will look something akin to one of these inputs
 ```bash
--i "./udp_1613[[port]].ucc1.2020-02-22T10:30:00.000.zst" # Standard monotomic increasing of port from 0 - 3
+-i "./udp_1613[[port]].ucc1.2020-02-22T10:30:00.000.zst" # Standard monotonic increasing of port from 0 - 3
 -i "./udp_1613[[port]].ucc1.2020-02-22T10:30:00.000.zst,3" # Base value of 3, increasing across 3-6 
 -i "./udp_1613[[port]].ucc1.2020-02-22T10:30:00.000.zst,3,2" # Base value of 3, increasing across 3, 5, 7, 9 
 -u 2 -i "./udp_1613[[port]].ucc1.2020-02-22T10:30:00.000.zst,0,1,2" # Base value of 2, iterating up to 3
@@ -72,8 +72,8 @@ Consequently, the default input flag will look something akin to one of these in
 ### Outputs
 
 Multiple output ports of data can be handled by providing a *\[\[idx\]\]* in the output format name, which will then follow the same rules 
-with respect to increments and offsets as the input files do. The *\[\pack\]\]* stirng will be replaced with the packet number at the start 
-of a processing block. Additionally, if the CLI is set to split files, the writer will write a 4 character padded iteraiton count to 
+with respect to increments and offsets as the input files do. The *\[\pack\]\]* string will be replaced with the packet number at the start 
+of a processing block. Additionally, if the CLI is set to split files, the writer will write a 4 character padded iteration count to 
 replace any *\[\[iter\]\]* variables.
 
 Other Flag Notes
@@ -114,16 +114,15 @@ Arguments
 
 #### -i (str)
 
-- Input file name, let it contain [[port]] to iterate over a number of 
+- Input file name, let it contain "[[port]]" to iterate over a number of 
   ports
 - E.g., `-i ./udp_1613[[port]].ucc1_2020-10-20T20:20:20.000.zst`
 
 #### -o (str)
 
-- Output file name, must contain at least [[idx]] when generating 
-  multiple 
-  outputs
-- [[iter]] will include the iteration number of files are split, [[pack]]
+- Output file name, must contain at least "[[idx]]" when generating 
+  multiple outputs
+- "[[iter]]" will include the iteration number of files are split, "[[pack]]"
   will include the starting packet number for each iteration
 
 #### -I (str)
@@ -172,10 +171,9 @@ Arguments
 - Enables calibration with Jones matrices generated by dreamBeam, 
   using the metadata input for pointing and frequency information. 
 
-
 #### -z
 
-- If set, change from calculating the start time from the RSP 200MHz clock (Modes 3, 5, 7) to the 160MHz clock (4,6,
+- If set, change from calculating the start time from assuming we are using the 200MHz clock (Modes 3, 5, 7), to the 160MHz clock (4,6,
   probably others)
 
 #### -q
@@ -203,7 +201,7 @@ Processing Modes
   packets
 - 1 input file -> 1 output file
 
-#### 2: "Raw Split Polarizations"
+#### 2: "Raw Split Polarisations"
 
 - Copy the input payload, padding where needed, and splitting across each of the (Xr, Xi, Yr, Yi) polarisations
 - N input files -> 4 output files
@@ -216,9 +214,9 @@ Processing Modes
   f0t1... f0t15, f1t0...) we have (f0t0, f1t0, f2t0)...
 - N input files -> 1 output file
 
-#### 11: "Raw to Beamlet-Major, Split Polarizations"
+#### 11: "Raw to Beamlet-Major, Split Polarisations"
 
-- Combination of (2) and (10), split output data per (Xr, Xi, Yr, Yi) polarizations
+- Combination of (2) and (10), split output data per (Xr, Xi, Yr, Yi) polarisations
 - N input files -> 4 output files
 
 #### 20: "Raw To Beamlet-Major, Frequency Reversed"
@@ -227,9 +225,9 @@ Processing Modes
   used for pulsar observations
 - N input files -> 1 output file
 
-#### 21: "Raw To Beamlet-Major, Frequency Reversed, Split Polarizations"
+#### 21: "Raw To Beamlet-Major, Frequency Reversed, Split Polarisations"
 
-- Combination of (2) and (20), where we split the output data per (Xr, Xi, Yr, Yi) polarization
+- Combination of (2) and (20), where we split the output data per (Xr, Xi, Yr, Yi) polarisation
 - N input files -> 4 output files
 
 #### 30: "Raw To Time-Major"
@@ -238,12 +236,12 @@ Processing Modes
   channel's full time stream before presenting the net channel (f0t0, f0t1, f0t2... f0tN-1, f0tN)
 - N input files -> 1 output file
 
-#### 31: "Raw To Time-Major, Split Polarizations"
+#### 31: "Raw To Time-Major, Split Polarisations"
 
 - Modified version of (30), where we split the output data per (Xr, Xi, Yr, Yi) polarisation
 - N input files -> 1 output file
 
-#### 32: "Raw To Time-Major, Antenna Polarizations"
+#### 32: "Raw To Time-Major, Antenna Polarisations"
 
 - Modified version of (30), where we split the output per (X, Y) polarisation (complex elements, FFTWF format)
 - N input files -> 2 output files
@@ -266,42 +264,42 @@ ordering options:
   beamctl command (increasing frequency)
 
 As a result, you can use mode 100 to form a frequency-major, 
-increasing frequency Stokes I output, or mode 310 to form a 
+increasing frequency, Stokes I output, or mode 310 to form a 
 time-major, increasing frequency Stokes Q output.
 
 #### \*00: "Stokes I"
 
-- Take the input data, apply (20) and then combine the polarizations to form a 32-bit floating point Stokes I for each
+- Take the input data, apply (10, 20 or 30) and then combine the polarisations to form a 32-bit floating point Stokes I for each
   frequency sample
 - N input files -> 1 output file
 
 #### \*10: "Stokes Q"
 
-- Take the input data, apply (20) and then combine the polarizations to form a 32-bit floating point Stokes Q for each
+- Take the input data, apply (10, 20 or 30) and then combine the polarisations to form a 32-bit floating point Stokes Q for each
   frequency sample
 - N input files -> 1 output file
 
 #### \*20: "Stokes U"
 
-- Take the input data, apply (20) and then combine the polarizations to form a 32-bit floating point Stokes U for each
+- Take the input data, apply (10, 20 or 30) and then combine the polarisations to form a 32-bit floating point Stokes U for each
   frequency sample
 - N input files -> 1 output file
 
 #### \*30: "Stokes V"
 
-- Take the input data, apply (20) and then combine the polarizations to form a 32-bit floating point Stokes V for each
+- Take the input data, apply (10, 20 or 30) and then combine the polarisations to form a 32-bit floating point Stokes V for each
   frequency sample
 - N input files -> 1 output file
 
 #### \*50: "Stokes Vector"
 
-- Take the input data, apply (20), and then combine the polarisation to form 4 output 32-bit floating point Stokes (I,
+- Take the input data, apply (10, 20 or 30), and then combine the polarisation to form 4 output 32-bit floating point Stokes (I,
   Q, U, V) filterbanks for each frequency sample
 - N input files -> 4 output files
 
 #### \*60: "Useful Stokes Vector"
 
-- Take the input data, apply (20), and then combine the polarisation to form 4 output 32-bit floating point Stokes (I,
+- Take the input data, apply (10, 20 or 30), and then combine the polarisation to form 4 output 32-bit floating point Stokes (I,
   V) filterbanks for each frequency sample
 - N input files -> 2 output files
 
@@ -314,22 +312,25 @@ same rules with respect to the data ordering apply as above.
 So in order to get a Stokes U output, in time-major ordering, with 8x 
 downsampling we will pass `320 + log_2(8) = 323` as our processing mode.
 
+Further downsampling should be implemented on the output of a raw data mode, or one of these base execution modes. The `lofar_stokes_cli` 
+has an example implementation of extended downsampling for modes (10, 20).
+
 #### \*\*1: "Stokes with 2x downsampling"
 
-- Take the input data, apply (20) and (\*\*0) to form a Stokes \* sample, and sum it with the next sample
+- Take the input data, apply (10, 20 or 30) and (\*\*0) to form a Stokes \* sample, and sum it with the next sample
 - N input files -> 1 output file (2x less output samples)
 
 #### \*\*2: "Stokes with 4x downsampling"
 
-- Take the input data, apply (20) and (\*\*0) to form a Stokes \* sample, and sum it with the next sample
+- Take the input data, apply (10, 20 or 30) and (\*\*0) to form a Stokes \* sample, and sum it with the next sample
 - N input files -> 1 output file (4x less output samples)
 
 #### \*\*3: "Stokes with 8x downsampling"
 
-- Take the input data, apply (20) and (\*\*0) to form a Stokes \* sample, and sum it with the next sample
+- Take the input data, apply (10, 20 or 30) and (\*\*0) to form a Stokes \* sample, and sum it with the next sample
 - N input files -> 1 output file (8x less output samples)
 
 #### \*\*4: "Stokes with 16x downsampling"
 
-- Take the input data, apply (20) and (\*\*0) to form a Stokes \* sample, and sum it with the next sample
+- Take the input data, apply (10, 20 or 30) and (\*\*0) to form a Stokes \* sample, and sum it with the next sample
 - N input files -> 1 output file (16x less output samples)

@@ -1,0 +1,16 @@
+site_name: UPM Docs
+docs_dir: '.'
+theme:
+  name: material
+  palette:
+   scheme: slate
+
+docs_dir: .
+site_dir: ./site
+
+plugins:
+  - same-dir
+  - exclude:
+      glob:
+        - "*build*/*"
+        - "site/*"

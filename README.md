@@ -2,14 +2,18 @@ udpPacketManager
 ================
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.4249771.svg)](https://doi.org/10.5281/zenodo.4249771)
 
-udpPacketManager is a C library developed to handle reading and processing CEP packet streams from international LOFAR stations. It is used 
+udpPacketManager is a C library developed to handle reading and processing CEP packet streams from international Low Frequency Array (LOFAR) 
+stations. It is used 
 at the Irish LOFAR station (I-LOFAR, [lofar.ie](https://lofar.ie)) for online data processing in conjunction with 
 [ILTDada](https://github.com/David-McKenna/ILTDada) for online data reduction to Stokes parameter science ready data products, or 
 intermediate voltage formats for use with other software packages.
 
-This library allows for entire, partial beamlet extraction and processing of LOFAR CEP packet streams, re-aligning data to account for 
-packet loss or misalignment on the first packet, to produce one of several data products, ranging from raw voltages (reordered or not) to a 
-fully calibrated Stokes vector output.
+This library allows for entire, partial beamlet extraction and processing of LOFAR Central Processing (CEP) packet streams, re-aligning data to 
+account for packet loss or misalignment on the first packet, to produce one of several data products, ranging from raw voltages (reordered 
+or not) to a fully calibrated Stokes vector output.
+
+The intended audience of this software is any observers, or users, that have raw CEP data produced by a LOFAR station and wish to convert it 
+into a format usable by standard processing formats (DADA, GUPPI, etc.), or calibrated, science-ready data products (SigProc, HDF5, etc.). 
 
 Caveats & TODOs
 -------
@@ -64,7 +68,7 @@ Our CMake configuration will automatically compile several dependencies (though 
 While we aim to have maximum support for common compilers, during the development of the library we have noted that the LLVM (`clang`) 
 implementation of OpenMP, `libomp`, has significant performance benefits as compared to the GCC `libgomp` library bundled with GCC, 
 especially for higher core count machines. As a result, we strongly recommend using a `clang` compiler when using the library for online 
-processing of observations. Further details of this behaviour can be found in **[compilers.md](docs/compilers.md)**.
+processing of observations. Further details of this behaviour can be found in **[compilers.md](docs/COMPILERS.md)**.
 
 Building and Installing the Library
 -----------------------------------
@@ -88,6 +92,21 @@ Further Calibration Installation Notes
 You may receive several errors from casacore regarding missing ephemeris, leap second catalogues, etc. when calibration is enabled. These 
 can be resolved by following 
 [this help guide from the NRAO](https://casaguides.nrao.edu/index.php?title=Fixing_out_of_date_TAI_UTC_tables_%28missing_information_on_leap_seconds%29).
+
+
+Docker Image
+------------
+A Dockerfile is provided in **[src/docker/Dockerfile](src/docker/Dockerfile)**, and can be used to build a Docker container that contains the 
+latest build of the software, or as a reference for installing the software on a minimal Ubuntu image. 
+
+Like all Docker containers, the **[docker2singularity](https://github.com/singularityhub/docker2singularity)** image can be used to convert it
+into a singularity containter for a safer way to provide the software to users.
+
+```shell
+# From the root directory of this repo,
+docker build -t udppacketmanager/latest . --file src/docker/Dockerfile
+docker run -v /var/run/docker.sock:/var/run/docker.sock -v /tmp/test:/output --privileged -t --rm quay.io/singularity/docker2singularity udppacketmanager/latest
+```
 
 Usage
 -----
