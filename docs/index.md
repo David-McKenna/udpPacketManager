@@ -5,6 +5,8 @@
 	- The root folder README
 - [Program / CLI flags explains](./README_CLI.md)
 	- An overview on how to use the two bundled programs for processing data with the library
+- [Preparing data for DSPSR (or any DADA Voltage Input)](./PREPARING_DSPSR_READY_INPUTS.md)
+    - An overview on how to prepare an output that can be used in the DSPSR ecosystem, or any other software that supports the DADA format 
 
 ### Further Sys-Admin Documentation
 - [Compiler Recommendations](./COMPILERS.md)
