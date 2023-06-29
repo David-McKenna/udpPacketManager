@@ -16,7 +16,7 @@ void sharedFlags(void) {
 	printf("-o: <format>	Output file name format\n");
 	printf("-f:		        Append output files if they already exist (default: Exit if exists)\n");
 	printf("-I: <str>		Input metadata file (default: '')\n");
-	printf("-c:		        Calibrate the data with the given strategy (default: disabled, eg 'HBA,12:499'). Will not run without -d\n");
+	printf("-c:		        Calibrate the data using the provided metadata.\n");
 	printf("-M: <str>		Override output metadata format\n");
 	printf("-m: <numPack>	Number of packets to process in each read request (default: 65536)\n");
 	printf("-u: <numPort>	Number of ports to combine (default: 4)\n");
