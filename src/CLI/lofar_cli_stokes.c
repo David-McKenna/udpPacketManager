@@ -188,10 +188,11 @@ static void overlapAndPad(fftwf_complex *const outputs[2], const int8_t **inputs
 		for (int32_t fft = 0; fft < nfft; fft++) {
 			// On the first FFT: don't overwrite previous iteration's padding
 			const int32_t binStart = fft ? 0 : noverlap * 2;
+			const int32_t binOffset = fft ? noverlap : noverlap * 2;
 			#pragma omp simd
 			for (int32_t bin = binStart; bin < nbin; bin++) {
 				const size_t outputIndex = baseIndexOutput + fft * nbin + bin;
-				const size_t inputIndex = 2 * (baseIndexInput + fft * (nbin - 2 * noverlap) + bin - binStart);
+				const size_t inputIndex = 2 * (baseIndexInput + fft * (nbin - 2 * noverlap) + bin - binOffset);
 				if (beamletJones) {
 					calibrateDataFunc(outputs[0][outputIndex], outputs[1][outputIndex], beamletJones, inputs, inputIndex);
 				} else {
@@ -228,7 +229,7 @@ static void padNextIteration(fftwf_complex *outputs[2], const int8_t **inputs, c
 				}
 			}
 		}
-	// Otherwise: nomal padding
+	// Otherwise: normal padding
 	} else {
 		#pragma omp parallel for default(shared)
 		for (int32_t sub = 0; sub < nsub; sub++) {
@@ -701,8 +702,6 @@ int main(int argc, char *argv[]) {
 		channelisation *= downsampling;
 	}
 
-	// TODO: Support non non-even channelisation
-	// TODO: Should I just automate these parameters based on the input channelisation/downsampling requirements?
 	const int32_t noverlap = 2 * channelisation;
 	const int32_t nbin = nfactor * channelisation;
 	const int32_t nbin_valid = nbin - 2 * noverlap;
@@ -872,6 +871,13 @@ int main(int argc, char *argv[]) {
 	const int32_t nchan = reader->meta->totalProcBeamlets * channelisation;
 
 	const int32_t nfft = (int32_t) ((reader->packetsPerIteration * UDPNTIMESLICE) / nbin_valid);
+
+	if (noverlap % (nsub / downsampling) || nsub % downsampling) {
+		// TODO
+		exit(1);
+	}
+
+	int64_t writeOffset = noverlap * (nsub / downsampling);
 	//int32_t nfft = 1;
 	//printf("%d, %d, %d, %d\n", nbin, mbin, nsub, nchan);
 
@@ -1047,12 +1053,12 @@ int main(int argc, char *argv[]) {
 			printf("Sizing\n");
 
 			CLICK(tick0);
-			size_t outputLength = packetsToWrite * correlateScale *  UDPNTIMESLICE * reader->meta->totalProcBeamlets / downsampling * sizeof(float);
+			size_t outputLength = packetsToWrite * correlateScale *  UDPNTIMESLICE * reader->meta->totalProcBeamlets / downsampling * sizeof(float) - writeOffset;
 			VERBOSE(printf("Writing %ld bytes (%ld packets) to disk for output %d...\n",
 			               outputLength, packetsToWrite, out));
 			size_t outputWritten;
 			printf("Writing...\n");
-			if ((outputWritten = lofar_udp_io_write(outConfig, out, (int8_t *) outputStokes[out],
+			if ((outputWritten = lofar_udp_io_write(outConfig, out, (int8_t *) &(outputStokes[out][writeOffset]),
 			                                        outputLength)) != outputLength) {
 				fprintf(stderr, "ERROR: Failed to write data to output (%ld bytes/%ld bytes writen, errno %d: %s)), breaking.\n", outputWritten, outputLength,  errno, strerror(errno));
 				returnValMeta = (returnValMeta < 0 && returnValMeta > -5) ? returnValMeta : -5;
@@ -1062,6 +1068,8 @@ int main(int argc, char *argv[]) {
 			timing[3] += TICKTOCK(tick0, tock0);
 
 		}
+
+		writeOffset = 0;
 
 		if (splitEvery != LONG_MAX && returnValMeta > -2) {
 			if (!((localLoops + 1) % splitEvery)) {
