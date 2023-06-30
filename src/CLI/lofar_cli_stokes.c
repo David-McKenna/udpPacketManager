@@ -34,7 +34,7 @@ void helpMessages() {
 	printf("LOFAR Stokes extractor (CLI v%s, lib v%s)\n\n", UPM_CLI_VERSION, UPM_VERSION);
 	printf("Usage: lofar_cli_stokes <flags>");
 
-	helpMessages();
+	sharedFlags();
 	printf("\n\n");
 
 
@@ -590,6 +590,7 @@ int main(int argc, char *argv[]) {
 			case 'D':
 				coherentDM = strtof(optarg, &endPtr);
 				window |= 1;
+				window |= PSR_STANDARD;
 				if (checkOpt(inputOpt, optarg, endPtr)) { flagged = 1; }
 				break;
 
@@ -649,6 +650,21 @@ int main(int argc, char *argv[]) {
 				return 1;
 
 		}
+	}
+
+	int64_t windowCheck = window & ~COHERENT_DEDISP;
+	if (windowCheck & (windowCheck -1)) {
+		fprintf(stderr, "ERROR: More than 1 window has been set. Attempting to patch back to ");
+		if (window & PSR_STANDARD) {
+			fprintf(stderr, "the pulsar window.\n");
+			window &= (COHERENT_DEDISP & PSR_STANDARD);
+		} else if (window & BOXCAR) {
+			fprintf(stderr, "the boxcar window.\n");
+			window &= (COHERENT_DEDISP & BOXCAR);
+		}
+	} else if (!windowCheck) {
+		fprintf(stderr, "WARNING: No window was set, falling back to the pulsar window.");
+		window |= PSR_STANDARD;
 	}
 
 	int64_t correlateScale = (stokesParameters & CORRLTE) ? UDPNPOL : 1;
