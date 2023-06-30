@@ -17,7 +17,8 @@ typedef enum stokes_t {
 	STOKESI = 1,
 	STOKESQ = 2,
 	STOKESU = 4,
-	STOKESV = 8
+	STOKESV = 8,
+	CORRLTE = 16,
 } stokes_t;
 
 typedef enum window_t {
@@ -75,6 +76,14 @@ CLICleanup(lofar_udp_config *config, lofar_udp_io_write_config *outConfig, int8_
 }
 
 #pragma omp declare simd
+static inline void generateVoltageCorrelations(fftwf_complex X, fftwf_complex Y, float *accumulations) {
+	accumulations[0] = (X[0] * X[0]) + (X[1] * X[1]);
+	accumulations[1] = (Y[0] * Y[0]) + (Y[1] * Y[1]);
+	accumulations[2] = ((X[0] * Y[0]) + (X[1] * Y[1]));
+	accumulations[3] = ((X[0] * Y[1]) - (X[1] * Y[0]));
+}
+
+#pragma omp declare simd
 static inline void calibrateDataFunc(float *X, float *Y, const float *beamletJones, const int8_t **inputs,
                                      const int64_t baseOffset) {
 	*(X) = calibrateSample(beamletJones[0], inputs[0][baseOffset], \
@@ -98,7 +107,7 @@ static inline void calibrateDataFunc(float *X, float *Y, const float *beamletJon
                             beamletJones[7], inputs[1][baseOffset]);
 }
 
-static void windowGenerator(fftwf_complex *const chirpFunc, float coherentDM, float fbottom, float subbandbw, int32_t mbin, int32_t nsub, int32_t chanFac, window_t window) {
+static int8_t windowGenerator(fftwf_complex *const chirpFunc, float coherentDM, float fbottom, float subbandbw, int32_t mbin, int32_t nsub, int32_t chanFac, window_t window) {
 	float dmFactConst;
 	if (window & COHERENT_DEDISP) {
 		dmFactConst = 2.0 * M_PI * coherentDM / dmPhaseConst;
@@ -129,11 +138,13 @@ static void windowGenerator(fftwf_complex *const chirpFunc, float coherentDM, fl
 						break;
 
 					default:
+						fprintf(stderr, "ERROR: No window selected for %s (window %d), exiting.\n", __func__, window);
+						return 1;
 						break;
 				}
 
 
-				if (dmFactConst) {
+				if (window & COHERENT_DEDISP) {
 					const float phase = -1.0f * binFreq * binFreq * dmPhaseConst / ((channelFreq + binFreq) + channelFreq * channelFreq);
 					chirpFunc[fftSpaceIdx][0] = cos(phase) * taperScale;
 					chirpFunc[fftSpaceIdx][1] = cos(phase) * taperScale;
@@ -144,6 +155,8 @@ static void windowGenerator(fftwf_complex *const chirpFunc, float coherentDM, fl
 			}
 		}
 	}
+
+	return 0;
 }
 
 #define npol 2
@@ -280,6 +293,7 @@ transposeDetect(fftwf_complex (*X), fftwf_complex (*Y), float **outputs, size_t 
 	noverlap /= channelisation;
 	const size_t outputNchan = nsub * channelisation / channelDownsample;
 	const size_t outputMbin = mbin - 2 * noverlap;
+	const int64_t correlateScale = (stokesFlags & CORRLTE) ? UDPNPOL : 1;
 
 #pragma omp parallel for default(shared)
 	for (size_t sub = 0; sub < nsub; sub++) {
@@ -299,46 +313,61 @@ transposeDetect(fftwf_complex (*X), fftwf_complex (*Y), float **outputs, size_t 
 					// Input is time major
 					//         curr     fftoffset       total samples          size per channel
 					inputIdx = sample + fft * (mbin) +  (chan * mbin * nfft) + (sub * mbin * nfft * channelisation);
-
-					if (stokesFlags & STOKESI) {
-						accumulator[0] += stokesI(X[inputIdx][0], X[inputIdx][1], Y[inputIdx][0], Y[inputIdx][1]);
-					}
-					if (stokesFlags & STOKESQ) {
-						accumulator[1] += stokesQ(X[inputIdx][0], X[inputIdx][1], Y[inputIdx][0], Y[inputIdx][1]);
-					}
-					if (stokesFlags & STOKESU) {
-						accumulator[2] += stokesU(X[inputIdx][0], X[inputIdx][1], Y[inputIdx][0], Y[inputIdx][1]);
-					}
-					if (stokesFlags & STOKESV) {
-						accumulator[3] += stokesV(X[inputIdx][0], X[inputIdx][1], Y[inputIdx][0], Y[inputIdx][1]);
+					if (stokesFlags & CORRLTE) {
+						generateVoltageCorrelations(X[inputIdx], Y[inputIdx], accumulator);
+					} else {
+						if (stokesFlags & STOKESI) {
+							accumulator[0] += stokesI(X[inputIdx][0], X[inputIdx][1], Y[inputIdx][0], Y[inputIdx][1]);
+						}
+						if (stokesFlags & STOKESQ) {
+							accumulator[1] += stokesQ(X[inputIdx][0], X[inputIdx][1], Y[inputIdx][0], Y[inputIdx][1]);
+						}
+						if (stokesFlags & STOKESU) {
+							accumulator[2] += stokesU(X[inputIdx][0], X[inputIdx][1], Y[inputIdx][0], Y[inputIdx][1]);
+						}
+						if (stokesFlags & STOKESV) {
+							accumulator[3] += stokesV(X[inputIdx][0], X[inputIdx][1], Y[inputIdx][0], Y[inputIdx][1]);
+						}
 					}
 
 					if (++accumulations == channelDownsample) {
 						// Output is channel major
 						int32_t effectiveSample = (sample - noverlap) + fft * outputMbin;
-						//          curr                         total channels                               size per time sample
-						outputIdx = (chan / channelDownsample) + (sub * channelisation / channelDownsample) + (outputNchan * effectiveSample);
+						//                             curr                         total channels                               size per time sample
+						outputIdx = correlateScale * ((chan / channelDownsample) + (sub * channelisation / channelDownsample) + (outputNchan * effectiveSample));
 
 						outputArr = 0;
-						if (stokesFlags & STOKESI) {
+						if (stokesFlags & CORRLTE) {
 							outputs[outputArr][outputIdx] = accumulator[0];
+							outputs[outputArr][outputIdx++] = accumulator[1];
+							outputs[outputArr][outputIdx++] = accumulator[2];
+							outputs[outputArr][outputIdx++] = accumulator[3];
+
 							accumulator[0] = 0.0f;
-							outputArr++;
-						}
-						if (stokesFlags & STOKESQ) {
-							outputs[outputArr][outputIdx] = accumulator[1];
 							accumulator[1] = 0.0f;
-							outputArr++;
-						}
-						if (stokesFlags & STOKESU) {
-							outputs[outputArr][outputIdx] = accumulator[2];
 							accumulator[2] = 0.0f;
-							outputArr++;
-						}
-						if (stokesFlags & STOKESV) {
-							outputs[outputArr][outputIdx] = accumulator[3];
 							accumulator[3] = 0.0f;
-							outputArr++;
+						} else {
+							if (stokesFlags & STOKESI) {
+								outputs[outputArr][outputIdx] = accumulator[0];
+								accumulator[0] = 0.0f;
+								outputArr++;
+							}
+							if (stokesFlags & STOKESQ) {
+								outputs[outputArr][outputIdx] = accumulator[1];
+								accumulator[1] = 0.0f;
+								outputArr++;
+							}
+							if (stokesFlags & STOKESU) {
+								outputs[outputArr][outputIdx] = accumulator[2];
+								accumulator[2] = 0.0f;
+								outputArr++;
+							}
+							if (stokesFlags & STOKESV) {
+								outputs[outputArr][outputIdx] = accumulator[3];
+								accumulator[3] = 0.0f;
+								outputArr++;
+							}
 						}
 						accumulations = 0;
 					}
@@ -570,21 +599,26 @@ int main(int argc, char *argv[]) {
 					CLICleanup(config, outConfig, headerBuffer, intermediateX, intermediateY, in1, in2, chirpData);
 					return -1;
 				}
-				if (strchr(optarg, 'I') != NULL) {
-					numStokes += 1;
-					stokesParameters += STOKESI;
-				}
-				if (strchr(optarg, 'Q') != NULL) {
-					numStokes += 1;
-					stokesParameters += STOKESQ;
-				}
-				if (strchr(optarg, 'U') != NULL) {
+				if (strchr(optarg, 'A') != NULL) {
 					numStokes = 1;
-					stokesParameters += STOKESU;
-				}
-				if (strchr(optarg, 'V') != NULL) {
-					numStokes += 1;
-					stokesParameters += STOKESV;
+					stokesParameters = CORRLTE;
+				} else {
+					if (strchr(optarg, 'I') != NULL) {
+						numStokes += 1;
+						stokesParameters += STOKESI;
+					}
+					if (strchr(optarg, 'Q') != NULL) {
+						numStokes += 1;
+						stokesParameters += STOKESQ;
+					}
+					if (strchr(optarg, 'U') != NULL) {
+						numStokes = 1;
+						stokesParameters += STOKESU;
+					}
+					if (strchr(optarg, 'V') != NULL) {
+						numStokes += 1;
+						stokesParameters += STOKESV;
+					}
 				}
 				break;
 
@@ -617,8 +651,10 @@ int main(int argc, char *argv[]) {
 		}
 	}
 
+	int64_t correlateScale = (stokesParameters & CORRLTE) ? UDPNPOL : 1;
+
 	// Pre-set processing mode
-	// TODO: Floating processing mode if chanellisation is disabled?
+	// TODO: Floating processing mode if channelisation is disabled?
 	config->processingMode = TIME_MAJOR_ANT_POL;
 
 	if (flagged) {
@@ -854,11 +890,15 @@ int main(int argc, char *argv[]) {
 		fftBackwardY = fftwf_plan_many_dft(1, &mbin, nchan * nfft, intermediateY, &mbin, 1, mbin, in2, &mbin, 1, mbin, FFTW_BACKWARD, FFTW_ESTIMATE_PATIENT | FFTW_ALLOW_LARGE_GENERIC | FFTW_DESTROY_INPUT);
 
 		//static void windowGenerator(fftwf_complex *const chirpFunc, float coherentDM, float fbottom, float subbandbw, int32_t mbin, int32_t nsub, int32_t chanFac)
-		windowGenerator(chirpData, coherentDM, reader->metadata->ftop_raw, reader->metadata->subband_bw, mbin, nsub, channelisation, window);
+		if (windowGenerator(chirpData, coherentDM, reader->metadata->ftop_raw, reader->metadata->subband_bw, mbin, nsub, channelisation, window)) {
+			fprintf(stderr, "ERROR: Failed to generate window, exiting.\n");
+			CLICleanup(config, outConfig, headerBuffer, intermediateX, intermediateY, in1, in2, chirpData);
+			return 1;
+		}
 	}
 
 	float *outputStokes[MAX_OUTPUT_DIMS];
-	size_t outputFloats = reader->packetsPerIteration * UDPNTIMESLICE * reader->meta->totalProcBeamlets / (spectralDownsample ?: 1);
+	size_t outputFloats = reader->packetsPerIteration * correlateScale * UDPNTIMESLICE * reader->meta->totalProcBeamlets / (spectralDownsample ?: 1);
 	for (int8_t i = 0; i < numStokes; i++) {
 		outputStokes[i] = calloc(outputFloats, sizeof(float));
 	}
@@ -891,7 +931,7 @@ int main(int argc, char *argv[]) {
 	int64_t expectedWriteSize[MAX_OUTPUT_DIMS];
 	// lofar_udp_io_write_setup_helper(lofar_udp_io_write_config *config, int64_t outputLength[], int8_t numOutputs, int32_t iter, int64_t firstPacket)
 	for (int8_t i = 0; i < numStokes; i++) {
-		expectedWriteSize[i] = reader->packetsPerIteration * UDPNTIMESLICE * reader->meta->totalProcBeamlets / downsampling * sizeof(float);
+		expectedWriteSize[i] = reader->packetsPerIteration * correlateScale * UDPNTIMESLICE * reader->meta->totalProcBeamlets / downsampling * sizeof(float);
 	}
 
 	if ((returnVal = lofar_udp_io_write_setup_helper(outConfig, expectedWriteSize, numStokes, 0, startingPacket)) < 0) {
@@ -966,7 +1006,7 @@ int main(int argc, char *argv[]) {
 		if (downsampling > 1 && !spectralDownsample) {
 			CLICK(tickDown);
 			size_t samples = reader->meta->packetsPerIteration * UDPNTIMESLICE / channelisation;
-			temporalDownsample(outputStokes, numStokes, samples, nchan, downsampling);
+			temporalDownsample(outputStokes, numStokes, samples, nchan * correlateScale, downsampling);
 			CLICK(tockDown);
 			timing[6] = TICKTOCK(tickDown, tockDown);
 			totalDownsampleTime += timing[6];
@@ -991,7 +1031,7 @@ int main(int argc, char *argv[]) {
 			printf("Sizing\n");
 
 			CLICK(tick0);
-			size_t outputLength = packetsToWrite * UDPNTIMESLICE * reader->meta->totalProcBeamlets / downsampling * sizeof(float);
+			size_t outputLength = packetsToWrite * correlateScale *  UDPNTIMESLICE * reader->meta->totalProcBeamlets / downsampling * sizeof(float);
 			VERBOSE(printf("Writing %ld bytes (%ld packets) to disk for output %d...\n",
 			               outputLength, packetsToWrite, out));
 			size_t outputWritten;
