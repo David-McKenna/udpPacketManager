@@ -193,7 +193,7 @@ static void overlapAndPad(fftwf_complex *const outputs[2], const int8_t **inputs
 		for (int32_t fft = 0; fft < nfft; fft++) {
 			// On the first FFT: don't overwrite previous iteration's padding
 			const int32_t binStart = fft ? 0 : noverlap * 2;
-			const int32_t binOffset = fft ? noverlap : noverlap * 2;
+			const int32_t binOffset = noverlap * 2;
 			#pragma omp simd
 			for (int32_t bin = binStart; bin < nbin; bin++) {
 				const size_t outputIndex = baseIndexOutput + fft * nbin + bin;
@@ -709,17 +709,16 @@ int main(int argc, char *argv[]) {
 	const int32_t nbin = nfactor * channelisation;
 	const int32_t nbin_valid = nbin - 2 * noverlap;
 
-	if (nbin_valid * nforward % UDPNTIMESLICE) {
+	if ((nbin_valid * nforward) % UDPNTIMESLICE) {
 		fprintf(stderr, "WARNING: Increasing nforward from %d to ", nforward);
 		nforward += (UDPNTIMESLICE - (nforward % UDPNTIMESLICE));
-		fprintf(stderr, "%d to ensure data can be loaded correctly.\n", nforward);
+		fprintf(stderr, "%d to ensure data can be loaded correctly (validate as 0: .\n", nforward, (nbin_valid * nforward) % UDPNTIMESLICE);
 	}
-	config->packetsPerIteration = nbin_valid * nforward / UDPNTIMESLICE;
+	config->packetsPerIteration = (nbin_valid * nforward) / UDPNTIMESLICE;
+
 
 	if (channelisation > 1) {
-		printf("%d, %d, %d, %ld, %ld\n", nbin, noverlap, nbin_valid, config->packetsPerIteration * UDPNTIMESLICE,
-		       (config->packetsPerIteration * UDPNTIMESLICE) % nbin_valid);
-		// Should no longer be needed; keeping for debug purposes; remove before release
+		// Should no longer be needed; keeping for debug/validation purposes; remove before release
 		int32_t invalidation = (config->packetsPerIteration * UDPNTIMESLICE) % nbin_valid;
 		if (invalidation) {
 			fprintf(stderr, "WARNING: Reducing packets per iteration by %d to attempt to align with FFT boundaries.\n", invalidation / UDPNTIMESLICE);
