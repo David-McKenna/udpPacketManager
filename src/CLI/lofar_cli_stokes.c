@@ -712,7 +712,7 @@ int main(int argc, char *argv[]) {
 	if ((nbin_valid * nforward) % UDPNTIMESLICE) {
 		fprintf(stderr, "WARNING: Increasing nforward from %d to ", nforward);
 		nforward += (UDPNTIMESLICE - (nforward % UDPNTIMESLICE));
-		fprintf(stderr, "%d to ensure data can be loaded correctly (validate as 0: .\n", nforward, (nbin_valid * nforward) % UDPNTIMESLICE);
+		fprintf(stderr, "%d to ensure data can be loaded correctly (validate as 0: %d).\n", nforward, (nbin_valid * nforward) % UDPNTIMESLICE);
 	}
 	config->packetsPerIteration = (nbin_valid * nforward) / UDPNTIMESLICE;
 
@@ -874,7 +874,7 @@ int main(int argc, char *argv[]) {
 
 	const int32_t nfft = (int32_t) ((reader->packetsPerIteration * UDPNTIMESLICE) / nbin_valid);
 
-	int64_t writeOffset = noverlap * (nsub / downsampling);
+	int64_t floatWriteOffset = (2 * noverlap * nsub) / downsampling; // This will cause issues for an odd-factored downsample which isn't a multiple of the channelsiation factor
 	//int32_t nfft = 1;
 	//printf("%d, %d, %d, %d\n", nbin, mbin, nsub, nchan);
 
@@ -1050,12 +1050,12 @@ int main(int argc, char *argv[]) {
 			printf("Sizing\n");
 
 			CLICK(tick0);
-			size_t outputLength = packetsToWrite * correlateScale *  UDPNTIMESLICE * reader->meta->totalProcBeamlets / downsampling * sizeof(float) - writeOffset;
-			VERBOSE(printf("Writing %ld bytes (%ld packets) to disk for output %d...\n",
-			               outputLength, packetsToWrite, out));
+			size_t outputLength = ((packetsToWrite * correlateScale *  UDPNTIMESLICE * reader->meta->totalProcBeamlets / downsampling) - floatWriteOffset) * sizeof(float);
+			VERBOSE(printf("Writing %ld bytes (%ld packets, offset %ld) to disk for output %d...\n",
+			               outputLength, packetsToWrite, sizeof(float) * floatWriteOffset, out));
 			size_t outputWritten;
 			printf("Writing...\n");
-			if ((outputWritten = lofar_udp_io_write(outConfig, out, (int8_t *) &(outputStokes[out][writeOffset]),
+			if ((outputWritten = lofar_udp_io_write(outConfig, out, (int8_t *) &(outputStokes[out][floatWriteOffset]),
 			                                        outputLength)) != outputLength) {
 				fprintf(stderr, "ERROR: Failed to write data to output (%ld bytes/%ld bytes writen, errno %d: %s)), breaking.\n", outputWritten, outputLength,  errno, strerror(errno));
 				returnValMeta = (returnValMeta < 0 && returnValMeta > -5) ? returnValMeta : -5;
@@ -1066,7 +1066,7 @@ int main(int argc, char *argv[]) {
 
 		}
 
-		writeOffset = 0;
+		floatWriteOffset = 0;
 
 		if (splitEvery != LONG_MAX && returnValMeta > -2) {
 			if (!((localLoops + 1) % splitEvery)) {
