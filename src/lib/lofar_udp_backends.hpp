@@ -882,7 +882,7 @@ int32_t lofar_udp_raw_loop(lofar_udp_obs_meta *meta) {
 	int32_t packetLoss = 0;
 
 	// Get number of OpenMP Threads
-	const int32_t nThreads = omp_get_num_threads();
+	const int32_t nThreads = omp_get_max_threads();
 
 	VERBOSE(const int32_t verbose = meta->VERBOSE);
 	// Calculate the true processing mode (4-bit -> +4000)

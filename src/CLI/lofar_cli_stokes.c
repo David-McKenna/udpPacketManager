@@ -831,7 +831,8 @@ int main(int argc, char *argv[]) {
 		fprintf(stderr, "ERROR: Failed to initialise multi-threaded FFTWF.\n");
 	}
 	omp_set_num_threads(config->ompThreads);
-	fftwf_plan_with_nthreads(omp_get_num_threads());
+	fftwf_plan_with_nthreads(omp_get_max_threads());
+	printf("Using %d (%d) threads.\n", config->ompThreads, omp_get_max_threads());
 
 
 
