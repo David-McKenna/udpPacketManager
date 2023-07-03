@@ -413,6 +413,7 @@ static void temporalDownsample(float **data, size_t numOutputs, size_t nbin, siz
 					outputIdx = sub + (sample / downsampleFactor) * nchans;
 					data[output][outputIdx] = accumulator;
 					accumulations = 0;
+					accumulator = 0;
 				}
 			}
 		}
