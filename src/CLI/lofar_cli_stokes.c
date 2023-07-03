@@ -194,7 +194,7 @@ static void overlapAndPad(fftwf_complex *const outputs[2], const int8_t **inputs
 			// On the first FFT: don't overwrite previous iteration's padding
 			const int32_t binStart = fft ? 0 : noverlap * 2;
 			const int32_t binOffset = noverlap * 2;
-			#pragma omp simd
+
 			for (int32_t bin = binStart; bin < nbin; bin++) {
 				const size_t outputIndex = baseIndexOutput + fft * nbin + bin;
 				const size_t inputIndex = 2 * (baseIndexInput + fft * (nbin - 2 * noverlap) + bin - binOffset);
@@ -220,7 +220,6 @@ static void padNextIteration(fftwf_complex *outputs[2], const int8_t **inputs, c
 			const size_t baseIndexInput = sub * (nbin - 2 * noverlap) * nfft + (2 * noverlap) - 1;
 			const size_t baseIndexOutput = sub * nbin * nfft;
 
-			#pragma omp simd
 			for (int32_t bin = 0; bin < 2 * noverlap; bin++) {
 				const size_t inputIndex = 2 * (baseIndexInput - bin);
 				const size_t outputIndex = baseIndexOutput + bin;
