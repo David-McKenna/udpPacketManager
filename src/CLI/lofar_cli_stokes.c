@@ -73,7 +73,7 @@ CLICleanup(lofar_udp_config *config, lofar_udp_io_write_config *outConfig, fftwf
 		fftwf_free(chirpData);
 	}
 
-	if (outputStokes != NULL) {
+	if (outputStokes[0] != NULL) {
 		for (int32_t i = 0; i < MAX_OUTPUT_DIMS; i++) {
 			FREE_NOT_NULL(outputStokes[i]);
 		}
@@ -918,6 +918,8 @@ int main(int argc, char *argv[]) {
 	}
 
 	float *outputStokes[MAX_OUTPUT_DIMS];
+	ARR_INIT(outputStokes, MAX_OUTPUT_DIMS, NULL);
+	
 	size_t outputFloats = reader->packetsPerIteration * correlateScale * UDPNTIMESLICE * reader->meta->totalProcBeamlets / (spectralDownsample ?: 1);
 	for (int8_t i = 0; i < numStokes; i++) {
 		outputStokes[i] = calloc(outputFloats, sizeof(float));
