@@ -50,12 +50,11 @@ void helpMessages() {
 }
 
 static void
-CLICleanup(lofar_udp_config *config, lofar_udp_io_write_config *outConfig, int8_t *header, fftwf_complex (*X), fftwf_complex (*Y), fftwf_complex *in1,
-           fftwf_complex (*in2), fftwf_complex (*chirpData)) {
+CLICleanup(lofar_udp_config *config, lofar_udp_io_write_config *outConfig, fftwf_complex (*X), fftwf_complex (*Y), fftwf_complex (*in1), fftwf_complex (*in2),
+           fftwf_complex (*chirpData), float **outputStokes) {
 
 	FREE_NOT_NULL(outConfig);
 	FREE_NOT_NULL(config);
-	FREE_NOT_NULL(header);
 
 
 	if (X != NULL) {
@@ -72,6 +71,12 @@ CLICleanup(lofar_udp_config *config, lofar_udp_io_write_config *outConfig, int8_
 	}
 	if (chirpData != NULL) {
 		fftwf_free(chirpData);
+	}
+
+	if (outputStokes != NULL) {
+		for (int32_t i = 0; i < MAX_OUTPUT_DIMS; i++) {
+			FREE_NOT_NULL(outputStokes[i]);
+		}
 	}
 }
 
@@ -427,8 +432,6 @@ int main(int argc, char *argv[]) {
 	lofar_udp_config *config = lofar_udp_config_alloc();
 	lofar_udp_io_write_config *outConfig = lofar_udp_io_write_alloc();
 
-	int8_t *headerBuffer = NULL;
-
 	if (config == NULL || outConfig == NULL) {
 		fprintf(stderr, "ERROR: Failed to allocate memory for configuration structs (something has gone very wrong...), exiting.\n");
 		FREE_NOT_NULL(config); FREE_NOT_NULL(outConfig);
@@ -470,7 +473,7 @@ int main(int argc, char *argv[]) {
 			case 'i':
 				if (strncpy(inputFormat, optarg, DEF_STR_LEN - 1) != inputFormat) {
 					fprintf(stderr, "ERROR: Failed to store input data file format, exiting.\n");
-					CLICleanup(config, outConfig, headerBuffer, intermediateX, intermediateY, in1, in2, chirpData);
+					CLICleanup(config, outConfig, intermediateX, intermediateY, in1, in2, chirpData, NULL);
 					return 1;
 				}
 				inputProvided = 1;
@@ -480,7 +483,7 @@ int main(int argc, char *argv[]) {
 			case 'o':
 				if (lofar_udp_io_write_parse_optarg(outConfig, optarg) < 0) {
 					helpMessages();
-					CLICleanup(config, outConfig, headerBuffer, intermediateX, intermediateY, in1, in2, chirpData);
+					CLICleanup(config, outConfig, intermediateX, intermediateY, in1, in2, chirpData, NULL);
 					return 1;
 				}
 				if (config->metadata_config.metadataType == NO_META) config->metadata_config.metadataType = lofar_udp_metadata_parse_type_output(optarg);
@@ -494,7 +497,7 @@ int main(int argc, char *argv[]) {
 			case 'I':
 				if (strncpy(config->metadata_config.metadataLocation, optarg, DEF_STR_LEN) != config->metadata_config.metadataLocation) {
 					fprintf(stderr, "ERROR: Failed to copy metadata file location to config, exiting.\n");
-					CLICleanup(config, outConfig, headerBuffer, intermediateX, intermediateY, in1, in2, chirpData);
+					CLICleanup(config, outConfig, intermediateX, intermediateY, in1, in2, chirpData, NULL);
 					return 1;
 				}
 				break;
@@ -507,7 +510,7 @@ int main(int argc, char *argv[]) {
 			case 't':
 				if (strncpy(inputTime, optarg, 255) != inputTime) {
 					fprintf(stderr, "ERROR: Failed to copy start time from input, exiting.\n");
-					CLICleanup(config, outConfig, headerBuffer, intermediateX, intermediateY, in1, in2, chirpData);
+					CLICleanup(config, outConfig, intermediateX, intermediateY, in1, in2, chirpData, NULL);
 					return 1;
 				}
 				break;
@@ -525,7 +528,7 @@ int main(int argc, char *argv[]) {
 			case 'b':
 				if (sscanf(optarg, "%hd,%hd", &(config->beamletLimits[0]), &(config->beamletLimits[1])) < 0) {
 					fprintf(stderr, "ERROR: Failed to scan input beamlets, exiting.\n");
-					CLICleanup(config, outConfig, headerBuffer, intermediateX, intermediateY, in1, in2, chirpData);
+					CLICleanup(config, outConfig, intermediateX, intermediateY, in1, in2, chirpData, NULL);
 					return 1;
 				}
 				break;
@@ -572,9 +575,9 @@ int main(int argc, char *argv[]) {
 			case 'B':
 				nfactor = internal_strtoi(optarg, &endPtr);
 				if (checkOpt(inputOpt, optarg, endPtr)) { flagged = 1; }
-				if (!flagged && nfactor < 3) {
-					fprintf(stderr, "ERROR: nfactor must be at least 3 due to FFT overlaps. Exiting.\n");
-					CLICleanup(config, outConfig, headerBuffer, intermediateX, intermediateY, in1, in2, chirpData);
+				if (!flagged && nfactor < 6) {
+					fprintf(stderr, "ERROR: nfactor must be at least 6 due to FFT overlaps. Exiting.\n");
+					CLICleanup(config, outConfig, intermediateX, intermediateY, in1, in2, chirpData, NULL);
 					return 1;
 				}
 				break;
@@ -598,7 +601,7 @@ int main(int argc, char *argv[]) {
 			case 'P':
 				if (numStokes > 0) {
 					fprintf(stderr, "ERROR: -P flag has been parsed more than once. Exiting.\n");
-					CLICleanup(config, outConfig, headerBuffer, intermediateX, intermediateY, in1, in2, chirpData);
+					CLICleanup(config, outConfig, intermediateX, intermediateY, in1, in2, chirpData, NULL);
 					return -1;
 				}
 				if (strchr(optarg, 'A') != NULL) {
@@ -647,7 +650,7 @@ int main(int argc, char *argv[]) {
 #pragma GCC diagnostic pop
 
 				helpMessages();
-				CLICleanup(config, outConfig, headerBuffer, intermediateX, intermediateY, in1, in2, chirpData);
+				CLICleanup(config, outConfig, intermediateX, intermediateY, in1, in2, chirpData, NULL);
 				return 1;
 
 		}
@@ -675,21 +678,21 @@ int main(int argc, char *argv[]) {
 	config->processingMode = TIME_MAJOR_ANT_POL;
 
 	if (flagged) {
-		CLICleanup(config, outConfig, headerBuffer, intermediateX, intermediateY, in1, in2, chirpData);
+		CLICleanup(config, outConfig, intermediateX, intermediateY, in1, in2, chirpData, NULL);
 		return 1;
 	}
 
 	if (!input) {
 		fprintf(stderr, "ERROR: No inputs provided, exiting.\n");
 		helpMessages();
-		CLICleanup(config, outConfig, headerBuffer, intermediateX, intermediateY, in1, in2, chirpData);
+		CLICleanup(config, outConfig, intermediateX, intermediateY, in1, in2, chirpData, NULL);
 		return 1;
 	}
 
 	if (!inputProvided) {
 		fprintf(stderr, "ERROR: An input was not provided, exiting.\n");
 		helpMessages();
-		CLICleanup(config, outConfig, headerBuffer, intermediateX, intermediateY, in1, in2, chirpData);
+		CLICleanup(config, outConfig, intermediateX, intermediateY, in1, in2, chirpData, NULL);
 		return 1;
 	}
 
@@ -727,7 +730,7 @@ int main(int argc, char *argv[]) {
 			        "ERROR: Number of samples needed per iterations for channelisation factor %d and downsampling factor %d (%d) is not a multiple of number of the set number of timesamples/packets per iteration (%ld), exiting.\n",
 			        channelisation, downsampling, nbin_valid, UDPNTIMESLICE * config->packetsPerIteration);
 			helpMessages();
-			CLICleanup(config, outConfig, headerBuffer, intermediateX, intermediateY, in1, in2, chirpData);
+			CLICleanup(config, outConfig, intermediateX, intermediateY, in1, in2, chirpData, NULL);
 			return 1;
 		}
 	}
@@ -735,32 +738,32 @@ int main(int argc, char *argv[]) {
 	if (channelisation < 1 || ( channelisation > 1 && channelisation % 2) != 0) {
 		fprintf(stderr, "ERROR: Invalid channelisation factor (less than 1, non-factor of 2)\n");
 		helpMessages();
-		CLICleanup(config, outConfig, headerBuffer, intermediateX, intermediateY, in1, in2, chirpData);
+		CLICleanup(config, outConfig, intermediateX, intermediateY, in1, in2, chirpData, NULL);
 		return 1;
 	}
 
 	if (downsampling < 1) {
 		fprintf(stderr, "ERROR: Invalid downsampling factor (less than 1)\n");
 		helpMessages();
-		CLICleanup(config, outConfig, headerBuffer, intermediateX, intermediateY, in1, in2, chirpData);
+		CLICleanup(config, outConfig, intermediateX, intermediateY, in1, in2, chirpData, NULL);
 		return 1;
 	}
 
 	if (lofar_udp_io_read_parse_optarg(config, inputFormat) < 0) {
 		helpMessages();
-		CLICleanup(config, outConfig, headerBuffer, intermediateX, intermediateY, in1, in2, chirpData);
+		CLICleanup(config, outConfig, intermediateX, intermediateY, in1, in2, chirpData, NULL);
 		return 1;
 	}
 
 	if (!outputProvided) {
 		fprintf(stderr, "ERROR: An output was not provided, exiting.\n");
-		CLICleanup(config, outConfig, headerBuffer, intermediateX, intermediateY, in1, in2, chirpData);
+		CLICleanup(config, outConfig, intermediateX, intermediateY, in1, in2, chirpData, NULL);
 		return 1;
 	}
 
 	if (config->calibrateData != NO_CALIBRATION && strcmp(config->metadata_config.metadataLocation, "") == 0) {
 		fprintf(stderr, "ERROR: Data calibration was enabled, but metadata was not provided. Exiting.\n");
-		CLICleanup(config, outConfig, headerBuffer, intermediateX, intermediateY, in1, in2, chirpData);
+		CLICleanup(config, outConfig, intermediateX, intermediateY, in1, in2, chirpData, NULL);
 		return 1;
 	}
 
@@ -776,7 +779,7 @@ int main(int argc, char *argv[]) {
 
 		fprintf(stderr, "One or more inputs invalid or not fully initialised, exiting.\n");
 		helpMessages();
-		CLICleanup(config, outConfig, headerBuffer, intermediateX, intermediateY, in1, in2, chirpData);
+		CLICleanup(config, outConfig, intermediateX, intermediateY, in1, in2, chirpData, NULL);
 		return 1;
 	}
 
@@ -799,7 +802,7 @@ int main(int argc, char *argv[]) {
 		startingPacket = lofar_udp_time_get_packet_from_isot(inputTime, clock200MHz);
 		if (startingPacket == 1) {
 			helpMessages();
-			CLICleanup(config, outConfig, headerBuffer, intermediateX, intermediateY, in1, in2, chirpData);
+			CLICleanup(config, outConfig, intermediateX, intermediateY, in1, in2, chirpData, NULL);
 			return 1;
 		}
 	}
@@ -847,7 +850,7 @@ int main(int argc, char *argv[]) {
 	// Returns null on error, check
 	if (reader == NULL) {
 		fprintf(stderr, "Failed to generate reader. Exiting.\n");
-		CLICleanup(config, outConfig, headerBuffer, intermediateX, intermediateY, in1, in2, chirpData);
+		CLICleanup(config, outConfig, intermediateX, intermediateY, in1, in2, chirpData, NULL);
 		return 1;
 	}
 
@@ -855,13 +858,13 @@ int main(int argc, char *argv[]) {
 	if (((lofar_source_bytes *) &(reader->meta->inputData[0][1]))->clockBit != (unsigned int) clock200MHz) {
 		fprintf(stderr,
 		        "ERROR: The clock bit of the first packet does not match the clock state given when starting the CLI. Add or remove -c from your command. Exiting.\n");
-		CLICleanup(config, outConfig, headerBuffer, intermediateX, intermediateY, in1, in2, chirpData);
+		CLICleanup(config, outConfig, intermediateX, intermediateY, in1, in2, chirpData, NULL);
 		return 1;
 	}
 
 	if (reader->packetsPerIteration * UDPNTIMESLICE > INT32_MAX) {
 		fprintf(stderr, "ERROR: Input FFT bins are too long (%ld vs %d), exiting.\n", reader->packetsPerIteration * UDPNTIMESLICE, INT32_MAX);
-		CLICleanup(config, outConfig, headerBuffer, intermediateX, intermediateY, in1, in2, chirpData);
+		CLICleanup(config, outConfig, intermediateX, intermediateY, in1, in2, chirpData, NULL);
 		return 1;
 	}
 
@@ -871,11 +874,6 @@ int main(int argc, char *argv[]) {
 	const int32_t nchan = reader->meta->totalProcBeamlets * channelisation;
 
 	const int32_t nfft = (int32_t) ((reader->packetsPerIteration * UDPNTIMESLICE) / nbin_valid);
-
-	if (noverlap % (nsub / downsampling) || nsub % downsampling) {
-		// TODO
-		exit(1);
-	}
 
 	int64_t writeOffset = noverlap * (nsub / downsampling);
 	//int32_t nfft = 1;
@@ -888,7 +886,7 @@ int main(int argc, char *argv[]) {
 
 	if (in1 == NULL || in2 == NULL) {
 		fprintf(stderr, "ERROR: Failed to allocate input FFTW buffers, exiting.\n");
-		CLICleanup(config, outConfig, headerBuffer, intermediateX, intermediateY, in1, in2, chirpData);
+		CLICleanup(config, outConfig, intermediateX, intermediateY, in1, in2, chirpData, NULL);
 		return -1;
 	}
 
@@ -901,7 +899,7 @@ int main(int argc, char *argv[]) {
 
 		if (intermediateX == NULL || intermediateY == NULL || chirpData == NULL) {
 			fprintf(stderr, "ERROR: Failed to allocate output FFTW buffers, exiting.\n");
-			CLICleanup(config, outConfig, headerBuffer, intermediateX, intermediateY, in1, in2, chirpData);
+			CLICleanup(config, outConfig, intermediateX, intermediateY, in1, in2, chirpData, NULL);
 			return -1;
 		}
 
@@ -914,7 +912,7 @@ int main(int argc, char *argv[]) {
 		//static void windowGenerator(fftwf_complex *const chirpFunc, float coherentDM, float fbottom, float subbandbw, int32_t mbin, int32_t nsub, int32_t chanFac)
 		if (windowGenerator(chirpData, coherentDM, reader->metadata->ftop_raw, reader->metadata->subband_bw, mbin, nsub, channelisation, window)) {
 			fprintf(stderr, "ERROR: Failed to generate window, exiting.\n");
-			CLICleanup(config, outConfig, headerBuffer, intermediateX, intermediateY, in1, in2, chirpData);
+			CLICleanup(config, outConfig, intermediateX, intermediateY, in1, in2, chirpData, NULL);
 			return 1;
 		}
 	}
@@ -959,7 +957,7 @@ int main(int argc, char *argv[]) {
 	if ((returnVal = lofar_udp_io_write_setup_helper(outConfig, expectedWriteSize, numStokes, 0, startingPacket)) < 0) {
 		fprintf(stderr, "ERROR: Failed to open an output file (%ld, errno %d: %s), breaking.\n", returnVal, errno, strerror(errno));
 		returnValMeta = (returnValMeta < 0 && returnValMeta > -7) ? returnValMeta : -7;
-		CLICleanup(config, outConfig, headerBuffer, intermediateX, intermediateY, in1, in2, chirpData);
+		CLICleanup(config, outConfig, intermediateX, intermediateY, in1, in2, chirpData, outputStokes);
 		return 1;
 	}
 
@@ -1040,7 +1038,7 @@ int main(int argc, char *argv[]) {
 			if (reader->metadata != NULL) {
 				if (reader->metadata->type != NO_META) {
 					CLICK(tick1);
-					if ((returnVal = lofar_udp_metadata_write_file(reader, outConfig, out, reader->metadata, headerBuffer, 4096 * 8, localLoops == 0)) <
+					if ((returnVal = lofar_udp_metadata_write_file(reader, outConfig, out, reader->metadata, reader->metadata->headerBuffer, DEF_HDR_LEN, localLoops == 0)) <
 					    0) {
 						fprintf(stderr, "ERROR: Failed to write header to output (%ld, errno %d: %s), breaking.\n", returnVal, errno, strerror(errno));
 						returnValMeta = (returnValMeta < 0 && returnValMeta > -4) ? returnValMeta : -4;
@@ -1184,7 +1182,7 @@ int main(int argc, char *argv[]) {
 	outConfig = NULL;
 
 	// Free our malloc'd objects
-	CLICleanup(config, outConfig, headerBuffer, intermediateX, intermediateY, in1, in2, chirpData);
+	CLICleanup(config, outConfig, intermediateX, intermediateY, in1, in2, chirpData, outputStokes);
 
 	if (silent == 0) { printf("CLI memory cleaned up successfully. Exiting.\n"); }
 	return 0;
