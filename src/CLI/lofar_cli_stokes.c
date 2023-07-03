@@ -73,8 +73,8 @@ CLICleanup(lofar_udp_config *config, lofar_udp_io_write_config *outConfig, fftwf
 		fftwf_free(chirpData);
 	}
 
-	if (outputStokes[0] != NULL) {
-		for (int32_t i = 0; i < MAX_OUTPUT_DIMS; i++) {
+	if (outputStokes != NULL) {
+		for (int32_t i = 0; (i < MAX_OUTPUT_DIMS && outputStokes[i] != NULL); i++) {
 			FREE_NOT_NULL(outputStokes[i]);
 		}
 	}
@@ -198,7 +198,7 @@ static void overlapAndPad(fftwf_complex *const outputs[2], const int8_t **inputs
 			for (int32_t bin = binStart; bin < nbin; bin++) {
 				const size_t outputIndex = baseIndexOutput + fft * nbin + bin;
 				const size_t inputIndex = 2 * (baseIndexInput + fft * (nbin - 2 * noverlap) + bin - binOffset);
-				if (beamletJones) {
+				if (beamletJones != NULL) {
 					calibrateDataFunc(outputs[0][outputIndex], outputs[1][outputIndex], beamletJones, inputs, inputIndex);
 				} else {
 					outputs[0][outputIndex][0] = (float) inputs[0][inputIndex];
@@ -224,7 +224,7 @@ static void padNextIteration(fftwf_complex *outputs[2], const int8_t **inputs, c
 			for (int32_t bin = 0; bin < 2 * noverlap; bin++) {
 				const size_t inputIndex = 2 * (baseIndexInput - bin);
 				const size_t outputIndex = baseIndexOutput + bin;
-				if (beamletJones) {
+				if (beamletJones != NULL) {
 					calibrateDataFunc(outputs[0][outputIndex], outputs[1][outputIndex], beamletJones, inputs, inputIndex);
 				} else {
 					outputs[0][outputIndex][0] = (float) inputs[0][inputIndex];
@@ -245,7 +245,7 @@ static void padNextIteration(fftwf_complex *outputs[2], const int8_t **inputs, c
 			for (int32_t bin = 0; bin < 2 * noverlap; bin++) {
 				const size_t inputIndex = 2 * (baseIndexInput + bin);
 				const size_t outputIndex = baseIndexOutput + bin;
-				if (beamletJones) {
+				if (beamletJones != NULL) {
 					calibrateDataFunc(outputs[0][outputIndex], outputs[1][outputIndex], beamletJones, inputs, inputIndex);
 				} else {
 					outputs[0][outputIndex][0] = (float) inputs[0][inputIndex];
