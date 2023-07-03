@@ -270,7 +270,7 @@ static void reorderData(fftwf_complex *const x, fftwf_complex *const y, int32_t 
 			for (size_t sample = 0; sample < spectrumOffset; sample++) {
 				const size_t inputIdx = sample + channel * bins;
 				const size_t outputIdx = inputIdx + spectrumOffset;
-				//if (channel < 3) printf("%zu %zu\n", inputIdx, outputIdx);
+
 				tmp[0] = workingPtr[inputIdx][0];
 				tmp[1] = workingPtr[inputIdx][1];
 				workingPtr[inputIdx][0] = workingPtr[outputIdx][0];
@@ -989,7 +989,7 @@ int main(int argc, char *argv[]) {
 			packetsToWrite = maxPackets;
 		}
 
-		printf("Begin channelisation %d %d %d %d %d %d %d (%d)\n", channelisation, spectralDownsample, downsampling, nfft, nbin, noverlap, mbin, nfft * nbin);
+		VERBOSE(printf("Begin channelisation %d %d %d %d %d %d %d (%d)\n", channelisation, spectralDownsample, downsampling, nfft, nbin, noverlap, mbin, nfft * nbin));
 		// Perform channelisation, temporal downsampling as needed
 		float *beamletJones = (reader->meta->calibrateData == GENERATE_JONES) ? reader->meta->jonesMatrices[reader->meta->calibrationStep] : NULL;
 		if (channelisation > 1) {
@@ -1022,7 +1022,7 @@ int main(int argc, char *argv[]) {
 		timing[5] = TICKTOCK(tickDetect, tockDetect);
 		totalDetectTime += timing[5];
 
-		printf("Begin downsampling\n");
+		VERBOSE(printf("Begin downsampling\n"));
 		if (downsampling > 1 && !spectralDownsample) {
 			CLICK(tickDown);
 			size_t samples = reader->meta->packetsPerIteration * UDPNTIMESLICE / channelisation;
@@ -1031,10 +1031,10 @@ int main(int argc, char *argv[]) {
 			timing[6] = TICKTOCK(tickDown, tockDown);
 			totalDownsampleTime += timing[6];
 		}
-		printf("Finish downsampling %d\n", numStokes);
+		VERBOSE(printf("Finish downsampling %d\n", numStokes));
 
 		for (int8_t out = 0; out < numStokes; out++) {
-			printf("Enter loop\n");
+			VERBOSE(printf("Enter loop\n"));
 			if (reader->metadata != NULL) {
 				if (reader->metadata->type != NO_META) {
 					CLICK(tick1);
@@ -1048,14 +1048,12 @@ int main(int argc, char *argv[]) {
 					timing[2] += TICKTOCK(tick1, tock1);
 				}
 			}
-			printf("Sizing\n");
 
 			CLICK(tick0);
 			size_t outputLength = ((packetsToWrite * correlateScale *  UDPNTIMESLICE * reader->meta->totalProcBeamlets / downsampling) - floatWriteOffset) * sizeof(float);
 			VERBOSE(printf("Writing %ld bytes (%ld packets, offset %ld) to disk for output %d...\n",
 			               outputLength, packetsToWrite, sizeof(float) * floatWriteOffset, out));
 			size_t outputWritten;
-			printf("Writing...\n");
 			if ((outputWritten = lofar_udp_io_write(outConfig, out, (int8_t *) &(outputStokes[out][floatWriteOffset]),
 			                                        outputLength)) != outputLength) {
 				fprintf(stderr, "ERROR: Failed to write data to output (%ld bytes/%ld bytes writen, errno %d: %s)), breaking.\n", outputWritten, outputLength,  errno, strerror(errno));
