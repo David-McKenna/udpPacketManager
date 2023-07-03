@@ -240,7 +240,6 @@ static void padNextIteration(fftwf_complex *outputs[2], const int8_t **inputs, c
 			const size_t baseIndexInput = (sub + 1) * (nbin - 2 * noverlap) * nfft - 2 * noverlap;
 			const size_t baseIndexOutput = sub * nbin * nfft;
 
-			#pragma omp simd
 			for (int32_t bin = 0; bin < 2 * noverlap; bin++) {
 				const size_t inputIndex = 2 * (baseIndexInput + bin);
 				const size_t outputIndex = baseIndexOutput + bin;
