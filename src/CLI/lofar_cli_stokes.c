@@ -114,11 +114,14 @@ static inline void calibrateDataFunc(float *X, float *Y, const float *beamletJon
 
 static int8_t windowGenerator(fftwf_complex *const chirpFunc, float coherentDM, float fbottom, float subbandbw, int32_t mbin, int32_t nsub, int32_t chanFac, window_t window) {
 	float dmFactConst;
+	int8_t coherentDedisp;
 	if (window & COHERENT_DEDISP) {
 		dmFactConst = 2.0 * M_PI * coherentDM / dmPhaseConst;
 		window ^= 1; // Remove contribution
+		coherentDedisp = 1; // Set flag (float comparisons are unstable)
 	} else {
 		dmFactConst = 0;
+		coherentDedisp = 0;
 	}
 	const float chanbw = subbandbw / chanFac;
 	for (int32_t subband = 0; subband < nsub; subband++) {
@@ -149,10 +152,10 @@ static int8_t windowGenerator(fftwf_complex *const chirpFunc, float coherentDM, 
 				}
 
 
-				if (window & COHERENT_DEDISP) {
+				if (coherentDedisp) {
 					const float phase = -1.0f * binFreq * binFreq * dmPhaseConst / ((channelFreq + binFreq) + channelFreq * channelFreq);
 					chirpFunc[fftSpaceIdx][0] = cos(phase) * taperScale;
-					chirpFunc[fftSpaceIdx][1] = cos(phase) * taperScale;
+					chirpFunc[fftSpaceIdx][1] = sin(phase) * taperScale;
 				} else {
 					chirpFunc[fftSpaceIdx][0] = taperScale;
 					chirpFunc[fftSpaceIdx][1] = taperScale;
