@@ -82,10 +82,10 @@ CLICleanup(lofar_udp_config *config, lofar_udp_io_write_config *outConfig, fftwf
 
 #pragma omp declare simd
 static inline void generateVoltageCorrelations(fftwf_complex X, fftwf_complex Y, float *accumulations) {
-	accumulations[0] = (X[0] * X[0]) + (X[1] * X[1]);
-	accumulations[1] = (Y[0] * Y[0]) + (Y[1] * Y[1]);
-	accumulations[2] = ((X[0] * Y[0]) + (X[1] * Y[1]));
-	accumulations[3] = ((X[0] * Y[1]) - (X[1] * Y[0]));
+	accumulations[0] += (X[0] * X[0]) + (X[1] * X[1]);
+	accumulations[1] += (Y[0] * Y[0]) + (Y[1] * Y[1]);
+	accumulations[2] += ((X[0] * Y[0]) + (X[1] * Y[1]));
+	accumulations[3] += ((X[0] * Y[1]) - (X[1] * Y[0]));
 }
 
 #pragma omp declare simd
@@ -112,33 +112,36 @@ static inline void calibrateDataFunc(float *X, float *Y, const float *beamletJon
                             beamletJones[7], inputs[1][baseOffset]);
 }
 
-static int8_t windowGenerator(fftwf_complex *const chirpFunc, float coherentDM, float fbottom, float subbandbw, int32_t mbin, int32_t nsub, int32_t chanFac, window_t window) {
-	float dmFactConst;
+static int8_t windowGenerator(fftwf_complex *const chirpFunc, const double coherentDM, const double fbottom, const double subbandbw, const int32_t mbin, const int32_t nsub, const int32_t chanFac, window_t window) {
+	double dmFactConst;
 	int8_t coherentDedisp;
 	if (window & COHERENT_DEDISP) {
 		dmFactConst = 2.0 * M_PI * coherentDM / dmPhaseConst;
-		window ^= 1; // Remove contribution
+		window ^= COHERENT_DEDISP; // Remove contribution
 		coherentDedisp = 1; // Set flag (float comparisons are unstable)
 	} else {
 		dmFactConst = 0;
 		coherentDedisp = 0;
 	}
-	const float chanbw = subbandbw / chanFac;
+	const double chanbw = subbandbw / (double) chanFac;
+
 	for (int32_t subband = 0; subband < nsub; subband++) {
-		const float subbandFreq = fbottom + subband * subbandbw + 0.5 * subbandbw;
+		const double subbandFreq = fbottom + (double) subband * subbandbw + 0.5 * subbandbw;
+
 		for (int32_t chan = 0; chan < chanFac; chan++) {
-			const float channelFreq = subbandFreq - 0.5 * subbandbw + subbandbw * ((float) chan / (float) chanFac) + 0.5 * chanbw;
+			const double channelFreq = subbandFreq - 0.5 * subbandbw + subbandbw * ((double) chan / (double) chanFac) + 0.5 * chanbw;
+
 			for (int32_t bin = 0; bin < mbin; bin++) {
 				const int32_t fftSpaceIdx = subband * mbin * chanFac + chan * mbin + bin;
 
 				// Frequency in FFT space
-				const float binFreq = chanbw * ((float) bin / (float) mbin) + 0.5 * (chanbw / mbin - chanbw);
-				float taperScale;
+				const double binFreq = chanbw * ((double) bin / (double) mbin) + 0.5 * (chanbw / (double) mbin - chanbw);
+				double taperScale;
 
 
 				switch (window) {
 					case PSR_STANDARD:
-						taperScale = 1.0f / sqrt(1.0f + pow(binFreq / (0.47 * chanbw), 80.0f));
+						taperScale = 1.0 / sqrt(1.0 + pow(binFreq / (0.47 * chanbw), 80.0));
 						break;
 
 					case BOXCAR:
@@ -151,14 +154,16 @@ static int8_t windowGenerator(fftwf_complex *const chirpFunc, float coherentDM, 
 						break;
 				}
 
+				taperScale /= (double) (mbin * chanFac);
+
 
 				if (coherentDedisp) {
-					const float phase = -1.0f * binFreq * binFreq * dmPhaseConst / ((channelFreq + binFreq) + channelFreq * channelFreq);
-					chirpFunc[fftSpaceIdx][0] = cos(phase) * taperScale;
-					chirpFunc[fftSpaceIdx][1] = sin(phase) * taperScale;
+					const double phase = -1.0f * binFreq * binFreq * dmFactConst / ((channelFreq + binFreq) + channelFreq * channelFreq);
+					chirpFunc[fftSpaceIdx][0] = (float) (cos(phase) * taperScale);
+					chirpFunc[fftSpaceIdx][1] = (float) (sin(phase) * taperScale);
 				} else {
-					chirpFunc[fftSpaceIdx][0] = taperScale;
-					chirpFunc[fftSpaceIdx][1] = taperScale;
+					chirpFunc[fftSpaceIdx][0] = (float) taperScale;
+					chirpFunc[fftSpaceIdx][1] = (float) taperScale;
 				}
 			}
 		}
@@ -168,27 +173,31 @@ static int8_t windowGenerator(fftwf_complex *const chirpFunc, float coherentDM, 
 }
 
 #define npol 2
-static void windowData(fftwf_complex *const x, fftwf_complex *const y, const fftwf_complex *chirpData, size_t nx, size_t nfft) {
+static void windowData(fftwf_complex *const x, fftwf_complex *const y, const fftwf_complex *chirpData, const int32_t mbin, const int32_t nsub, const int32_t channelisation, const int32_t nfft) {
 	fftwf_complex *data[npol] = { x, y };
 
 	for (int i = 0; i < npol; i++) {
 		fftwf_complex *const workingPtr = data[i];
 
-#pragma omp parallel for default(shared) shared(workingPtr)
-		for (size_t fft = 0; fft < nfft; fft++) {
-			#pragma omp simd
-			for (size_t sample = 0; sample < nx; sample++) {
-				const size_t inputIdx = sample + fft * nx;
+		#pragma omp parallel for default(shared)
+		for (int32_t subband = 0; subband < nsub; subband++) {
+			for (int32_t fft = 0; fft < nfft; fft++) {
+				for (int32_t bin = 0; bin < mbin; bin++) {
+					for (int32_t sample = 0; sample < channelisation; sample++) {
+						const size_t inputIdx = subband * nfft * mbin * channelisation + fft * mbin * channelisation + bin * channelisation + sample;
+						const size_t freqIdx = subband * mbin * channelisation + sample * mbin + bin;
 
-				workingPtr[inputIdx][0] *= chirpData[sample][0];
-				workingPtr[inputIdx][1] *= chirpData[sample][1];
+						workingPtr[inputIdx][0] *= chirpData[freqIdx][0];
+						workingPtr[inputIdx][1] *= chirpData[freqIdx][1];
 
+					}
+				}
 			}
 		}
 	}
 }
 
-static void overlapAndPad(fftwf_complex *const outputs[2], const int8_t **inputs, const float *beamletJones, int32_t nbin, int32_t noverlap, int32_t nsub, int32_t nfft) {
+static void overlapAndPad(fftwf_complex *const outputs[2], const int8_t **inputs, const float *beamletJones, const int64_t nbin, const int32_t noverlap, const int32_t nsub, const int32_t nfft) {
 	#pragma omp parallel for default(shared)
 	for (int32_t sub = 0; sub < nsub; sub++) {
 		const size_t baseIndexInput = sub * (nbin - 2 * noverlap) * nfft;
@@ -198,9 +207,12 @@ static void overlapAndPad(fftwf_complex *const outputs[2], const int8_t **inputs
 			const int32_t binStart = fft ? 0 : noverlap * 2;
 			const int32_t binOffset = noverlap * 2;
 
-			for (int32_t bin = binStart; bin < nbin; bin++) {
-				const size_t outputIndex = baseIndexOutput + fft * nbin + bin;
-				const size_t inputIndex = 2 * (baseIndexInput + fft * (nbin - 2 * noverlap) + bin - binOffset);
+			const size_t fftIndexInput = baseIndexInput + fft * (nbin - 2 * noverlap);
+			const size_t fftIndexOutput = baseIndexOutput + fft * nbin;
+
+			for (int64_t bin = binStart; bin < nbin; bin++) {
+				const size_t outputIndex = fftIndexOutput + bin;
+				const size_t inputIndex = 2 * (fftIndexInput + bin - binOffset);
 				if (beamletJones != NULL) {
 					calibrateDataFunc(outputs[0][outputIndex], outputs[1][outputIndex], beamletJones, inputs, inputIndex);
 				} else {
@@ -214,14 +226,14 @@ static void overlapAndPad(fftwf_complex *const outputs[2], const int8_t **inputs
 	}
 }
 
-static void padNextIteration(fftwf_complex *outputs[2], const int8_t **inputs, const float *beamletJones, int32_t nbin, int32_t noverlap, int32_t nsub, int32_t nfft) {
+static void padNextIteration(fftwf_complex *outputs[2], const int8_t **inputs, const float *beamletJones, const int32_t nbin, const int32_t noverlap, const int32_t nsub, const int32_t nfft) {
 	// First iteration: reflection padding
 	if (nfft < 0) {
-		nfft *= -1;
+		//nfft *= -1;
 		#pragma omp parallel for default(shared)
 		for (int32_t sub = 0; sub < nsub; sub++) {
-			const size_t baseIndexInput = sub * (nbin - 2 * noverlap) * nfft + (2 * noverlap) - 1;
-			const size_t baseIndexOutput = sub * nbin * nfft;
+			const size_t baseIndexInput = sub * (nbin - 2 * noverlap) * -1 * nfft + (2 * noverlap) - 1;
+			const size_t baseIndexOutput = -1 * sub * nbin * nfft;
 
 			for (int32_t bin = 0; bin < 2 * noverlap; bin++) {
 				const size_t inputIndex = 2 * (baseIndexInput - bin);
@@ -259,19 +271,18 @@ static void padNextIteration(fftwf_complex *outputs[2], const int8_t **inputs, c
 	}
 }
 
-static void reorderData(fftwf_complex *const x, fftwf_complex *const y, int32_t bins, int32_t channels) {
-	fftwf_complex *data[npol] = { x, y };
-	const size_t spectrumOffset = bins / 2;
-	for (int i = 0; i < npol; i++) {
+static void reorderData(fftwf_complex *const x, fftwf_complex *const y, const int32_t bins, const int32_t channels) {
+	fftwf_complex *const data[npol] = { x, y };
+	const int32_t spectrumOffset = (bins + bins % 2) / 2;
+	for (int32_t i = 0; i < npol; i++) {
 		fftwf_complex *const workingPtr = data[i];
 
-#pragma omp parallel for default(shared) shared(workingPtr)
-		for (size_t channel = 0; channel < channels; channel++) {
+		#pragma omp parallel for default(shared) shared(workingPtr)
+		for (int32_t channel = 0; channel < channels; channel++) {
 			fftwf_complex tmp;
 
-			#pragma omp simd
-			for (size_t sample = 0; sample < spectrumOffset; sample++) {
-				const size_t inputIdx = sample + channel * bins;
+			for (int32_t sample = 0; sample < spectrumOffset; sample++) {
+				const size_t inputIdx = channel * bins + sample;
 				const size_t outputIdx = inputIdx + spectrumOffset;
 
 				tmp[0] = workingPtr[inputIdx][0];
@@ -289,8 +300,8 @@ static void reorderData(fftwf_complex *const x, fftwf_complex *const y, int32_t 
 
 
 static void
-transposeDetect(fftwf_complex (*X), fftwf_complex (*Y), float **outputs, size_t mbin, size_t noverlap, size_t nfft, size_t channelisation, size_t nsub,
-                size_t channelDownsample, int stokesFlags) {
+transposeDetect(fftwf_complex (*X), fftwf_complex (*Y), float **outputs, const int64_t mbin, int32_t noverlap, const int32_t nfft, const int32_t channelisation, const int32_t nsub,
+                int32_t channelDownsample, const stokes_t stokesFlags) {
 
 	if (channelDownsample < 1) {
 		channelDownsample = 1;
@@ -303,23 +314,20 @@ transposeDetect(fftwf_complex (*X), fftwf_complex (*Y), float **outputs, size_t 
 	const int64_t correlateScale = (stokesFlags & CORRLTE) ? UDPNPOL : 1;
 
 #pragma omp parallel for default(shared)
-	for (size_t sub = 0; sub < nsub; sub++) {
-		float accumulator[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
-		size_t inputIdx, outputIdx, outputArr;
-		size_t accumulations = 0;
+	for (int32_t sub = 0; sub < nsub; sub++) {
 
-		for (size_t fft = 0; fft < nfft; fft++) {
-			for (size_t sample = noverlap; sample < (mbin - noverlap); sample++) {
-				ARR_INIT(accumulator, 4, 0.0f);
+		for (int32_t fft = 0; fft < nfft; fft++) {
+			float accumulator[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
+			int32_t accumulations = 0;
 
-				accumulations = 0;
+			for (int64_t sample = noverlap; sample < (mbin - noverlap); sample++) {
 
-				#pragma omp simd
-				for (size_t chan = 0; chan < channelisation; chan++) {
+				for (int32_t chan = 0; chan < channelisation; chan++) {
 
 					// Input is time major
-					//         curr     fftoffset       total samples          size per channel
-					inputIdx = sample + fft * (mbin) +  (chan * mbin * nfft) + (sub * mbin * nfft * channelisation);
+					//                      curr     channels      ffts                          subbands
+					const size_t inputIdx = sample + chan * mbin + fft * mbin * channelisation + sub * nfft * mbin * channelisation;
+
 					if (stokesFlags & CORRLTE) {
 						generateVoltageCorrelations(X[inputIdx], Y[inputIdx], accumulator);
 					} else {
@@ -339,16 +347,16 @@ transposeDetect(fftwf_complex (*X), fftwf_complex (*Y), float **outputs, size_t 
 
 					if (++accumulations == channelDownsample) {
 						// Output is channel major
-						int32_t effectiveSample = (sample - noverlap) + fft * outputMbin;
-						//                             curr                         total channels                               size per time sample
-						outputIdx = correlateScale * ((chan / channelDownsample) + (sub * channelisation / channelDownsample) + (outputNchan * effectiveSample));
+						const int64_t effectiveSample = (sample - noverlap) + fft * outputMbin;
+						//                                         curr                         total channels                               size per time sample
+						const size_t outputIdx = correlateScale * ((chan / channelDownsample) + (sub * channelisation / channelDownsample) + (outputNchan * effectiveSample));
 
-						outputArr = 0;
+						size_t outputArr = 0;
 						if (stokesFlags & CORRLTE) {
 							outputs[outputArr][outputIdx] = accumulator[0];
-							outputs[outputArr][outputIdx++] = accumulator[1];
-							outputs[outputArr][outputIdx++] = accumulator[2];
-							outputs[outputArr][outputIdx++] = accumulator[3];
+							outputs[outputArr][outputIdx + 1] = accumulator[1];
+							outputs[outputArr][outputIdx + 2] = accumulator[2];
+							outputs[outputArr][outputIdx + 3] = accumulator[3];
 
 							accumulator[0] = 0.0f;
 							accumulator[1] = 0.0f;
@@ -384,33 +392,31 @@ transposeDetect(fftwf_complex (*X), fftwf_complex (*Y), float **outputs, size_t 
 	}
 }
 
-static void temporalDownsample(float **data, size_t numOutputs, size_t nbin, size_t nchans, size_t downsampleFactor) {
+static void temporalDownsample(float ** const data, const size_t numOutputs, const int64_t nbin, const int64_t nchans, const int32_t downsampleFactor) {
 
 	if (downsampleFactor < 2) {
 		// Nothing to do
 		return;
 	}
 
-	VERBOSE(printf("Downsampling for: %zu, %zu, %zu\n", nchans, nbin, downsampleFactor));
+	VERBOSE(printf("Downsampling for: %ld, %ld, %d\n", nchans, nbin, downsampleFactor));
 
 	for (size_t output = 0; output < numOutputs; output++) {
-#pragma omp parallel for default(shared)
-		for (size_t sub = 0; sub < nchans; sub++) {
-			size_t inputIdx, outputIdx;
-			size_t accumulations = 0;
-			float accumulator = 0.0f;
-
-			for (size_t sample = 0; sample < nbin; sample++) {
+		#pragma omp parallel for default(shared)
+		for (int64_t sub = 0; sub < nchans; sub++) {
+			for (int64_t sample = 0; sample < nbin; sample++) {
+				float accumulator = 0.0f;
+				int32_t accumulations = 0;
 				// Input is time major
-				//         curr   size per sample
-				inputIdx = sub + (sample * nchans);
+				//                      curr   size per sample
+				const size_t inputIdx = sub + (sample * nchans);
 
 				accumulator += data[output][inputIdx];
 
 				if (++accumulations == downsampleFactor) {
 					// Output is channel major
-					//          curr          size per time sample
-					outputIdx = sub + (sample / downsampleFactor) * nchans;
+					//                       curr          size per time sample
+					const size_t outputIdx = sub + (sample / downsampleFactor) * nchans;
 					data[output][outputIdx] = accumulator;
 					accumulations = 0;
 					accumulator = 0;
@@ -424,7 +430,8 @@ int main(int argc, char *argv[]) {
 
 	// Set up input local variables
 	int32_t inputOpt, input = 0;
-	float seconds = 0.0f, coherentDM = 0.0f;
+	float seconds = 0.0f;
+	double coherentDM = 0.0f;
 	char inputTime[256] = "", stringBuff[128] = "", inputFormat[DEF_STR_LEN] = "";
 	int32_t silent = 0, inputProvided = 0, outputProvided = 0;
 	int64_t maxPackets = LONG_MAX, startingPacket = -1, splitEvery = LONG_MAX;
@@ -595,8 +602,7 @@ int main(int argc, char *argv[]) {
 
 			case 'D':
 				coherentDM = strtof(optarg, &endPtr);
-				window |= 1;
-				window |= PSR_STANDARD;
+				window = COHERENT_DEDISP + PSR_STANDARD;
 				if (checkOpt(inputOpt, optarg, endPtr)) { flagged = 1; }
 				break;
 
@@ -702,6 +708,10 @@ int main(int argc, char *argv[]) {
 	config->metadata_config.externalChannelisation = channelisation;
 	config->metadata_config.externalDownsampling = downsampling;
 
+	if (spectralDownsample && downsampling < 2) {
+		fprintf(stderr, "WARNING: Spectral downsampling is enabled, but the downsampling factor was not set.\n");
+	}
+
 	if (spectralDownsample) {
 		spectralDownsample = downsampling;
 		channelisation *= downsampling;
@@ -736,7 +746,7 @@ int main(int argc, char *argv[]) {
 		}
 	}
 
-	if (channelisation < 1 || ( channelisation > 1 && channelisation % 2) != 0) {
+	if (channelisation < 1 || (channelisation > 1 && channelisation % 2) != 0) {
 		fprintf(stderr, "ERROR: Invalid channelisation factor (less than 1, non-factor of 2)\n");
 		helpMessages();
 		CLICleanup(config, outConfig, intermediateX, intermediateY, in1, in2, chirpData, NULL);
@@ -873,7 +883,7 @@ int main(int argc, char *argv[]) {
 	// Channelisation setup
 	const int32_t mbin = nbin / channelisation;
 	const int32_t nsub = reader->meta->totalProcBeamlets;
-	const int32_t nchan = reader->meta->totalProcBeamlets * channelisation;
+	const int32_t nchan = nsub * channelisation;
 
 	const int32_t nfft = (int32_t) ((reader->packetsPerIteration * UDPNTIMESLICE) / nbin_valid);
 
@@ -905,11 +915,11 @@ int main(int argc, char *argv[]) {
 			return -1;
 		}
 
-		fftForwardX = fftwf_plan_many_dft(1, &nbin, nsub * nfft, in1, &nbin, 1, nbin, intermediateX, &nbin, 1, nbin, FFTW_FORWARD, FFTW_ESTIMATE_PATIENT | FFTW_ALLOW_LARGE_GENERIC | FFTW_DESTROY_INPUT);
-		fftForwardY = fftwf_plan_many_dft(1, &nbin, nsub * nfft, in2, &nbin, 1, nbin, intermediateY, &nbin, 1, nbin, FFTW_FORWARD, FFTW_ESTIMATE_PATIENT | FFTW_ALLOW_LARGE_GENERIC | FFTW_DESTROY_INPUT);
+		fftForwardX = fftwf_plan_many_dft(1, &nbin, nsub * nfft, in1, NULL, 1, nbin, intermediateX, NULL, 1, nbin, FFTW_FORWARD, FFTW_ESTIMATE_PATIENT | FFTW_ALLOW_LARGE_GENERIC | FFTW_DESTROY_INPUT);
+		fftForwardY = fftwf_plan_many_dft(1, &nbin, nsub * nfft, in2, NULL, 1, nbin, intermediateY, NULL, 1, nbin, FFTW_FORWARD, FFTW_ESTIMATE_PATIENT | FFTW_ALLOW_LARGE_GENERIC | FFTW_DESTROY_INPUT);
 
-		fftBackwardX = fftwf_plan_many_dft(1, &mbin, nchan * nfft, intermediateX, &mbin, 1, mbin, in1, &mbin, 1, mbin, FFTW_BACKWARD, FFTW_ESTIMATE_PATIENT | FFTW_ALLOW_LARGE_GENERIC | FFTW_DESTROY_INPUT);
-		fftBackwardY = fftwf_plan_many_dft(1, &mbin, nchan * nfft, intermediateY, &mbin, 1, mbin, in2, &mbin, 1, mbin, FFTW_BACKWARD, FFTW_ESTIMATE_PATIENT | FFTW_ALLOW_LARGE_GENERIC | FFTW_DESTROY_INPUT);
+		fftBackwardX = fftwf_plan_many_dft(1, &mbin, nchan * nfft, intermediateX, NULL, 1, mbin, in1, NULL, 1, mbin, FFTW_BACKWARD, FFTW_ESTIMATE_PATIENT | FFTW_ALLOW_LARGE_GENERIC | FFTW_DESTROY_INPUT);
+		fftBackwardY = fftwf_plan_many_dft(1, &mbin, nchan * nfft, intermediateY, NULL, 1, mbin, in2, NULL, 1, mbin, FFTW_BACKWARD, FFTW_ESTIMATE_PATIENT | FFTW_ALLOW_LARGE_GENERIC | FFTW_DESTROY_INPUT);
 
 		//static void windowGenerator(fftwf_complex *const chirpFunc, float coherentDM, float fbottom, float subbandbw, int32_t mbin, int32_t nsub, int32_t chanFac)
 		if (windowGenerator(chirpData, coherentDM, reader->metadata->ftop_raw, reader->metadata->subband_bw, mbin, nsub, channelisation, window)) {
@@ -1005,7 +1015,7 @@ int main(int argc, char *argv[]) {
 			fftwf_execute(fftForwardX);
 			fftwf_execute(fftForwardY);
 			reorderData(intermediateX, intermediateY, nbin, nsub * nfft);
-			windowData(intermediateX, intermediateY, chirpData, nbin * nsub, nfft);
+			windowData(intermediateX, intermediateY, chirpData, mbin, nsub, channelisation, nfft);
 			reorderData(intermediateX, intermediateY, mbin, nchan * nfft);
 			fftwf_execute(fftBackwardX);
 			fftwf_execute(fftBackwardY);
@@ -1029,7 +1039,7 @@ int main(int argc, char *argv[]) {
 		VERBOSE(printf("Begin downsampling\n"));
 		if (downsampling > 1 && !spectralDownsample) {
 			CLICK(tickDown);
-			size_t samples = reader->meta->packetsPerIteration * UDPNTIMESLICE / channelisation;
+			int64_t samples = reader->meta->packetsPerIteration * UDPNTIMESLICE / channelisation;
 			temporalDownsample(outputStokes, numStokes, samples, nchan * correlateScale, downsampling);
 			CLICK(tockDown);
 			timing[6] = TICKTOCK(tickDown, tockDown);
@@ -1054,7 +1064,7 @@ int main(int argc, char *argv[]) {
 			}
 
 			CLICK(tick0);
-			size_t outputLength = ((packetsToWrite * correlateScale *  UDPNTIMESLICE * reader->meta->totalProcBeamlets / downsampling) - floatWriteOffset) * sizeof(float);
+			size_t outputLength = ((nbin_valid * nfft * correlateScale * nsub / downsampling) - floatWriteOffset) * sizeof(float);
 			VERBOSE(printf("Writing %ld bytes (%ld packets, offset %ld) to disk for output %d...\n",
 			               outputLength, packetsToWrite, sizeof(float) * floatWriteOffset, out));
 			size_t outputWritten;

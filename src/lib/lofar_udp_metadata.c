@@ -717,7 +717,7 @@ int32_t _lofar_udp_metadata_parse_reader(lofar_udp_metadata *const metadata, con
 				if (warning != dataIncreasing) {
 					fprintf(stderr,
 					        "WARNING %s: Input metadata is not monotonically increasing or decreasing (as comparing beamlets (%hd and %hd). Metadata result may be incorrect.\n",
-					        __func__, beamlet, ((int16_t) beamlet - 1));
+					        __func__, beamlet, (int16_t) (beamlet - 1));
 					warning = 0;
 				} else {
 					warning = 1;
