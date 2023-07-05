@@ -943,7 +943,6 @@ int main(int argc, char *argv[]) {
 		fftBackwardX = fftwf_plan_many_dft(1, &mbin, nchan * nfft, intermediateX, NULL, 1, mbin, in1, NULL, 1, mbin, FFTW_BACKWARD, FFTW_ESTIMATE_PATIENT | FFTW_ALLOW_LARGE_GENERIC | FFTW_DESTROY_INPUT);
 		fftBackwardY = fftwf_plan_many_dft(1, &mbin, nchan * nfft, intermediateY, NULL, 1, mbin, in2, NULL, 1, mbin, FFTW_BACKWARD, FFTW_ESTIMATE_PATIENT | FFTW_ALLOW_LARGE_GENERIC | FFTW_DESTROY_INPUT);
 
-		//static void windowGenerator(fftwf_complex *const chirpFunc, float coherentDM, float fbottom, float subbandbw, int32_t mbin, int32_t nsub, int32_t chanFac)
 		if (windowGenerator(chirpData, coherentDM, reader->metadata->ftop_raw, reader->metadata->subband_bw, mbin, nsub, channelisation, window)) {
 			fprintf(stderr, "ERROR: Failed to generate window, exiting.\n");
 			CLICleanup(config, outConfig, intermediateX, intermediateY, in1, in2, chirpData, NULL);
@@ -1021,6 +1020,10 @@ int main(int argc, char *argv[]) {
 
 		// Write out the desired amount of packets; cap if needed.
 		packetsToWrite = reader->meta->packetsPerIteration;
+		if (packetsToWrite != config->packetsPerIteration) {
+			fprintf(stderr, "ERROR: Failed to get requested number of packets (requested %ld, got %ld, exiting.\n", config->packetsPerIteration, packetsToWrite);
+			break;
+		}
 		if (splitEvery == LONG_MAX && maxPackets < packetsToWrite) {
 			packetsToWrite = maxPackets;
 		}
@@ -1052,8 +1055,7 @@ int main(int argc, char *argv[]) {
 			overlapAndPad(inFFTArrs, (const int8_t **) reader->meta->outputData, beamletJones, reader->meta->packetsPerIteration * UDPNTIMESLICE, 0, nsub, 1);
 			transposeDetect(in1, in2, outputStokes, reader->meta->packetsPerIteration * UDPNTIMESLICE, 0, 1, 1, nsub, 1, stokesParameters);
 		}
-		//ARR_INIT(((float *) intermediateX), (int64_t) nbin * nsub * nfft * 2,0.0f);
-		//ARR_INIT(((float *) intermediateY), (int64_t) nbin * nsub * nfft * 2,0.0f);
+
 		CLICK(tockDetect);
 		timing[5] = TICKTOCK(tickDetect, tockDetect);
 		totalDetectTime += timing[5];
