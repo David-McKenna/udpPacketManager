@@ -99,6 +99,10 @@ int32_t lofar_udp_metadata_setup(lofar_udp_metadata *const metadata, const lofar
 		return -1;
 	}
 
+	return _lofar_udp_metadata_setup_types(metadata);
+}
+
+int32_t _lofar_udp_metadata_setup_types(lofar_udp_metadata *const metadata) {
 	// If the output format isn't PSRDADA or HDF5, setup the target struct
 	const processMode_t guppiMode = TIME_MAJOR_FULL;
 	const processMode_t stokesMin = STOKES_I;

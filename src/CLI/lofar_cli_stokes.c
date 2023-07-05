@@ -880,6 +880,28 @@ int main(int argc, char *argv[]) {
 		return 1;
 	}
 
+	// Override nbit to 32
+	reader->metadata->nbit = -32;
+
+	// Override nifs for correlations output
+	if (correlateScale == UDPNPOL) {
+		reader->metadata->npol = 2;
+		reader->metadata->ndim = 2;
+	} else {
+		reader->metadata->npol = 1;
+		reader->metadata->ndim = 1;
+	}
+
+	if (config->calibrateData == GENERATE_JONES) {
+		reader->metadata->upm_calibrated = APPLY_CALIBRATION;
+	}
+
+	if (_lofar_udp_metadata_setup_types(reader->metadata)) {
+		fprintf(stderr, "ERROR: Failed to update metadata struct, exiting.\n");
+		CLICleanup(config, outConfig, intermediateX, intermediateY, in1, in2, chirpData, NULL);
+		return 1;
+	}
+
 	// Channelisation setup
 	const int32_t mbin = nbin / channelisation;
 	const int32_t nsub = reader->meta->totalProcBeamlets;
