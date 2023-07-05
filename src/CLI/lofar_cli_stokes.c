@@ -277,7 +277,7 @@ static void reorderData(fftwf_complex *const x, fftwf_complex *const y, const in
 	for (int32_t i = 0; i < npol; i++) {
 		fftwf_complex *const workingPtr = data[i];
 
-		#pragma omp parallel for default(shared) shared(workingPtr)
+		#pragma omp parallel for default(shared)
 		for (int32_t channel = 0; channel < channels; channel++) {
 			fftwf_complex tmp;
 
@@ -313,7 +313,7 @@ transposeDetect(fftwf_complex (*X), fftwf_complex (*Y), float **outputs, const i
 	const size_t outputMbin = mbin - 2 * noverlap;
 	const int64_t correlateScale = (stokesFlags & CORRLTE) ? UDPNPOL : 1;
 
-#pragma omp parallel for default(shared)
+	#pragma omp parallel for default(shared)
 	for (int32_t sub = 0; sub < nsub; sub++) {
 
 		for (int32_t fft = 0; fft < nfft; fft++) {
