@@ -4,7 +4,7 @@ cmake_minimum_required(VERSION 3.14...3.19)
 # Create a release output by default
 set(default_build_type "Release")
 
-set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_C_STANDARD 11)
 
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
