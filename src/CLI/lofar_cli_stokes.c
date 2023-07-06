@@ -934,20 +934,24 @@ int main(int argc, char *argv[]) {
 	if (channelisation > 1) {
 		fftw->intermediateX = fftwf_alloc_complex(nbin * nsub * nfft);
 		fftw->intermediateY = fftwf_alloc_complex(nbin * nsub * nfft);
-
 		fftw->chirpData = fftwf_alloc_complex(nbin * nsub * nfft);
 
 		if (fftw->intermediateX == NULL || fftw->intermediateY == NULL || fftw->chirpData == NULL) {
 			fprintf(stderr, "ERROR: Failed to allocate output FFTW buffers, exiting.\n");
 			CLICleanup(config, outConfig, fftw, NULL);
-			return -1;
+			return 1;
 		}
 
 		fftw->fftForwardX = fftwf_plan_many_dft(1, &nbin, nsub * nfft, fftw->in1, NULL, 1, nbin, fftw->intermediateX, NULL, 1, nbin, FFTW_FORWARD, FFTW_ESTIMATE_PATIENT | FFTW_ALLOW_LARGE_GENERIC | FFTW_DESTROY_INPUT);
 		fftw->fftForwardY = fftwf_plan_many_dft(1, &nbin, nsub * nfft, fftw->in2, NULL, 1, nbin, fftw->intermediateY, NULL, 1, nbin, FFTW_FORWARD, FFTW_ESTIMATE_PATIENT | FFTW_ALLOW_LARGE_GENERIC | FFTW_DESTROY_INPUT);
-
 		fftw->fftBackwardX = fftwf_plan_many_dft(1, &mbin, nchan * nfft, fftw->intermediateX, NULL, 1, mbin, fftw->in1, NULL, 1, mbin, FFTW_BACKWARD, FFTW_ESTIMATE_PATIENT | FFTW_ALLOW_LARGE_GENERIC | FFTW_DESTROY_INPUT);
 		fftw->fftBackwardY = fftwf_plan_many_dft(1, &mbin, nchan * nfft, fftw->intermediateY, NULL, 1, mbin, fftw->in2, NULL, 1, mbin, FFTW_BACKWARD, FFTW_ESTIMATE_PATIENT | FFTW_ALLOW_LARGE_GENERIC | FFTW_DESTROY_INPUT);
+
+		if (fftw->fftForwardX == NULL || fftw->fftForwardY == NULL || fftw->fftBackwardX == NULL || fftw->fftBackwardY) {
+			fprintf(stderr, "ERROR: Failed to generate FFTW  plans, exiting.\n");
+			CLICleanup(config, outConfig, fftw, NULL);
+			return 1;
+		}
 
 		if (windowGenerator(fftw->chirpData, coherentDM, reader->metadata->ftop_raw, reader->metadata->subband_bw, mbin, nsub, channelisation, window)) {
 			fprintf(stderr, "ERROR: Failed to generate window, exiting.\n");
@@ -962,6 +966,9 @@ int main(int argc, char *argv[]) {
 	size_t outputFloats = reader->packetsPerIteration * correlateScale * UDPNTIMESLICE * reader->meta->totalProcBeamlets / (spectralDownsample ?: 1);
 	for (int8_t i = 0; i < numStokes; i++) {
 		outputStokes[i] = calloc(outputFloats, sizeof(float));
+		CHECK_ALLOC(outputStokes[i], 1,
+		            fprintf(stderr, "ERROR: Failed to allocate input FFTW buffers, exiting.\n");
+					CLICleanup(config, outConfig, fftw, outputStokes););
 	}
 
 	if (silent == 0) {
