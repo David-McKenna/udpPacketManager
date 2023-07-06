@@ -30,7 +30,19 @@ typedef enum window_t {
 
 } window_t;
 
-void helpMessages() {
+struct fftwVars {
+	fftwf_complex *intermediateX;
+	fftwf_complex *intermediateY;
+	fftwf_complex *in1;
+	fftwf_complex *in2;
+	fftwf_complex *chirpData;
+	fftwf_plan fftForwardX;
+	fftwf_plan fftForwardY;
+	fftwf_plan fftBackwardX;
+	fftwf_plan fftBackwardY;
+};
+
+void helpMessages(void) {
 	printf("LOFAR Stokes extractor (CLI v%s, lib v%s)\n\n", UPM_CLI_VERSION, UPM_VERSION);
 	printf("Usage: lofar_cli_stokes <flags>");
 
@@ -50,27 +62,28 @@ void helpMessages() {
 }
 
 static void
-CLICleanup(lofar_udp_config *config, lofar_udp_io_write_config *outConfig, fftwf_complex (*X), fftwf_complex (*Y), fftwf_complex (*in1), fftwf_complex (*in2),
-           fftwf_complex (*chirpData), float **outputStokes) {
+CLICleanup(lofar_udp_config *config, lofar_udp_io_write_config *outConfig, float **outputStokes, struct fftwVars *fftw) {
 
 	FREE_NOT_NULL(outConfig);
 	FREE_NOT_NULL(config);
 
 
-	if (X != NULL) {
-		fftwf_free(X);
-	}
-	if (Y != NULL) {
-		fftwf_free(Y);
-	}
-	if (in1 != NULL) {
-		fftwf_free(in1);
-	}
-	if (in2 != NULL) {
-		fftwf_free(in2);
-	}
-	if (chirpData != NULL) {
-		fftwf_free(chirpData);
+	if (fftw != NULL) {
+		ARB_FREE_NOT_NULL(fftw->intermediateX, fftwf_free);
+		ARB_FREE_NOT_NULL(fftw->intermediateY, fftwf_free);
+		ARB_FREE_NOT_NULL(fftw->in1, fftwf_free);
+		ARB_FREE_NOT_NULL(fftw->in2, fftwf_free);
+		ARB_FREE_NOT_NULL(fftw->chirpData, fftwf_free);
+
+		ARB_FREE_NOT_NULL(fftw->fftForwardX, fftwf_destroy_plan);
+		ARB_FREE_NOT_NULL(fftw->fftForwardY, fftwf_destroy_plan);
+		ARB_FREE_NOT_NULL(fftw->fftBackwardX, fftwf_destroy_plan);
+		ARB_FREE_NOT_NULL(fftw->fftBackwardY, fftwf_destroy_plan);
+
+		fftwf_cleanup_threads();
+		fftwf_cleanup();
+
+		free(fftw);
 	}
 
 	if (outputStokes != NULL) {
@@ -461,17 +474,10 @@ int main(int argc, char *argv[]) {
 	char *endPtr;
 	int8_t flagged = 0;
 
+	struct fftwVars *fftw = calloc(sizeof(struct fftwVars), 1);
+
 	// FFTW strategy
 	int32_t channelisation = 1, downsampling = 1, spectralDownsample = 0, nfactor = 8, nforward = 512;
-	fftwf_complex *intermediateX = NULL;
-	fftwf_complex *intermediateY = NULL;
-	fftwf_complex * in1 = NULL;
-	fftwf_complex * in2 = NULL;
-	fftwf_complex * chirpData = NULL;
-	fftwf_plan fftForwardX;
-	fftwf_plan fftForwardY;
-	fftwf_plan fftBackwardX;
-	fftwf_plan fftBackwardY;
 	int8_t stokesParameters = 0, numStokes = 0;
 
 	// Standard ugly input flags parser
@@ -482,7 +488,7 @@ int main(int argc, char *argv[]) {
 			case 'i':
 				if (strncpy(inputFormat, optarg, DEF_STR_LEN - 1) != inputFormat) {
 					fprintf(stderr, "ERROR: Failed to store input data file format, exiting.\n");
-					CLICleanup(config, outConfig, intermediateX, intermediateY, in1, in2, chirpData, NULL);
+					CLICleanup(config, outConfig, NULL, fftw);
 					return 1;
 				}
 				inputProvided = 1;
@@ -492,7 +498,7 @@ int main(int argc, char *argv[]) {
 			case 'o':
 				if (lofar_udp_io_write_parse_optarg(outConfig, optarg) < 0) {
 					helpMessages();
-					CLICleanup(config, outConfig, intermediateX, intermediateY, in1, in2, chirpData, NULL);
+					CLICleanup(config, outConfig, NULL, fftw);
 					return 1;
 				}
 				if (config->metadata_config.metadataType == NO_META) config->metadata_config.metadataType = lofar_udp_metadata_parse_type_output(optarg);
@@ -506,7 +512,7 @@ int main(int argc, char *argv[]) {
 			case 'I':
 				if (strncpy(config->metadata_config.metadataLocation, optarg, DEF_STR_LEN) != config->metadata_config.metadataLocation) {
 					fprintf(stderr, "ERROR: Failed to copy metadata file location to config, exiting.\n");
-					CLICleanup(config, outConfig, intermediateX, intermediateY, in1, in2, chirpData, NULL);
+					CLICleanup(config, outConfig, NULL, fftw);
 					return 1;
 				}
 				break;
@@ -519,7 +525,7 @@ int main(int argc, char *argv[]) {
 			case 't':
 				if (strncpy(inputTime, optarg, 255) != inputTime) {
 					fprintf(stderr, "ERROR: Failed to copy start time from input, exiting.\n");
-					CLICleanup(config, outConfig, intermediateX, intermediateY, in1, in2, chirpData, NULL);
+					CLICleanup(config, outConfig, NULL, fftw);
 					return 1;
 				}
 				break;
@@ -537,7 +543,7 @@ int main(int argc, char *argv[]) {
 			case 'b':
 				if (sscanf(optarg, "%hd,%hd", &(config->beamletLimits[0]), &(config->beamletLimits[1])) < 0) {
 					fprintf(stderr, "ERROR: Failed to scan input beamlets, exiting.\n");
-					CLICleanup(config, outConfig, intermediateX, intermediateY, in1, in2, chirpData, NULL);
+					CLICleanup(config, outConfig, NULL, fftw);
 					return 1;
 				}
 				break;
@@ -586,7 +592,7 @@ int main(int argc, char *argv[]) {
 				if (checkOpt(inputOpt, optarg, endPtr)) { flagged = 1; }
 				if (!flagged && nfactor < 6) {
 					fprintf(stderr, "ERROR: nfactor must be at least 6 due to FFT overlaps. Exiting.\n");
-					CLICleanup(config, outConfig, intermediateX, intermediateY, in1, in2, chirpData, NULL);
+					CLICleanup(config, outConfig, NULL, fftw);
 					return 1;
 				}
 				break;
@@ -609,7 +615,7 @@ int main(int argc, char *argv[]) {
 			case 'P':
 				if (numStokes > 0) {
 					fprintf(stderr, "ERROR: -P flag has been parsed more than once. Exiting.\n");
-					CLICleanup(config, outConfig, intermediateX, intermediateY, in1, in2, chirpData, NULL);
+					CLICleanup(config, outConfig, NULL, fftw);
 					return -1;
 				}
 				if (strchr(optarg, 'A') != NULL) {
@@ -658,7 +664,7 @@ int main(int argc, char *argv[]) {
 #pragma GCC diagnostic pop
 
 				helpMessages();
-				CLICleanup(config, outConfig, intermediateX, intermediateY, in1, in2, chirpData, NULL);
+				CLICleanup(config, outConfig, NULL, fftw);
 				return 1;
 
 		}
@@ -686,21 +692,21 @@ int main(int argc, char *argv[]) {
 	config->processingMode = TIME_MAJOR_ANT_POL;
 
 	if (flagged) {
-		CLICleanup(config, outConfig, intermediateX, intermediateY, in1, in2, chirpData, NULL);
+		CLICleanup(config, outConfig, NULL, fftw);
 		return 1;
 	}
 
 	if (!input) {
 		fprintf(stderr, "ERROR: No inputs provided, exiting.\n");
 		helpMessages();
-		CLICleanup(config, outConfig, intermediateX, intermediateY, in1, in2, chirpData, NULL);
+		CLICleanup(config, outConfig, NULL, fftw);
 		return 1;
 	}
 
 	if (!inputProvided) {
 		fprintf(stderr, "ERROR: An input was not provided, exiting.\n");
 		helpMessages();
-		CLICleanup(config, outConfig, intermediateX, intermediateY, in1, in2, chirpData, NULL);
+		CLICleanup(config, outConfig, NULL, fftw);
 		return 1;
 	}
 
@@ -741,7 +747,7 @@ int main(int argc, char *argv[]) {
 			        "ERROR: Number of samples needed per iterations for channelisation factor %d and downsampling factor %d (%d) is not a multiple of number of the set number of timesamples/packets per iteration (%ld), exiting.\n",
 			        channelisation, downsampling, nbin_valid, UDPNTIMESLICE * config->packetsPerIteration);
 			helpMessages();
-			CLICleanup(config, outConfig, intermediateX, intermediateY, in1, in2, chirpData, NULL);
+			CLICleanup(config, outConfig, NULL, fftw);
 			return 1;
 		}
 	}
@@ -749,32 +755,32 @@ int main(int argc, char *argv[]) {
 	if (channelisation < 1 || (channelisation > 1 && channelisation % 2) != 0) {
 		fprintf(stderr, "ERROR: Invalid channelisation factor (less than 1, non-factor of 2)\n");
 		helpMessages();
-		CLICleanup(config, outConfig, intermediateX, intermediateY, in1, in2, chirpData, NULL);
+		CLICleanup(config, outConfig, NULL, fftw);
 		return 1;
 	}
 
 	if (downsampling < 1) {
 		fprintf(stderr, "ERROR: Invalid downsampling factor (less than 1)\n");
 		helpMessages();
-		CLICleanup(config, outConfig, intermediateX, intermediateY, in1, in2, chirpData, NULL);
+		CLICleanup(config, outConfig, NULL, fftw);
 		return 1;
 	}
 
 	if (lofar_udp_io_read_parse_optarg(config, inputFormat) < 0) {
 		helpMessages();
-		CLICleanup(config, outConfig, intermediateX, intermediateY, in1, in2, chirpData, NULL);
+		CLICleanup(config, outConfig, NULL, fftw);
 		return 1;
 	}
 
 	if (!outputProvided) {
 		fprintf(stderr, "ERROR: An output was not provided, exiting.\n");
-		CLICleanup(config, outConfig, intermediateX, intermediateY, in1, in2, chirpData, NULL);
+		CLICleanup(config, outConfig, NULL, fftw);
 		return 1;
 	}
 
 	if (config->calibrateData != NO_CALIBRATION && strcmp(config->metadata_config.metadataLocation, "") == 0) {
 		fprintf(stderr, "ERROR: Data calibration was enabled, but metadata was not provided. Exiting.\n");
-		CLICleanup(config, outConfig, intermediateX, intermediateY, in1, in2, chirpData, NULL);
+		CLICleanup(config, outConfig, NULL, fftw);
 		return 1;
 	}
 
@@ -790,7 +796,7 @@ int main(int argc, char *argv[]) {
 
 		fprintf(stderr, "One or more inputs invalid or not fully initialised, exiting.\n");
 		helpMessages();
-		CLICleanup(config, outConfig, intermediateX, intermediateY, in1, in2, chirpData, NULL);
+		CLICleanup(config, outConfig, NULL, fftw);
 		return 1;
 	}
 
@@ -813,7 +819,7 @@ int main(int argc, char *argv[]) {
 		startingPacket = lofar_udp_time_get_packet_from_isot(inputTime, clock200MHz);
 		if (startingPacket == 1) {
 			helpMessages();
-			CLICleanup(config, outConfig, intermediateX, intermediateY, in1, in2, chirpData, NULL);
+			CLICleanup(config, outConfig, NULL, fftw);
 			return 1;
 		}
 	}
@@ -862,7 +868,7 @@ int main(int argc, char *argv[]) {
 	// Returns null on error, check
 	if (reader == NULL) {
 		fprintf(stderr, "Failed to generate reader. Exiting.\n");
-		CLICleanup(config, outConfig, intermediateX, intermediateY, in1, in2, chirpData, NULL);
+		CLICleanup(config, outConfig, NULL, fftw);
 		return 1;
 	}
 
@@ -870,13 +876,13 @@ int main(int argc, char *argv[]) {
 	if (((lofar_source_bytes *) &(reader->meta->inputData[0][1]))->clockBit != (unsigned int) clock200MHz) {
 		fprintf(stderr,
 		        "ERROR: The clock bit of the first packet does not match the clock state given when starting the CLI. Add or remove -c from your command. Exiting.\n");
-		CLICleanup(config, outConfig, intermediateX, intermediateY, in1, in2, chirpData, NULL);
+		CLICleanup(config, outConfig, NULL, fftw);
 		return 1;
 	}
 
 	if (reader->packetsPerIteration * UDPNTIMESLICE > INT32_MAX) {
 		fprintf(stderr, "ERROR: Input FFT bins are too long (%ld vs %d), exiting.\n", reader->packetsPerIteration * UDPNTIMESLICE, INT32_MAX);
-		CLICleanup(config, outConfig, intermediateX, intermediateY, in1, in2, chirpData, NULL);
+		CLICleanup(config, outConfig, NULL, fftw);
 		return 1;
 	}
 
@@ -898,7 +904,7 @@ int main(int argc, char *argv[]) {
 
 	if (_lofar_udp_metadata_setup_types(reader->metadata)) {
 		fprintf(stderr, "ERROR: Failed to update metadata struct, exiting.\n");
-		CLICleanup(config, outConfig, intermediateX, intermediateY, in1, in2, chirpData, NULL);
+		CLICleanup(config, outConfig, NULL, fftw);
 		return 1;
 	}
 
@@ -913,39 +919,39 @@ int main(int argc, char *argv[]) {
 	//int32_t nfft = 1;
 	//printf("%d, %d, %d, %d\n", nbin, mbin, nsub, nchan);
 
-	in1 = fftwf_alloc_complex(nbin * nsub * nfft);
-	in2 = fftwf_alloc_complex(nbin * nsub * nfft);
+	fftw->in1 = fftwf_alloc_complex(nbin * nsub * nfft);
+	fftw->in2 = fftwf_alloc_complex(nbin * nsub * nfft);
 
-	fftwf_complex *inFFTArrs[2] = { in1, in2 };
+	fftwf_complex *inFFTArrs[2] = { fftw->in1, fftw->in2 };
 
-	if (in1 == NULL || in2 == NULL) {
+	if (fftw->in1 == NULL || fftw->in2 == NULL) {
 		fprintf(stderr, "ERROR: Failed to allocate input FFTW buffers, exiting.\n");
-		CLICleanup(config, outConfig, intermediateX, intermediateY, in1, in2, chirpData, NULL);
+		CLICleanup(config, outConfig, NULL, fftw);
 		return -1;
 	}
 
 
 	if (channelisation > 1) {
-		intermediateX = fftwf_alloc_complex(nbin * nsub * nfft);
-		intermediateY = fftwf_alloc_complex(nbin * nsub * nfft);
+		fftw->intermediateX = fftwf_alloc_complex(nbin * nsub * nfft);
+		fftw->intermediateY = fftwf_alloc_complex(nbin * nsub * nfft);
 
-		chirpData = fftwf_alloc_complex(nbin * nsub * nfft);
+		fftw->chirpData = fftwf_alloc_complex(nbin * nsub * nfft);
 
-		if (intermediateX == NULL || intermediateY == NULL || chirpData == NULL) {
+		if (fftw->intermediateX == NULL || fftw->intermediateY == NULL || fftw->chirpData == NULL) {
 			fprintf(stderr, "ERROR: Failed to allocate output FFTW buffers, exiting.\n");
-			CLICleanup(config, outConfig, intermediateX, intermediateY, in1, in2, chirpData, NULL);
+			CLICleanup(config, outConfig, NULL, fftw);
 			return -1;
 		}
 
-		fftForwardX = fftwf_plan_many_dft(1, &nbin, nsub * nfft, in1, NULL, 1, nbin, intermediateX, NULL, 1, nbin, FFTW_FORWARD, FFTW_ESTIMATE_PATIENT | FFTW_ALLOW_LARGE_GENERIC | FFTW_DESTROY_INPUT);
-		fftForwardY = fftwf_plan_many_dft(1, &nbin, nsub * nfft, in2, NULL, 1, nbin, intermediateY, NULL, 1, nbin, FFTW_FORWARD, FFTW_ESTIMATE_PATIENT | FFTW_ALLOW_LARGE_GENERIC | FFTW_DESTROY_INPUT);
+		fftw->fftForwardX = fftwf_plan_many_dft(1, &nbin, nsub * nfft, fftw->in1, NULL, 1, nbin, fftw->intermediateX, NULL, 1, nbin, FFTW_FORWARD, FFTW_ESTIMATE_PATIENT | FFTW_ALLOW_LARGE_GENERIC | FFTW_DESTROY_INPUT);
+		fftw->fftForwardY = fftwf_plan_many_dft(1, &nbin, nsub * nfft, fftw->in2, NULL, 1, nbin, fftw->intermediateY, NULL, 1, nbin, FFTW_FORWARD, FFTW_ESTIMATE_PATIENT | FFTW_ALLOW_LARGE_GENERIC | FFTW_DESTROY_INPUT);
 
-		fftBackwardX = fftwf_plan_many_dft(1, &mbin, nchan * nfft, intermediateX, NULL, 1, mbin, in1, NULL, 1, mbin, FFTW_BACKWARD, FFTW_ESTIMATE_PATIENT | FFTW_ALLOW_LARGE_GENERIC | FFTW_DESTROY_INPUT);
-		fftBackwardY = fftwf_plan_many_dft(1, &mbin, nchan * nfft, intermediateY, NULL, 1, mbin, in2, NULL, 1, mbin, FFTW_BACKWARD, FFTW_ESTIMATE_PATIENT | FFTW_ALLOW_LARGE_GENERIC | FFTW_DESTROY_INPUT);
+		fftw->fftBackwardX = fftwf_plan_many_dft(1, &mbin, nchan * nfft, fftw->intermediateX, NULL, 1, mbin, fftw->in1, NULL, 1, mbin, FFTW_BACKWARD, FFTW_ESTIMATE_PATIENT | FFTW_ALLOW_LARGE_GENERIC | FFTW_DESTROY_INPUT);
+		fftw->fftBackwardY = fftwf_plan_many_dft(1, &mbin, nchan * nfft, fftw->intermediateY, NULL, 1, mbin, fftw->in2, NULL, 1, mbin, FFTW_BACKWARD, FFTW_ESTIMATE_PATIENT | FFTW_ALLOW_LARGE_GENERIC | FFTW_DESTROY_INPUT);
 
-		if (windowGenerator(chirpData, coherentDM, reader->metadata->ftop_raw, reader->metadata->subband_bw, mbin, nsub, channelisation, window)) {
+		if (windowGenerator(fftw->chirpData, coherentDM, reader->metadata->ftop_raw, reader->metadata->subband_bw, mbin, nsub, channelisation, window)) {
 			fprintf(stderr, "ERROR: Failed to generate window, exiting.\n");
-			CLICleanup(config, outConfig, intermediateX, intermediateY, in1, in2, chirpData, NULL);
+			CLICleanup(config, outConfig, NULL, fftw);
 			return 1;
 		}
 	}
@@ -992,7 +998,7 @@ int main(int argc, char *argv[]) {
 	if ((returnVal = lofar_udp_io_write_setup_helper(outConfig, expectedWriteSize, numStokes, 0, startingPacket)) < 0) {
 		fprintf(stderr, "ERROR: Failed to open an output file (%ld, errno %d: %s), breaking.\n", returnVal, errno, strerror(errno));
 		returnValMeta = (returnValMeta < 0 && returnValMeta > -7) ? returnValMeta : -7;
-		CLICleanup(config, outConfig, intermediateX, intermediateY, in1, in2, chirpData, outputStokes);
+		CLICleanup(config, outConfig, outputStokes, fftw);
 		return 1;
 	}
 
@@ -1037,23 +1043,23 @@ int main(int argc, char *argv[]) {
 				padNextIteration(inFFTArrs, (const int8_t **) reader->meta->outputData, beamletJones, nbin, noverlap, nsub, -1 * nfft);
 			}
 			overlapAndPad(inFFTArrs, (const int8_t **) reader->meta->outputData, beamletJones, nbin, noverlap, nsub, nfft);
-			fftwf_execute(fftForwardX);
-			fftwf_execute(fftForwardY);
-			reorderData(intermediateX, intermediateY, nbin, nsub * nfft);
-			windowData(intermediateX, intermediateY, chirpData, mbin, nsub, channelisation, nfft);
-			reorderData(intermediateX, intermediateY, mbin, nchan * nfft);
-			fftwf_execute(fftBackwardX);
-			fftwf_execute(fftBackwardY);
+			fftwf_execute(fftw->fftForwardX);
+			fftwf_execute(fftw->fftForwardY);
+			reorderData(fftw->intermediateX, fftw->intermediateY, nbin, nsub * nfft);
+			windowData(fftw->intermediateX, fftw->intermediateY, fftw->chirpData, mbin, nsub, channelisation, nfft);
+			reorderData(fftw->intermediateX, fftw->intermediateY, mbin, nchan * nfft);
+			fftwf_execute(fftw->fftBackwardX);
+			fftwf_execute(fftw->fftBackwardY);
 			CLICK(tockChan);
 			timing[4] = TICKTOCK(tickChan, tockChan);
 			totalChanTime += timing[4];
 			CLICK(tickDetect);
-			transposeDetect(in1, in2, outputStokes, mbin, noverlap, nfft, channelisation, nsub, spectralDownsample, stokesParameters);
+			transposeDetect(fftw->in1, fftw->in2, outputStokes, mbin, noverlap, nfft, channelisation, nsub, spectralDownsample, stokesParameters);
 			padNextIteration(inFFTArrs, (const int8_t **) reader->meta->outputData, beamletJones, nbin, noverlap, nsub, nfft);
 		} else {
 			CLICK(tickDetect);
 			overlapAndPad(inFFTArrs, (const int8_t **) reader->meta->outputData, beamletJones, reader->meta->packetsPerIteration * UDPNTIMESLICE, 0, nsub, 1);
-			transposeDetect(in1, in2, outputStokes, reader->meta->packetsPerIteration * UDPNTIMESLICE, 0, 1, 1, nsub, 1, stokesParameters);
+			transposeDetect(fftw->in1, fftw->in2, outputStokes, reader->meta->packetsPerIteration * UDPNTIMESLICE, 0, 1, 1, nsub, 1, stokesParameters);
 		}
 
 		CLICK(tockDetect);
@@ -1168,13 +1174,6 @@ int main(int argc, char *argv[]) {
 
 	}
 
-	fftwf_destroy_plan(fftForwardX);
-	fftwf_destroy_plan(fftForwardY);
-	fftwf_destroy_plan(fftBackwardX);
-	fftwf_destroy_plan(fftBackwardY);
-	fftwf_cleanup_threads();
-	fftwf_cleanup();
-
 	CLICK(tock);
 
 	int64_t droppedPackets = 0, totalPacketLength = 0, totalOutLength = 0;
@@ -1210,15 +1209,14 @@ int main(int argc, char *argv[]) {
 
 
 	// Clean-up the reader object, also closes the input files for us
-	lofar_udp_reader_cleanup(reader);
+	ARB_FREE_NOT_NULL(reader, lofar_udp_reader_cleanup);
 	if (silent == 0) { printf("Reader cleanup performed successfully.\n"); }
 
 	// Cleanup the writer object, close any outputs
-	lofar_udp_io_write_cleanup(outConfig, 1);
-	outConfig = NULL;
+	ARB_FREE_NOT_NULL(outConfig, lofar_udp_io_write_cleanup, 1);
 
 	// Free our malloc'd objects
-	CLICleanup(config, outConfig, intermediateX, intermediateY, in1, in2, chirpData, outputStokes);
+	CLICleanup(config, outConfig, outputStokes, fftw);
 
 	if (silent == 0) { printf("CLI memory cleaned up successfully. Exiting.\n"); }
 	return 0;
