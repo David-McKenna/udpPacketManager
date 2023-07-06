@@ -348,8 +348,8 @@ typedef struct __attribute__((__packed__)) lofar_source_bytes {
 	(sizeof((arrayName)) / sizeof((arrayName)[0]))
 
 // Free if non-null macro
-#define ARB_FREE_NOT_NULL(x, func, ...) if ((x) != NULL) { (func)((x) __VA_OPT__(,) __VA_ARGS__); (x) = NULL; }
-#define FREE_NOT_NULL(x) ARB_FREE_NOT_NULL((x), (free))
+#define ARB_FREE_NOT_NULL(x, func, ...) if ((x) != NULL) { func((x), ##__VA_ARGS__); (x) = NULL; }
+#define FREE_NOT_NULL(x) ARB_FREE_NOT_NULL((x), free)
 
 // Silence warnings about parameters not used in certain constexpr paths
 // https://stackoverflow.com/a/1486931
