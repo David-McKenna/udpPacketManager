@@ -17,6 +17,10 @@
 #include <sys/types.h>
 #endif // End of NODADA
 
+
+// Needed for zstdMadvise initialisation
+#include <sys/mman.h>
+
 // PSRDADA include may not be available
 #ifndef DADA_INCLUDES
 #define DADA_INCLUDES
@@ -67,6 +71,7 @@ typedef struct lofar_udp_io_read_config {
 	ZSTD_inBuffer readingTracker[MAX_NUM_PORTS];
 	ZSTD_outBuffer decompressionTracker[MAX_NUM_PORTS];
 	int64_t zstdLastRead[MAX_NUM_PORTS];
+	int zstdMadvise;
 
 	// PSRDADA requirements
 	multilog_t *multilog[MAX_NUM_PORTS];

@@ -187,11 +187,18 @@ int64_t _lofar_udp_io_read_ZSTD(lofar_udp_io_read_config *const input, int8_t po
 	// Previously commented out at it wasn't thought the be needed, unfortunately it is.
 	// Large observations were holding > 50% of a systems memory, as compared to < 3GB in 0.6 builds.
 	//if (madvise(((void *) input->readingTracker[port].src), input->readingTracker[port].pos, MADV_DONTNEED) < 0) {
-	int advice = MADV_FREE;
-	if (madvise(((void *) input->readingTracker[port].src), input->readingTracker[port].pos, advice) < 0) {
+	if (madvise(((void *) input->readingTracker[port].src), input->readingTracker[port].pos, input->zstdMadvise) < 0) {
 		fprintf(stderr,
-				"ERROR: Failed to apply %d after read operation on port %d (errno %d: %s).\n", advice, port,
+				"ERROR: Failed to apply %d after read operation on port %d (errno %d: %s).\n", input->zstdMadvise, port,
 				errno, strerror(errno));
+		#pragma omp single
+		{
+			if (input->zstdMadvise == MADV_FREE) {
+				fprintf(stderr,
+			            "ERROR: This was previouslyusing MADV_FREE, your kernel may not be recent enough to support it (> 4.5.0), swapping to MADV_DONTNEED.\n");
+				input->zstdMadvise = MADV_DONTNEED;
+			}
+		};
 	}
 	input->zstdLastRead[port] = (dest - (int8_t*) input->decompressionTracker[port].dst) + nchars;
 

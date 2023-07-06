@@ -28,6 +28,7 @@ const lofar_udp_io_read_config lofar_udp_io_read_config_default = {
 	.readingTracker = { { NULL, 0, 0 } }, // NEEDS FULL RUNTIME INITIALISATION
 	.decompressionTracker = { { NULL, 0, 0 } }, // NEEDS FULL RUNTIME INITIALISATION
 	.zstdLastRead = { 0 }, // NEEDS FULL RUNTIME INITIALISATION
+	.zstdMadvise = MADV_FREE,
 	.multilog = { NULL }, // NEEDS FULL RUNTIME INITIALISATION
 	.dadaPageSize = { -1 } // NEEDS FULL RUNTIME INITIALISATION
 };
