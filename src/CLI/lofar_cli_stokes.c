@@ -957,8 +957,8 @@ int main(int argc, char *argv[]) {
 		fftw->fftBackwardX = fftwf_plan_many_dft(1, &mbin, nchan * nfft, fftw->intermediateX, NULL, 1, mbin, fftw->in1, NULL, 1, mbin, FFTW_BACKWARD, FFTW_ESTIMATE_PATIENT | FFTW_ALLOW_LARGE_GENERIC | FFTW_DESTROY_INPUT);
 		fftw->fftBackwardY = fftwf_plan_many_dft(1, &mbin, nchan * nfft, fftw->intermediateY, NULL, 1, mbin, fftw->in2, NULL, 1, mbin, FFTW_BACKWARD, FFTW_ESTIMATE_PATIENT | FFTW_ALLOW_LARGE_GENERIC | FFTW_DESTROY_INPUT);
 
-		if (fftw->fftForwardX == NULL || fftw->fftForwardY == NULL || fftw->fftBackwardX == NULL || fftw->fftBackwardY) {
-			fprintf(stderr, "ERROR: Failed to generate FFTW  plans, exiting.\n");
+		if (fftw->fftForwardX == NULL || fftw->fftForwardY == NULL || fftw->fftBackwardX == NULL || fftw->fftBackwardY == NULL) {
+			fprintf(stderr, "ERROR: Failed to generate FFTW plans, exiting.\n");
 			CLICleanup(config, outConfig, fftw, NULL);
 			return 1;
 		}
