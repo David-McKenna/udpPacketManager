@@ -128,7 +128,7 @@ int64_t _lofar_udp_io_read_ZSTD(lofar_udp_io_read_config *const input, int8_t po
 	}
 
 	// memmove as we can't use memcpy for the ZSTANDARD moe due to potential overlapping buffer components
-	if (memmove(dest, &(((int8_t *) input->decompressionTracker[port].dst)[input->zstdLastRead[port]]), dataRead) != dest) {
+	if (memmove((int8_t *) dest, &(((int8_t *) input->decompressionTracker[port].dst)[input->zstdLastRead[port]]), dataRead) != dest) {
 		fprintf(stderr, "ERROR: Failed to copy end of ZSTD buffer, exiting.\n");
 		return -1;
 	}
@@ -193,7 +193,7 @@ int64_t _lofar_udp_io_read_ZSTD(lofar_udp_io_read_config *const input, int8_t po
 	if (previousReadPos < input->readingTracker[port].pos) {
 		const size_t pageSize = getpagesize();
 		const size_t previousReadMadviseOffset = previousReadPos - (previousReadPos % pageSize);
-		const void *startAddress = ((void *) input->readingTracker[port].src) + previousReadMadviseOffset;
+		void *startAddress = ((void *) input->readingTracker[port].src) + previousReadMadviseOffset;
 		size_t memoryPages = (input->readingTracker[port].pos - previousReadMadviseOffset) / pageSize;
 
 		// Don't try to apply madvise to too much data
@@ -203,7 +203,7 @@ int64_t _lofar_udp_io_read_ZSTD(lofar_udp_io_read_config *const input, int8_t po
 
 		if (memoryPages > 0) {
 			// madvise calls must be page aligned, determine the offsets to apply to all of the current page at the start, but not the end of the page at the end
-			if (madvise(startAddress, memoryPages * pageSize, input->zstdMadvise) < 0) {
+			if (madvise((void *) startAddress, memoryPages * pageSize, input->zstdMadvise) < 0) {
 				fprintf(stderr,
 				        "WARNING: Failed to apply %d after read operation on port %d (errno %d: %s).\n", input->zstdMadvise, port,
 				        errno, strerror(errno));
