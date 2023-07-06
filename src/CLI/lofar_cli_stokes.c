@@ -925,7 +925,7 @@ int main(int argc, char *argv[]) {
 
 	const int32_t nfft = (int32_t) ((reader->packetsPerIteration * UDPNTIMESLICE) / nbin_valid);
 
-	int64_t floatWriteOffset = (2 * noverlap * nsub) / downsampling; // This will cause issues for an odd-factored downsample which isn't a multiple of the channelsiation factor
+	int64_t floatWriteOffset = (2 * noverlap * nchan) / downsampling; // This will cause issues for an odd-factored downsample which isn't a multiple of the channelsiation factor
 	//int32_t nfft = 1;
 	//printf("%d, %d, %d, %d\n", nbin, mbin, nsub, nchan);
 
