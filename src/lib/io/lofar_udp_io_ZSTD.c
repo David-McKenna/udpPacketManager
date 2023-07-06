@@ -108,7 +108,7 @@ int64_t _lofar_udp_io_read_ZSTD(lofar_udp_io_read_config *const input, int8_t po
 	dataRead = input->decompressionTracker[port].pos - input->zstdLastRead[port];
 
 	// Copy the preread position to optimise madvise calls later
-	const int64_t previousReadPos = input->readingTracker[port].pos;
+	const size_t previousReadPos = input->readingTracker[port].pos;
 
 	VERBOSE(printf("reader_nchars %d: start of ZSTD read loop, %ld, %ld, %ld, %ld, %ld\n",
 				   port,
@@ -190,18 +190,38 @@ int64_t _lofar_udp_io_read_ZSTD(lofar_udp_io_read_config *const input, int8_t po
 	// Previously commented out at it wasn't thought the be needed, unfortunately it is.
 	// Large observations were holding > 50% of a systems memory, as compared to < 3GB in 0.6 builds.
 	//if (madvise(((void *) input->readingTracker[port].src), input->readingTracker[port].pos, MADV_DONTNEED) < 0) {
-	if (madvise(((void *) input->readingTracker[port].src) + previousReadPos, input->readingTracker[port].pos, input->zstdMadvise) < 0) {
-		fprintf(stderr,
-				"ERROR: Failed to apply %d after read operation on port %d (errno %d: %s).\n", input->zstdMadvise, port,
-				errno, strerror(errno));
-		#pragma omp single
-		{
-			if (input->zstdMadvise == MADV_FREE) {
+	if (previousReadPos < input->readingTracker[port].pos) {
+		const size_t pageSize = getpagesize();
+		const size_t previousReadMadviseOffset = previousReadPos - (previousReadPos % pageSize);
+		const void *startAddress = ((void *) input->readingTracker[port].src) + previousReadMadviseOffset;
+		size_t memoryPages = (input->readingTracker[port].pos - previousReadMadviseOffset) / pageSize;
+
+		// Don't try to apply madvise to too much data
+		if ((previousReadMadviseOffset + memoryPages * pageSize) > input->readingTracker[port].size) {
+			memoryPages -= 1;
+		}
+
+		if (memoryPages > 0) {
+			// madvise calls must be page aligned, determine the offsets to apply to all of the current page at the start, but not the end of the page at the end
+			if (madvise(startAddress, memoryPages * pageSize, input->zstdMadvise) < 0) {
 				fprintf(stderr,
-			            "ERROR: This was previouslyusing MADV_FREE, your kernel may not be recent enough to support it (> 4.5.0), swapping to MADV_DONTNEED.\n");
-				input->zstdMadvise = MADV_DONTNEED;
+				        "WARNING: Failed to apply %d after read operation on port %d (errno %d: %s).\n", input->zstdMadvise, port,
+				        errno, strerror(errno));
+				if (input->zstdMadvise == MADV_FREE) {
+					fprintf(stderr,
+					        "WARNING: This was previously using MADV_FREE, your kernel may not be recent enough to support it (> 4.5.0), swapping to MADV_DONTNEED.\n");
+					#pragma omp atomic write
+					input->zstdMadvise = MADV_DONTNEED;
+				}
+
+				if (madvise(((void *) input->readingTracker[port].src) + previousReadPos, input->readingTracker[port].pos - previousReadPos,
+				            input->zstdMadvise) <
+				    0) {
+					fprintf(stderr, "ERROR: Fallback madvise %d failed to apply, exiting.\n", input->zstdMadvise);
+					return -1;
+				}
 			}
-		};
+		}
 	}
 	input->zstdLastRead[port] = (dest - (int8_t*) input->decompressionTracker[port].dst) + nchars;
 
