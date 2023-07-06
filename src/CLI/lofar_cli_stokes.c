@@ -735,7 +735,10 @@ int main(int argc, char *argv[]) {
 	config->packetsPerIteration = (nbin_valid * nforward) / UDPNTIMESLICE;
 
 
-	if (channelisation > 1) {
+	if (channelisation > 1 || window & COHERENT_DEDISP) {
+		if (channelisation < 2) {
+			channelisation = 1;
+		}
 		// Should no longer be needed; keeping for debug/validation purposes; remove before release
 		int32_t invalidation = (config->packetsPerIteration * UDPNTIMESLICE) % nbin_valid;
 		if (invalidation) {
@@ -931,7 +934,7 @@ int main(int argc, char *argv[]) {
 	}
 
 
-	if (channelisation > 1) {
+	if (channelisation > 1 || window & COHERENT_DEDISP) {
 		fftw->intermediateX = fftwf_alloc_complex(nbin * nsub * nfft);
 		fftw->intermediateY = fftwf_alloc_complex(nbin * nsub * nfft);
 		fftw->chirpData = fftwf_alloc_complex(nbin * nsub * nfft);
@@ -1044,7 +1047,7 @@ int main(int argc, char *argv[]) {
 		VERBOSE(printf("Begin channelisation %d %d %d %d %d %d %d (%d)\n", channelisation, spectralDownsample, downsampling, nfft, nbin, noverlap, mbin, nfft * nbin));
 		// Perform channelisation, temporal downsampling as needed
 		float *beamletJones = (reader->meta->calibrateData == GENERATE_JONES) ? reader->meta->jonesMatrices[reader->meta->calibrationStep] : NULL;
-		if (channelisation > 1) {
+		if (channelisation > 1 || window & COHERENT_DEDISP) {
 			CLICK(tickChan);
 			if (localLoops == 0) {
 				padNextIteration(inFFTArrs, (const int8_t **) reader->meta->outputData, beamletJones, nbin, noverlap, nsub, -1 * nfft);
