@@ -414,29 +414,36 @@ static void temporalDownsample(float ** const data, const size_t numOutputs, con
 
 	VERBOSE(printf("Downsampling for: %ld, %ld, %d\n", nchans, nbin, downsampleFactor));
 
+	float *accumulator = calloc(nchans, sizeof(float));
+
 	for (size_t output = 0; output < numOutputs; output++) {
+		int32_t accumulations = 0;
 		#pragma omp parallel for default(shared)
-		for (int64_t sub = 0; sub < nchans; sub++) {
-			for (int64_t sample = 0; sample < nbin; sample++) {
-				float accumulator = 0.0f;
-				int32_t accumulations = 0;
+		for (int64_t sample = 0; sample < nbin; sample++) {
+			const int64_t chanOffset = sample * nchans;
+			for (int64_t sub = 0; sub < nchans; sub++) {
 				// Input is time major
-				//                      curr   size per sample
-				const size_t inputIdx = sub + (sample * nchans);
+				//                      curr  size per sample
+				const size_t inputIdx = sub + (chanOffset);
 
-				accumulator += data[output][inputIdx];
+				accumulator[sub] += data[output][inputIdx];
+			}
 
-				if (++accumulations == downsampleFactor) {
+			if (++accumulations == downsampleFactor) {
+				const int64_t dsChanOffset = sample / downsampleFactor;
+				for (int64_t sub = 0; sub < nchans; sub++) {
 					// Output is channel major
-					//                       curr          size per time sample
-					const size_t outputIdx = sub + (sample / downsampleFactor) * nchans;
-					data[output][outputIdx] = accumulator;
-					accumulations = 0;
-					accumulator = 0;
+					//                       curr   size per output time sample
+					const size_t outputIdx = sub + dsChanOffset;
+					data[output][outputIdx] = accumulator[sub];
 				}
+				accumulations = 0;
+				ARR_INIT(accumulator, nchans, 0.0f);
 			}
 		}
 	}
+
+	free(accumulator);
 }
 
 int main(int argc, char *argv[]) {
@@ -1079,7 +1086,7 @@ int main(int argc, char *argv[]) {
 		VERBOSE(printf("Begin downsampling\n"));
 		if (downsampling > 1 && !spectralDownsample) {
 			CLICK(tickDown);
-			int64_t samples = reader->meta->packetsPerIteration * UDPNTIMESLICE / channelisation;
+			const int64_t samples = nbin_valid * nfft;
 			temporalDownsample(outputStokes, numStokes, samples, nchan * correlateScale, downsampling);
 			CLICK(tockDown);
 			timing[6] = TICKTOCK(tickDown, tockDown);
