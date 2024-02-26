@@ -418,9 +418,9 @@ static void temporalDownsample(float ** const data, const size_t numOutputs, con
 
 	for (size_t output = 0; output < numOutputs; output++) {
 		int32_t accumulations = 0;
-		#pragma omp parallel for default(shared)
 		for (int64_t sample = 0; sample < nbin; sample++) {
 			const int64_t chanOffset = sample * nchans;
+			#pragma omp parallel for default(shared)
 			for (int64_t sub = 0; sub < nchans; sub++) {
 				// Input is time major
 				//                      curr  size per sample
@@ -431,14 +431,15 @@ static void temporalDownsample(float ** const data, const size_t numOutputs, con
 
 			if (++accumulations == downsampleFactor) {
 				const int64_t dsChanOffset = sample / downsampleFactor;
+				#pragma omp parallel for default(shared)
 				for (int64_t sub = 0; sub < nchans; sub++) {
 					// Output is channel major
 					//                       curr   size per output time sample
 					const size_t outputIdx = sub + dsChanOffset;
 					data[output][outputIdx] = accumulator[sub];
+					accumulator[sub] = 0.0f;
 				}
 				accumulations = 0;
-				ARR_INIT(accumulator, nchans, 0.0f);
 			}
 		}
 	}
@@ -696,7 +697,11 @@ int main(int argc, char *argv[]) {
 
 	// Pre-set processing mode
 	// TODO: Floating processing mode if channelisation is disabled?
-	config->processingMode = TIME_MAJOR_ANT_POL;
+	if (channelisation > 1) {
+		config->processingMode = TIME_MAJOR_ANT_POL;
+	} else {
+		config->processingMode = TIME_MAJOR_ANT_POL_FLOAT;
+	}
 
 	if (flagged) {
 		CLICleanup(config, outConfig, fftw, NULL);
@@ -742,10 +747,10 @@ int main(int argc, char *argv[]) {
 	config->packetsPerIteration = (nbin_valid * nforward) / UDPNTIMESLICE;
 
 
+	if (channelisation < 2) {
+		channelisation = 1;
+	}
 	if (channelisation > 1 || window & COHERENT_DEDISP) {
-		if (channelisation < 2) {
-			channelisation = 1;
-		}
 		// Should no longer be needed; keeping for debug/validation purposes; remove before release
 		int32_t invalidation = (config->packetsPerIteration * UDPNTIMESLICE) % nbin_valid;
 		if (invalidation) {
@@ -1075,8 +1080,7 @@ int main(int argc, char *argv[]) {
 			padNextIteration(inFFTArrs, (const int8_t **) reader->meta->outputData, beamletJones, nbin, noverlap, nsub, nfft);
 		} else {
 			CLICK(tickDetect);
-			overlapAndPad(inFFTArrs, (const int8_t **) reader->meta->outputData, beamletJones, reader->meta->packetsPerIteration * UDPNTIMESLICE, 0, nsub, 1);
-			transposeDetect(fftw->in1, fftw->in2, outputStokes, reader->meta->packetsPerIteration * UDPNTIMESLICE, 0, 1, 1, nsub, 1, stokesParameters);
+			transposeDetect((fftwf_complex *) reader->meta->outputData[0], (fftwf_complex *) reader->meta->outputData[1], outputStokes, reader->meta->packetsPerIteration * UDPNTIMESLICE, 0, 1, 1, nsub, 1, stokesParameters);
 		}
 
 		CLICK(tockDetect);
@@ -1086,7 +1090,7 @@ int main(int argc, char *argv[]) {
 		VERBOSE(printf("Begin downsampling\n"));
 		if (downsampling > 1 && !spectralDownsample) {
 			CLICK(tickDown);
-			const int64_t samples = nbin_valid * nfft;
+			const int64_t samples = (mbin - (2 * noverlap) / channelisation) * nfft;
 			temporalDownsample(outputStokes, numStokes, samples, nchan * correlateScale, downsampling);
 			CLICK(tockDown);
 			timing[6] = TICKTOCK(tickDown, tockDown);
