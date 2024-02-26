@@ -32,6 +32,7 @@ Future work should not break the existing load/process/output loop, and may cons
 Requirements
 ------------
 In order to build and use the library, we require
+- An x86-64 host system (ARM and other RISC based architechtures are currently untested/unsupported)
 - A modern C and C++ compiler with at least OpenMP 4.5 and C++17 support
   - `gcc-10`/`g++-10` used for development, `clang-12` used in production
   - A range of tested `gcc` and `clang` releases can be found in the [`main.yml`](.github/workflows/main.yml) action file.
