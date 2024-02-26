@@ -39,7 +39,7 @@ int32_t _lofar_udp_metadata_setup_SIGPROC(lofar_udp_metadata *metadata) {
 
 	// Constants for what we produce
 	// TODO: Modify if we want support for more than just single(-Stokes) outputs
-	metadata->output.sigproc->nifs = 1;
+	metadata->output.sigproc->nifs = metadata->ndim * metadata->npol;
 	metadata->output.sigproc->data_type = 1;
 
 	// Sigproc pointing variables take the form of a double, which is parsed as ddmmss.ss
