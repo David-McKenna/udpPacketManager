@@ -30,7 +30,7 @@ bibliography: paper.bib
 # Summary
 
 International LOFAR stations are powerful radio telescopes, however 
-they are delivered without the tooling nessasary to convert their raw 
+they are delivered without the tooling necessary to convert their raw 
 data stream into standard data formats that can be used by common 
 processing pipelines, or science-ready data products.
 
@@ -73,7 +73,7 @@ The software has supported ongoing observations of the Sun,
 Pulsars and Rotating Radio Transients [@realta; @mckennaRRAT] in 
 Ireland since early 2020, alongside multi-site work with 
 Breakthrough Listen in the search for extraterrestrial life (SETI) 
-in coordination with the Sweedish LOFAR station at Onsala since 2021 
+in coordination with the Swedish LOFAR station at Onsala since 2021 
 [@johnsonSETI] and observations of Jupiter in coordination with the 
 French LOFAR station and one of the German LOFAR stations, at 
 Postdam, in 2022 [@louisJupiter].
@@ -95,7 +95,7 @@ processing with this software.
 Given that the header attached to the data itself contains minimal 
 metadata outside the start time of the data block, metadata is 
 parsed from an associated file that contains one or more commands to 
-control the telescope (`beamctl` [@cookbook, Appendix A.2]) and minimal 
+control the telescope [`beamctl`, @cookbook, Appendix A.2] and minimal 
 other metadata, such as observer and project identifiers. This is 
 then processed to generate a chosen output header, which can follow 
 the `GUPPI RAW` [@guppi], `SIGPROC` [@sigproc], `PSRDADA`, or ICD003 
