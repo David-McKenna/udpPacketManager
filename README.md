@@ -1,6 +1,6 @@
 udpPacketManager
 ================
-[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.4249771.svg)](https://doi.org/10.5281/zenodo.4249771)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.11019139.svg)](https://doi.org/10.5281/zenodo.11019139)
 
 udpPacketManager is a C library developed to handle reading and processing CEP packet streams from international Low Frequency Array (LOFAR) 
 stations. It is used 
