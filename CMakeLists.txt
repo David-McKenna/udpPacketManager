@@ -79,7 +79,11 @@ find_package(OpenMP REQUIRED)
 
 execute_process(COMMAND bash -c "cat /proc/cpuinfo | uniq | grep -m 2 \"siblings\" | cut -d \":\" -f 2 | sort --numeric --unique | xargs echo"
                 OUTPUT_VARIABLE OMP_THREADS
+                RESULT_VARIABLE CPU_COUNT_RET
 )
+if (ret EQUAL "1")
+       set(OMP_THREADS 8)
+endif()
 
 #if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
 if (OpenMP_C_LIB_NAMES MATCHES ".*(gomp).*")
