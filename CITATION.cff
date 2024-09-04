@@ -1,0 +1,50 @@
+cff-version: "1.2.0"
+authors:
+- family-names: McKenna
+  given-names: David J.
+  orcid: "https://orcid.org/0000-0001-7185-1310"
+- family-names: Keane
+  given-names: Evan F.
+  orcid: "https://orcid.org/0000-0002-4553-655X"
+- family-names: Gallagher
+  given-names: Peter T.
+  orcid: "https://orcid.org/0000-0001-9745-0400"
+- family-names: McCauley
+  given-names: Joe
+  orcid: "https://orcid.org/0000-0003-4399-2233"
+contact:
+- family-names: McKenna
+  given-names: David J.
+  orcid: "https://orcid.org/0000-0001-7185-1310"
+doi: 10.5281/zenodo.11019139
+message: If you use this software, please cite our article in the
+  Journal of Open Source Software.
+preferred-citation:
+  authors:
+  - family-names: McKenna
+    given-names: David J.
+    orcid: "https://orcid.org/0000-0001-7185-1310"
+  - family-names: Keane
+    given-names: Evan F.
+    orcid: "https://orcid.org/0000-0002-4553-655X"
+  - family-names: Gallagher
+    given-names: Peter T.
+    orcid: "https://orcid.org/0000-0001-9745-0400"
+  - family-names: McCauley
+    given-names: Joe
+    orcid: "https://orcid.org/0000-0003-4399-2233"
+  date-published: 2024-04-22
+  doi: 10.21105/joss.05517
+  issn: 2475-9066
+  issue: 96
+  journal: Journal of Open Source Software
+  publisher:
+    name: Open Journals
+  start: 5517
+  title: "udpPacketManager: An International LOFAR Station Data
+    (Pre-)Processor"
+  type: article
+  url: "https://joss.theoj.org/papers/10.21105/joss.05517"
+  volume: 9
+title: "udpPacketManager: An International LOFAR Station Data
+  (Pre-)Processor"
