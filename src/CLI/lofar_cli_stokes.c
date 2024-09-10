@@ -14,6 +14,7 @@
 
 // Output Stokes Modes
 typedef enum stokes_t {
+	NOSTOKES= 0,
 	STOKESI = 1,
 	STOKESQ = 2,
 	STOKESU = 4,
@@ -50,6 +51,7 @@ void helpMessages(void) {
 	printf("\n\n");
 
 
+	printf("-P <chars>		Desired Stokes/Voltage outputs, include one or more of 'IQUVA', where A returns XXYY (default: I)\n")
 	printf("-F <factor>     Channelisation factor to apply when processing data (default: disabled == 1)\n");
 	printf("-d <factor>     Temporal downsampling to apply when processing data (default: disabled == 1)\n");
 	printf("-B <binFactor>  The count of FFT bins as a factor of the channelisation factor (default: 8, minimum: 3)\n");
@@ -486,7 +488,8 @@ int main(int argc, char *argv[]) {
 
 	// FFTW strategy
 	int32_t channelisation = 1, downsampling = 1, spectralDownsample = 0, nfactor = 8, nforward = 512;
-	int8_t stokesParameters = 0, numStokes = 0;
+	stokes_t stokesParameters = STOKESI;
+	int8_t numStokes = 1;
 
 	// Standard ugly input flags parser
 	while ((inputOpt = getopt(argc, argv, "crzqfvVZhD:i:o:m:M:I:u:t:s:S:b:C:F:d:P:T:B:N:")) != -1) {
@@ -631,6 +634,8 @@ int main(int argc, char *argv[]) {
 					CLICleanup(config, outConfig, fftw, NULL);
 					return -1;
 				}
+				stokesParameters = NOSTOKES;
+				numStokes = 0;
 				if (strchr(optarg, 'A') != NULL) {
 					numStokes = 1;
 					stokesParameters = CORRLTE;
