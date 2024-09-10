@@ -1453,6 +1453,7 @@ int32_t lofar_udp_reader_step_timed(lofar_udp_reader *reader, double timing[2]) 
 			// outputDataReady is negative -> out of order packets -> need to re-run for time-major modes
 			if (reader->meta->outputDataReady < 0 && reader->meta->dataOrder == TIME_MAJOR) {
 				fprintf(stderr, "WARNING: Re-running processing due to out of order packets and time-major processing mode.\n");
+				// TODO: Recover packet order, drop packets + re-fill buffer as needed.
 				stepReturnVal = lofar_udp_cpp_loop_interface(reader->meta);
 			} else {
 				return stepReturnVal;

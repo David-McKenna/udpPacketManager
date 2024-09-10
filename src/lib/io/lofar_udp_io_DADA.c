@@ -523,7 +523,7 @@ void _lofar_udp_io_cleanup_DADA_loop(ipcbuf_t *buff, float *timeoutPtr) {
 	float timeout = *timeoutPtr;
 	float totalSleep = 0.001f * (float) sampleEveryNMilli;
 	int64_t iters = 0;
-	// Hold a reference to the lat read buffer, we may be stuck within 1-2 blocks of the last write,
+	// Hold a reference to the last read buffer, we may be stuck within 1-2 blocks of the last write,
 	//  in which case we will need to force an exit
 	uint64_t previousBuffer = ipcbuf_get_read_count(buff);
 

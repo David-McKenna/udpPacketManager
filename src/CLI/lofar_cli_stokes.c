@@ -50,11 +50,11 @@ void helpMessages(void) {
 	printf("\n\n");
 
 
-	printf("-C <factor>     Channelisation factor to apply when processing data (default: disabled == 1)\n");
+	printf("-F <factor>     Channelisation factor to apply when processing data (default: disabled == 1)\n");
 	printf("-d <factor>     Temporal downsampling to apply when processing data (default: disabled == 1)\n");
 	printf("-B <binFactor>  The count of FFT bins as a factor of the channelisation factor (default: 8, minimum: 3)\n");
 	printf("-N <factor>     The number of FFTs per channel to perform per iteration (default: 512)\n");
-	printf("-F              Apply temporal downsampling to spectral data (slower, but higher quality (default: disabled)\n");
+	printf("-Z              Apply temporal downsampling via spectral data (fft -> sum channels, slower, but theoretically higher quality (default: disabled)\n");
 	printf("-D <dm>         Apply coherent dedispersion to the data (default: false; 0 pc/cc)\n");
 	printf("-W              Window function to apply to the data (defulat: PSR_STANDARD)\n");
 
@@ -489,7 +489,7 @@ int main(int argc, char *argv[]) {
 	int8_t stokesParameters = 0, numStokes = 0;
 
 	// Standard ugly input flags parser
-	while ((inputOpt = getopt(argc, argv, "crzqfvVFhD:i:o:m:M:I:u:t:s:S:b:C:d:P:T:B:N:")) != -1) {
+	while ((inputOpt = getopt(argc, argv, "crzqfvVZhD:i:o:m:M:I:u:t:s:S:b:C:F:d:P:T:B:N:")) != -1) {
 		input = 1;
 		switch (inputOpt) {
 
@@ -565,6 +565,11 @@ int main(int argc, char *argv[]) {
 				break;
 
 			case 'C':
+				config->calibrationDuration = strtof(optarg, &endPtr);
+				if (checkOpt(inputOpt, optarg, endPtr)) { flagged = 1; }
+				break;
+
+			case 'F':
 				channelisation = internal_strtoi(optarg, &endPtr);
 				if (checkOpt(inputOpt, optarg, endPtr)) { flagged = 1; }
 				break;

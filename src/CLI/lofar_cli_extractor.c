@@ -131,6 +131,11 @@ int main(int argc, char *argv[]) {
 				config->calibrateData = APPLY_CALIBRATION;
 				break;
 
+			case 'C':
+				config->calibrationDuration = strtof(optarg, &endPtr);
+				if (checkOpt(inputOpt, optarg, endPtr)) { flagged = 1; }
+				break;
+
 			case 'q':
 				silent = 1;
 				break;
