@@ -1,4 +1,4 @@
-FROM ubuntu:latest
+FROM ubuntu:24.04
 SHELL ["/usr/bin/env", "bash", "-c"]
 
 
@@ -19,16 +19,17 @@ RUN find $SOFT/udpPacketManager/src
 
 WORKDIR /home/soft
 
-ENV CC="clang-15"
-ENV CXX="clang++-15"
+ENV CC_VER="18"
+ENV CC="clang-${CC_VER}"
+ENV CXX="clang++-${CC_VER}"
 # Build and install udpPacketManager/mockHeader, riptide, PSRSalsa, CDMT, IQRM, PSRDADA-python
 WORKDIR $SOFT/udpPacketManager
 RUN echo "Building udpPacketManager" && \
 	\
 	apt-get update && \
-	apt-get install -y autoconf ${CC} ${CXX} curl csh git make libomp5-15 libomp-15-dev libtool wget && \
-    curl -sSL https://bootstrap.pypa.io/get-pip.py -o get-pip.py && \
-    python3 get-pip.py && \
+	apt-get install -y autoconf ${CC} ${CXX} curl csh git make libomp5-${CC_VER} libomp-${CC_VER}-dev libtool python3-pip python3-venv wget && \
+	python3 -m venv /home/soft/venv/ && \
+	source /home/soft/venv/bin/activate && \
     python3 -m pip install cmake && \
     git clean -f -x && git reset --hard HEAD && \
 	find ./src && \
