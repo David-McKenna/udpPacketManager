@@ -17,7 +17,7 @@ void sharedFlags(void) {
 	printf("-f:		        Append output files if they already exist (default: Exit if exists)\n");
 	printf("-I: <str>		Input metadata file (default: '')\n");
 	printf("-c:		        Calibrate the data from input metadata (default: false)\n");
-	printf("-C: <duration>	Duration (in seconds) to precalculate Jones matrices for (default: 3600.0 seconds).")
+	printf("-C: <duration>	Duration (in seconds) to precalculate Jones matrices for (default: 3600.0 seconds).");
 	printf("-M: <str>		Override output metadata format (default none, options SIGPROC, GUPPI, DADA, HDF5)\n");
 	printf("-u: <numPort>	Number of ports to combine (default: 4)\n");
 	printf("-n: <baseNum>	Base value to iterate when choosing ports (default: 0)\n");

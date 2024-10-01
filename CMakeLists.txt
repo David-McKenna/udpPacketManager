@@ -33,8 +33,14 @@ set(UPM_CLI_VERSION 0.9)
 
 message("Building udpPacketManager Version ${PROJECT_VERSION}\n\n")
 
-set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -march=native -O2 -ffast-math")
-set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -march=native -O2 -ffast-math")
+if (NOT "$ENV{CPU_OPTS}" STREQUAL "")
+       set(CPU_OPTS "$ENV{CPU_OPTS}" CACHE STRING "Set from ENV")
+else()
+       set(CPU_OPTS "-march=native" CACHE STRING "Set by default")
+endif()
+
+set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} ${CPU_OPTS} -O2 -ffast-math")
+set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} ${CPU_OPTS} -O2 -ffast-math")
 
 set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -Wstrict-prototypes -Wmissing-prototypes -Wframe-larger-than=4095 -Wshadow -Wconversion -Wno-sign-conversion -Wall -Wextra -g3")
 set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -Wframe-larger-than=4095 -Wshadow -Wconversion -Wno-sign-conversion -Wall -Wextra -g3")
@@ -65,7 +71,7 @@ endif()
 find_package(Python3 3.8 COMPONENTS Interpreter REQUIRED)
 
 add_custom_command(OUTPUT pip_installed
-                   COMMAND ${Python3_EXECUTABLE} -m pip install -r ${CMAKE_CURRENT_SOURCE_DIR}/requirements.txt
+                   COMMAND ${Python3_EXECUTABLE} -m pip install --user -r ${CMAKE_CURRENT_SOURCE_DIR}/requirements.txt
                    COMMAND ${CMAKE_COMMAND} -E touch ${CMAKE_CURRENT_BINARY_DIR}/pip_installed
 )
 add_custom_target(install_python_requirements
@@ -77,11 +83,12 @@ add_custom_target(install_python_requirements
 message("Configuring OpenMP...")
 find_package(OpenMP REQUIRED)
 
-execute_process(COMMAND bash -c "cat /proc/cpuinfo | uniq | grep -m 2 \"siblings\" | cut -d \":\" -f 2 | sort --numeric --unique | xargs echo"
+execute_process(COMMAND bash -c "cat /proc/cpuinfo | uniq | grep -m 2 \"siblings\" | cut -d \":\" -f 2 | sort --numeric --unique | head -n 1"
                 OUTPUT_VARIABLE OMP_THREADS
                 RESULT_VARIABLE CPU_COUNT_RET
 )
-if (ret EQUAL "1")
+if ("${OMP_THREADS}" LESS_EQUAL 1 OR "${OMP_THREADS} " STREQUAL " ")
+	   message("WARNING: Failed to automatically determine a reasonable number of default threads, setting default to 8")
        set(OMP_THREADS 8)
 endif()
 
@@ -103,7 +110,7 @@ set(ZSTD_BUILD_STATIC ON CACHE INTERNAL "")
 set(ZSTD_BUILD_SHARED OFF CACHE INTERNAL "")
 FetchContent_Declare(zstd
                      GIT_REPOSITORY https://github.com/facebook/zstd.git
-                     GIT_TAG v1.5.5
+                     GIT_TAG v1.5.6
 )
 FetchContent_MakeAvailable(zstd)
 # MakeAvailable doesn't allow for libzstd_static to be used as a target
@@ -177,11 +184,11 @@ message("")
 message ("Configuring PSRDADA")
 # Find the PSRDADA libraries on the system (or set NODADA if not found)
 ExternalProject_Add(internal_PSRDADA
-                    GIT_REPOSITORY git://git.code.sf.net/p/psrdada/code
-                    GIT_TAG ba2b88
+                    GIT_REPOSITORY https://github.com/mirror-psrdada/mirror-psrdada-code.git
+                    GIT_TAG bf9a02e
                     BUILD_IN_SOURCE TRUE
-                    CONFIGURE_COMMAND ./bootstrap && ./configure --with-cuda-dir=no && cd 3rdparty && make libtimers.la # libtimers fails to compile during normal step with older Make versions
-                    BUILD_COMMAND cd src/ && make libpsrdada.la dada_db dada_dbmeminfo dada_dbmetric dada_dbmonitor -j4
+                    CONFIGURE_COMMAND ./bootstrap && ./configure --with-cuda-dir=no # && cd 3rdparty && make libtimers.la # libtimers fails to compile during normal step with older Make versions
+                    BUILD_COMMAND cd src/ && make libpsrdada.la -j4 && cd ../ && cd apps/ && make dada_db dada_dbmeminfo dada_dbmetric dada_dbmonitor -j4
                     INSTALL_COMMAND ""
                     UPDATE_COMMAND ""
 )
@@ -276,8 +283,10 @@ target_link_libraries(lofudpman PUBLIC libhdf5 libz libh5bshuf ${CMAKE_DL_LIBS})
 target_link_libraries(lofudpman PUBLIC libpsrdada)
 target_link_libraries(lofudpman PUBLIC libzstd_static)
 
-find_library(LIB_RT rt REQUIRED) # Required for shmem functions
-target_link_libraries(lofudpman PUBLIC ${LIB_RT})
+if (NOT APPLE)
+	find_library(LIB_RT rt REQUIRED) # Required for shmem functions
+	target_link_libraries(lofudpman PUBLIC ${LIB_RT})
+endif()
 #target_link_libraries(lofudpman PUBLIC yaml)
 
 # Set a few extra compiler options

@@ -2,14 +2,12 @@ FROM ubuntu:24.04
 SHELL ["/usr/bin/env", "bash", "-c"]
 
 
-ENV SOFT /home/soft
-RUN mkdir -p $SOFT/udpPacketManager/
+ENV SOFT="/home/soft"
+RUN mkdir -p "${SOFT}/udpPacketManager/"
 
-ARG BUILD_CORES=8
+ARG BUILD_CORES="8"
 ARG OPT_ARCH="native"
 ARG DEBIAN_FRONTEND=noninteractive
-COPY . $SOFT/udpPacketManager/
-RUN find $SOFT/udpPacketManager/src
 
 
 # Get the latest version of in-active-development software
@@ -30,11 +28,14 @@ RUN echo "Building udpPacketManager" && \
 	apt-get install -y autoconf ${CC} ${CXX} curl csh git make libomp5-${CC_VER} libomp-${CC_VER}-dev libtool python3-pip python3-venv wget && \
 	python3 -m venv /home/soft/venv/ && \
 	source /home/soft/venv/bin/activate && \
-    python3 -m pip install cmake && \
-    git clean -f -x && git reset --hard HEAD && \
+	python3 -m pip install cmake
+
+COPY . $SOFT/udpPacketManager/
+RUN source /home/soft/venv/bin/activate && \
+	# git clean -f -x && git reset --hard HEAD && \
 	find ./src && \
-	./build.sh 1 && \
-    rm -rf /var/lib/apt/lists/*
+	./build.sh 2 && \
+	rm -rf /var/lib/apt/lists/*
 
 WORKDIR /home/user
 ENTRYPOINT /bin/bash

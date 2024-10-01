@@ -51,7 +51,7 @@ void helpMessages(void) {
 	printf("\n\n");
 
 
-	printf("-P <chars>		Desired Stokes/Voltage outputs, include one or more of 'IQUVA', where A returns XXYY (default: I)\n")
+	printf("-P <chars>		Desired Stokes/Voltage outputs, include one or more of 'IQUVA', where A returns XXYY (default: I)\n");
 	printf("-F <factor>     Channelisation factor to apply when processing data (default: disabled == 1)\n");
 	printf("-d <factor>     Temporal downsampling to apply when processing data (default: disabled == 1)\n");
 	printf("-B <binFactor>  The count of FFT bins as a factor of the channelisation factor (default: 8, minimum: 3)\n");
@@ -618,7 +618,7 @@ int main(int argc, char *argv[]) {
 				if (checkOpt(inputOpt, optarg, endPtr)) { flagged = 1; }
 				break;
 
-			case 'F':
+			case 'Z':
 				spectralDownsample = 1;
 				break;
 
