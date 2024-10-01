@@ -14,10 +14,10 @@ void sharedFlags(void) {
 
 	printf("-i: <format>	Input file name format\n");
 	printf("-o: <format>	Output file name format\n");
-	printf("-f:		        Append output files if they already exist (default: Exit if exists)\n");
+	printf("-f:			Append output files if they already exist (default: Exit if exists)\n");
 	printf("-I: <str>		Input metadata file (default: '')\n");
-	printf("-c:		        Calibrate the data from input metadata (default: false)\n");
-	printf("-C: <duration>	Duration (in seconds) to precalculate Jones matrices for (default: 3600.0 seconds).");
+	printf("-c:		    Calibrate the data from input metadata (default: false)\n");
+	printf("-C: <duration>	Duration (in seconds) to precalculate Jones matrices for (default: 3600.0 seconds).\n");
 	printf("-M: <str>		Override output metadata format (default none, options SIGPROC, GUPPI, DADA, HDF5)\n");
 	printf("-u: <numPort>	Number of ports to combine (default: 4)\n");
 	printf("-n: <baseNum>	Base value to iterate when choosing ports (default: 0)\n");
@@ -25,10 +25,10 @@ void sharedFlags(void) {
 	printf("-t: <timeStr>	String of the time of the first requested packet, format YYYY-MM-DDTHH:mm:ss (default: '')\n");
 	printf("-s: <numSec>	Maximum number of seconds of raw data to extract/process (default: all)\n");
 	printf("-S: <iters>     Break into a new file every N given iterations (default: infinite, never break)\n");
-	printf("-r:		        Replay the previous packet when a dropped packet is detected (default: pad with 0 values)\n");
+	printf("-r:		    Replay the previous packet when a dropped packet is detected (default: pad with 0 values)\n");
 	printf("-T: <threads>	OpenMP Threads to use during processing (8+ highly recommended, default: %d)\n", OMP_THREADS);
 
-	printf("-q:		        Enable silent mode for the CLI, don't print any information outside of library error messages (default: False)\n");
+	printf("-q:		    Enable silent mode for the CLI, don't print any information outside of library error messages (default: False)\n");
 	VERBOSE(printf("-v:		Enable verbose output (default: False)\n");
 		        printf("-V:		Enable highly verbose output (default: False)\n"));
 }

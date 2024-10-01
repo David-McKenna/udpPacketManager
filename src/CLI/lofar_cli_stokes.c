@@ -45,13 +45,13 @@ struct fftwVars {
 
 void helpMessages(void) {
 	printf("LOFAR Stokes extractor (CLI v%s, lib v%s)\n\n", UPM_CLI_VERSION, UPM_VERSION);
-	printf("Usage: lofar_cli_stokes <flags>");
+	printf("Usage: lofar_cli_stokes <flags>\n\n");
 
 	sharedFlags();
-	printf("\n\n");
+	printf("\n");
 
 
-	printf("-P <chars>		Desired Stokes/Voltage outputs, include one or more of 'IQUVA', where A returns XXYY (default: I)\n");
+	printf("-P <chars>	Desired Stokes/Voltage outputs, include one or more of 'IQUVA', where A returns XXYY (default: I)\n");
 	printf("-F <factor>     Channelisation factor to apply when processing data (default: disabled == 1)\n");
 	printf("-d <factor>     Temporal downsampling to apply when processing data (default: disabled == 1)\n");
 	printf("-B <binFactor>  The count of FFT bins as a factor of the channelisation factor (default: 8, minimum: 3)\n");
@@ -699,7 +699,7 @@ int main(int argc, char *argv[]) {
 			window &= (COHERENT_DEDISP & BOXCAR);
 		}
 	} else if (!windowCheck) {
-		fprintf(stderr, "WARNING: No window was set, falling back to the pulsar window.");
+		fprintf(stderr, "WARNING: No window was set, falling back to the pulsar window.\n");
 		window |= PSR_STANDARD;
 	}
 
@@ -718,15 +718,8 @@ int main(int argc, char *argv[]) {
 		return 1;
 	}
 
-	if (!input) {
+	if (!input || !inputProvided) {
 		fprintf(stderr, "ERROR: No inputs provided, exiting.\n");
-		helpMessages();
-		CLICleanup(config, outConfig, fftw, NULL);
-		return 1;
-	}
-
-	if (!inputProvided) {
-		fprintf(stderr, "ERROR: An input was not provided, exiting.\n");
 		helpMessages();
 		CLICleanup(config, outConfig, fftw, NULL);
 		return 1;
