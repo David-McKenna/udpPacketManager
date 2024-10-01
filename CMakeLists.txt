@@ -182,21 +182,13 @@ message("")
 
 
 message ("Configuring PSRDADA")
-# Find the PSRDADA libraries on the system (or set NODADA if not found)
-ExternalProject_Add(internal_PSRDADA
-                    GIT_REPOSITORY https://github.com/mirror-psrdada/mirror-psrdada-code.git
-                    GIT_TAG bf9a02e
-                    BUILD_IN_SOURCE TRUE
-                    CONFIGURE_COMMAND ./bootstrap && ./configure --with-cuda-dir=no # && cd 3rdparty && make libtimers.la # libtimers fails to compile during normal step with older Make versions
-                    BUILD_COMMAND cd src/ && make libpsrdada.la -j4 && cd ../ && cd apps/ && make dada_db dada_dbmeminfo dada_dbmetric dada_dbmonitor -j4
-                    INSTALL_COMMAND ""
-                    UPDATE_COMMAND ""
+# Disable CUDA for the PSRDADA compile
+set(CUDATOOLKIT_FOUND NO)
+FetchContent_Declare(psrdada_src
+		GIT_REPOSITORY https://github.com/mirror-psrdada/mirror-psrdada-code.git
+		GIT_TAG bf9a02e
 )
-ExternalProject_Get_Property(internal_PSRDADA INSTALL_DIR)
-set(psrdada_INSTALL_DIR ${INSTALL_DIR})
-add_library(libpsrdada STATIC IMPORTED)
-set_property(TARGET libpsrdada PROPERTY IMPORTED_LOCATION ${psrdada_INSTALL_DIR}/src/internal_PSRDADA/src/.libs/libpsrdada.a)
-add_dependencies(libpsrdada internal_PSRDADA)
+FetchContent_MakeAvailable(psrdada_src)
 message("")
 
 
@@ -256,7 +248,7 @@ add_library(lofudpman STATIC
             src/lib/lofar_udp_metadata.c
             src/lib/lofar_udp_time.c)
 
-add_dependencies(lofudpman libzstd_static libpsrdada libhdf5 libz libh5bshuf install_python_requirements) # libfftw3fomp) ##yaml) #CSpice::cspice)
+add_dependencies(lofudpman libzstd_static psrdada libhdf5 libz libh5bshuf install_python_requirements) # libfftw3fomp) ##yaml) #CSpice::cspice)
 
 # Include all of our library headers
 target_include_directories(lofudpman PUBLIC
@@ -270,7 +262,7 @@ target_include_directories(lofudpman PUBLIC
 # Include all of our dependency headers
 target_include_directories(lofudpman PUBLIC ${fftw3f_INSTALL_DIR}/src/internal_FFTW3F/api)
 target_include_directories(lofudpman PUBLIC ${hdf5_INSTALL_DIR}/src/internal_hdf5/src/ ${zlib_INSTALL_DIR}/src/internal_zlib/ ${bitshuffle_INSTALL_DIR}/src/internal_bitshuffle/src/)
-target_include_directories(lofudpman PUBLIC ${psrdada_INSTALL_DIR}/src/internal_PSRDADA/src/)
+target_include_directories(lofudpman PUBLIC ${psrdada_src_SOURCE_DIR}/src/)
 target_include_directories(lofudpman PUBLIC ${zstd_SOURCE_DIR}/lib/)
 #target_include_directories(lofudpman PUBLIC ${yaml_SOURCE_DIR}/include/)
 
@@ -280,7 +272,7 @@ file(GLOB_RECURSE UDP_INCLUDE_FILES "${CMAKE_CURRENT_SOURCE_DIR}/src/*/*.h" "${C
 find_library(LIB_M m REQUIRED)
 target_link_libraries(lofudpman PUBLIC libfftw3f_omp libfftw3f ${LIB_M})
 target_link_libraries(lofudpman PUBLIC libhdf5 libz libh5bshuf ${CMAKE_DL_LIBS}) # Some cases need libdl for HDF5
-target_link_libraries(lofudpman PUBLIC libpsrdada)
+target_link_libraries(lofudpman PUBLIC psrdada)
 target_link_libraries(lofudpman PUBLIC libzstd_static)
 
 if (NOT APPLE)
@@ -325,6 +317,7 @@ install(TARGETS lofudpman lofar_udp_extractor lofar_stokes_extractor
 )
 install(FILES ${UDP_INCLUDE_FILES} DESTINATION include)
 install(PROGRAMS ${CMAKE_CURRENT_SOURCE_DIR}/src/misc/dreamBeamJonesGenerator.py DESTINATION bin)
+install(PROGRAMS dada_db dada_dbmeminfo dada_dbmetric dada_dbmonitor DESTINATION bin)
 
 # Add the tests directory
 enable_testing()
