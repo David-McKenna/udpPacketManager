@@ -488,8 +488,8 @@ int main(int argc, char *argv[]) {
 
 	// FFTW strategy
 	int32_t channelisation = 1, downsampling = 1, spectralDownsample = 0, nfactor = 8, nforward = 512;
-	stokes_t stokesParameters = STOKESI;
-	int8_t numStokes = 1;
+	stokes_t stokesParameters = NOSTOKES;
+	int8_t numStokes = 0;
 
 	// Standard ugly input flags parser
 	while ((inputOpt = getopt(argc, argv, "crzqfvVZhD:i:o:m:M:I:u:t:s:S:b:C:F:d:P:T:B:N:")) != -1) {
@@ -508,6 +508,7 @@ int main(int argc, char *argv[]) {
 
 			case 'o':
 				if (lofar_udp_io_write_parse_optarg(outConfig, optarg) < 0) {
+					fprintf(stderr, "ERROR: Failed to parse output file pattern, exiting.\n");
 					helpMessages();
 					CLICleanup(config, outConfig, fftw, NULL);
 					return 1;
@@ -725,6 +726,12 @@ int main(int argc, char *argv[]) {
 		return 1;
 	}
 
+	if (numStokes == 0) {
+		printf("No Stokes configuration provided; defaulting to STOKESI\n");
+		numStokes = 1;
+		stokesParameters = STOKESI;
+	}
+
 	// Pass forward output channelisation and downsampling factors
 	config->metadata_config.externalChannelisation = channelisation;
 	config->metadata_config.externalDownsampling = downsampling;
@@ -785,6 +792,7 @@ int main(int argc, char *argv[]) {
 	}
 
 	if (lofar_udp_io_read_parse_optarg(config, inputFormat) < 0) {
+		fprintf(stderr, "ERROR: Failed to parse input file format, exiting.\n");
 		helpMessages();
 		CLICleanup(config, outConfig, fftw, NULL);
 		return 1;
@@ -835,7 +843,8 @@ int main(int argc, char *argv[]) {
 
 	if (strcmp(inputTime, "") != 0) {
 		startingPacket = lofar_udp_time_get_packet_from_isot(inputTime, clock200MHz);
-		if (startingPacket == 1) {
+		if (startingPacket == -1) {
+			fprintf(stderr, "ERROR: Failed to parse input time %s, exiting.\n", inputTime);
 			helpMessages();
 			CLICleanup(config, outConfig, fftw, NULL);
 			return 1;

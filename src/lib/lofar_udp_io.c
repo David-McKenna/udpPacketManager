@@ -488,7 +488,7 @@ reader_t lofar_udp_io_parse_type_optarg(const char *optargc, char *fileFormat, i
 			VERBOSE(printf("%s, HDF5\n", optargc));
 			reader = HDF5;
 		} else {
-			fprintf(stderr, "WARNING %s: No filename hints found, assuming input is a normal file.\n", __func__);
+			fprintf(stderr, "No filename hints found, assuming path %s is to a normal file.\n", optargc);
 			reader = NORMAL;
 		}
 
@@ -647,7 +647,7 @@ int32_t lofar_udp_io_parse_format(char *dest, const char format[], int32_t port,
 		}
 	}
 
-	int32_t returnBool = (dest != strncpy(dest, formatCopySrc, DEF_STR_LEN)) || notrigger;
+	const int32_t returnBool = (dest != strncpy(dest, formatCopySrc, DEF_STR_LEN)) || notrigger;
 	FREE_NOT_NULL(formatCopyOne); FREE_NOT_NULL(formatCopyTwo); FREE_NOT_NULL(prefix); FREE_NOT_NULL(suffix);
 	return returnBool > 0 ? -1 : 0;
 
