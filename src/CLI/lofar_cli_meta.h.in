@@ -17,7 +17,6 @@ extern "C" {
 #endif
 
 // Define prototypes
-void helpMessages(void);
 void sharedFlags(void);
 void processingModes(void);
 

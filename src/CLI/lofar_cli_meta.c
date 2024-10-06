@@ -81,7 +81,7 @@ void parseInput(char *inputFormat, const char *optargvar, int8_t *inputProvided)
 
 int8_t parseOutput(lofar_udp_io_write_config *outConfig, lofar_udp_config *config, const char *optargvar, int8_t *outputProvided) {
 	if (lofar_udp_io_write_parse_optarg(outConfig, optargvar) < 0) {
-		helpMessages();
+		fprintf(stderr, "ERROR: Failed to parse output file name %s, exiting.\n", optargvar);
 		return -1;
 	}
 	// If the metadata is not yet set, see if we can parse a requested type from the output filename
