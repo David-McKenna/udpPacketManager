@@ -237,6 +237,7 @@ int main(int argc, char *argv[]) {
 	}
 
 
+	const float timePerGulp = (float) (config->packetsPerIteration * UDPNTIMESLICE) * (1.0 / (clock200MHz ? CLOCK200MHZ : CLOCK160MHZ));
 	if (silent == 0) {
 		printf("LOFAR UDP Data extractor (v%s, lib v%s)\n\n", UPM_CLI_VERSION, UPM_VERSION);
 		printf("=========== Given configuration ===========\n");
@@ -246,6 +247,7 @@ int main(int argc, char *argv[]) {
 		printf("Output File: %s\n\n", outConfig->outputFormat);
 
 		printf("Packets/Gulp:\t%ld\t\t\tPorts:\t%d\n\n", config->packetsPerIteration, config->numPorts);
+		printf("Time (s) /Gulp:\t%f\t\tTime (s)/Iteration:\t%f\n\n", timePerGulp, config->numPorts * timePerGulp);
 		VERBOSE(printf("Verbose:\t%d\n", config->verbose););
 		printf("Proc Mode:\t%03d\t\t\tReader:\t%d\n\n", config->processingMode, config->readerType);
 		printf("Beamlet limits:\t%d, %d\n\n", config->beamletLimits[0], config->beamletLimits[1]);
@@ -418,6 +420,7 @@ int main(int argc, char *argv[]) {
 		if (silent == 0) {
 			printf("Metadata processing for operation %ld after %f seconds.\n", loops, timing[2]);
 			printf("Disk writes completed for operation %ld after %f seconds.\n", loops, timing[3]);
+			printf("Overall real-time factor: %.3fx\n", (timing[0] + timing[1] + timing[2] + timing[3]) / timePerGulp);
 
 			for (int idx = 0; idx < TIMEARRLEN; idx++) {
 				timing[idx] = 0.;

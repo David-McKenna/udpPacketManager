@@ -827,6 +827,7 @@ int main(int argc, char *argv[]) {
 	}
 
 
+	const float timePerGulp = (float) (config->packetsPerIteration * UDPNTIMESLICE) * (1.0 / (clock200MHz ? CLOCK200MHZ : CLOCK160MHZ));
 	if (silent == 0) {
 		printf("LOFAR Stokes Data extractor (v%s, lib v%s)\n\n", UPM_CLI_VERSION, UPM_VERSION);
 		printf("=========== Given configuration ===========\n");
@@ -836,6 +837,7 @@ int main(int argc, char *argv[]) {
 		printf("Output File: %s\n\n", outConfig->outputFormat);
 
 		printf("Packets/Gulp:\t%ld\t\t\tPorts:\t%d\n\n", config->packetsPerIteration, config->numPorts);
+		printf("Time (s) /Gulp:\t%f\t\tTime (s)/Iteration:\t%f\n\n", timePerGulp, config->numPorts * timePerGulp);
 		VERBOSE(printf("Verbose:\t%d\n", config->verbose););
 		printf("Proc Mode:\t%03d\t\t\tReader:\t%d\n\n", config->processingMode, config->readerType);
 		printf("Beamlet limits:\t%d, %d\n\n", config->beamletLimits[0], config->beamletLimits[1]);
@@ -1172,6 +1174,8 @@ int main(int argc, char *argv[]) {
 			printf("Detection completed for operation %d after %f seconds.\n", loops, timing[5]);
 			if (channelisation) printf("Channelisation completed for operation %d after %f seconds.\n", loops, timing[4]);
 			if (downsampling) printf("Temporal downsampling completed for operation %d after %f seconds.\n", loops, timing[6]);
+			printf("Overall real-time factor: %.3fx\n", (timing[0] + timing[1] + timing[2] + timing[3] + timing[4] + timing[5] + timing[6]) / timePerGulp);
+
 
 			ARR_INIT(timing, TIMEARRLEN, 0.0);
 
