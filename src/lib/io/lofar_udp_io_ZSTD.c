@@ -207,17 +207,11 @@ int64_t _lofar_udp_io_read_ZSTD(lofar_udp_io_read_config *const input, int8_t po
 				fprintf(stderr,
 				        "WARNING: Failed to apply %d after read operation on port %d (errno %d: %s).\n", input->zstdMadvise, port,
 				        errno, strerror(errno));
-				if (input->zstdMadvise == MADV_FREE) {
-					fprintf(stderr,
-					        "WARNING: This was previously using MADV_FREE, your kernel may not be recent enough to support it (> 4.5.0), swapping to MADV_DONTNEED.\n");
-					#pragma omp atomic write
-					input->zstdMadvise = MADV_DONTNEED;
-				}
 
 				if (madvise(((void *) input->readingTracker[port].src) + previousReadPos, input->readingTracker[port].pos - previousReadPos,
 				            input->zstdMadvise) <
 				    0) {
-					fprintf(stderr, "ERROR: Fallback madvise %d failed to apply, exiting.\n", input->zstdMadvise);
+					fprintf(stderr, "ERROR: Fallback madvise %d on full range failed to apply, exiting.\n", input->zstdMadvise);
 					return -1;
 				}
 			}
