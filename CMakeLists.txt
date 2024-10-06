@@ -183,7 +183,7 @@ message("")
 
 message ("Configuring PSRDADA")
 # Disable CUDA for the PSRDADA compile
-set(CUDAToolkit_FOUND NO)
+set(CUDAToolkit_FOUND "NO" CACHE INTERNAL "Disable CUDA search for PSRDADA")
 FetchContent_Declare(psrdada_src
 		GIT_REPOSITORY https://github.com/mirror-psrdada/mirror-psrdada-code.git
 		GIT_TAG bf9a02e
@@ -244,20 +244,22 @@ add_library(lofudpman STATIC
             src/lib/lofar_udp_io.c
             src/lib/lofar_udp_reader.c
             src/lib/lofar_udp_structs.c
-            src/CLI/lofar_cli_meta.c
             src/lib/lofar_udp_metadata.c
             src/lib/lofar_udp_time.c)
 
+add_library(lofudpman_cli STATIC
+			src/CLI/lofar_cli_meta.c)
+
 add_dependencies(lofudpman libzstd_static psrdada libhdf5 libz libh5bshuf install_python_requirements) # libfftw3fomp) ##yaml) #CSpice::cspice)
+add_dependencies(lofudpman_cli lofudpman)
 
 # Include all of our library headers
 target_include_directories(lofudpman PUBLIC
        ${CMAKE_CURRENT_SOURCE_DIR}/src/lib
        ${CMAKE_CURRENT_BINARY_DIR}/src/lib # Configured headers
-       ${CMAKE_CURRENT_SOURCE_DIR}/src/CLI
-       ${CMAKE_CURRENT_BINARY_DIR}/src/CLI # Configured headers
+#       ${CMAKE_CURRENT_SOURCE_DIR}/src/CLI
+#       ${CMAKE_CURRENT_BINARY_DIR}/src/CLI # Configured headers
        ${CMAKE_CURRENT_SOURCE_DIR}/src/metadata
-
 )
 # Include all of our dependency headers
 target_include_directories(lofudpman PUBLIC ${fftw3f_INSTALL_DIR}/src/internal_FFTW3F/api)
@@ -266,7 +268,12 @@ target_include_directories(lofudpman PUBLIC ${psrdada_src_SOURCE_DIR}/src/)
 target_include_directories(lofudpman PUBLIC ${zstd_SOURCE_DIR}/lib/)
 #target_include_directories(lofudpman PUBLIC ${yaml_SOURCE_DIR}/include/)
 
-file(GLOB_RECURSE UDP_INCLUDE_FILES "${CMAKE_CURRENT_SOURCE_DIR}/src/*/*.h" "${CMAKE_CURRENT_SOURCE_DIR}/src/*/*.hpp" "${CMAKE_CURRENT_BINARY_DIR}/src/*/*.h" "${CMAKE_CURRENT_BINARY_DIR}/src/*/*.hpp")
+file(GLOB_RECURSE UDP_INCLUDE_FILES "${CMAKE_CURRENT_SOURCE_DIR}/src/lib/*.h" "${CMAKE_CURRENT_SOURCE_DIR}/src/lib/*.hpp" "${CMAKE_CURRENT_BINARY_DIR}/src/lib/*.h" "${CMAKE_CURRENT_BINARY_DIR}/src/lib/*.hpp")
+
+target_include_directories(lofudpman_cli PUBLIC
+		${CMAKE_CURRENT_SOURCE_DIR}/src/CLI
+		${CMAKE_CURRENT_BINARY_DIR}/src/CLI
+)
 
 # FFTW requires a libm (math) link
 find_library(LIB_M m REQUIRED)
@@ -275,11 +282,11 @@ target_link_libraries(lofudpman PUBLIC libhdf5 libz libh5bshuf ${CMAKE_DL_LIBS})
 target_link_libraries(lofudpman PUBLIC psrdada)
 target_link_libraries(lofudpman PUBLIC libzstd_static)
 
-if (NOT APPLE)
-	find_library(LIB_RT rt REQUIRED) # Required for shmem functions
-	target_link_libraries(lofudpman PUBLIC ${LIB_RT})
-endif()
+find_library(LIB_RT rt REQUIRED) # Required for shmem functions
+target_link_libraries(lofudpman PUBLIC ${LIB_RT})
 #target_link_libraries(lofudpman PUBLIC yaml)
+
+target_link_libraries(lofudpman_cli PUBLIC lofudpman)
 
 # Set a few extra compiler options
 # Overwrite pre-installed libraries that we re-compile
@@ -289,17 +296,20 @@ set(CMAKE_CXX_IMPLICIT_LINK_LIBRARIES "")
 set(CMAKE_CXX_IMPLICIT_LINK_DIRECTORIES "")
 set_property(TARGET lofudpman PROPERTY LINKER_LANGUAGE CXX)
 set_property(TARGET lofudpman PROPERTY LINK_WHAT_YOU_USE ON)
+set_property(TARGET lofudpman_cli PROPERTY LINKER_LANGUAGE CXX)
+set_property(TARGET lofudpman_cli PROPERTY LINK_WHAT_YOU_USE ON)
 #set_property(TARGET lofudpman PROPERTY INTERPROCEDURAL_OPTIMIZATION ON) # Static + IPO -> build failures?
 
 # Link OpenMP
 target_link_libraries(lofudpman PUBLIC OpenMP::OpenMP_CXX OpenMP::OpenMP_C)
+target_link_libraries(lofudpman_cli PUBLIC OpenMP::OpenMP_CXX OpenMP::OpenMP_C)
 
 
 # Setup the CLIs
 add_executable(lofar_udp_extractor ${CMAKE_CURRENT_SOURCE_DIR}/src/CLI/lofar_cli_extractor.c)
 add_executable(lofar_stokes_extractor ${CMAKE_CURRENT_SOURCE_DIR}/src/CLI/lofar_cli_stokes.c)
-target_link_libraries(lofar_udp_extractor PUBLIC lofudpman)
-target_link_libraries(lofar_stokes_extractor PUBLIC lofudpman)
+target_link_libraries(lofar_udp_extractor PUBLIC lofudpman_cli)
+target_link_libraries(lofar_stokes_extractor PUBLIC lofudpman_cli)
 
 
 include(CMakePackageConfigHelpers)
