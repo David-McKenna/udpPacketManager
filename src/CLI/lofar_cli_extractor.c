@@ -236,8 +236,8 @@ int main(int argc, char *argv[]) {
 		return 1;
 	}
 
-
-	const float timePerGulp = (float) (config->packetsPerIteration * UDPNTIMESLICE) * (1.0 / (clock200MHz ? CLOCK200MHZ : CLOCK160MHZ));
+	const float sampleTime = 1.0 / (clock200MHz ? CLOCK200MHZ : CLOCK160MHZ);
+	const float timePerGulp = (float) (config->packetsPerIteration * UDPNTIMESLICE) * sampleTime;
 	if (silent == 0) {
 		printf("LOFAR UDP Data extractor (v%s, lib v%s)\n\n", UPM_CLI_VERSION, UPM_VERSION);
 		printf("=========== Given configuration ===========\n");
@@ -310,7 +310,6 @@ int main(int argc, char *argv[]) {
 		CLICleanup(config, outConfig, headerBuffer);
 		return 1;
 	}
-
 
 
 	if (silent == 0) {
@@ -420,7 +419,7 @@ int main(int argc, char *argv[]) {
 		if (silent == 0) {
 			printf("Metadata processing for operation %ld after %f seconds.\n", loops, timing[2]);
 			printf("Disk writes completed for operation %ld after %f seconds.\n", loops, timing[3]);
-			printf("Overall real-time factor: %.3fx\n", (timing[0] + timing[1] + timing[2] + timing[3]) / timePerGulp);
+			printf("Overall real-time factor of %.3fx\n", timePerGulp / (timing[0] + timing[1] + timing[2] + timing[3]));
 
 			for (int idx = 0; idx < TIMEARRLEN; idx++) {
 				timing[idx] = 0.;
@@ -471,12 +470,14 @@ int main(int argc, char *argv[]) {
 		for (int8_t port = 0; port < reader->meta->numPorts; port++)
 			droppedPackets += reader->meta->portTotalDroppedPackets[port];
 
+		const float processedTime = (packetsProcessed * UDPNTIMESLICE) * sampleTime;
 		printf("Reader loop exited (%ld); overall process took %f seconds.\n", returnVal, TICKTOCK(tick, tock));
 		printf("We processed %ld packets, representing %.03lf seconds of data", packetsProcessed,
-			   (float) (reader->meta->numPorts * packetsProcessed * UDPNTIMESLICE) * 5.12e-6f);
+			   (float) (reader->meta->numPorts * packetsProcessed * UDPNTIMESLICE) * sampleTime);
 		if (reader->meta->numPorts > 1) {
-			printf(" (%.03lf per port)\n", (float) (packetsProcessed * UDPNTIMESLICE) * 5.12e-6f);
+			printf(" (%.03lf per port)\n", processedTime);
 		} else { printf(".\n"); }
+		printf("The data was processed with a real-time factor of %.2f\n.", processedTime / TICKTOCK(tick, tock));
 		printf("Total Read Time:\t%3.02lf s\t\t\tTotal CPU Ops Time:\t%3.02lf s\nTotal Write Time:\t%3.02lf s\t\t\tTotal MetaD Time:\t%3.02lf s\n", totalReadTime,
 			   totalOpsTime, totalWriteTime, totalMetadataTime);
 		printf("Total Data Read:\t%3.03lf GB\t\tTotal Data Written:\t%3.03lf GB\n",

@@ -826,8 +826,8 @@ int main(int argc, char *argv[]) {
 		return 1;
 	}
 
-
-	const float timePerGulp = (float) (config->packetsPerIteration * UDPNTIMESLICE) * (1.0 / (clock200MHz ? CLOCK200MHZ : CLOCK160MHZ));
+	const float sampleTime = 1.0 / (clock200MHz ? CLOCK200MHZ : CLOCK160MHZ);
+	const float timePerGulp = (float) (config->packetsPerIteration * UDPNTIMESLICE) * sampleTime);
 	if (silent == 0) {
 		printf("LOFAR Stokes Data extractor (v%s, lib v%s)\n\n", UPM_CLI_VERSION, UPM_VERSION);
 		printf("=========== Given configuration ===========\n");
@@ -1174,7 +1174,7 @@ int main(int argc, char *argv[]) {
 			printf("Detection completed for operation %d after %f seconds.\n", loops, timing[5]);
 			if (channelisation) printf("Channelisation completed for operation %d after %f seconds.\n", loops, timing[4]);
 			if (downsampling) printf("Temporal downsampling completed for operation %d after %f seconds.\n", loops, timing[6]);
-			printf("Overall real-time factor: %.3fx\n", (timing[0] + timing[1] + timing[2] + timing[3] + timing[4] + timing[5] + timing[6]) / timePerGulp);
+			printf("Overall real-time factor of %.3fx\n", timePerGulp / (timing[0] + timing[1] + timing[2] + timing[3] + timing[4] + timing[5] + timing[6]));
 
 
 			ARR_INIT(timing, TIMEARRLEN, 0.0);
@@ -1224,12 +1224,14 @@ int main(int argc, char *argv[]) {
 		for (int port = 0; port < reader->meta->numPorts; port++)
 			droppedPackets += reader->meta->portTotalDroppedPackets[port];
 
+		const float processedTime = (packetsProcessed * UDPNTIMESLICE) * sampleTime;
 		printf("Reader loop exited (%ld); overall process took %f seconds.\n", returnVal, TICKTOCK(tick, tock));
 		printf("We processed %ld packets, representing %.03lf seconds of data", packetsProcessed,
-		       (float) (reader->meta->numPorts * packetsProcessed * UDPNTIMESLICE) * 5.12e-6f);
+		       (float) (reader->meta->numPorts * packetsProcessed * UDPNTIMESLICE) * sampleTime);
 		if (reader->meta->numPorts > 1) {
-			printf(" (%.03lf per port)\n", (float) (packetsProcessed * UDPNTIMESLICE) * 5.12e-6f);
+			printf(" (%.03lf per port)\n", (float) (packetsProcessed * UDPNTIMESLICE) * sampleTime);
 		} else { printf(".\n"); }
+		printf("The data was processed with a real-time factor of %.2f\n.", processedTime / TICKTOCK(tick, tock));
 		printf("Total Read Time:\t%3.02lf s\t\t\tTotal CPU Ops Time:\t%3.02lf s\nTotal Write Time:\t%3.02lf s\t\t\tTotal MetaD Time:\t%3.02lf s\n", totalReadTime,
 		       totalOpsTime, totalWriteTime, totalMetadataTime);
 		printf("Total Channelisation Time:\t%3.02lf s\t\t\tTotal Detection Time:\t%3.02lf s\nTotal Downsampling Time:\t%3.02lf s\n", totalChanTime, totalDetectTime, totalDownsampleTime);
