@@ -827,7 +827,7 @@ int main(int argc, char *argv[]) {
 	}
 
 	const float sampleTime = 1.0 / (clock200MHz ? CLOCK200MHZ : CLOCK160MHZ);
-	const float timePerGulp = (float) (config->packetsPerIteration * UDPNTIMESLICE) * sampleTime);
+	const float timePerGulp = (float) (config->packetsPerIteration * UDPNTIMESLICE) * sampleTime;
 	if (silent == 0) {
 		printf("LOFAR Stokes Data extractor (v%s, lib v%s)\n\n", UPM_CLI_VERSION, UPM_VERSION);
 		printf("=========== Given configuration ===========\n");
