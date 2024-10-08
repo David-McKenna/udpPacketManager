@@ -961,12 +961,19 @@ int32_t _lofar_udp_reader_config_check(const lofar_udp_config *config) {
 	}
 
 	for (int8_t port = 0; port < config->numPorts; port++) {
-		if (!strlen(config->inputLocations[port])) {
-			fprintf(stderr, "ERROR: You requested %d ports, but port %d is an empty string, exiting.\n", config->numPorts, port);
-			return -1;
-		} else if (access(config->inputLocations[port], F_OK) != 0) {
-			fprintf(stderr, "ERROR: Failed to open file at %s (port %d), exiting.\n", config->inputLocations[port], port);
-			return -1;
+		if (!(config->readerType & DADA_ACTIVE)) {
+			if (!strlen(config->inputLocations[port])) {
+				fprintf(stderr, "ERROR: You requested %d ports, but port %d is an empty string, exiting.\n", config->numPorts, port);
+				return -1;
+			} else if (access(config->inputLocations[port], F_OK) != 0) {
+				fprintf(stderr, "ERROR: Failed to open file at %s (port %d), exiting.\n", config->inputLocations[port], port);
+				return -1;
+			}
+		} else {
+			if (config->inputDadaKeys[port] < 0) {
+				fprintf(stderr, "ERROR: You requested %d ports, but the DADA key for port %d is unset, exiting.\n", config->numPorts, config->inputDadaKeys[port]);
+				return -1;
+			}
 		}
 	}
 

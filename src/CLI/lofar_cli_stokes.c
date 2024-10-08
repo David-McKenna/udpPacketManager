@@ -699,7 +699,7 @@ int main(int argc, char *argv[]) {
 			fprintf(stderr, "the boxcar window.\n");
 			window &= (COHERENT_DEDISP & BOXCAR);
 		}
-	} else if (!windowCheck) {
+	} else if (!windowCheck && (channelisation > 1 || (downsampling > 1 && temporalDownsample))) {
 		fprintf(stderr, "WARNING: No window was set, falling back to the pulsar window.\n");
 		window |= PSR_STANDARD;
 	}
@@ -726,7 +726,7 @@ int main(int argc, char *argv[]) {
 		return 1;
 	}
 
-	if (numStokes == 0) {
+	if (numStokes == NOSTOKES) {
 		printf("No Stokes configuration provided; defaulting to STOKESI\n");
 		numStokes = 1;
 		stokesParameters = STOKESI;
@@ -745,7 +745,17 @@ int main(int argc, char *argv[]) {
 		channelisation *= downsampling;
 	}
 
-	const int32_t noverlap = 2 * channelisation;
+	if (channelisation < 1) {
+		fprintf(stderr, "WARNING: Channelisation was set to %d, returning to 1.\n", channelisation);
+		channelisation = 1;
+	} else if ((channelisation > 1 && channelisation % 2) != 0) {
+		fprintf(stderr, "ERROR: Invalid channelisation factor (less than 1, non-factor of 2)\n");
+		helpMessages();
+		CLICleanup(config, outConfig, fftw, NULL);
+		return 1;
+	}
+
+	const int32_t noverlap = 2 * (channelisation ?: 0);
 	const int32_t nbin = nfactor * channelisation;
 	const int32_t nbin_valid = nbin - 2 * noverlap;
 
@@ -756,10 +766,6 @@ int main(int argc, char *argv[]) {
 	}
 	config->packetsPerIteration = (nbin_valid * nforward) / UDPNTIMESLICE;
 
-
-	if (channelisation < 2) {
-		channelisation = 1;
-	}
 	if (channelisation > 1 || window & COHERENT_DEDISP) {
 		// Should no longer be needed; keeping for debug/validation purposes; remove before release
 		int32_t invalidation = (config->packetsPerIteration * UDPNTIMESLICE) % nbin_valid;
@@ -775,13 +781,6 @@ int main(int argc, char *argv[]) {
 			CLICleanup(config, outConfig, fftw, NULL);
 			return 1;
 		}
-	}
-
-	if (channelisation < 1 || (channelisation > 1 && channelisation % 2) != 0) {
-		fprintf(stderr, "ERROR: Invalid channelisation factor (less than 1, non-factor of 2)\n");
-		helpMessages();
-		CLICleanup(config, outConfig, fftw, NULL);
-		return 1;
 	}
 
 	if (downsampling < 1) {
