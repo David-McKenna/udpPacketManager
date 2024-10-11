@@ -1,5 +1,5 @@
 # Based on what I learnt from https://cliutils.gitlab.io/modern-cmake
-cmake_minimum_required(VERSION 3.14...3.19)
+cmake_minimum_required(VERSION 3.28)
 
 # Create a release output by default
 set(default_build_type "Release")
@@ -110,7 +110,8 @@ set(ZSTD_BUILD_STATIC ON CACHE INTERNAL "")
 set(ZSTD_BUILD_SHARED OFF CACHE INTERNAL "")
 FetchContent_Declare(zstd
                      GIT_REPOSITORY https://github.com/facebook/zstd.git
-                     GIT_TAG v1.5.6
+                     GIT_TAG v1.5.4
+					 EXCLUDE_FROM_ALL
 )
 FetchContent_MakeAvailable(zstd)
 # MakeAvailable doesn't allow for libzstd_static to be used as a target
@@ -138,6 +139,7 @@ ExternalProject_Add(internal_zlib
                     BUILD_IN_SOURCE TRUE # Keep source beside install prefix
                     INSTALL_COMMAND ""
                     UPDATE_COMMAND ""
+					EXCLUDE_FROM_ALL
 )
 ExternalProject_Get_Property(internal_zlib INSTALL_DIR)
 set(zlib_INSTALL_DIR ${INSTALL_DIR})
@@ -154,6 +156,7 @@ ExternalProject_Add(internal_hdf5
                     INSTALL_COMMAND ""
                     UPDATE_COMMAND ""
                     DEPENDS internal_zlib
+					EXCLUDE_FROM_ALL
 )
 ExternalProject_Get_Property(internal_hdf5 INSTALL_DIR)
 set(hdf5_INSTALL_DIR ${INSTALL_DIR})
@@ -172,6 +175,7 @@ ExternalProject_Add(internal_bitshuffle
                     INSTALL_COMMAND ""
                     UPDATE_COMMAND ""
                     DEPENDS internal_hdf5 zstd internal_zlib
+					EXCLUDE_FROM_ALL
 )
 ExternalProject_Get_Property(internal_bitshuffle INSTALL_DIR)
 set(bitshuffle_INSTALL_DIR ${INSTALL_DIR})
@@ -185,8 +189,9 @@ message ("Configuring PSRDADA")
 # Disable CUDA for the PSRDADA compile
 set(CUDAToolkit_FOUND "NO" PARENT_SCOPE "Disable CUDA search for PSRDADA")
 FetchContent_Declare(psrdada_src
-		GIT_REPOSITORY https://github.com/mirror-psrdada/mirror-psrdada-code.git
-		GIT_TAG bf9a02e
+					 GIT_REPOSITORY https://github.com/mirror-psrdada/mirror-psrdada-code.git
+					 GIT_TAG bf9a02e
+					 EXCLUDE_FROM_ALL
 )
 FetchContent_MakeAvailable(psrdada_src)
 message("")
@@ -204,6 +209,7 @@ ExternalProject_ADD(internal_FFTW3F
                     BUILD_IN_SOURCE TRUE
                     INSTALL_COMMAND ""
                     UPDATE_COMMAND ""
+					EXCLUDE_FROM_ALL
 )
 ExternalProject_Get_Property(internal_FFTW3F install_dir)
 set(fftw3f_INSTALL_DIR ${install_dir})
