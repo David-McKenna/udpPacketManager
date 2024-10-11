@@ -148,9 +148,8 @@ set_property(TARGET libz PROPERTY IMPORTED_LOCATION ${zlib_INSTALL_DIR}/src/inte
 add_dependencies(libz internal_zlib)
 message("")
 ExternalProject_Add(internal_hdf5
-                    GIT_REPOSITORY https://github.com/HDFGroup/hdf5
-                    GIT_TAG hdf5-1_12_2
-                    CONFIGURE_COMMAND ./configure --disable-dependency-tracking --enable-optimization=high --disable-shared --disable-cxx --disable-hl --disable-hltools --disable-tools --enable-threadsafe --disable-fortran --enable-build-mode=production --with-zlib=${zlib_INSTALL_DIR}/src/internal_zlib/
+                    URL https://github.com/HDFGroup/hdf5/archive/refs/tags/hdf5-1_12_3.zip
+                    CONFIGURE_COMMAND ./configure --disable-dependency-tracking --enable-optimization=high --disable-shared --disable-cxx --disable-hl --disable-tools --enable-threadsafe --disable-fortran --enable-build-mode=production --with-zlib=${zlib_INSTALL_DIR}/src/internal_zlib/
                     BUILD_COMMAND make all -j8
                     BUILD_IN_SOURCE TRUE # Header gets moved to incorrect folder otherwise
                     INSTALL_COMMAND ""
