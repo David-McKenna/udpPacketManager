@@ -699,7 +699,7 @@ int main(int argc, char *argv[]) {
 			fprintf(stderr, "the boxcar window.\n");
 			window &= (COHERENT_DEDISP & BOXCAR);
 		}
-	} else if (!windowCheck && (channelisation > 1 || (downsampling > 1 && temporalDownsample))) {
+	} else if (!windowCheck && (channelisation > 1 || (downsampling > 1 && spectralDownsample))) {
 		fprintf(stderr, "WARNING: No window was set, falling back to the pulsar window.\n");
 		window |= PSR_STANDARD;
 	}

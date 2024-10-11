@@ -188,6 +188,7 @@ message("")
 message ("Configuring PSRDADA")
 # Disable CUDA for the PSRDADA compile
 set(CUDAToolkit_FOUND "NO" PARENT_SCOPE "Disable CUDA search for PSRDADA")
+set(HAVE_CUDA "OFF" PARENT_SCOPE "Disable CUDA search for PSRDADA")
 FetchContent_Declare(psrdada_src
 					 GIT_REPOSITORY https://github.com/mirror-psrdada/mirror-psrdada-code.git
 					 GIT_TAG bf9a02e
