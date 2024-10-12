@@ -21,7 +21,7 @@ lofar_udp_config* config_setup(int32_t sampleMeta = 0, int32_t testNumber = 0, i
 	lofar_udp_config *config = lofar_udp_config_alloc();
 	EXPECT_NE(nullptr, config);
 	assert(numPorts <= MAX_NUM_PORTS);
-	config->calibrationDuration = 1.2;
+	config->calibrationDuration = static_cast<float>(1.2);
 
 	for (int32_t port = 0; port < testPorts; port++) {
 		std::string workingString = std::regex_replace(inputLocations[testNumber], std::regex("portnum"), std::to_string(port));

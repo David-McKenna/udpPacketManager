@@ -13,6 +13,7 @@ void helpMessages() {
 
 	//printf();
 	printf("-p: <mode>		Processing mode, options listed below (default: 0)\n");
+	printf("-m: <numPack>	Number of packets to process in each read request (default: 65536)\n");
 
 
 	processingModes();
@@ -60,25 +61,21 @@ int main(int argc, char *argv[]) {
 	int8_t flagged = 0;
 
 	// Standard ugly input flags parser
-	while ((inputOpt = getopt(argc, argv, "hzrqfvVi:o:m:M:I:u:t:s:S:e:p:a:n:b:ck:T:")) != -1) {
+	while ((inputOpt = getopt(argc, argv, "hrqfvVi:o:m:M:I:u:t:s:S:e:p:a:n:b:ck:T:")) != -1) {
 		input = 1;
 		switch (inputOpt) {
 
 			case 'i':
-				strncpy(inputFormat, optarg, DEF_STR_LEN - 1);
-				inputProvided = 1;
+				parseInput(inputFormat, optarg, &inputProvided);
 				break;
 
 
 			case 'o':
-				if (lofar_udp_io_write_parse_optarg(outConfig, optarg) < 0) {
+				if (parseOutput(outConfig, config, optarg, &outputProvided) < 0) {
 					helpMessages();
 					CLICleanup(config, outConfig, headerBuffer);
 					return 1;
 				}
-				// If the metadata is not yet set, see if we can parse a requested type from the output filename
-				if (config->metadata_config.metadataType == NO_META) config->metadata_config.metadataType = lofar_udp_metadata_parse_type_output(optarg);
-				outputProvided = 1;
 				break;
 
 			case 'm':
@@ -134,8 +131,9 @@ int main(int argc, char *argv[]) {
 				config->calibrateData = APPLY_CALIBRATION;
 				break;
 
-			case 'z':
-				clock200MHz = 0;
+			case 'C':
+				config->calibrationDuration = strtof(optarg, &endPtr);
+				if (checkOpt(inputOpt, optarg, endPtr)) { flagged = 1; }
 				break;
 
 			case 'q':
@@ -238,7 +236,8 @@ int main(int argc, char *argv[]) {
 		return 1;
 	}
 
-
+	const float sampleTime = 1.0 / (clock200MHz ? CLOCK200MHZ : CLOCK160MHZ);
+	const float timePerGulp = (float) (config->packetsPerIteration * UDPNTIMESLICE) * sampleTime;
 	if (silent == 0) {
 		printf("LOFAR UDP Data extractor (v%s, lib v%s)\n\n", UPM_CLI_VERSION, UPM_VERSION);
 		printf("=========== Given configuration ===========\n");
@@ -248,6 +247,7 @@ int main(int argc, char *argv[]) {
 		printf("Output File: %s\n\n", outConfig->outputFormat);
 
 		printf("Packets/Gulp:\t%ld\t\t\tPorts:\t%d\n\n", config->packetsPerIteration, config->numPorts);
+		printf("Time (s) /Gulp:\t%f\t\tTime (s)/Iteration:\t%f\n\n", timePerGulp, config->numPorts * timePerGulp);
 		VERBOSE(printf("Verbose:\t%d\n", config->verbose););
 		printf("Proc Mode:\t%03d\t\t\tReader:\t%d\n\n", config->processingMode, config->readerType);
 		printf("Beamlet limits:\t%d, %d\n\n", config->beamletLimits[0], config->beamletLimits[1]);
@@ -310,7 +310,6 @@ int main(int argc, char *argv[]) {
 		CLICleanup(config, outConfig, headerBuffer);
 		return 1;
 	}
-
 
 
 	if (silent == 0) {
@@ -420,6 +419,7 @@ int main(int argc, char *argv[]) {
 		if (silent == 0) {
 			printf("Metadata processing for operation %ld after %f seconds.\n", loops, timing[2]);
 			printf("Disk writes completed for operation %ld after %f seconds.\n", loops, timing[3]);
+			printf("Overall real-time factor of %.3fx\n", timePerGulp / (timing[0] + timing[1] + timing[2] + timing[3]));
 
 			for (int idx = 0; idx < TIMEARRLEN; idx++) {
 				timing[idx] = 0.;
@@ -470,12 +470,14 @@ int main(int argc, char *argv[]) {
 		for (int8_t port = 0; port < reader->meta->numPorts; port++)
 			droppedPackets += reader->meta->portTotalDroppedPackets[port];
 
+		const float processedTime = (packetsProcessed * UDPNTIMESLICE) * sampleTime;
 		printf("Reader loop exited (%ld); overall process took %f seconds.\n", returnVal, TICKTOCK(tick, tock));
 		printf("We processed %ld packets, representing %.03lf seconds of data", packetsProcessed,
-			   (float) (reader->meta->numPorts * packetsProcessed * UDPNTIMESLICE) * 5.12e-6f);
+			   (float) (reader->meta->numPorts * packetsProcessed * UDPNTIMESLICE) * sampleTime);
 		if (reader->meta->numPorts > 1) {
-			printf(" (%.03lf per port)\n", (float) (packetsProcessed * UDPNTIMESLICE) * 5.12e-6f);
+			printf(" (%.03lf per port)\n", processedTime);
 		} else { printf(".\n"); }
+		printf("The data was processed with a real-time factor of %.2f\n.", processedTime / TICKTOCK(tick, tock));
 		printf("Total Read Time:\t%3.02lf s\t\t\tTotal CPU Ops Time:\t%3.02lf s\nTotal Write Time:\t%3.02lf s\t\t\tTotal MetaD Time:\t%3.02lf s\n", totalReadTime,
 			   totalOpsTime, totalWriteTime, totalMetadataTime);
 		printf("Total Data Read:\t%3.03lf GB\t\tTotal Data Written:\t%3.03lf GB\n",

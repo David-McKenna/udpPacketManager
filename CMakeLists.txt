@@ -1,5 +1,5 @@
 # Based on what I learnt from https://cliutils.gitlab.io/modern-cmake
-cmake_minimum_required(VERSION 3.14...3.19)
+cmake_minimum_required(VERSION 3.28)
 
 # Create a release output by default
 set(default_build_type "Release")
@@ -33,8 +33,14 @@ set(UPM_CLI_VERSION 0.9)
 
 message("Building udpPacketManager Version ${PROJECT_VERSION}\n\n")
 
-set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -march=native -O2 -ffast-math")
-set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -march=native -O2 -ffast-math")
+if (NOT "$ENV{CPU_OPTS}" STREQUAL "")
+       set(CPU_OPTS "$ENV{CPU_OPTS}" CACHE STRING "Set from ENV")
+else()
+       set(CPU_OPTS "-march=native" CACHE STRING "Set by default")
+endif()
+
+set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} ${CPU_OPTS} -O2 -ffast-math")
+set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} ${CPU_OPTS} -O2 -ffast-math")
 
 set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -Wstrict-prototypes -Wmissing-prototypes -Wframe-larger-than=4095 -Wshadow -Wconversion -Wno-sign-conversion -Wall -Wextra -g3")
 set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -Wframe-larger-than=4095 -Wshadow -Wconversion -Wno-sign-conversion -Wall -Wextra -g3")
@@ -65,7 +71,7 @@ endif()
 find_package(Python3 3.8 COMPONENTS Interpreter REQUIRED)
 
 add_custom_command(OUTPUT pip_installed
-                   COMMAND ${Python3_EXECUTABLE} -m pip install -r ${CMAKE_CURRENT_SOURCE_DIR}/requirements.txt
+                   COMMAND ${Python3_EXECUTABLE} -m pip install --user -r ${CMAKE_CURRENT_SOURCE_DIR}/requirements.txt
                    COMMAND ${CMAKE_COMMAND} -E touch ${CMAKE_CURRENT_BINARY_DIR}/pip_installed
 )
 add_custom_target(install_python_requirements
@@ -77,9 +83,14 @@ add_custom_target(install_python_requirements
 message("Configuring OpenMP...")
 find_package(OpenMP REQUIRED)
 
-execute_process(COMMAND bash -c "cat /proc/cpuinfo | uniq | grep -m 2 \"siblings\" | cut -d \":\" -f 2 | sort --numeric --unique | xargs echo"
+execute_process(COMMAND bash -c "cat /proc/cpuinfo | uniq | grep -m 2 \"siblings\" | cut -d \":\" -f 2 | sort --numeric --unique | head -n 1"
                 OUTPUT_VARIABLE OMP_THREADS
+                RESULT_VARIABLE CPU_COUNT_RET
 )
+if ("${OMP_THREADS}" LESS_EQUAL 1 OR "${OMP_THREADS} " STREQUAL " ")
+	   message("WARNING: Failed to automatically determine a reasonable number of default threads, setting default to 8")
+       set(OMP_THREADS 8)
+endif()
 
 #if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
 if (OpenMP_C_LIB_NAMES MATCHES ".*(gomp).*")
@@ -99,7 +110,8 @@ set(ZSTD_BUILD_STATIC ON CACHE INTERNAL "")
 set(ZSTD_BUILD_SHARED OFF CACHE INTERNAL "")
 FetchContent_Declare(zstd
                      GIT_REPOSITORY https://github.com/facebook/zstd.git
-                     GIT_TAG v1.5.5
+                     GIT_TAG v1.5.4
+					 EXCLUDE_FROM_ALL
 )
 FetchContent_MakeAvailable(zstd)
 # MakeAvailable doesn't allow for libzstd_static to be used as a target
@@ -125,8 +137,9 @@ ExternalProject_Add(internal_zlib
                     CONFIGURE_COMMAND ./configure --static --prefix=./
                     BUILD_COMMAND make test install -j8
                     BUILD_IN_SOURCE TRUE # Keep source beside install prefix
-                    INSTALL_COMMAND ""
+                    INSTALL_COMMAND cmake -E echo "Skipping zlib install step"
                     UPDATE_COMMAND ""
+					BUILD_BYPRODUCTS ${CMAKE_CURRENT_BINARY_DIR}/internal_zlib-prefix/src/internal_zlib/libz.a
 )
 ExternalProject_Get_Property(internal_zlib INSTALL_DIR)
 set(zlib_INSTALL_DIR ${INSTALL_DIR})
@@ -135,14 +148,14 @@ set_property(TARGET libz PROPERTY IMPORTED_LOCATION ${zlib_INSTALL_DIR}/src/inte
 add_dependencies(libz internal_zlib)
 message("")
 ExternalProject_Add(internal_hdf5
-                    GIT_REPOSITORY https://github.com/HDFGroup/hdf5
-                    GIT_TAG hdf5-1_12_2
-                    CONFIGURE_COMMAND ./configure --disable-dependency-tracking --enable-optimization=high --disable-shared --disable-cxx --disable-hl --disable-hltools --disable-tools --enable-threadsafe --disable-fortran --enable-build-mode=production --with-zlib=${zlib_INSTALL_DIR}/src/internal_zlib/
+                    URL https://github.com/HDFGroup/hdf5/archive/refs/tags/hdf5-1_12_3.zip
+                    CONFIGURE_COMMAND ./configure --disable-dependency-tracking --enable-optimization=high --disable-shared --disable-cxx --disable-hl --disable-tools --enable-threadsafe --disable-fortran --enable-build-mode=production --with-zlib=${zlib_INSTALL_DIR}/src/internal_zlib/
                     BUILD_COMMAND make all -j8
                     BUILD_IN_SOURCE TRUE # Header gets moved to incorrect folder otherwise
-                    INSTALL_COMMAND ""
+                    INSTALL_COMMAND cmake -E echo "Skipping hdf5 install step"
                     UPDATE_COMMAND ""
                     DEPENDS internal_zlib
+					BUILD_BYPRODUCTS ${CMAKE_CURRENT_BINARY_DIR}/internal_hdf5-prefix/src/internal_hdf5/src/.libs/libhdf5.a
 )
 ExternalProject_Get_Property(internal_hdf5 INSTALL_DIR)
 set(hdf5_INSTALL_DIR ${INSTALL_DIR})
@@ -158,9 +171,10 @@ ExternalProject_Add(internal_bitshuffle
                     CONFIGURE_COMMAND cp ${CMAKE_CURRENT_SOURCE_DIR}/src/misc/bitshuffleMakefile Makefile
                     BUILD_COMMAND CMAKE_BASE_DIR=${CMAKE_CURRENT_BINARY_DIR} make link -j4
                     BUILD_IN_SOURCE TRUE
-                    INSTALL_COMMAND ""
+                    INSTALL_COMMAND cmake -E echo "Skipping bitshuffle install step"
                     UPDATE_COMMAND ""
                     DEPENDS internal_hdf5 zstd internal_zlib
+					BUILD_BYPRODUCTS ${CMAKE_CURRENT_BINARY_DIR}/internal_bitshuffle-prefix/src/internal_bitshuffle/libh5bshuf.a
 )
 ExternalProject_Get_Property(internal_bitshuffle INSTALL_DIR)
 set(bitshuffle_INSTALL_DIR ${INSTALL_DIR})
@@ -171,21 +185,13 @@ message("")
 
 
 message ("Configuring PSRDADA")
-# Find the PSRDADA libraries on the system (or set NODADA if not found)
-ExternalProject_Add(internal_PSRDADA
-                    GIT_REPOSITORY git://git.code.sf.net/p/psrdada/code
-                    GIT_TAG ba2b88
-                    BUILD_IN_SOURCE TRUE
-                    CONFIGURE_COMMAND ./bootstrap && ./configure --with-cuda-dir=no && cd 3rdparty && make libtimers.la # libtimers fails to compile during normal step with older Make versions
-                    BUILD_COMMAND cd src/ && make libpsrdada.la dada_db dada_dbmeminfo dada_dbmetric dada_dbmonitor -j4
-                    INSTALL_COMMAND ""
-                    UPDATE_COMMAND ""
+# Disable CUDA for the PSRDADA compile
+FetchContent_Declare(psrdada_src
+					 GIT_REPOSITORY https://github.com/mirror-psrdada/mirror-psrdada-code.git
+					 GIT_TAG bf9a02e
+					 EXCLUDE_FROM_ALL
 )
-ExternalProject_Get_Property(internal_PSRDADA INSTALL_DIR)
-set(psrdada_INSTALL_DIR ${INSTALL_DIR})
-add_library(libpsrdada STATIC IMPORTED)
-set_property(TARGET libpsrdada PROPERTY IMPORTED_LOCATION ${psrdada_INSTALL_DIR}/src/internal_PSRDADA/src/.libs/libpsrdada.a)
-add_dependencies(libpsrdada internal_PSRDADA)
+FetchContent_MakeAvailable(psrdada_src)
 message("")
 
 
@@ -199,8 +205,9 @@ ExternalProject_ADD(internal_FFTW3F
                     CONFIGURE_COMMAND ./configure --disable-dependency-tracking --enable-float --enable-openmp --enable-static --enable-sse2 --enable-avx --enable-avx2 --enable-avx512 --enable-avx-128-fma
                     BUILD_COMMAND make -j4
                     BUILD_IN_SOURCE TRUE
-                    INSTALL_COMMAND ""
+                    INSTALL_COMMAND cmake -E echo "Skipping FFTW3 install step"
                     UPDATE_COMMAND ""
+					BUILD_BYPRODUCTS ${CMAKE_CURRENT_BINARY_DIR}/internal_FFTW3F-prefix/src/internal_FFTW3F/threads/.libs/libfftw3f_omp.a ${CMAKE_CURRENT_BINARY_DIR}/internal_FFTW3F-prefix/src/internal_FFTW3F/.libs/libfftw3f.a
 )
 ExternalProject_Get_Property(internal_FFTW3F install_dir)
 set(fftw3f_INSTALL_DIR ${install_dir})
@@ -241,35 +248,35 @@ add_library(lofudpman STATIC
             src/lib/lofar_udp_io.c
             src/lib/lofar_udp_reader.c
             src/lib/lofar_udp_structs.c
-            src/CLI/lofar_cli_meta.c
             src/lib/lofar_udp_metadata.c
-            src/lib/lofar_udp_time.c)
+            src/lib/lofar_udp_time.c
+			src/CLI/lofar_cli_meta.c)
 
-add_dependencies(lofudpman libzstd_static libpsrdada libhdf5 libz libh5bshuf install_python_requirements) # libfftw3fomp) ##yaml) #CSpice::cspice)
+
+add_dependencies(lofudpman libzstd_static psrdada libhdf5 libz libh5bshuf install_python_requirements dada_db dada_dbmeminfo dada_dbmetric dada_dbmonitor) # libfftw3fomp) ##yaml) #CSpice::cspice)
 
 # Include all of our library headers
 target_include_directories(lofudpman PUBLIC
        ${CMAKE_CURRENT_SOURCE_DIR}/src/lib
        ${CMAKE_CURRENT_BINARY_DIR}/src/lib # Configured headers
-       ${CMAKE_CURRENT_SOURCE_DIR}/src/CLI
+#       ${CMAKE_CURRENT_SOURCE_DIR}/src/CLI
        ${CMAKE_CURRENT_BINARY_DIR}/src/CLI # Configured headers
        ${CMAKE_CURRENT_SOURCE_DIR}/src/metadata
-
 )
 # Include all of our dependency headers
 target_include_directories(lofudpman PUBLIC ${fftw3f_INSTALL_DIR}/src/internal_FFTW3F/api)
 target_include_directories(lofudpman PUBLIC ${hdf5_INSTALL_DIR}/src/internal_hdf5/src/ ${zlib_INSTALL_DIR}/src/internal_zlib/ ${bitshuffle_INSTALL_DIR}/src/internal_bitshuffle/src/)
-target_include_directories(lofudpman PUBLIC ${psrdada_INSTALL_DIR}/src/internal_PSRDADA/src/)
+target_include_directories(lofudpman PUBLIC ${psrdada_src_SOURCE_DIR}/src/)
 target_include_directories(lofudpman PUBLIC ${zstd_SOURCE_DIR}/lib/)
 #target_include_directories(lofudpman PUBLIC ${yaml_SOURCE_DIR}/include/)
 
-file(GLOB_RECURSE UDP_INCLUDE_FILES "${CMAKE_CURRENT_SOURCE_DIR}/src/*/*.h" "${CMAKE_CURRENT_SOURCE_DIR}/src/*/*.hpp" "${CMAKE_CURRENT_BINARY_DIR}/src/*/*.h" "${CMAKE_CURRENT_BINARY_DIR}/src/*/*.hpp")
+file(GLOB_RECURSE UDP_INCLUDE_FILES "${CMAKE_CURRENT_SOURCE_DIR}/src/lib/*.h" "${CMAKE_CURRENT_SOURCE_DIR}/src/lib/*.hpp" "${CMAKE_CURRENT_BINARY_DIR}/src/lib/*.h" "${CMAKE_CURRENT_BINARY_DIR}/src/lib/*.hpp" "${CMAKE_CURRENT_BINARY_DIR}/src/CLI/*h")
 
 # FFTW requires a libm (math) link
 find_library(LIB_M m REQUIRED)
 target_link_libraries(lofudpman PUBLIC libfftw3f_omp libfftw3f ${LIB_M})
 target_link_libraries(lofudpman PUBLIC libhdf5 libz libh5bshuf ${CMAKE_DL_LIBS}) # Some cases need libdl for HDF5
-target_link_libraries(lofudpman PUBLIC libpsrdada)
+target_link_libraries(lofudpman PUBLIC psrdada)
 target_link_libraries(lofudpman PUBLIC libzstd_static)
 
 find_library(LIB_RT rt REQUIRED) # Required for shmem functions
@@ -293,8 +300,8 @@ target_link_libraries(lofudpman PUBLIC OpenMP::OpenMP_CXX OpenMP::OpenMP_C)
 # Setup the CLIs
 add_executable(lofar_udp_extractor ${CMAKE_CURRENT_SOURCE_DIR}/src/CLI/lofar_cli_extractor.c)
 add_executable(lofar_stokes_extractor ${CMAKE_CURRENT_SOURCE_DIR}/src/CLI/lofar_cli_stokes.c)
-target_link_libraries(lofar_udp_extractor PUBLIC lofudpman)
-target_link_libraries(lofar_stokes_extractor PUBLIC lofudpman)
+target_link_libraries(lofar_udp_extractor PUBLIC lofudpman lofudpman)
+target_link_libraries(lofar_stokes_extractor PUBLIC lofudpman lofudpman)
 
 
 include(CMakePackageConfigHelpers)
@@ -312,6 +319,7 @@ install(TARGETS lofudpman lofar_udp_extractor lofar_stokes_extractor
 )
 install(FILES ${UDP_INCLUDE_FILES} DESTINATION include)
 install(PROGRAMS ${CMAKE_CURRENT_SOURCE_DIR}/src/misc/dreamBeamJonesGenerator.py DESTINATION bin)
+install(PROGRAMS dada_db dada_dbmeminfo dada_dbmetric dada_dbmonitor DESTINATION bin)
 
 # Add the tests directory
 enable_testing()

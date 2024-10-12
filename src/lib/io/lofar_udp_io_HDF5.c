@@ -654,6 +654,8 @@ int64_t _lofar_udp_io_write_metadata_HDF5(lofar_udp_io_write_config *const confi
 				{ "SYSTEM_VERSION", UPM_VERSION },
 				{ "PIPELINE_VERSION", UPM_VERSION }, // TODO?
 				{ "BF_VERSION", "NULL" }, // TODO
+				{ "ANTENNA_SET", metadata->freq_raw > 100 ? "HBA_JOINED" : "LBA_OUTER" },
+				{ "CREATE_OFFLINE_ONLINE", metadata->upm_reader == DADA_ACTIVE ? "ONLINE" : "OFFLINE" },
 			};
 
 			H5G_SET_ATTRS(group, rootStrAttrs, hdf5SetupStrAttrs);
@@ -670,10 +672,8 @@ int64_t _lofar_udp_io_write_metadata_HDF5(lofar_udp_io_write_config *const confi
 				{ "OBSERVATION_ID", metadata->obs_id },
 				{ "OBSERVATION_START_UTC", metadata->obs_utc_start },
 				{ "EXPTIME_START_UTC", metadata->obs_utc_start },
-				{ "ANTENNA_SET", metadata->freq_raw > 100 ? "HBA_JOINED" : "LBA_OUTER" },
-				{ "CREATE_OFFLINE_ONLINE", metadata->upm_reader == DADA_ACTIVE ? "ONLINE" : "OFFLINE" },
 				{ "TARGET", metadata->source },
-				{ "FILTER_SELECTION", filterSelection },
+				{ "FILTER_SELECTION", &(filterSelection[0]) },
 			};
 			H5G_SET_ATTRS(group, rootStrPtrAttrs, hdf5SetupStrPtrAttrs);
 

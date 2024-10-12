@@ -961,12 +961,19 @@ int32_t _lofar_udp_reader_config_check(const lofar_udp_config *config) {
 	}
 
 	for (int8_t port = 0; port < config->numPorts; port++) {
-		if (!strlen(config->inputLocations[port])) {
-			fprintf(stderr, "ERROR: You requested %d ports, but port %d is an empty string, exiting.\n", config->numPorts, port);
-			return -1;
-		} else if (access(config->inputLocations[port], F_OK) != 0) {
-			fprintf(stderr, "ERROR: Failed to open file at %s (port %d), exiting.\n", config->inputLocations[port], port);
-			return -1;
+		if (!(config->readerType & DADA_ACTIVE)) {
+			if (!strlen(config->inputLocations[port])) {
+				fprintf(stderr, "ERROR: You requested %d ports, but port %d is an empty string, exiting.\n", config->numPorts, port);
+				return -1;
+			} else if (access(config->inputLocations[port], F_OK) != 0) {
+				fprintf(stderr, "ERROR: Failed to open file at %s (port %d), exiting.\n", config->inputLocations[port], port);
+				return -1;
+			}
+		} else {
+			if (config->inputDadaKeys[port] < 0) {
+				fprintf(stderr, "ERROR: You requested %d ports, but the DADA key for port %d is unset, exiting.\n", config->numPorts, config->inputDadaKeys[port]);
+				return -1;
+			}
 		}
 	}
 
@@ -1453,6 +1460,7 @@ int32_t lofar_udp_reader_step_timed(lofar_udp_reader *reader, double timing[2]) 
 			// outputDataReady is negative -> out of order packets -> need to re-run for time-major modes
 			if (reader->meta->outputDataReady < 0 && reader->meta->dataOrder == TIME_MAJOR) {
 				fprintf(stderr, "WARNING: Re-running processing due to out of order packets and time-major processing mode.\n");
+				// TODO: Recover packet order, drop packets + re-fill buffer as needed.
 				stepReturnVal = lofar_udp_cpp_loop_interface(reader->meta);
 			} else {
 				return stepReturnVal;

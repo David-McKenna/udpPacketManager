@@ -342,6 +342,39 @@ int32_t _lofar_udp_io_write_internal_lib_setup_helper(lofar_udp_io_write_config 
 	return lofar_udp_io_write_setup_helper(config, fakeOutputLength, reader->meta->numOutputs, iter, reader->meta->lastPacket);
 }
 
+/**
+ * @brief Setup a writer based on the processing information for the current meta struct
+ *
+ * This could be a replacement for the above call, but it is left in for backwards compatibility
+ *
+ * @param config Writer config
+ * @param meta Configured obs_meta struct
+ * @param iter Current output iteration
+ *
+ * @return 0: Success, -1: Failure
+ */
+int32_t _lofar_udp_io_write_internal_meta_setup_helper(lofar_udp_io_write_config *config, lofar_udp_obs_meta *meta, int32_t iter) {
+	if (config == NULL || meta == NULL) {
+		fprintf(stderr, "ERROR %s: passed null input configuration (config: %p, meta: %p), exiting.\n", __func__, config, meta);
+		return -1;
+	}
+
+	if (meta->packetsPerIteration < 1) {
+		fprintf(stderr, "ERROR %s: Input packetsPerIteration is not initialised (%ld), exiting.\n", __func__, meta->packetsPerIteration);
+		return -2;
+	}
+	for (int8_t outp = 0; outp < config->numOutputs; outp++) {
+		if (meta->packetOutputLength[outp] < 1) {
+			fprintf(stderr, "ERROR %s: packetOutputLength[%d] is not initialised (%d), exiting.\n", __func__, outp, meta->packetOutputLength[outp]);
+			return -3;
+		}
+		config->writeBufSize[outp] = meta->packetsPerIteration * meta->packetOutputLength[outp];
+	}
+	int64_t fakeOutputLength[1] = { LONG_MIN };
+
+	return lofar_udp_io_write_setup_helper(config, fakeOutputLength, meta->numOutputs, iter, meta->lastPacket);
+}
+
 
 // Cleanup functions
 
@@ -488,7 +521,7 @@ reader_t lofar_udp_io_parse_type_optarg(const char *optargc, char *fileFormat, i
 			VERBOSE(printf("%s, HDF5\n", optargc));
 			reader = HDF5;
 		} else {
-			fprintf(stderr, "WARNING %s: No filename hints found, assuming input is a normal file.\n", __func__);
+			fprintf(stderr, "No filename hints found, assuming path %s is to a normal file.\n", optargc);
 			reader = NORMAL;
 		}
 
@@ -647,7 +680,7 @@ int32_t lofar_udp_io_parse_format(char *dest, const char format[], int32_t port,
 		}
 	}
 
-	int32_t returnBool = (dest != strncpy(dest, formatCopySrc, DEF_STR_LEN)) || notrigger;
+	const int32_t returnBool = (dest != strncpy(dest, formatCopySrc, DEF_STR_LEN)) || notrigger;
 	FREE_NOT_NULL(formatCopyOne); FREE_NOT_NULL(formatCopyTwo); FREE_NOT_NULL(prefix); FREE_NOT_NULL(suffix);
 	return returnBool > 0 ? -1 : 0;
 
