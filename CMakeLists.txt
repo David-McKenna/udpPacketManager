@@ -139,7 +139,7 @@ ExternalProject_Add(internal_zlib
                     BUILD_IN_SOURCE TRUE # Keep source beside install prefix
                     INSTALL_COMMAND cmake -E echo "Skipping zlib install step"
                     UPDATE_COMMAND ""
-					BUILD_BYPRODUCTS src/internal_zlib/libz.a
+					BUILD_BYPRODUCTS ${CMAKE_CURRENT_BINARY_DIR}/internal_zlib-prefix/src/internal_zlib/libz.a
 )
 ExternalProject_Get_Property(internal_zlib INSTALL_DIR)
 set(zlib_INSTALL_DIR ${INSTALL_DIR})
@@ -155,7 +155,7 @@ ExternalProject_Add(internal_hdf5
                     INSTALL_COMMAND cmake -E echo "Skipping hdf5 install step"
                     UPDATE_COMMAND ""
                     DEPENDS internal_zlib
-					BUILD_BYPRODUCTS src/internal_hdf5/src/.libs/libhdf5.a
+					BUILD_BYPRODUCTS ${CMAKE_CURRENT_BINARY_DIR}/internal_hdf5-prefix/src/internal_hdf5/src/.libs/libhdf5.a
 )
 ExternalProject_Get_Property(internal_hdf5 INSTALL_DIR)
 set(hdf5_INSTALL_DIR ${INSTALL_DIR})
@@ -174,7 +174,7 @@ ExternalProject_Add(internal_bitshuffle
                     INSTALL_COMMAND cmake -E echo "Skipping bitshuffle install step"
                     UPDATE_COMMAND ""
                     DEPENDS internal_hdf5 zstd internal_zlib
-					BUILD_BYPRODUCTS src/internal_bitshuffle/libh5bshuf.a
+					BUILD_BYPRODUCTS ${CMAKE_CURRENT_BINARY_DIR}/internal_bitshuffle-prefix/src/internal_bitshuffle/libh5bshuf.a
 )
 ExternalProject_Get_Property(internal_bitshuffle INSTALL_DIR)
 set(bitshuffle_INSTALL_DIR ${INSTALL_DIR})
@@ -207,7 +207,7 @@ ExternalProject_ADD(internal_FFTW3F
                     BUILD_IN_SOURCE TRUE
                     INSTALL_COMMAND cmake -E echo "Skipping FFTW3 install step"
                     UPDATE_COMMAND ""
-					BUILD_BYPRODUCTS src/internal_FFTW3F/threads/.libs/libfftw3f_omp.a src/internal_FFTW3F/.libs/libfftw3f.a
+					BUILD_BYPRODUCTS ${CMAKE_CURRENT_BINARY_DIR}/internal_FFTW3F-prefix/src/internal_FFTW3F/threads/.libs/libfftw3f_omp.a ${CMAKE_CURRENT_BINARY_DIR}/internal_FFTW3F-prefix/src/internal_FFTW3F/.libs/libfftw3f.a
 )
 ExternalProject_Get_Property(internal_FFTW3F install_dir)
 set(fftw3f_INSTALL_DIR ${install_dir})
