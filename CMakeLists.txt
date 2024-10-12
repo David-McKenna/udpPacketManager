@@ -137,9 +137,8 @@ ExternalProject_Add(internal_zlib
                     CONFIGURE_COMMAND ./configure --static --prefix=./
                     BUILD_COMMAND make test install -j8
                     BUILD_IN_SOURCE TRUE # Keep source beside install prefix
-                    INSTALL_COMMAND ""
+                    INSTALL_COMMAND cmake -E echo "Skipping zlib install step"
                     UPDATE_COMMAND ""
-					EXCLUDE_FROM_ALL
 )
 ExternalProject_Get_Property(internal_zlib INSTALL_DIR)
 set(zlib_INSTALL_DIR ${INSTALL_DIR})
@@ -152,10 +151,9 @@ ExternalProject_Add(internal_hdf5
                     CONFIGURE_COMMAND ./configure --disable-dependency-tracking --enable-optimization=high --disable-shared --disable-cxx --disable-hl --disable-tools --enable-threadsafe --disable-fortran --enable-build-mode=production --with-zlib=${zlib_INSTALL_DIR}/src/internal_zlib/
                     BUILD_COMMAND make all -j8
                     BUILD_IN_SOURCE TRUE # Header gets moved to incorrect folder otherwise
-                    INSTALL_COMMAND ""
+                    INSTALL_COMMAND cmake -E echo "Skipping hdf5 install step"
                     UPDATE_COMMAND ""
                     DEPENDS internal_zlib
-					EXCLUDE_FROM_ALL
 )
 ExternalProject_Get_Property(internal_hdf5 INSTALL_DIR)
 set(hdf5_INSTALL_DIR ${INSTALL_DIR})
@@ -171,10 +169,9 @@ ExternalProject_Add(internal_bitshuffle
                     CONFIGURE_COMMAND cp ${CMAKE_CURRENT_SOURCE_DIR}/src/misc/bitshuffleMakefile Makefile
                     BUILD_COMMAND CMAKE_BASE_DIR=${CMAKE_CURRENT_BINARY_DIR} make link -j4
                     BUILD_IN_SOURCE TRUE
-                    INSTALL_COMMAND ""
+                    INSTALL_COMMAND cmake -E echo "Skipping bitshuffle install step"
                     UPDATE_COMMAND ""
                     DEPENDS internal_hdf5 zstd internal_zlib
-					EXCLUDE_FROM_ALL
 )
 ExternalProject_Get_Property(internal_bitshuffle INSTALL_DIR)
 set(bitshuffle_INSTALL_DIR ${INSTALL_DIR})
@@ -205,9 +202,8 @@ ExternalProject_ADD(internal_FFTW3F
                     CONFIGURE_COMMAND ./configure --disable-dependency-tracking --enable-float --enable-openmp --enable-static --enable-sse2 --enable-avx --enable-avx2 --enable-avx512 --enable-avx-128-fma
                     BUILD_COMMAND make -j4
                     BUILD_IN_SOURCE TRUE
-                    INSTALL_COMMAND ""
+                    INSTALL_COMMAND cmake -E echo "Skipping FFTW3 install step"
                     UPDATE_COMMAND ""
-					EXCLUDE_FROM_ALL
 )
 ExternalProject_Get_Property(internal_FFTW3F install_dir)
 set(fftw3f_INSTALL_DIR ${install_dir})
