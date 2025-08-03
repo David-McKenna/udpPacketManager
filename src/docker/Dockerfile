@@ -34,8 +34,11 @@ COPY . $SOFT/udpPacketManager/
 RUN source /home/soft/venv/bin/activate && \
 	# git clean -f -x && git reset --hard HEAD && \
 	find ./src && \
-	./build.sh 2 && \
+	./build_prep.sh 2 && \
 	rm -rf /var/lib/apt/lists/*
+
+RUN source /home/soft/venv/bin/activate && \
+	./build_compile.sh 2 && \
 
 WORKDIR /home/user
 ENTRYPOINT /bin/bash
