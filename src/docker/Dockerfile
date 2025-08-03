@@ -26,6 +26,7 @@ RUN echo "Building udpPacketManager" && \
 	\
 	apt-get update && \
 	apt-get install -y autoconf ${CC} ${CXX} curl csh git make libomp5-${CC_VER} libomp-${CC_VER}-dev libtool python3-pip python3-venv wget && \
+	rm -rf /var/lib/apt/lists/* && \
 	python3 -m venv /home/soft/venv/ && \
 	source /home/soft/venv/bin/activate && \
 	python3 -m pip install cmake
@@ -34,11 +35,7 @@ COPY . $SOFT/udpPacketManager/
 RUN source /home/soft/venv/bin/activate && \
 	# git clean -f -x && git reset --hard HEAD && \
 	find ./src && \
-	./build_prep.sh 2 && \
-	rm -rf /var/lib/apt/lists/*
-
-RUN source /home/soft/venv/bin/activate && \
-	./build_compile.sh 2
+	./build.sh 2
 
 WORKDIR /home/user
 ENTRYPOINT /bin/bash
