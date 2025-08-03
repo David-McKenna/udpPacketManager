@@ -38,7 +38,7 @@ RUN source /home/soft/venv/bin/activate && \
 	rm -rf /var/lib/apt/lists/*
 
 RUN source /home/soft/venv/bin/activate && \
-	./build_compile.sh 2 && \
+	./build_compile.sh 2
 
 WORKDIR /home/user
 ENTRYPOINT /bin/bash
