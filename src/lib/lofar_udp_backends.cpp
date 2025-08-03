@@ -308,8 +308,46 @@ int32_t lofar_udp_cpp_loop_interface(lofar_udp_obs_meta *meta) {
 						case STOKES_IV_DS16_TIME:
 							return lofar_udp_raw_loop<int8_t, float, 4000 + STOKES_IV_DS16_TIME, 1>(meta);
 
+							// Power X / Y
+						case POWER_XY:
+							return lofar_udp_raw_loop<int8_t, float, 4000 + POWER_XY, 1>(meta);
+						case POWER_XY_REV:
+							return lofar_udp_raw_loop<int8_t, float, 4000 + POWER_XY_REV, 1>(meta);
+						case POWER_XY_TIME:
+							return lofar_udp_raw_loop<int8_t, float, 4000 + POWER_XY_TIME, 1>(meta);
+
+							// Power X / Y
+						case POWER_XY_DS2:
+							return lofar_udp_raw_loop<int8_t, float, 4000 + POWER_XY_DS2, 1>(meta);
+						case POWER_XY_DS4:
+							return lofar_udp_raw_loop<int8_t, float, 4000 + POWER_XY_DS4, 1>(meta);
+						case POWER_XY_DS8:
+							return lofar_udp_raw_loop<int8_t, float, 4000 + POWER_XY_DS8, 1>(meta);
+						case POWER_XY_DS16:
+							return lofar_udp_raw_loop<int8_t, float, 4000 + POWER_XY_DS16, 1>(meta);
+
+							// Power X / Y
+						case POWER_XY_DS2_REV:
+							return lofar_udp_raw_loop<int8_t, float, 4000 + POWER_XY_DS2_REV, 1>(meta);
+						case POWER_XY_DS4_REV:
+							return lofar_udp_raw_loop<int8_t, float, 4000 + POWER_XY_DS4_REV, 1>(meta);
+						case POWER_XY_DS8_REV:
+							return lofar_udp_raw_loop<int8_t, float, 4000 + POWER_XY_DS8_REV, 1>(meta);
+						case POWER_XY_DS16_REV:
+							return lofar_udp_raw_loop<int8_t, float, 4000 + POWER_XY_DS16_REV, 1>(meta);
+
+							// Power X / Y
+						case POWER_XY_DS2_TIME:
+							return lofar_udp_raw_loop<int8_t, float, 4000 + POWER_XY_DS2_TIME, 1>(meta);
+						case POWER_XY_DS4_TIME:
+							return lofar_udp_raw_loop<int8_t, float, 4000 + POWER_XY_DS4_TIME, 1>(meta);
+						case POWER_XY_DS8_TIME:
+							return lofar_udp_raw_loop<int8_t, float, 4000 + POWER_XY_DS8_TIME, 1>(meta);
+						case POWER_XY_DS16_TIME:
+							return lofar_udp_raw_loop<int8_t, float, 4000 + POWER_XY_DS16_TIME, 1>(meta);
+
 						default:
-							fprintf(stderr, "Unknown processing mode %d (%d, %d). Exiting.\n", processingMode,
+							fprintf(stderr, "Unknown processing mode %d (bitmode %d, calibration %d). Exiting.\n", processingMode,
 							        inputBitMode, calibrateData);
 							return 2;
 					}
@@ -595,8 +633,47 @@ int32_t lofar_udp_cpp_loop_interface(lofar_udp_obs_meta *meta) {
 							return lofar_udp_raw_loop<int8_t, float, STOKES_IV_DS16_TIME, 1>(meta);
 
 
+							// Power X / Y
+						case POWER_XY:
+							return lofar_udp_raw_loop<int8_t, float, POWER_XY, 1>(meta);
+						case POWER_XY_REV:
+							return lofar_udp_raw_loop<int8_t, float, POWER_XY_REV, 1>(meta);
+						case POWER_XY_TIME:
+							return lofar_udp_raw_loop<int8_t, float, POWER_XY_TIME, 1>(meta);
+
+							// Power X / Y
+						case POWER_XY_DS2:
+							return lofar_udp_raw_loop<int8_t, float, POWER_XY_DS2, 1>(meta);
+						case POWER_XY_DS4:
+							return lofar_udp_raw_loop<int8_t, float, POWER_XY_DS4, 1>(meta);
+						case POWER_XY_DS8:
+							return lofar_udp_raw_loop<int8_t, float, POWER_XY_DS8, 1>(meta);
+						case POWER_XY_DS16:
+							return lofar_udp_raw_loop<int8_t, float, POWER_XY_DS16, 1>(meta);
+
+							// Power X / Y
+						case POWER_XY_DS2_REV:
+							return lofar_udp_raw_loop<int8_t, float, POWER_XY_DS2_REV, 1>(meta);
+						case POWER_XY_DS4_REV:
+							return lofar_udp_raw_loop<int8_t, float, POWER_XY_DS4_REV, 1>(meta);
+						case POWER_XY_DS8_REV:
+							return lofar_udp_raw_loop<int8_t, float, POWER_XY_DS8_REV, 1>(meta);
+						case POWER_XY_DS16_REV:
+							return lofar_udp_raw_loop<int8_t, float, POWER_XY_DS16_REV, 1>(meta);
+
+							// Power X / Y
+						case POWER_XY_DS2_TIME:
+							return lofar_udp_raw_loop<int8_t, float, POWER_XY_DS2_TIME, 1>(meta);
+						case POWER_XY_DS4_TIME:
+							return lofar_udp_raw_loop<int8_t, float, POWER_XY_DS4_TIME, 1>(meta);
+						case POWER_XY_DS8_TIME:
+							return lofar_udp_raw_loop<int8_t, float, POWER_XY_DS8_TIME, 1>(meta);
+						case POWER_XY_DS16_TIME:
+							return lofar_udp_raw_loop<int8_t, float, POWER_XY_DS16_TIME, 1>(meta);
+
+
 						default:
-							fprintf(stderr, "Unknown processing mode %d (%d, %d). Exiting.\n", processingMode,
+							fprintf(stderr, "Unknown processing mode %d (bitmode %d, calibration %d). Exiting.\n", processingMode,
 							        inputBitMode, calibrateData);
 							return 2;
 					}
@@ -879,14 +956,52 @@ int32_t lofar_udp_cpp_loop_interface(lofar_udp_obs_meta *meta) {
 						case STOKES_IV_DS16_TIME:
 							return lofar_udp_raw_loop<int16_t, float, STOKES_IV_DS16_TIME, 1>(meta);
 
+							// Power X / Y
+						case POWER_XY:
+							return lofar_udp_raw_loop<int16_t, float, POWER_XY, 1>(meta);
+						case POWER_XY_REV:
+							return lofar_udp_raw_loop<int16_t, float, POWER_XY_REV, 1>(meta);
+						case POWER_XY_TIME:
+							return lofar_udp_raw_loop<int16_t, float, POWER_XY_TIME, 1>(meta);
+
+							// Power X / Y
+						case POWER_XY_DS2:
+							return lofar_udp_raw_loop<int16_t, float, POWER_XY_DS2, 1>(meta);
+						case POWER_XY_DS4:
+							return lofar_udp_raw_loop<int16_t, float, POWER_XY_DS4, 1>(meta);
+						case POWER_XY_DS8:
+							return lofar_udp_raw_loop<int16_t, float, POWER_XY_DS8, 1>(meta);
+						case POWER_XY_DS16:
+							return lofar_udp_raw_loop<int16_t, float, POWER_XY_DS16, 1>(meta);
+
+							// Power X / Y
+						case POWER_XY_DS2_REV:
+							return lofar_udp_raw_loop<int16_t, float, POWER_XY_DS2_REV, 1>(meta);
+						case POWER_XY_DS4_REV:
+							return lofar_udp_raw_loop<int16_t, float, POWER_XY_DS4_REV, 1>(meta);
+						case POWER_XY_DS8_REV:
+							return lofar_udp_raw_loop<int16_t, float, POWER_XY_DS8_REV, 1>(meta);
+						case POWER_XY_DS16_REV:
+							return lofar_udp_raw_loop<int16_t, float, POWER_XY_DS16_REV, 1>(meta);
+
+							// Power X / Y
+						case POWER_XY_DS2_TIME:
+							return lofar_udp_raw_loop<int16_t, float, POWER_XY_DS2_TIME, 1>(meta);
+						case POWER_XY_DS4_TIME:
+							return lofar_udp_raw_loop<int16_t, float, POWER_XY_DS4_TIME, 1>(meta);
+						case POWER_XY_DS8_TIME:
+							return lofar_udp_raw_loop<int16_t, float, POWER_XY_DS8_TIME, 1>(meta);
+						case POWER_XY_DS16_TIME:
+							return lofar_udp_raw_loop<int16_t, float, POWER_XY_DS16_TIME, 1>(meta);
+
 						default:
-							fprintf(stderr, "Unknown processing mode %d (%d, %d). Exiting.\n", processingMode,
+							fprintf(stderr, "Unknown processing mode %d (bitmode %d, calibration %d). Exiting.\n", processingMode,
 							        inputBitMode, calibrateData);
 							return 2;
 					}
 
 				default:
-					fprintf(stderr, "Unexpected bitmode %d (%d, %d). Exiting.\n", inputBitMode, processingMode,
+					fprintf(stderr, "Unexpected bitmode %d (processing mode %d, calibration %d). Exiting.\n", inputBitMode, processingMode,
 					        calibrateData);
 					return 2;
 			}
@@ -1178,8 +1293,47 @@ int32_t lofar_udp_cpp_loop_interface(lofar_udp_obs_meta *meta) {
 						case STOKES_IV_DS16_TIME:
 							return lofar_udp_raw_loop<int8_t, float, 4000 + STOKES_IV_DS16_TIME, 0>(meta);
 
+
+							// Power X / Y
+						case POWER_XY:
+							return lofar_udp_raw_loop<int8_t, float, 4000 + POWER_XY, 0>(meta);
+						case POWER_XY_REV:
+							return lofar_udp_raw_loop<int8_t, float, 4000 + POWER_XY_REV, 0>(meta);
+						case POWER_XY_TIME:
+							return lofar_udp_raw_loop<int8_t, float, 4000 + POWER_XY_TIME, 0>(meta);
+
+							// Power X / Y
+						case POWER_XY_DS2:
+							return lofar_udp_raw_loop<int8_t, float, 4000 + POWER_XY_DS2, 0>(meta);
+						case POWER_XY_DS4:
+							return lofar_udp_raw_loop<int8_t, float, 4000 + POWER_XY_DS4, 0>(meta);
+						case POWER_XY_DS8:
+							return lofar_udp_raw_loop<int8_t, float, 4000 + POWER_XY_DS8, 0>(meta);
+						case POWER_XY_DS16:
+							return lofar_udp_raw_loop<int8_t, float, 4000 + POWER_XY_DS16, 0>(meta);
+
+							// Power X / Y
+						case POWER_XY_DS2_REV:
+							return lofar_udp_raw_loop<int8_t, float, 4000 + POWER_XY_DS2_REV, 0>(meta);
+						case POWER_XY_DS4_REV:
+							return lofar_udp_raw_loop<int8_t, float, 4000 + POWER_XY_DS4_REV, 0>(meta);
+						case POWER_XY_DS8_REV:
+							return lofar_udp_raw_loop<int8_t, float, 4000 + POWER_XY_DS8_REV, 0>(meta);
+						case POWER_XY_DS16_REV:
+							return lofar_udp_raw_loop<int8_t, float, 4000 + POWER_XY_DS16_REV, 0>(meta);
+
+							// Power X / Y
+						case POWER_XY_DS2_TIME:
+							return lofar_udp_raw_loop<int8_t, float, 4000 + POWER_XY_DS2_TIME, 0>(meta);
+						case POWER_XY_DS4_TIME:
+							return lofar_udp_raw_loop<int8_t, float, 4000 + POWER_XY_DS4_TIME, 0>(meta);
+						case POWER_XY_DS8_TIME:
+							return lofar_udp_raw_loop<int8_t, float, 4000 + POWER_XY_DS8_TIME, 0>(meta);
+						case POWER_XY_DS16_TIME:
+							return lofar_udp_raw_loop<int8_t, float, 4000 + POWER_XY_DS16_TIME, 0>(meta);
+
 						default:
-							fprintf(stderr, "Unknown processing mode %d (%d, %d). Exiting.\n", processingMode,
+							fprintf(stderr, "Unknown processing mode %d (bitmode %d, calibration %d). Exiting.\n", processingMode,
 							        inputBitMode, calibrateData);
 							return 2;
 					}
@@ -1465,8 +1619,47 @@ int32_t lofar_udp_cpp_loop_interface(lofar_udp_obs_meta *meta) {
 						case STOKES_IV_DS16_TIME:
 							return lofar_udp_raw_loop<int8_t, float, STOKES_IV_DS16_TIME, 0>(meta);
 
+
+							// Power X / Y
+						case POWER_XY:
+							return lofar_udp_raw_loop<int8_t, float, POWER_XY, 0>(meta);
+						case POWER_XY_REV:
+							return lofar_udp_raw_loop<int8_t, float, POWER_XY_REV, 0>(meta);
+						case POWER_XY_TIME:
+							return lofar_udp_raw_loop<int8_t, float, POWER_XY_TIME, 0>(meta);
+
+							// Power X / Y
+						case POWER_XY_DS2:
+							return lofar_udp_raw_loop<int8_t, float, POWER_XY_DS2, 0>(meta);
+						case POWER_XY_DS4:
+							return lofar_udp_raw_loop<int8_t, float, POWER_XY_DS4, 0>(meta);
+						case POWER_XY_DS8:
+							return lofar_udp_raw_loop<int8_t, float, POWER_XY_DS8, 0>(meta);
+						case POWER_XY_DS16:
+							return lofar_udp_raw_loop<int8_t, float, POWER_XY_DS16, 0>(meta);
+
+							// Power X / Y
+						case POWER_XY_DS2_REV:
+							return lofar_udp_raw_loop<int8_t, float, POWER_XY_DS2_REV, 0>(meta);
+						case POWER_XY_DS4_REV:
+							return lofar_udp_raw_loop<int8_t, float, POWER_XY_DS4_REV, 0>(meta);
+						case POWER_XY_DS8_REV:
+							return lofar_udp_raw_loop<int8_t, float, POWER_XY_DS8_REV, 0>(meta);
+						case POWER_XY_DS16_REV:
+							return lofar_udp_raw_loop<int8_t, float, POWER_XY_DS16_REV, 0>(meta);
+
+							// Power X / Y
+						case POWER_XY_DS2_TIME:
+							return lofar_udp_raw_loop<int8_t, float, POWER_XY_DS2_TIME, 0>(meta);
+						case POWER_XY_DS4_TIME:
+							return lofar_udp_raw_loop<int8_t, float, POWER_XY_DS4_TIME, 0>(meta);
+						case POWER_XY_DS8_TIME:
+							return lofar_udp_raw_loop<int8_t, float, POWER_XY_DS8_TIME, 0>(meta);
+						case POWER_XY_DS16_TIME:
+							return lofar_udp_raw_loop<int8_t, float, POWER_XY_DS16_TIME, 0>(meta);
+
 						default:
-							fprintf(stderr, "Unknown processing mode %d (%d, %d). Exiting.\n", processingMode,
+							fprintf(stderr, "Unknown processing mode %d (bitmode %d, calibration %d). Exiting.\n", processingMode,
 							        inputBitMode, calibrateData);
 							return 2;
 					}
@@ -1753,14 +1946,53 @@ int32_t lofar_udp_cpp_loop_interface(lofar_udp_obs_meta *meta) {
 						case STOKES_IV_DS16_TIME:
 							return lofar_udp_raw_loop<int16_t, float, STOKES_IV_DS16_TIME, 0>(meta);
 
+
+							// Power X / Y
+						case POWER_XY:
+							return lofar_udp_raw_loop<int16_t, float, POWER_XY, 0>(meta);
+						case POWER_XY_REV:
+							return lofar_udp_raw_loop<int16_t, float, POWER_XY_REV, 0>(meta);
+						case POWER_XY_TIME:
+							return lofar_udp_raw_loop<int16_t, float, POWER_XY_TIME, 0>(meta);
+
+							// Power X / Y
+						case POWER_XY_DS2:
+							return lofar_udp_raw_loop<int16_t, float, POWER_XY_DS2, 0>(meta);
+						case POWER_XY_DS4:
+							return lofar_udp_raw_loop<int16_t, float, POWER_XY_DS4, 0>(meta);
+						case POWER_XY_DS8:
+							return lofar_udp_raw_loop<int16_t, float, POWER_XY_DS8, 0>(meta);
+						case POWER_XY_DS16:
+							return lofar_udp_raw_loop<int16_t, float, POWER_XY_DS16, 0>(meta);
+
+							// Power X / Y
+						case POWER_XY_DS2_REV:
+							return lofar_udp_raw_loop<int16_t, float, POWER_XY_DS2_REV, 0>(meta);
+						case POWER_XY_DS4_REV:
+							return lofar_udp_raw_loop<int16_t, float, POWER_XY_DS4_REV, 0>(meta);
+						case POWER_XY_DS8_REV:
+							return lofar_udp_raw_loop<int16_t, float, POWER_XY_DS8_REV, 0>(meta);
+						case POWER_XY_DS16_REV:
+							return lofar_udp_raw_loop<int16_t, float, POWER_XY_DS16_REV, 0>(meta);
+
+							// Power X / Y
+						case POWER_XY_DS2_TIME:
+							return lofar_udp_raw_loop<int16_t, float, POWER_XY_DS2_TIME, 0>(meta);
+						case POWER_XY_DS4_TIME:
+							return lofar_udp_raw_loop<int16_t, float, POWER_XY_DS4_TIME, 0>(meta);
+						case POWER_XY_DS8_TIME:
+							return lofar_udp_raw_loop<int16_t, float, POWER_XY_DS8_TIME, 0>(meta);
+						case POWER_XY_DS16_TIME:
+							return lofar_udp_raw_loop<int16_t, float, POWER_XY_DS16_TIME, 0>(meta);
+
 						default:
-							fprintf(stderr, "Unknown processing mode %d (%d, %d). Exiting.\n", processingMode,
+							fprintf(stderr, "Unknown processing mode %d (bitmode %d, calibration %d). Exiting.\n", processingMode,
 							        inputBitMode, calibrateData);
 							return 2;
 					}
 
 				default:
-					fprintf(stderr, "Unexpected bitmode %d (%d, %d). Exiting.\n", inputBitMode, processingMode,
+					fprintf(stderr, "Unexpected bitmode %d (procmode %d, calibration %d). Exiting.\n", inputBitMode, processingMode,
 					        calibrateData);
 					return 2;
 			}

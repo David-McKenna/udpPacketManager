@@ -1,0 +1,16 @@
+FROM nvidia/cuda:12.6.1-devel-ubuntu22.04
+
+# docker build --platform linux/amd64 --build-arg UID=$(id -u) --build-arg GID=$(id -g) --build-arg NAME=$(whoami) .
+
+ARG UID=1000
+ARG GID=1000
+ARG NAME=builder
+RUN useradd -m -u "${UID}" -g "${GID}" -s /bin/bash "${NAME}"
+
+RUN apt-get update \
+    && apt-get install -y clang clang gdb git libomp-dev libomp5 python3-pip \
+    && apt-get install -y git autoconf csh libtool make wget \
+    && python3 -m pip install cmake
+
+USER ${NAME}
+RUN git config --global --add safe.directory "*"

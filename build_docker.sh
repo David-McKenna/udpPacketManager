@@ -14,7 +14,7 @@ echo "Building Docker image with tag lofar-upm:latest from $LOCAL_DIR"
 docker build -f src/docker/Dockerfile -t lofar-upm:latest .
 
 if [ "$#" -eq 2 ]; then
-  echo "Building singulairty image, outputting in directory $1"
+  echo "Building singularity image, outputting in directory $1"
   touch "$1"/test
 
   if [ "$?" -ne 0 ]; then

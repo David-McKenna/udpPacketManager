@@ -1,13 +1,6 @@
-rm -rf ./build
-mkdir build
-cd build
+#!/usr/bin/env bash
+set -e
 
-echo "Preparing build with CC=${CC} CXX=${CXX} LD=${LD}"
-cmake -DCMAKE_BUILD_TYPE=Release ..
-cmake --build . --target all --config Release
-
-cmake --install .
-
-if [[ $1 -eq 1 ]]; then
-  ctest -V .
-fi
+bash ./build_prep.sh "${1}"
+bash ./build_compile.sh "${1}"
+bash ./build_install.sh "${1}"

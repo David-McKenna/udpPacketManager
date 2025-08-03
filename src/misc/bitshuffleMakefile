@@ -2,8 +2,8 @@
 CMAKE_BASE_DIR ?= ../../../
 
 CFLAGS += -O3 -ffast-math -std=c99 -static -fno-strict-aliasing -fPIC -DZSTD_SUPPORT
-CFLAGS += -I./src -I./lz4 -I$(CMAKE_BASE_DIR)/_deps/zstd-src/lib/ -I$(CMAKE_BASE_DIR)/internal_hdf5-prefix/src/internal_hdf5/src/
-LFLAGS += -L$(CMAKE_BASE_DIR)/_deps/zstd-src/build/cmake -lzstd
+CFLAGS += -I./src -I./lz4 -I$(CMAKE_BASE_DIR)/_deps/zstd-src/lib/ -I$(CMAKE_BASE_DIR)/../zstd-src/lib/ -I$(CMAKE_BASE_DIR)/internal_hdf5-prefix/src/internal_hdf5/src/
+LFLAGS += -L$(CMAKE_BASE_DIR)/_deps/zstd-src/build/cmake -L$(CMAKE_BASE_DIR)/../zstd-src/build/cmake -lzstd
 
 SRC_INP =  $(wildcard ./src/*.c)
 SRC_INP += $(wildcard ./lz4/*.c)

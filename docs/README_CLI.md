@@ -334,3 +334,22 @@ has an example implementation of extended downsampling for modes (10, 20).
 
 - Take the input data, apply (10, 20 or 30) and (\*\*0) to form a Stokes \* sample, and sum it with the next sample
 - N input files -> 1 output file (16x less output samples)
+
+
+### Split Polarisation Power Modes
+
+An output of 2 files, containing the power for the X and Y polarisations has been added to test beam models.
+
+#### \*70: "Split Polarisation Powers"
+
+- Take the input data, apply (10, 20 or 30), and then combine the polarisation real/imaging values to form 2 output 
+32-bit floating point (power of X, Y) filterbanks for each frequency sample
+- N input files -> 2 output files
+
+#### \*7\*: "Split Polarisation Powers with Nx downsampling"
+
+- Follows the same rules as the Stokes downsampling described above, using 1, 2, 3, 4 as the final value of the
+processing mode to give 2^n downsampling.
+- Take the input data, apply (10, 20 or 30), and then combine the polarisation real/imaging values, sum 2^n times to
+generate 2 downsampled filterbanks.
+- N input files -> 2 output files

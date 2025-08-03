@@ -277,7 +277,7 @@ int32_t _lofar_udp_io_write_setup_DADA(lofar_udp_io_write_config *const config, 
 		multilog_add(config->dadaWriter[outp].multilog, stdout);
 	}
 
-	// Initialuse a ringbuffer, followed by a HDU
+	// Initialise a ringbuffer, followed by a HDU
 	if (config->dadaWriter[outp].hdu == NULL) {
 		// ringbuffer
 		if (_lofar_udp_io_write_setup_DADA_ringbuffer(config->outputDadaKeys[outp],
@@ -294,6 +294,10 @@ int32_t _lofar_udp_io_write_setup_DADA(lofar_udp_io_write_config *const config, 
 		config->dadaWriter[outp].hdu = dada_hdu_create(config->dadaWriter[outp].multilog);
 		dada_hdu_set_key(config->dadaWriter[outp].hdu, config->outputDadaKeys[outp]);
 		if (dada_hdu_connect(config->dadaWriter[outp].hdu) < 0) {
+			return -1;
+		}
+
+		if (dada_hdu_lock_write(config->dadaWriter[outp].hdu) < 0) {
 			return -1;
 		}
 
@@ -390,15 +394,17 @@ int64_t _lofar_udp_io_write_DADA(ipcio_t *const ringbuffer, const int8_t *src, c
 	// If performing a data write,
 	if (!ipcbuf) {
 		// Open as the active writer
-		if (ipcio_open(ringbuffer, 'W') < 0) {
-			return -1;
-		}
+		// Now performed when we create the IO object
+		// if (ipcio_open(ringbuffer, 'W') < 0) {
+		// 	return -1;
+		// }
 
 		// Write the data
 		int64_t writtenBytes = ipcio_write(ringbuffer, (char *) src, nchars);
 
 		// Unlock the buffer and continue
-		if (ipcio_close(ringbuffer) < 0 || writtenBytes < 0) {
+		// if (ipcio_close(ringbuffer) < 0 || writtenBytes < 0) {
+		if (writtenBytes < 0) {
 			return -1;
 		}
 
@@ -407,9 +413,9 @@ int64_t _lofar_udp_io_write_DADA(ipcio_t *const ringbuffer, const int8_t *src, c
 		// If opening as a header, get the buffer and lock as a writer
 		// This is possible as an ipcio_t starts with an ipcbuf_t, followed by extra data
 		ipcbuf_t *buffer = (ipcbuf_t *) ringbuffer;
-		if (ipcbuf_lock_write(buffer) < 0) {
-			return -1;
-		}
+		// if (ipcbuf_lock_write(buffer) < 0) {
+		// 	return -1;
+		// }
 		// While data in our buffer remains, fill up ringbuffer pages
 		int64_t written = 0;
 		while (nchars) {
@@ -428,9 +434,9 @@ int64_t _lofar_udp_io_write_DADA(ipcio_t *const ringbuffer, const int8_t *src, c
 		}
 
 		// Unlock the buffer and continue
-		if (ipcbuf_unlock_write(buffer) < 0) {
-			return -1;
-		}
+		// if (ipcbuf_unlock_write(buffer) < 0) {
+		// 	return -1;
+		// }
 		return written;
 	}
 #else
@@ -523,7 +529,7 @@ void _lofar_udp_io_cleanup_DADA_loop(ipcbuf_t *buff, float *timeoutPtr) {
 	float timeout = *timeoutPtr;
 	float totalSleep = 0.001f * (float) sampleEveryNMilli;
 	int64_t iters = 0;
-	// Hold a reference to the lat read buffer, we may be stuck within 1-2 blocks of the last write,
+	// Hold a reference to the last read buffer, we may be stuck within 1-2 blocks of the last write,
 	//  in which case we will need to force an exit
 	uint64_t previousBuffer = ipcbuf_get_read_count(buff);
 

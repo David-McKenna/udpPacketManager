@@ -195,6 +195,7 @@ void lofar_udp_metadata_cleanup(lofar_udp_metadata *meta) {
 		}
 		FREE_NOT_NULL(meta->output.guppi);
 	}
+	FREE_NOT_NULL(meta->headerBuffer);
 	FREE_NOT_NULL(meta);
 }
 

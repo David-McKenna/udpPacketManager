@@ -17,10 +17,14 @@ extern "C" {
 #endif
 
 // Define prototypes
-void helpMessages(void);
 void sharedFlags(void);
 void processingModes(void);
-int checkOpt(int opt, char *inp, char *endPtr);
+
+// CLI flag parsers
+int8_t checkOpt(int opt, const char *inp, const char *endPtr);
+void parseInput(char *inputFormat, const char *optargvar, int8_t *inputProvided);
+int8_t parseOutput(lofar_udp_io_write_config *outConfig, lofar_udp_config *config, const char *optargvar, int8_t *outputProvided);
+
 
 // Exit reasons, 0, 1 aren't handled, only defined up to 3
 extern const char exitReasons[8][DEF_STR_LEN];

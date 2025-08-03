@@ -634,6 +634,11 @@ int64_t _lofar_udp_io_write_metadata_HDF5(lofar_udp_io_write_config *const confi
 				return -1;
 			}
 
+			// Reducing string length to keep stack below 4k
+			char antenna_set_str[shortStrLen / 2];
+			char generated_str[shortStrLen / 2];
+			strncpy(antenna_set_str, metadata->freq_raw > 100 ? "HBA_JOINED" : "LBA_OUTER", shortStrLen / 2 - 1);
+			strncpy(generated_str, metadata->upm_reader == DADA_ACTIVE ? "ONLINE" : "OFFLINE", shortStrLen / 2 - 1);
 			const strKeyStrVal rootStrAttrs[] = {
 				{ "GROUPTYPE", "Root" },
 				{ "FILETYPE", "bf" },
@@ -654,6 +659,8 @@ int64_t _lofar_udp_io_write_metadata_HDF5(lofar_udp_io_write_config *const confi
 				{ "SYSTEM_VERSION", UPM_VERSION },
 				{ "PIPELINE_VERSION", UPM_VERSION }, // TODO?
 				{ "BF_VERSION", "NULL" }, // TODO
+				{ "ANTENNA_SET", {*antenna_set_str} },
+				{ "CREATE_OFFLINE_ONLINE", {*generated_str} },
 			};
 
 			H5G_SET_ATTRS(group, rootStrAttrs, hdf5SetupStrAttrs);
@@ -670,10 +677,8 @@ int64_t _lofar_udp_io_write_metadata_HDF5(lofar_udp_io_write_config *const confi
 				{ "OBSERVATION_ID", metadata->obs_id },
 				{ "OBSERVATION_START_UTC", metadata->obs_utc_start },
 				{ "EXPTIME_START_UTC", metadata->obs_utc_start },
-				{ "ANTENNA_SET", metadata->freq_raw > 100 ? "HBA_JOINED" : "LBA_OUTER" },
-				{ "CREATE_OFFLINE_ONLINE", metadata->upm_reader == DADA_ACTIVE ? "ONLINE" : "OFFLINE" },
 				{ "TARGET", metadata->source },
-				{ "FILTER_SELECTION", filterSelection },
+				{ "FILTER_SELECTION", &(filterSelection[0]) },
 			};
 			H5G_SET_ATTRS(group, rootStrPtrAttrs, hdf5SetupStrPtrAttrs);
 
@@ -1128,7 +1133,7 @@ int64_t _lofar_udp_io_write_metadata_HDF5(lofar_udp_io_write_config *const confi
 		hsize_t maxdims[2] = { H5S_UNLIMITED, H5S_UNLIMITED };
 		hsize_t chunk_dims[2] = { 4096, 32 };
 		H5_ERR_CHECK(status, H5Pset_chunk(prop, rank, chunk_dims));
-		char dsetName[DEF_STR_LEN], componentStr[16] = "";
+		char componentStr[16] = "";
 		const char delim = '-';
 		char *component = NULL;
 
@@ -1166,6 +1171,7 @@ int64_t _lofar_udp_io_write_metadata_HDF5(lofar_udp_io_write_config *const confi
 				config->hdf5Writer.hdf5DSetWriter[outputs].dims[1] = metadata->nchan;
 				H5_ERR_CHECK(dataspace, H5Screate_simple(rank, config->hdf5Writer.hdf5DSetWriter->dims, maxdims));
 
+				char dsetName[DEF_STR_LEN] = "";
 				if (snprintf(dsetName, DEF_STR_LEN - 1, "/SUB_ARRAY_POINTING_000/BEAM_000/STOKES_%d", i) < 1) {
 					fprintf(stderr, "ERROR: Failed to print dataset name for dset %d, exiting.\n", i);
 					return -1;
