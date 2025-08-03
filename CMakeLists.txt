@@ -319,7 +319,12 @@ install(TARGETS lofudpman lofar_udp_extractor lofar_stokes_extractor
 )
 install(FILES ${UDP_INCLUDE_FILES} DESTINATION include)
 install(PROGRAMS ${CMAKE_CURRENT_SOURCE_DIR}/src/misc/dreamBeamJonesGenerator.py DESTINATION bin)
-install(PROGRAMS dada_db dada_dbmeminfo dada_dbmetric dada_dbmonitor DESTINATION bin)
+install(PROGRAMS
+        ${psrdada_src_INSTALL_DIR}/apps/dada_db
+        ${psrdada_src_INSTALL_DIR}/apps/dada_dbmeminfo
+        ${psrdada_src_INSTALL_DIR}/apps/dada_dbmetric
+        ${psrdada_src_INSTALL_DIR}/apps/dada_dbmonitor
+        DESTINATION bin)
 
 # Add the tests directory
 enable_testing()
