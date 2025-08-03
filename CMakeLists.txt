@@ -110,7 +110,7 @@ set(ZSTD_BUILD_STATIC ON CACHE INTERNAL "")
 set(ZSTD_BUILD_SHARED OFF CACHE INTERNAL "")
 FetchContent_Declare(zstd
                      GIT_REPOSITORY https://github.com/facebook/zstd.git
-                     GIT_TAG v1.5.4
+                     GIT_TAG v1.5.7
 					 EXCLUDE_FROM_ALL
 )
 FetchContent_MakeAvailable(zstd)
