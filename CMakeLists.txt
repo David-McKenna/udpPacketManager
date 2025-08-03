@@ -188,7 +188,7 @@ message ("Configuring PSRDADA")
 # Disable CUDA for the PSRDADA compile
 FetchContent_Declare(psrdada_src
 					 GIT_REPOSITORY https://github.com/mirror-psrdada/mirror-psrdada-code.git
-					 GIT_TAG bf9a02e
+					 GIT_TAG 1e48b65e90b279683134f91395668b38e58f7646
 					 EXCLUDE_FROM_ALL
 )
 FetchContent_MakeAvailable(psrdada_src)

@@ -768,6 +768,8 @@ int32_t _lofar_udp_setup_processing(lofar_udp_obs_meta *meta) {
 		case STOKES_V_REV ... STOKES_V_DS16_REV:
 		case STOKES_IQUV_REV ... STOKES_IQUV_DS16_REV:
 		case STOKES_IV_REV ... STOKES_IV_DS16_REV:
+		case POWER_XY ... POWER_XY_DS16:
+		case POWER_XY_REV ... POWER_XY_DS16_REV:
 			meta->dataOrder = FREQUENCY_MAJOR;
 			break;
 
@@ -779,6 +781,7 @@ int32_t _lofar_udp_setup_processing(lofar_udp_obs_meta *meta) {
 		case STOKES_V_TIME ... STOKES_V_DS16_TIME:
 		case STOKES_IQUV_TIME ... STOKES_IQUV_DS16_TIME:
 		case STOKES_IV_TIME ... STOKES_IV_DS16_TIME:
+        case POWER_XY_TIME ... POWER_XY_DS16_TIME:
 			meta->dataOrder = TIME_MAJOR;
 			break;
 
@@ -875,6 +878,9 @@ int32_t _lofar_udp_setup_processing(lofar_udp_obs_meta *meta) {
 		case STOKES_IV ... STOKES_IV_DS16:
 		case STOKES_IV_REV ... STOKES_IV_DS16_REV:
 		case STOKES_IV_TIME ... STOKES_IV_DS16_TIME:
+		case POWER_XY ... POWER_XY_DS16:
+		case POWER_XY_REV ... POWER_XY_DS16_REV:
+		case POWER_XY_TIME ... POWER_XY_DS16_TIME:
 			meta->numOutputs = 2;
 			meta->outputBitMode = 32;
 			// 4 input words -> 2 larger word

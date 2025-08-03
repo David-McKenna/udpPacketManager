@@ -66,6 +66,11 @@ static inline float stokesV(float Xr, float Xi, float Yr, float Yi) {
 	return 2.0f * ((Xr * Yi) - (Xi * Yr));
 }
 
+#pragma omp declare simd
+static inline float polPower(float r, float i) {
+	return (r * r) + (i * i);
+}
+
 #ifdef __cplusplus
 }
 
@@ -764,7 +769,7 @@ static inline void udp_fullStokesDecimation(int64_t iLoop, const int8_t *inputPo
 	}
 }
 
-// Stokes I/Q Parameter output, in a given order (varies wildly based on input parameters)
+// Stokes I/V Parameter output, in a given order (varies wildly based on input parameters)
 template<typename I, typename O, const int32_t order, const int8_t calibrateData>
 static inline void
 udp_usefulStokes(int64_t iLoop, const int8_t *inputPortData, O **outputData, int64_t lastInputPacketOffset, int64_t packetOutputLength,
@@ -807,7 +812,7 @@ udp_usefulStokes(int64_t iLoop, const int8_t *inputPortData, O **outputData, int
 	}
 }
 
-// Stokes I/Q Parameter output, in a given order (varies wildly based on input parameters), with downsampling by a factor up to 16
+// Stokes I/V Parameter output, in a given order (varies wildly based on input parameters), with downsampling by a factor up to 16
 template<typename I, typename O, const int32_t order, const int32_t factor, const int8_t calibrateData>
 static inline void udp_usefulStokesDecimation(int64_t iLoop, const int8_t *inputPortData, O **outputData, int64_t lastInputPacketOffset,
 									   int64_t packetOutputLength, int32_t timeStepSize, int32_t totalBeamlets, int32_t upperBeamlet,
@@ -856,6 +861,95 @@ static inline void udp_usefulStokesDecimation(int64_t iLoop, const int8_t *input
 			outputData[1][tsOutOffset] = tempValV;
 			tempValI = 0.0f;
 			tempValV = 0.0f;
+		}
+	}
+}
+
+
+// Power X/Y Parameter output, in a given order (varies wildly based on input parameters)
+template<typename I, typename O, const int32_t order, const int8_t calibrateData>
+static inline void
+udp_splitPower(int64_t iLoop, const int8_t *inputPortData, O **outputData, int64_t lastInputPacketOffset, int64_t packetOutputLength,
+				 int32_t timeStepSize, int32_t totalBeamlets, int32_t upperBeamlet, int32_t cumulativeBeamlets,
+				 int64_t packetsPerIteration, int32_t baseBeamlet, const float *jonesMatrix) {
+
+	const int64_t outputPacketOffset = outputPacketOffsetCalc<O, order, 1>(iLoop, packetOutputLength);
+
+	O Xr[UDPNTIMESLICE], Xi[UDPNTIMESLICE], Yr[UDPNTIMESLICE], Yi[UDPNTIMESLICE];
+	const float *beamletJones;
+
+
+	for (int32_t beamlet = baseBeamlet; beamlet < upperBeamlet; beamlet++) {
+		const int64_t tsInOffsetBase = input_offset_index(lastInputPacketOffset, beamlet, timeStepSize);
+		const int64_t tsOutOffsetBase = outputTsOffsetBaseCalc<order, 1>(outputPacketOffset, totalBeamlets, beamlet, baseBeamlet, cumulativeBeamlets, packetsPerIteration);
+
+		TYPE_AND_CAL_SETUP(I, O);
+
+		FALLBACK_LOOP_OPTIMISATION
+		for (int32_t ts = 0; ts < UDPNTIMESLICE; ts++) {
+			const int64_t tsInOffset = ts * UDPNPOL;
+			const int64_t tsOutOffset = outputTsOffsetCalc<order>(tsOutOffsetBase, ts, totalBeamlets);
+
+			if constexpr (calibrateData) {
+				calibrateDataFunc<I, O>(&Xr[ts], &Xi[ts], &Yr[ts], &Yi[ts], beamletJones, castPtr, tsInOffset);
+
+				outputData[0][tsOutOffset] = polPower(Xr[ts], Xi[ts]);
+				outputData[1][tsOutOffset] = polPower(Yr[ts], Yi[ts]);
+			} else {
+				outputData[0][tsOutOffset] = polPower(castPtr[tsInOffset],
+													 castPtr[tsInOffset + 1];
+				outputData[1][tsOutOffset] = polPower(castPtr[tsInOffset + 2],
+													 castPtr[tsInOffset + 3]);
+			}
+		}
+	}
+}
+
+// Power X/Y Parameter output, in a given order (varies wildly based on input parameters), with downsampling by a factor up to 16
+template<typename I, typename O, const int32_t order, const int32_t factor, const int8_t calibrateData>
+static inline void udp_splitPowerDecimation(int64_t iLoop, const int8_t *inputPortData, O **outputData, int64_t lastInputPacketOffset,
+									   int64_t packetOutputLength, int32_t timeStepSize, int32_t totalBeamlets, int32_t upperBeamlet,
+									   int32_t cumulativeBeamlets, int64_t packetsPerIteration, int32_t baseBeamlet,
+									   const float *jonesMatrix) {
+
+	const int64_t outputPacketOffset = outputPacketOffsetCalc<O, order, factor>(iLoop, packetOutputLength);
+
+	O tempValX, tempValY;
+	O Xr[UDPNTIMESLICE], Xi[UDPNTIMESLICE], Yr[UDPNTIMESLICE], Yi[UDPNTIMESLICE];
+	const float *beamletJones;
+
+	for (int32_t beamlet = baseBeamlet; beamlet < upperBeamlet; beamlet++) {
+		const int64_t tsInOffsetBase = input_offset_index(lastInputPacketOffset, beamlet, timeStepSize);
+		const int64_t tsOutOffsetBase = outputTsOffsetBaseCalc<order, factor>(outputPacketOffset, totalBeamlets, beamlet, baseBeamlet, cumulativeBeamlets, packetsPerIteration);
+
+		TYPE_AND_CAL_SETUP(I, O);
+
+		tempValX = 0.0f;
+		tempValY = 0.0f;
+
+		FALLBACK_LOOP_OPTIMISATION
+		for (int32_t ts = 0; ts < static_cast<int32_t>(UDPNTIMESLICE / factor); ts++) {
+			const int64_t tsOutOffset = outputTsOffsetCalc<order>(tsOutOffsetBase, ts, totalBeamlets);
+			for (int32_t tss = 0; tss < factor; tss++) {
+				const int32_t calIdx = (tss + ts * factor);
+				const int64_t tsInOffset = calIdx * UDPNPOL;
+
+				if constexpr (calibrateData) {
+					calibrateDataFunc<I, O>(&Xr[calIdx], &Xi[calIdx], &Yr[calIdx], &Yi[calIdx], beamletJones, castPtr, tsInOffset);
+
+					tempValI += polPower(Xr[calIdx], Xi[calIdx]);
+					tempValV += polPower(Yr[calIdx], Yi[calIdx]);
+				} else {
+					tempValI += polPower(castPtr[tsInOffset],
+					                    castPtr[tsInOffset + 1]);
+					tempValV += polPower(castPtr[tsInOffset + 2],
+					                    castPtr[tsInOffset + 3]);
+				}
+			}
+			outputData[0][tsOutOffset] = tempValX;
+			outputData[1][tsOutOffset] = tempValY;
+			tempValX = 0.0f;
+			tempValY = 0.0f;
 		}
 	}
 }
@@ -1462,6 +1556,54 @@ int32_t lofar_udp_raw_loop(lofar_udp_obs_meta *meta) {
 					                                                             jonesMatrix);
 				} else if constexpr (trueState >= STOKES_IV_DS2_TIME && trueState <= STOKES_IV_DS16_TIME) {
 					udp_usefulStokesDecimation<I, O, 2, decimation, calibrateData>(iLoop, inputPortData, outputData,
+					                                                               lastInputPacketOffset,
+					                                                               packetOutputLength, timeStepSize,
+					                                                               totalBeamlets, upperBeamlet,
+					                                                               cumulativeBeamlets,
+					                                                               outputPacketsPerIteration, baseBeamlet,
+					                                                               jonesMatrix);
+		        } else if constexpr (trueState == POWER_XY) {
+					udp_splitPower<I, O, 0, decimation, calibrateData>(iLoop, inputPortData, outputData,
+					                                                               lastInputPacketOffset,
+					                                                               packetOutputLength, timeStepSize,
+					                                                               totalBeamlets, upperBeamlet,
+					                                                               cumulativeBeamlets,
+					                                                               outputPacketsPerIteration, baseBeamlet,
+					                                                               jonesMatrix);
+			    } else if constexpr (trueState == POWER_XY_REV) {
+					udp_splitPower<I, O, 1, decimation, calibrateData>(iLoop, inputPortData, outputData,
+					                                                               lastInputPacketOffset,
+					                                                               packetOutputLength, timeStepSize,
+					                                                               totalBeamlets, upperBeamlet,
+					                                                               cumulativeBeamlets,
+					                                                               outputPacketsPerIteration, baseBeamlet,
+					                                                               jonesMatrix);
+			    } else if constexpr (trueState == POWER_XY_TIME) {
+					udp_splitPower<I, O, 2, decimation, calibrateData>(iLoop, inputPortData, outputData,
+					                                                               lastInputPacketOffset,
+					                                                               packetOutputLength, timeStepSize,
+					                                                               totalBeamlets, upperBeamlet,
+					                                                               cumulativeBeamlets,
+					                                                               outputPacketsPerIteration, baseBeamlet,
+					                                                               jonesMatrix);
+                } else if constexpr (trueState >= POWER_XY_DS2 && trueState <= POWRER_XY_DS16) {
+					udp_splitPowerDecimation<I, O, 0, decimation, calibrateData>(iLoop, inputPortData, outputData,
+					                                                               lastInputPacketOffset,
+					                                                               packetOutputLength, timeStepSize,
+					                                                               totalBeamlets, upperBeamlet,
+					                                                               cumulativeBeamlets,
+					                                                               outputPacketsPerIteration, baseBeamlet,
+					                                                               jonesMatrix);
+			    } else if constexpr (trueState >= POWER_XY_DS2_REV && trueState <= POWER_XY_DS16_REV) {
+					udp_splitPowerDecimation<I, O, 1, decimation, calibrateData>(iLoop, inputPortData, outputData,
+					                                                               lastInputPacketOffset,
+					                                                               packetOutputLength, timeStepSize,
+					                                                               totalBeamlets, upperBeamlet,
+					                                                               cumulativeBeamlets,
+					                                                               outputPacketsPerIteration, baseBeamlet,
+					                                                               jonesMatrix);
+			    } else if constexpr (trueState >= POWER_XY_DS2_TIME && trueState <= POWER_XY_DS16_TIME) {
+					udp_splitPowerDecimation<I, O, 2, decimation, calibrateData>(iLoop, inputPortData, outputData,
 					                                                               lastInputPacketOffset,
 					                                                               packetOutputLength, timeStepSize,
 					                                                               totalBeamlets, upperBeamlet,
