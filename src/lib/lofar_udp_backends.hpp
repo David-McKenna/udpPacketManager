@@ -897,7 +897,7 @@ udp_splitPower(int64_t iLoop, const int8_t *inputPortData, O **outputData, int64
 				outputData[1][tsOutOffset] = polPower(Yr[ts], Yi[ts]);
 			} else {
 				outputData[0][tsOutOffset] = polPower(castPtr[tsInOffset],
-													 castPtr[tsInOffset + 1];
+													 castPtr[tsInOffset + 1]);
 				outputData[1][tsOutOffset] = polPower(castPtr[tsInOffset + 2],
 													 castPtr[tsInOffset + 3]);
 			}
@@ -937,12 +937,12 @@ static inline void udp_splitPowerDecimation(int64_t iLoop, const int8_t *inputPo
 				if constexpr (calibrateData) {
 					calibrateDataFunc<I, O>(&Xr[calIdx], &Xi[calIdx], &Yr[calIdx], &Yi[calIdx], beamletJones, castPtr, tsInOffset);
 
-					tempValI += polPower(Xr[calIdx], Xi[calIdx]);
-					tempValV += polPower(Yr[calIdx], Yi[calIdx]);
+					tempValX += polPower(Xr[calIdx], Xi[calIdx]);
+					tempValY += polPower(Yr[calIdx], Yi[calIdx]);
 				} else {
-					tempValI += polPower(castPtr[tsInOffset],
+					tempValX += polPower(castPtr[tsInOffset],
 					                    castPtr[tsInOffset + 1]);
-					tempValV += polPower(castPtr[tsInOffset + 2],
+					tempValY += polPower(castPtr[tsInOffset + 2],
 					                    castPtr[tsInOffset + 3]);
 				}
 			}
@@ -1563,7 +1563,8 @@ int32_t lofar_udp_raw_loop(lofar_udp_obs_meta *meta) {
 					                                                               outputPacketsPerIteration, baseBeamlet,
 					                                                               jonesMatrix);
 		        } else if constexpr (trueState == POWER_XY) {
-					udp_splitPower<I, O, 0, decimation, calibrateData>(iLoop, inputPortData, outputData,
+
+					udp_splitPower<I, O, 0, calibrateData>(iLoop, inputPortData, outputData,
 					                                                               lastInputPacketOffset,
 					                                                               packetOutputLength, timeStepSize,
 					                                                               totalBeamlets, upperBeamlet,
@@ -1571,7 +1572,7 @@ int32_t lofar_udp_raw_loop(lofar_udp_obs_meta *meta) {
 					                                                               outputPacketsPerIteration, baseBeamlet,
 					                                                               jonesMatrix);
 			    } else if constexpr (trueState == POWER_XY_REV) {
-					udp_splitPower<I, O, 1, decimation, calibrateData>(iLoop, inputPortData, outputData,
+					udp_splitPower<I, O, 1, calibrateData>(iLoop, inputPortData, outputData,
 					                                                               lastInputPacketOffset,
 					                                                               packetOutputLength, timeStepSize,
 					                                                               totalBeamlets, upperBeamlet,
@@ -1579,14 +1580,14 @@ int32_t lofar_udp_raw_loop(lofar_udp_obs_meta *meta) {
 					                                                               outputPacketsPerIteration, baseBeamlet,
 					                                                               jonesMatrix);
 			    } else if constexpr (trueState == POWER_XY_TIME) {
-					udp_splitPower<I, O, 2, decimation, calibrateData>(iLoop, inputPortData, outputData,
+					udp_splitPower<I, O, 2, calibrateData>(iLoop, inputPortData, outputData,
 					                                                               lastInputPacketOffset,
 					                                                               packetOutputLength, timeStepSize,
 					                                                               totalBeamlets, upperBeamlet,
 					                                                               cumulativeBeamlets,
 					                                                               outputPacketsPerIteration, baseBeamlet,
 					                                                               jonesMatrix);
-                } else if constexpr (trueState >= POWER_XY_DS2 && trueState <= POWRER_XY_DS16) {
+                } else if constexpr (trueState >= POWER_XY_DS2 && trueState <= POWER_XY_DS16) {
 					udp_splitPowerDecimation<I, O, 0, decimation, calibrateData>(iLoop, inputPortData, outputData,
 					                                                               lastInputPacketOffset,
 					                                                               packetOutputLength, timeStepSize,
